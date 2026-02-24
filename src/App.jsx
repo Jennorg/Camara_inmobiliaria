@@ -2,6 +2,8 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Cursos from './Talleres';
 import Home from './Home';
+//Pages
+import MisionVision from './pages/MisionVision/MisionVision';
 
 export default function LandingBolivar() {
  
@@ -10,6 +12,7 @@ export default function LandingBolivar() {
       <Routes>
         <Route path="/" element={<Home/>} />
         <Route path="/cursos" element={<Cursos/>} />
+        <Route path='/mision_vision' element={<MisionVision/>} />
       </Routes>
     </BrowserRouter>
   );
