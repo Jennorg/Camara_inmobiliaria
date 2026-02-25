@@ -1,1 +1,151 @@
 @import "tailwindcss";
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes curtainDown {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-reveal {
+  animation: revealUp 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-curtain {
+  animation: curtainDown 1.5s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+}
+@keyframes bg-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+@keyframes curtain-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes text-reveal {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-bg-zoom {
+  animation: bg-zoom 10s ease-out forwards;
+}
+
+.animate-curtain {
+  animation: curtain-down 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-text-reveal {
+  animation: text-reveal 1s ease-out forwards;
+}
+
+/* Esto debe estar en tu archivo CSS principal */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-on-scroll.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animación de entrada para el texto del Header */
+@keyframes headerTextUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animación de zoom suave para el fondo */
+@keyframes headerBgZoom {
+  from { transform: scale(1.1); }
+  to { transform: scale(1); }
+}
+
+.animate-header-text {
+  animation: headerTextUp 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-header-bg {
+  animation: headerBgZoom 2s ease-out forwards;
+}
+.formacion-panel {
+  transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  filter: grayscale(100%);
+}
+
+.formacion-panel:hover {
+  flex: 2; /* El panel se agranda */
+  filter: grayscale(0%);
+}
+
+.formacion-panel:not(:hover) {
+  flex: 1; /* Los demás se mantienen pequeños */
+}
+.formacion-panel {
+  transition: all 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  filter: grayscale(100%);
+}
+
+.formacion-panel:hover {
+  flex: 2; /* El panel se agranda */
+  filter: grayscale(0%);
+}
+
+.formacion-panel:not(:hover) {
+  flex: 1; /* Los demás se mantienen pequeños */
+}
+
+@layer utilities {
+  .animate-marquee {
+    display: inline-flex;
+    animation: marquee 25s linear infinite;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-33.33%); } /* Ajustado según la cantidad de repeticiones */
+  }
+}
+
+/* Opcional: Pausar al pasar el mouse */
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+.animate-marquee {
+  display: inline-flex;
+  animation: marquee 30s linear infinite;
+}
+
+.pause {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
