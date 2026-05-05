@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Fuse from 'fuse.js';
 import { Search, Users, Loader2 } from 'lucide-react';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
-import Navbar from '@/pages/landing/components/navbar/Navbar';
+import Navbar from '@/pages/landing/components/navbar/Navbar4';
 import Footer from '@/pages/landing/components/Footer';
 import { Link } from 'react-router-dom';
 import { API_URL } from '@/config/env';

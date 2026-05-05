@@ -21,7 +21,7 @@ export default function LandingPage() {
   const [darkMode, setDarkMode] = useState(false)
 
   return (
-    <div className={`${darkMode ? 'dark bg-[#022c22]' : 'bg-[#022c22]'} transition-colors duration-300`}>
+    <div className={`${darkMode ? 'dark bg-[#ffffff]' : 'bg-[#ffffff]'} transition-colors duration-300`}>
       <SEO
         title="Camara Inmobiliaria de Bolivar"
         description="Página oficial de la Cámara Inmobiliaria del Estado Bolívar (CIBIR). Encuentra las mejores inmobiliarias en Bolívar, profesionales certificados y formación de vanguardia."

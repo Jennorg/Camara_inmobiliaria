@@ -4,7 +4,7 @@ import bgCaracas from "../assets/Pzo.jpg";
 import logoPadi from "../assets/Padi.jpg";
 import Estudiosa from "../assets/estudiosa1.png";
 import Estudioso from "../assets/estudioso1.png";
-import Navbar from '@/pages/landing/components/navbar/Navbar';
+import Navbar from '@/pages/landing/components/navbar/Navbar4';
 
 // --- INTERFACES ---
 interface ModuloProps {
