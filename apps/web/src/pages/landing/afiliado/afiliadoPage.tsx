@@ -19,6 +19,7 @@ import AffiliationTimeline from '@/pages/landing/afiliado/components/Affiliation
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import { formatNombreCard } from '@/utils/formatters';
+import { AfiliadoDTO as Afiliado } from '@/types/afiliados';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Resumen / Inicio' },
@@ -34,35 +35,28 @@ const AfiliadoPage = () => {
   const [activeTab, setActiveTab] = useState('Resumen / Inicio');
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [agremiado, setAgremiado] = useState<{
-    nombre_completo: string;
-    nombres: string | null;
-    apellidos: string | null;
-    codigo_cibir: string | null;
-    estatus: string;
-    inscripcion_pagada: number;
-  } | null>(null);
+  const [afiliado, setAfiliado] = useState<Afiliado | null>(null);
 
-  const fetchAgremiado = () => {
-    if (!user?.id_agremiado || !token) return;
-    fetch(`${API_URL}/api/afiliados/${user.id_agremiado}`, {
+  const fetchAfiliado = () => {
+    if (!user?.id_afiliado || !token) return;
+    fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(d => { if (d.success) setAgremiado(d.data) })
+      .then(d => { if (d.success) setAfiliado(d.data) })
       .catch(() => { });
   };
 
   useEffect(() => {
-    fetchAgremiado();
-  }, [user?.id_agremiado, token]);
+    fetchAfiliado();
+  }, [user?.id_afiliado, token]);
 
-  const displayName = agremiado ? formatNombreCard(agremiado.nombres || agremiado.nombre_completo, agremiado.apellidos) : (user?.email?.split('@')[0] ?? 'Afiliado');
-  const displayCode = agremiado?.codigo_cibir ?? '—';
-  const isActivo = agremiado?.estatus === '9_AFILIACION';
-  const isPaid = agremiado?.inscripcion_pagada === 1;
+  const displayName = afiliado ? formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos) : (user?.email?.split('@')[0] ?? 'Afiliado');
+  const displayCode = afiliado?.codigo_cibir ?? '—';
+  const isActivo = afiliado?.estatus === 'Afiliado';
+  const isPaid = afiliado?.inscripcion_pagada === 1;
   const isLimited = isActivo && !isPaid;
-  const inProcess = agremiado && agremiado.estatus !== '9_AFILIACION' && !agremiado.estatus.includes('Moroso') && !agremiado.estatus.includes('Suspendido') && !agremiado.estatus.includes('Rechazado');
+  const inProcess = afiliado && !['Afiliado', 'Moroso', 'Suspendido', 'Rechazado'].includes(afiliado.estatus);
 
   const filteredNavItems = isLimited
     ? [
@@ -108,14 +102,14 @@ const AfiliadoPage = () => {
             >
               <CheckCircle size={15} className={isLimited ? 'text-amber-500' : 'text-[var(--color-accent)]'} />
               <span className={`font-black text-[10px] uppercase tracking-widest ${isLimited ? 'text-amber-700' : 'text-[var(--color-accent-hover)]'}`}>
-                {isLimited ? 'CIBIR Restringido (Pago Pendiente)' : isActivo ? 'CIBIR Activo' : agremiado ? `Estado: ${agremiado.estatus.replace(/_/g, ' ')}` : 'Afiliado'}
+                {isLimited ? 'CIBIR Restringido (Pago Pendiente)' : isActivo ? 'CIBIR Activo' : afiliado ? `Estado: ${afiliado.estatus.replace(/_/g, ' ')}` : 'Afiliado'}
               </span>
             </div>
           </div>
 
           {/* Timeline for process */}
           {inProcess && (
-            <AffiliationTimeline currentStatus={agremiado.estatus} />
+            <AffiliationTimeline currentStatus={afiliado.estatus} />
           )}
 
           {/* Widget grid */}
@@ -123,7 +117,7 @@ const AfiliadoPage = () => {
             {activeTab === 'Resumen / Inicio' && (
               isLimited ? (
                 <div className="col-span-1 lg:col-span-3">
-                  <WidgetFormalizarInscripcion onSuccess={fetchAgremiado} />
+                  <WidgetFormalizarInscripcion onSuccess={fetchAfiliado} />
                 </div>
               ) : (
                 <>

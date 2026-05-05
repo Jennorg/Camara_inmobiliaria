@@ -2,15 +2,13 @@ import React from 'react';
 import { Check, ClipboardList, Mail, UserCheck, Calendar, Users, Award, CreditCard, ShieldCheck } from 'lucide-react';
 
 const STEPS = [
-  { id: '1_SOLICITUD', label: 'Solicitud', icon: ClipboardList, desc: 'Solicitud inicial registrada' },
-  { id: '2_REQUISITOS', label: 'Requisitos', icon: Mail, desc: 'Envío de recaudos vía email' },
-  { id: '3_CONFIRMACION', label: 'Confirmación', icon: UserCheck, desc: 'Validación de información' },
-  { id: '4_RECEPCION', label: 'Recepción', icon: ShieldCheck, desc: 'Revisión y cita para entrevista' },
-  { id: '5_ENTREVISTA', label: 'Entrevista', icon: Calendar, desc: 'Entrevista presencial/virtual' },
-  { id: '6_JUNTA_DIRECTIVA', label: 'Junta Directiva', icon: Users, desc: 'Aprobación de la directiva' },
-  { id: '7_RESULTADO', label: 'Resultado', icon: Award, desc: 'Notificación de aprobación' },
-  { id: '8_FORMALIZACION', label: 'Formalización', icon: CreditCard, desc: 'Pago y carta compromiso' },
-  { id: '9_AFILIACION', label: 'Afiliación', icon: Check, desc: 'Miembro activo de la Cámara' },
+  { id: '1_PREINSCRIPCION', label: 'Preinscripción', icon: ClipboardList, desc: 'Solicitud inicial registrada' },
+  { id: '2_EXPEDIENTE', label: 'Expediente', icon: Mail, desc: 'Carga de documentos y recaudos' },
+  { id: '3_ENTREVISTA', label: 'Entrevista', icon: Calendar, desc: 'Cita con la comisión de admisión' },
+  { id: '4_VERIFICACION', label: 'Verificación', icon: ShieldCheck, desc: 'Validación de referencias y datos' },
+  { id: '5_CIBIR', label: 'CIBIR', icon: GraduationCap, desc: 'Validación de conocimientos inmobiliarios' },
+  { id: '6_INSCRIPCION', label: 'Inscripción', icon: CreditCard, desc: 'Aprobación final y pago de arancel' },
+  { id: 'Afiliado', label: 'Afiliación', icon: Check, desc: 'Miembro activo de la Cámara' },
 ];
 
 interface AffiliationTimelineProps {
@@ -118,11 +116,11 @@ const AffiliationTimeline = ({ currentStatus }: AffiliationTimelineProps) => {
               <ClipboardList size={20} />
            </div>
            <div>
-              <h5 className="text-sm font-bold text-slate-800">Estado Actual: {STEPS[activeIndex].label}</h5>
+              <h5 className="text-sm font-bold text-slate-800">Estado Actual: {STEPS[activeIndex]?.label || 'Procesando...'}</h5>
               <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                {activeIndex === 8 
+                {activeIndex === 6 
                   ? "¡Felicidades! Ya eres un miembro activo de la Cámara Inmobiliaria de Bolívar."
-                  : `Tu solicitud está siendo procesada. Actualmente te encuentras en la etapa de ${STEPS[activeIndex].label.toLowerCase()}. ${STEPS[activeIndex].desc}.`
+                  : `Tu solicitud está siendo procesada. Actualmente te encuentras en la etapa de ${(STEPS[activeIndex]?.label || '').toLowerCase()}. ${STEPS[activeIndex]?.desc || ''}.`
                 }
               </p>
            </div>

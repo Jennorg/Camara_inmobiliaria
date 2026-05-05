@@ -3,7 +3,7 @@ import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
-import { generarCredenciales } from '../lib/credentials.js';
+
 import {
   enviarCorreoVerificacion,
   enviarCorreoAprobacion,
@@ -15,19 +15,19 @@ import bcrypt from 'bcryptjs';
 
 /**
  * GET /api/afiliados/:id
- * Obtiene un agremiado por ID. Protegido por auth.
+ * Obtiene un afiliado por ID. Protegido por auth.
  * Un afiliado solo puede ver sus propios datos; los admins pueden ver cualquiera.
  */
 /**
  * GET /api/afiliados/me/certificados
- * Lista comprobantes digitales del agremiado autenticado (vinculación por id_agremiado o email).
+ * Lista comprobantes digitales del afiliado autenticado (vinculación por id_afiliado o email).
  */
 export const getMisCertificados = async (req: Request, res: Response): Promise<void> => {
   try {
-    const idAgremiado = req.user!.id_agremiado
+    const idAfiliado = req.user!.id_afiliado
     const userEmail = (req.user!.email ?? '').trim().toLowerCase()
 
-    if (idAgremiado == null && !userEmail) {
+    if (idAfiliado == null && !userEmail) {
       res.json({ success: true, data: [] })
       return
     }
@@ -51,15 +51,16 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
         LEFT JOIN cursos cu ON cu.id_curso = ic.id_curso
         WHERE (
           (? <> '' AND LOWER(TRIM(e.email)) = ?)
-          OR (? IS NOT NULL AND e.id_agremiado = ?)
+          OR (? IS NOT NULL AND e.id_afiliado = ?)
           OR (? IS NOT NULL AND EXISTS (
-            SELECT 1 FROM agremiados ag
-            WHERE ag.id_agremiado = ? AND LOWER(TRIM(ag.email)) = LOWER(TRIM(e.email))
+            SELECT 1 FROM afiliados af
+            JOIN personas p_af ON af.id_persona = p_af.id
+            WHERE af.id_afiliado = ? AND LOWER(TRIM(p_af.email)) = LOWER(TRIM(e.email))
           ))
         )
         ORDER BY c.fecha_emision DESC
       `,
-      args: [userEmail, userEmail, idAgremiado, idAgremiado, idAgremiado, idAgremiado],
+      args: [userEmail, userEmail, idAfiliado, idAfiliado, idAfiliado, idAfiliado],
     })
 
     res.json({ success: true, data: result.rows })
@@ -72,31 +73,71 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
 export const getAfiliadoById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const requesterId = req.user!.id_agremiado
+    const requesterId = req.user!.id_afiliado
     const requesterRoles = req.user!.roles ?? [req.user!.rol]
 
     // Afiliados solo pueden consultar su propio registro
-    if (!requesterRoles.some(r => ['admin','super_admin'].includes(r)) && requesterId !== Number(id)) {
+    if (!requesterRoles.some(r => ['admin', 'super_admin'].includes(r)) && requesterId !== Number(id)) {
       res.status(403).json({ success: false, message: 'Acceso denegado' })
       return
     }
 
     const result = await db.execute({
       sql: `SELECT a.*, 
-                   corp.razon_social as corp_razon_social, 
-                   corp.cedula_rif as corp_rif
-            FROM agremiados a
-            LEFT JOIN agremiados corp ON a.id_agremiado_corp = corp.id_agremiado
-            WHERE a.id_agremiado = ?`,
+                   p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
+                   p.fecha_nacimiento, p.nivel_academico, p.profesion,
+                   e.razon_social as empresa_razon_social, 
+                   e.rif_tipo as empresa_rif_tipo,
+                   e.rif_numero as empresa_rif_numero,
+                   e.logo_url as empresa_logo_url,
+                   e.website as empresa_website,
+                   e.email as empresa_email,
+                   e.telefono as empresa_telefono,
+                   COALESCE(e_redes.instagram, json_extract(a.redes_sociales, '$.instagram')) as instagram,
+                   COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
+                   COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
+                   COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
+                   COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo
+            FROM afiliados a
+            JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            LEFT JOIN (
+              SELECT id_empresa, 
+                     json_extract(redes_sociales, '$.instagram') as instagram,
+                     json_extract(redes_sociales, '$.facebook') as facebook,
+                     json_extract(redes_sociales, '$.linkedin') as linkedin,
+                     json_extract(redes_sociales, '$.twitter') as twitter
+              FROM empresas
+            ) e_redes ON a.id_empresa = e_redes.id_empresa
+            WHERE a.id_afiliado = ?`,
       args: [Number(id)],
     })
 
     if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Agremiado no encontrado' })
+      res.status(404).json({ success: false, message: 'Afiliado no encontrado' })
       return
     }
 
-    res.status(200).json({ success: true, data: result.rows[0] })
+    const afiliado = result.rows[0]
+
+    // Buscar documentos adjuntos
+    const docsResult = await db.execute({
+      sql: `SELECT id_documento, tipo_doc, url, nombre_archivo, creado_en
+            FROM documentos_adjuntos
+            WHERE (entidad_tipo = 'afiliado' AND entidad_id = ?)
+               OR (entidad_tipo = 'empresa' AND entidad_id = ?)
+               OR (entidad_tipo = 'estudiante' AND entidad_id = (SELECT id_estudiante FROM estudiantes WHERE id_persona = ?))
+            ORDER BY creado_en ASC`,
+      args: [afiliado.id_afiliado, afiliado.id_empresa || -1, afiliado.id_persona]
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...afiliado,
+        documentos: docsResult.rows
+      }
+    })
   } catch (error) {
     console.error('Error en getAfiliadoById:', error)
     res.status(500).json({ success: false, message: 'Error interno del servidor' })
@@ -107,10 +148,10 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
 
 export const registerAfiliado = async (req: Request, res: Response) => {
   try {
-    const { 
-      nombreCompleto, 
-      email, 
-      cedulaRif, 
+    const {
+      nombreCompleto,
+      email,
+      cedulaRif,
       telefono,
       razonSocial,
       nombres,
@@ -124,19 +165,24 @@ export const registerAfiliado = async (req: Request, res: Response) => {
 
     // Validación básica (nombre_completo es generado, no se necesita)
     if (!email || !cedulaRif || !telefono) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Los campos básicos son requeridos (email, cedulaRif, telefono)' 
+      return res.status(400).json({
+        success: false,
+        message: 'Los campos básicos son requeridos (email, cedulaRif, telefono)'
       });
     }
 
-    // Verificar si ya existe en agremiados (email o cedula)
-    const existeAgremiado = await db.execute({
-      sql: `SELECT id_agremiado FROM agremiados WHERE email = ? OR cedula_rif = ?`,
+    // Verificar si ya existe en personas o empresas
+    const existePersona = await db.execute({
+      sql: `SELECT id FROM personas WHERE email = ? OR cedula = ?`,
       args: [email, cedulaRif]
     });
 
-    if (existeAgremiado.rows.length > 0) {
+    const existeEmpresa = await db.execute({
+      sql: `SELECT id_empresa FROM empresas WHERE email = ? OR rif_numero = ?`,
+      args: [email, cedulaRif]
+    });
+
+    if (existePersona.rows.length > 0 || existeEmpresa.rows.length > 0) {
       return res.status(409).json({
         success: false,
         message: 'El email o la cédula/RIF ya se encuentran registrados en el sistema.'
@@ -222,10 +268,10 @@ export const verificarEmail = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'El token ha expirado. Debes registrarte nuevamente.' });
     }
 
-    // Idempotencia: si el agremiado ya existe (por intento previo o doble request),
+    // Idempotencia: si el afiliado ya existe (por intento previo o doble request),
     // consideramos la verificación exitosa y limpiamos el token.
     const yaExiste = await db.execute({
-      sql: `SELECT * FROM agremiados WHERE email = ? OR cedula_rif = ? LIMIT 1`,
+      sql: `SELECT p.*, a.id_afiliado FROM personas p JOIN afiliados a ON a.id_persona = p.id WHERE p.email = ? OR p.cedula = ? LIMIT 1`,
       args: [registro.email, registro.cedula_rif],
     });
     if (yaExiste.rows.length > 0) {
@@ -236,11 +282,14 @@ export const verificarEmail = async (req: Request, res: Response) => {
       return res.status(200).json({
         success: true,
         message: 'El correo ya había sido verificado previamente',
-        data: yaExiste.rows[0],
+        data: {
+          ...yaExiste.rows[0],
+          nombre_completo: yaExiste.rows[0].nombres + ' ' + yaExiste.rows[0].apellidos
+        },
       });
     }
 
-    // Insertar en agremiados — nombre_completo es columna VIRTUAL GENERATED, NO se inserta
+    // Insertar en afiliados — nombre_completo es columna VIRTUAL GENERATED, NO se inserta
     const estatus = '1_PREINSCRIPCION';
 
     try {
@@ -250,24 +299,36 @@ export const verificarEmail = async (req: Request, res: Response) => {
       const apellidos = parts.length > 1 ? parts.slice(Math.ceil(parts.length / 2)).join(' ') : ''
       const nombres = parts.length > 1 ? parts.slice(0, Math.ceil(parts.length / 2)).join(' ') : fullName
 
-      const insertResult = await db.execute({
-        sql: `INSERT INTO agremiados (
+      // Insertar en personas
+      const insertPersona = await db.execute({
+        sql: `INSERT INTO personas (
                 nombres,
                 apellidos,
                 email, 
-                cedula_rif, 
-                telefono, 
-                estatus
-              ) VALUES (?, ?, ?, ?, ?, ?) RETURNING *`,
-        args: [nombres || fullName, apellidos || null, registro.email, registro.cedula_rif, registro.telefono, estatus]
+                cedula, 
+                telefono
+              ) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+        args: [nombres || fullName, apellidos, registro.email, registro.cedula_rif, registro.telefono]
       });
 
-      const newAfiliado = insertResult.rows[0] as any;
+      const idPersona = insertPersona.rows[0].id;
 
-      if (newAfiliado?.id_agremiado) {
+      // Insertar en afiliados
+      const insertAfiliado = await db.execute({
+        sql: `INSERT INTO afiliados (
+                id_persona,
+                tipo_afiliado,
+                estatus
+              ) VALUES (?, 'Natural', ?) RETURNING *`,
+        args: [idPersona, estatus]
+      });
+
+      const newAfiliado = insertAfiliado.rows[0] as any;
+
+      if (newAfiliado?.id_afiliado) {
         await db.execute({
-          sql: `UPDATE agremiados SET codigo_cibir = CAST(id_agremiado AS TEXT) WHERE id_agremiado = ?`,
-          args: [newAfiliado.id_agremiado]
+          sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
+          args: [newAfiliado.id_afiliado]
         });
       }
 
@@ -312,30 +373,49 @@ export const getAfiliados = async (req: Request, res: Response) => {
 
     let sql = `
       SELECT a.*, 
-             corp.razon_social as corp_razon_social, 
-             corp.cedula_rif as corp_rif
-      FROM agremiados a
-      LEFT JOIN agremiados corp ON a.id_agremiado_corp = corp.id_agremiado
+             p.nombres, p.apellidos, 
+             p.cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico,
+             e.razon_social as empresa_razon_social, 
+             e.rif_tipo as empresa_rif_tipo,
+             e.rif_numero as empresa_rif_numero,
+             e.logo_url as empresa_logo_url,
+             e.website as empresa_website,
+             e.email as empresa_email,
+             e.telefono as empresa_telefono,
+             COALESCE(e_redes.instagram, json_extract(a.redes_sociales, '$.instagram')) as instagram,
+             COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
+             COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
+             COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
+             COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo
+      FROM afiliados a
+      JOIN personas p ON a.id_persona = p.id
+      LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+      LEFT JOIN (
+        SELECT id_empresa, 
+               json_extract(redes_sociales, '$.instagram') as instagram,
+               json_extract(redes_sociales, '$.facebook') as facebook,
+               json_extract(redes_sociales, '$.linkedin') as linkedin,
+               json_extract(redes_sociales, '$.twitter') as twitter
+        FROM empresas
+      ) e_redes ON a.id_empresa = e_redes.id_empresa
+      WHERE a.eliminado_en IS NULL
+        AND p.eliminado_en IS NULL
+        AND (e.eliminado_en IS NULL OR e.eliminado_en IS NULL)  -- empresas puede no existir
     `;
+
     const args: any[] = [];
-    const whereClauses: string[] = [];
 
     if (estatus) {
-      whereClauses.push('a.estatus = ?');
+      sql += ' AND a.estatus = ?';
       args.push(estatus as string);
     }
-    
+
     if (tipo_afiliado) {
-      whereClauses.push('a.tipo_afiliado = ?');
+      sql += ' AND a.tipo_afiliado = ?';
       args.push(tipo_afiliado as string);
     }
 
-    if (whereClauses.length > 0) {
-      sql += ' WHERE ' + whereClauses.join(' AND ');
-    }
-    
-    // Ordenar por fecha de registro descendente por defecto
-    sql += ' ORDER BY fecha_registro DESC';
+    sql += ' ORDER BY a.fecha_registro DESC';
 
     const result = await db.execute({ sql, args });
 
@@ -357,21 +437,24 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     const id = req.params.id as string;
 
     // 1. Verificar si existe y si su estatus es Preinscrito
-    const resultAgremiado = await db.execute({
-      sql: 'SELECT * FROM agremiados WHERE id_agremiado = ?',
+    const resultAfiliado = await db.execute({
+      sql: `SELECT a.*, p.nombres || ' ' || p.apellidos as nombre_completo, p.email as email 
+            FROM afiliados a 
+            JOIN personas p ON a.id_persona = p.id 
+            WHERE a.id_afiliado = ?`,
       args: [id]
     });
 
-    const agremiado = resultAgremiado.rows[0];
+    const afiliado = resultAfiliado.rows[0];
 
-    if (!agremiado) {
+    if (!afiliado) {
       return res.status(404).json({
         success: false,
         message: 'El candidato no fue encontrado'
       });
     }
 
-    if (['Afiliado', 'Moroso', 'Suspendido', 'Rechazado'].includes(agremiado.estatus as string)) {
+    if (['Afiliado', 'Moroso', 'Suspendido', 'Rechazado'].includes(afiliado.estatus as string)) {
       return res.status(400).json({
         success: false,
         message: 'El candidato ya tiene un estatus final y no puede ser aprobado nuevamente'
@@ -381,7 +464,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     // 2. Generar el código de Afiliado (Secuencial Numérico)
     // Buscamos el último código numérico asignado
     const resultUltimoCode = await db.execute({
-      sql: `SELECT codigo_cibir FROM agremiados 
+      sql: `SELECT codigo_cibir FROM afiliados 
             WHERE codigo_cibir GLOB '[0-9]*' 
             ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
       args: []
@@ -399,11 +482,11 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
 
     // 3. Actualizar a estatus Afiliado (aprobado final)
     const fechaCambio = new Date().toISOString();
-    
+
     const updateResult = await db.execute({
-      sql: `UPDATE agremiados 
+      sql: `UPDATE afiliados 
             SET estatus = 'Afiliado', inscripcion_pagada = 1, codigo_cibir = ?, fecha_ultimo_cambio_estatus = ?, actualizado_en = ?
-            WHERE id_agremiado = ? RETURNING *`,
+            WHERE id_afiliado = ? RETURNING *`,
       args: [codigoAfiliado, fechaCambio, fechaCambio, id]
     });
 
@@ -411,7 +494,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
 
     // 4. Preparar acceso (Usuario + Token de Seguridad)
     try {
-      if (agremiado.email) {
+      if (afiliado.email) {
         const resetToken = randomUUID();
         const expiracion = new Date();
         expiracion.setHours(expiracion.getHours() + 48);
@@ -419,22 +502,29 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
 
         // Crear el usuario en estado "por configurar" (password aleatorio inútil)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10);
-        
+
         // Insertar o actualizar usuario con el token hasheado
         const resetTokenHash = sha256(resetToken)
-        await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, id_agremiado, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, '["afiliado"]', ?, ?, ?)
+        const insertUser = await db.execute({
+          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
+                VALUES (?, ?, '["afiliado"]', ?, ?)
                 ON CONFLICT(email) DO UPDATE SET 
-                  id_agremiado = excluded.id_agremiado,
                   reset_token_hash = excluded.reset_token_hash, 
                   reset_token_expira = excluded.reset_token_expira,
-                  actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')`,
-          args: [agremiado.email, placeholderPass, id, resetTokenHash, expStr]
+                  actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+                RETURNING id`,
+          args: [afiliado.email, placeholderPass, resetTokenHash, expStr]
+        });
+
+        const newUserId = insertUser.rows[0].id;
+
+        await db.execute({
+          sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ?`,
+          args: [newUserId, id]
         });
 
         // Enviar Correo de Aprobación
-        await enviarCorreoAprobacion(agremiado.nombre_completo as string, agremiado.email as string, resetToken);
+        await enviarCorreoAprobacion(afiliado.nombre_completo as string, afiliado.email as string, resetToken);
       }
     } catch (err) {
       console.error('Error preparando acceso para afiliado:', err);
@@ -460,21 +550,21 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
     const id = req.params.id as string;
 
     // 1. Verificar si existe y si su estatus es Preinscrito
-    const resultAgremiado = await db.execute({
-      sql: 'SELECT * FROM agremiados WHERE id_agremiado = ?',
+    const resultAfiliado = await db.execute({
+      sql: 'SELECT * FROM afiliados WHERE id_afiliado = ?',
       args: [id]
     });
 
-    const agremiado = resultAgremiado.rows[0];
+    const afiliado = resultAfiliado.rows[0];
 
-    if (!agremiado) {
+    if (!afiliado) {
       return res.status(404).json({
         success: false,
         message: 'El candidato no fue encontrado'
       });
     }
 
-    if (agremiado.estatus === 'Afiliado') {
+    if (afiliado.estatus === 'Afiliado') {
       return res.status(400).json({
         success: false,
         message: 'No se puede rechazar a un afiliado activo'
@@ -483,9 +573,9 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
 
     const fechaCambio = new Date().toISOString();
     const updateResult = await db.execute({
-      sql: `UPDATE agremiados 
+      sql: `UPDATE afiliados 
             SET estatus = 'Rechazado', fecha_ultimo_cambio_estatus = ?, actualizado_en = ?
-            WHERE id_agremiado = ? RETURNING *`,
+            WHERE id_afiliado = ? RETURNING *`,
       args: [fechaCambio, fechaCambio, id]
     });
 
@@ -511,14 +601,25 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
 export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
   try {
     // REGLA CRÍTICA: Añadida cedula_rif pública
-    // REGLA DE FILTRO: Solo agremiados con estatus = 'CIBIR'.
+    // REGLA DE FILTRO: Solo afiliados con estatus = 'Afiliado'.
     // Retornamos hasta 1000 afiliados (o todos) para que fuse.js en el frontend haga la búsqueda fuzzy y filtrado local sin saturar DB
     const result = await db.execute({
       sql: `
-      SELECT id_agremiado, nombre_completo, nombres, apellidos, razon_social, codigo_cibir, cedula_rif, tipo_afiliado,
-             logo_url, instagram, facebook, linkedin, twitter, website
-      FROM agremiados 
-      WHERE estatus = 'Afiliado' AND activo = 1
+      SELECT a.id_afiliado, 
+             COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, 
+             p.nombres, p.apellidos, a.codigo_cibir, 
+             p.cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
+             a.tipo_afiliado,
+             e.razon_social as empresa_razon_social,
+             e.logo_url as empresa_logo_url, e.website as empresa_website,
+             json_extract(a.redes_sociales, '$.instagram') as instagram,
+             json_extract(a.redes_sociales, '$.facebook') as facebook,
+             json_extract(a.redes_sociales, '$.linkedin') as linkedin,
+             json_extract(a.redes_sociales, '$.twitter') as twitter
+      FROM afiliados a 
+      JOIN personas p ON a.id_persona = p.id
+      LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+      WHERE a.estatus = 'Afiliado' AND a.activo = 1
       ORDER BY nombre_completo ASC
     `,
       args: []
@@ -532,7 +633,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     // Usamos logo_url real si existe, sino ui-avatars como fallback
     const mappedData = result.rows.map((row) => ({
       ...row,
-      foto_url: (row.logo_url as string) || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.nombre_completo as string)}&background=047857&color=fff&size=200`,
+      foto_url: (row.empresa_logo_url as string) || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.nombre_completo as string)}&background=047857&color=fff&size=200`,
       redes_sociales: {
         instagram: row.instagram || '',
         linkedin: row.linkedin || '',
@@ -560,14 +661,34 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     const { id } = req.params;
     const result = await db.execute({
       sql: `
-        SELECT a.id_agremiado, a.nombre_completo, a.nombres, a.apellidos, a.razon_social, a.codigo_cibir, 
-               a.cedula_rif_tipo, a.cedula_rif, a.tipo_afiliado, a.cedula_personal, a.email, a.telefono, a.direccion, 
-               a.fecha_nacimiento, a.nivel_academico, a.notas, a.instagram, a.facebook, a.linkedin, 
-               a.twitter, a.website, a.logo_url, a.banner_url, a.fecha_registro, a.estatus, a.activo,
-               p.nombre_completo as empresa_pertenece, p.id_agremiado as empresa_id
-        FROM agremiados a
-        LEFT JOIN agremiados p ON a.id_agremiado_corp = p.id_agremiado
-        WHERE a.id_agremiado = ? AND a.estatus = 'Afiliado' AND a.activo = 1
+        SELECT a.*, 
+               COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, 
+               p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
+               p.fecha_nacimiento, p.nivel_academico, p.profesion,
+               e.razon_social as empresa_razon_social, 
+               e.rif_tipo as empresa_rif_tipo,
+               e.rif_numero as empresa_rif_numero,
+               e.logo_url as empresa_logo_url,
+               e.website as empresa_website,
+               e.email as empresa_email,
+               e.telefono as empresa_telefono,
+               COALESCE(e_redes.instagram, json_extract(a.redes_sociales, '$.instagram')) as instagram,
+               COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
+               COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
+               COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
+               e.banner_url as empresa_banner_url
+        FROM afiliados a
+        JOIN personas p ON a.id_persona = p.id
+        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+        LEFT JOIN (
+          SELECT id_empresa, 
+                 json_extract(redes_sociales, '$.instagram') as instagram,
+                 json_extract(redes_sociales, '$.facebook') as facebook,
+                 json_extract(redes_sociales, '$.linkedin') as linkedin,
+                 json_extract(redes_sociales, '$.twitter') as twitter
+          FROM empresas
+        ) e_redes ON a.id_empresa = e_redes.id_empresa
+        WHERE a.id_afiliado = ? AND a.estatus = 'Afiliado' AND a.activo = 1
       `,
       args: [Number(id)]
     });
@@ -577,10 +698,10 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     }
 
     const row = result.rows[0];
-    
+
     const mappedData: any = {
       ...row,
-      foto_url: (row.logo_url as string) || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.nombre_completo as string)}&background=047857&color=fff&size=200`,
+      foto_url: (row.empresa_logo_url as string) || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.nombre_completo as string)}&background=047857&color=fff&size=200`,
       redes_sociales: {
         instagram: row.instagram || '',
         linkedin: row.linkedin || '',
@@ -590,16 +711,20 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
       }
     };
 
-    if (row.tipo_afiliado === 'Corporativo' || row.tipo_afiliado === 'Juridico') {
+    if (row.tipo_afiliado === 'Corporativo') {
       const assocResult = await db.execute({
         sql: `
-          SELECT id_agremiado, nombre_completo, codigo_cibir, cedula_rif, tipo_afiliado, logo_url
-          FROM agremiados
-          WHERE id_agremiado_corp = ? AND estatus = 'Afiliado' AND activo = 1
+          SELECT a.id_afiliado, p.nombres || ' ' || p.apellidos as nombre_completo, a.codigo_cibir, p.cedula, a.tipo_afiliado
+          FROM afiliados a
+          JOIN personas p ON a.id_persona = p.id
+          WHERE a.id_empresa = ? AND a.estatus = 'Afiliado' AND a.activo = 1
         `,
-        args: [Number(id)]
+        args: [row.id_empresa]
       });
-      mappedData.afiliados_asociados = assocResult.rows;
+      mappedData.afiliados_asociados = assocResult.rows.map((r: any) => ({
+        ...r,
+        foto_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(r.nombre_completo)}&background=047857&color=fff&size=200`
+      }));
     }
 
     return res.status(200).json({
@@ -627,12 +752,21 @@ export const getSolicitudesCibir = async (req: Request, res: Response) => {
         SUM(CASE WHEN estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION') THEN 1 ELSE 0 END) as pendiente,
         SUM(CASE WHEN estatus = 'Afiliado' THEN 1 ELSE 0 END) as aprobado,
         SUM(CASE WHEN estatus IN ('Suspendido', 'Rechazado', 'Moroso') THEN 1 ELSE 0 END) as rechazado
-      FROM agremiados
+      FROM afiliados
     `;
     const countResult = await db.execute({ sql: countSql, args: [] });
     const counts = countResult.rows[0];
 
-    let sql = `SELECT * FROM agremiados`;
+    let sql = `
+      SELECT a.*, 
+             p.nombres, p.apellidos, 
+             p.nombres || ' ' || p.apellidos as nombre_completo, 
+             p.cedula, p.email, p.telefono,
+             e.razon_social as empresa_razon_social
+      FROM afiliados a 
+      JOIN personas p ON a.id_persona = p.id
+      LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+    `;
     const args: any[] = [];
     const whereConditions: Record<string, string> = {
       pendiente: `estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION')`,
@@ -674,20 +808,20 @@ export const getSolicitudesCibir = async (req: Request, res: Response) => {
 
 export const formalizarInscripcion = async (req: Request, res: Response) => {
   try {
-    const requesterId = req.user!.id_agremiado;
+    const requesterId = req.user!.id_afiliado;
     const { banco, referencia, monto } = req.body;
 
     if (!requesterId) {
-      return res.status(403).json({ success: false, message: 'Usuario no autenticado o sin ID de agremiado' });
+      return res.status(403).json({ success: false, message: 'Usuario no autenticado o sin perfil de afiliado' });
     }
 
     if (!banco || !referencia || !monto) {
       return res.status(400).json({ success: false, message: 'Todos los campos financieros son requeridos' });
     }
 
-    // Actualizar agremiados para marcar inscripcion_pagada = 1
+    // Actualizar afiliados para marcar inscripcion_pagada = 1
     await db.execute({
-      sql: `UPDATE agremiados SET inscripcion_pagada = 1 WHERE id_agremiado = ?`,
+      sql: `UPDATE afiliados SET inscripcion_pagada = 1 WHERE id_afiliado = ?`,
       args: [requesterId]
     });
 
@@ -744,14 +878,14 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     // Si el estatus cambia a 'Afiliado', nos aseguramos de que tenga un código de afiliado
     if (estatus === 'Afiliado') {
       const currentRes = await db.execute({
-        sql: 'SELECT codigo_cibir FROM agremiados WHERE id_agremiado = ?',
+        sql: 'SELECT codigo_cibir FROM afiliados WHERE id_afiliado = ?',
         args: [Number(id)]
       });
       const current = currentRes.rows[0];
       if (!current || !current.codigo_cibir) {
         // Generar nuevo código correlativo
         const resultUltimoCode = await db.execute({
-          sql: `SELECT codigo_cibir FROM agremiados 
+          sql: `SELECT codigo_cibir FROM afiliados 
                 WHERE codigo_cibir GLOB '[0-9]*' 
                 ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
           args: []
@@ -767,12 +901,12 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     }
 
     const result = await db.execute({
-      sql: `UPDATE agremiados SET ${setParts.join(', ')} WHERE id_agremiado = ? RETURNING *`,
+      sql: `UPDATE afiliados SET ${setParts.join(', ')} WHERE id_afiliado = ? RETURNING *`,
       args
     });
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Agremiado no encontrado' });
+      return res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
     }
 
     return res.json({ success: true, data: result.rows[0] });
@@ -786,61 +920,130 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const { id } = req.params;
     const fields = req.body;
 
-    const allowedFields = [
-      // NOTA: nombre_completo es columna GENERADA, no se puede actualizar directamente
-      'nombres', 'apellidos', 'cedula_rif', 
-      'cedula_personal', 'email', 'telefono', 'razon_social',
-      'direccion', 'fecha_nacimiento', 'nivel_academico', 'notas',
+    // Campos permitidos por entidad
+    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion'];
+    const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
-      'codigo_cibir', 'id_agremiado_corp', 'id_representante_legal',
-      'instagram', 'facebook', 'linkedin', 'twitter', 'website',
-      'logo_url', 'banner_url', 'activo'
+      'codigo_cibir', 'id_empresa', 'notas', 'activo', 'redes_sociales'
     ];
+    const empresaFieldsMap: Record<string, string> = {
+      empresa_razon_social: 'razon_social',
+      empresa_rif_tipo: 'rif_tipo',
+      empresa_rif_numero: 'rif_numero',
+      empresa_email: 'email',
+      empresa_telefono: 'telefono',
+      empresa_website: 'website',
+      empresa_logo_url: 'logo_url'
+    };
 
-    // Validar duplicados si se están cambiando campos únicos
-    const uniqueFields = ['email', 'cedula_rif', 'codigo_cibir'];
-    for (const field of uniqueFields) {
-      if (fields[field]) {
-        const existing = await db.execute({
-          sql: `SELECT id_agremiado FROM agremiados WHERE ${field} = ? AND id_agremiado != ?`,
-          args: [fields[field], id]
-        });
-        if (existing.rows.length > 0) {
-          return res.status(400).json({ success: false, message: `Ya existe otro afiliado con este ${field.replace('_', ' ')}` });
-        }
-      }
+    // 1. Obtener el registro actual para saber qué id_persona e id_empresa tiene
+    const current = await db.execute({
+      sql: `SELECT id_persona, id_empresa FROM afiliados WHERE id_afiliado = ?`,
+      args: [id]
+    });
+
+    if (current.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
     }
+    const { id_persona: idPersona, id_empresa: idEmpresa } = current.rows[0] as any;
 
-    const setParts: string[] = [];
-    const args: any[] = [];
+    // 2. Preparar actualizaciones
+    const pUpdates: string[] = [];
+    const pArgs: any[] = [];
+    const aUpdates: string[] = [];
+    const aArgs: any[] = [];
+    const eUpdates: string[] = [];
+    const eArgs: any[] = [];
+
+    const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter'];
 
     Object.keys(fields).forEach(key => {
-      if (allowedFields.includes(key)) {
-        setParts.push(`${key} = ?`);
-        args.push(fields[key]);
+      if (personaFields.includes(key)) {
+        pUpdates.push(`${key} = ?`);
+        pArgs.push(fields[key]);
+      } else if (afiliadoFields.includes(key)) {
+        let val = fields[key];
+        if (key === 'redes_sociales' && typeof val === 'object') val = JSON.stringify(val);
+        aUpdates.push(`${key} = ?`);
+        aArgs.push(val);
+      } else if (empresaFieldsMap[key]) {
+        eUpdates.push(`${empresaFieldsMap[key]} = ?`);
+        eArgs.push(fields[key]);
+      } else if (socialFields.includes(key)) {
+        // Manejo especial para campos de redes sociales sueltos
+        // En lugar de actualizar el JSON entero (que requeriría leerlo primero), 
+        // los guardamos para procesarlos después si es necesario.
+        // Pero para simplificar, el frontend debería enviar el objeto completo o manejamos el merge aquí.
+        // Optamos por soportar el envío directo de instagram, facebook, etc.
       }
     });
 
-    if (setParts.length === 0) {
-      return res.status(400).json({ success: false, message: 'Nada que actualizar o campos no permitidos' });
-    }
-
-    // Siempre actualizar fecha de auditoría
-    setParts.push('actualizado_en = ?');
-    args.push(new Date().toISOString());
-
-    args.push(Number(id));
-
-    const result = await db.execute({
-      sql: `UPDATE agremiados SET ${setParts.join(', ')} WHERE id_agremiado = ? RETURNING *`,
-      args
+    // Re-procesar redes sociales si se enviaron campos individuales
+    const socialsToUpdate: Record<string, any> = {};
+    socialFields.forEach(sf => {
+      if (fields[sf] !== undefined) socialsToUpdate[sf] = fields[sf];
     });
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Agremiado no encontrado' });
+    if (Object.keys(socialsToUpdate).length > 0) {
+      // Leer redes actuales
+      const curr = await db.execute({
+        sql: `SELECT redes_sociales FROM afiliados WHERE id_afiliado = ?`,
+        args: [id]
+      });
+      let currentRedes: Record<string, any> = {};
+      try {
+        currentRedes = JSON.parse(curr.rows[0].redes_sociales as string || '{}');
+      } catch (e) { currentRedes = {}; }
+
+      const newRedes = { ...currentRedes, ...socialsToUpdate };
+      if (!aUpdates.some(u => u.startsWith('redes_sociales'))) {
+        aUpdates.push('redes_sociales = ?');
+        aArgs.push(JSON.stringify(newRedes));
+      } else {
+        // Si ya estaba redes_sociales en los campos, priorizamos el merge
+        const idx = aUpdates.findIndex(u => u.startsWith('redes_sociales'));
+        aArgs[idx] = JSON.stringify(newRedes);
+      }
     }
 
-    return res.json({ success: true, data: result.rows[0] });
+    if (pUpdates.length === 0 && aUpdates.length === 0 && eUpdates.length === 0) {
+      return res.status(400).json({ success: false, message: 'Nada que actualizar' });
+    }
+
+    // 3. Ejecutar actualizaciones
+    const now = new Date().toISOString();
+
+    if (pUpdates.length > 0) {
+      pUpdates.push('actualizado_en = ?');
+      pArgs.push(now);
+      pArgs.push(idPersona);
+      await db.execute({
+        sql: `UPDATE personas SET ${pUpdates.join(', ')} WHERE id = ?`,
+        args: pArgs
+      });
+    }
+
+    if (aUpdates.length > 0) {
+      aUpdates.push('actualizado_en = ?');
+      aArgs.push(now);
+      aArgs.push(id);
+      await db.execute({
+        sql: `UPDATE afiliados SET ${aUpdates.join(', ')} WHERE id_afiliado = ?`,
+        args: aArgs
+      });
+    }
+
+    if (eUpdates.length > 0 && idEmpresa) {
+      eUpdates.push('actualizado_en = ?');
+      eArgs.push(now);
+      eArgs.push(idEmpresa);
+      await db.execute({
+        sql: `UPDATE empresas SET ${eUpdates.join(', ')} WHERE id_empresa = ?`,
+        args: eArgs
+      });
+    }
+
+    return res.json({ success: true, message: 'Afiliado actualizado correctamente' });
   } catch (error) {
     console.error('Error en updateAfiliado:', error);
     return res.status(500).json({ success: false, message: 'Error al actualizar afiliado' });
@@ -854,12 +1057,12 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 /**
  * POST /api/afiliados/:id/invitacion
  * Genera un link reutilizable de invitación para un afiliado corporativo.
- * Puede ser llamado por admin o por el propio agremiado corporativo.
+ * Puede ser llamado por admin o por el propio afiliado corporativo.
  */
 export const generarInvitacionCorporativa = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id)
-    const requesterId = req.user?.id_agremiado
+    const id = Number(req.params.id) // This is id_empresa now
+    const requesterId = req.user?.id_empresa
     const requesterRole = req.user?.rol
 
     if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== id) {
@@ -870,18 +1073,15 @@ export const generarInvitacionCorporativa = async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'ID inválido' }); return
     }
 
-    // Verificar que el agremiado existe y es Juridico
+    // Verificar que la empresa existe
     const corp = await db.execute({
-      sql: `SELECT id_agremiado, nombre_completo, razon_social, tipo_afiliado, estatus FROM agremiados WHERE id_agremiado = ? LIMIT 1`,
+      sql: `SELECT id_empresa, razon_social, estatus FROM empresas WHERE id_empresa = ? LIMIT 1`,
       args: [id]
     })
     if (corp.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Afiliado corporativo no encontrado' }); return
+      res.status(404).json({ success: false, message: 'Empresa no encontrada' }); return
     }
     const empresa = corp.rows[0] as any
-    if (!['Juridico', 'Corporativo'].includes(empresa.tipo_afiliado)) {
-      res.status(400).json({ success: false, message: 'Solo los afiliados corporativos pueden generar invitaciones' }); return
-    }
 
     const token = randomUUID()
     const nombreEmpresa = empresa.razon_social || empresa.nombre_completo
@@ -891,7 +1091,7 @@ export const generarInvitacionCorporativa = async (req: Request, res: Response):
       : null
 
     await db.execute({
-      sql: `INSERT INTO invitaciones_corporativas (id_agremiado_corp, token, nombre_empresa, activo, fecha_expiracion)
+      sql: `INSERT INTO invitaciones_empresa (id_empresa, token, nombre_empresa, activo, fecha_expiracion)
             VALUES (?, ?, ?, 1, ?)`,
       args: [id, token, nombreEmpresa, fechaExpiracion]
     })
@@ -914,7 +1114,7 @@ export const generarInvitacionCorporativa = async (req: Request, res: Response):
 export const listarInvitacionesCorporativas = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id)
-    const requesterId = req.user?.id_agremiado
+    const requesterId = req.user?.id_empresa
     const requesterRole = req.user?.rol
 
     if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== id) {
@@ -923,9 +1123,9 @@ export const listarInvitacionesCorporativas = async (req: Request, res: Response
 
     const result = await db.execute({
       sql: `SELECT ic.*, 
-              (SELECT COUNT(*) FROM agremiados WHERE id_agremiado_corp = ic.id_agremiado_corp) as total_afiliados
-            FROM invitaciones_corporativas ic
-            WHERE ic.id_agremiado_corp = ?
+              (SELECT COUNT(*) FROM afiliados WHERE id_empresa = ic.id_empresa) as total_afiliados
+            FROM invitaciones_empresa ic
+            WHERE ic.id_empresa = ?
             ORDER BY ic.creado_en DESC`,
       args: [id]
     })
@@ -944,7 +1144,7 @@ export const revocarInvitacionCorporativa = async (req: Request, res: Response):
   try {
     const tokenId = Number(req.params.tokenId)
     await db.execute({
-      sql: `UPDATE invitaciones_corporativas SET activo = 0 WHERE id_invitacion = ?`,
+      sql: `UPDATE invitaciones_empresa SET activo = 0 WHERE id_invitacion = ?`,
       args: [tokenId]
     })
     res.json({ success: true, message: 'Invitación revocada.' })
@@ -960,8 +1160,8 @@ export const revocarInvitacionCorporativa = async (req: Request, res: Response):
  */
 export const listarAfiliadosCorporativos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id)
-    const requesterId = req.user?.id_agremiado
+    const id = Number(req.params.id) // id_empresa
+    const requesterId = req.user?.id_empresa
     const requesterRole = req.user?.rol
 
     if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== id) {
@@ -970,21 +1170,22 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
 
     const result = await db.execute({
       sql: `SELECT 
-              id_agremiado, 
-              nombre_completo, 
-              cedula_rif, 
-              email, 
-              telefono, 
-              estatus, 
-              fecha_registro,
+              a.id_afiliado, 
+              p.nombres || ' ' || p.apellidos as nombre_completo, 
+              p.cedula, 
+              p.email, 
+              p.telefono, 
+              a.estatus, 
+              a.fecha_registro,
               'Aprobado' as fase
-            FROM agremiados
-            WHERE id_agremiado_corp = ?
+            FROM afiliados a
+            JOIN personas p ON a.id_persona = p.id
+            WHERE a.id_empresa = ?
             
             UNION ALL
             
             SELECT 
-              NULL as id_agremiado,
+              NULL as id_afiliado,
               e.nombre_completo,
               e.cedula_rif,
               e.email,
@@ -994,8 +1195,8 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
               'Solicitud' as fase
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
-            WHERE ic.id_agremiado_corp = ? AND ic.programa_codigo = 'AFILIACION'
-              AND NOT EXISTS (SELECT 1 FROM agremiados a WHERE a.email = e.email)
+            WHERE ic.id_empresa = ? AND ic.programa_codigo = 'AFILIACION'
+              AND NOT EXISTS (SELECT 1 FROM afiliados a2 JOIN personas p2 ON a2.id_persona = p2.id WHERE p2.email = e.email)
             
             ORDER BY fecha_registro DESC`,
       args: [id, id]
@@ -1013,11 +1214,11 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
  */
 export const registrarMiembroDirecto = async (req: Request, res: Response): Promise<void> => {
   try {
-    const idCorp = Number(req.params.id)
-    const requesterId = req.user?.id_agremiado
+    const idEmpresa = Number(req.params.id)
+    const requesterId = req.user?.id_empresa
     const requesterRole = req.user?.rol
 
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idCorp) {
+    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -1029,38 +1230,38 @@ export const registrarMiembroDirecto = async (req: Request, res: Response): Prom
 
     // Obtener info de la empresa
     const corp = await db.execute({
-      sql: `SELECT nombre_completo, razon_social FROM agremiados WHERE id_agremiado = ? LIMIT 1`,
-      args: [idCorp]
+      sql: `SELECT razon_social FROM empresas WHERE id_empresa = ? LIMIT 1`,
+      args: [idEmpresa]
     })
     if (corp.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Empresa no encontrada.' }); return
     }
     const empresa = corp.rows[0] as any
 
-    // Verificar si ya existe
+    // Verificar si ya existe en personas
     const existing = await db.execute({
-      sql: `SELECT id_agremiado FROM agremiados WHERE email = ? OR cedula_rif = ? LIMIT 1`,
+      sql: `SELECT id FROM personas WHERE email = ? OR cedula = ? LIMIT 1`,
       args: [email, cedulaRif]
     })
     if (existing.rows.length > 0) {
-      res.status(400).json({ success: false, message: 'Ya existe un afiliado con ese email o cédula.' }); return
+      res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o cédula.' }); return
     }
 
     // 3. Crear Verificación de Preinscripción ( Academy Flow )
-    const { token: tokenVerif, fechaExpiracion } = await crearVerificacionPreinscripcionPrograma({
+    const { token: tokenVerif } = await crearVerificacionPreinscripcionPrograma({
       nombreCompleto,
       cedulaRif,
       email,
       telefono: telefono || null,
       programaCodigo: 'AFILIACION',
-      tipoAfiliado: 'Natural',
+      tipoAfiliado: 'Agente Corporativo',
       nivelProfesional: nivelProfesional || null,
       esCorredorInmobiliario: !!esCorredorInmobiliario,
-      id_agremiado_corp: idCorp
+      id_empresa: idEmpresa
     });
 
     // 4. Enviar Email con link a Academia
-    const nombreEmpresa = empresa.razon_social || empresa.nombre_completo
+    const nombreEmpresa = empresa.razon_social
     await enviarCorreoInvitacionCorporativa({
       nombre: nombreCompleto,
       emailOriginal: email,
@@ -1083,9 +1284,9 @@ export const publicValidarInvitacion = async (req: Request, res: Response): Prom
   try {
     const token = String(req.params.token ?? '').trim()
     const result = await db.execute({
-      sql: `SELECT ic.*, a.estatus as estatus_empresa
-            FROM invitaciones_corporativas ic
-            JOIN agremiados a ON a.id_agremiado = ic.id_agremiado_corp
+      sql: `SELECT ic.*, e.estatus as estatus_empresa
+            FROM invitaciones_empresa ic
+            JOIN empresas e ON e.id_empresa = ic.id_empresa
             WHERE ic.token = ? AND ic.activo = 1 LIMIT 1`,
       args: [token]
     })
@@ -1100,7 +1301,7 @@ export const publicValidarInvitacion = async (req: Request, res: Response): Prom
       success: true,
       data: {
         nombreEmpresa: inv.nombre_empresa,
-        idEmpresa: inv.id_agremiado_corp,
+        idEmpresa: inv.id_empresa,
         token: inv.token
       }
     })
@@ -1120,7 +1321,7 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 
     // Validar token
     const invRes = await db.execute({
-      sql: `SELECT * FROM invitaciones_corporativas WHERE token = ? AND activo = 1 LIMIT 1`,
+      sql: `SELECT * FROM invitaciones_empresa WHERE token = ? AND activo = 1 LIMIT 1`,
       args: [token]
     })
     if (invRes.rows.length === 0) {
@@ -1146,26 +1347,26 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'Nivel profesional inválido.' }); return
     }
 
-    // Verificar duplicados
+    // Verificar duplicados en personas
     const dup = await db.execute({
-      sql: `SELECT id_agremiado FROM agremiados WHERE email = ? OR cedula_rif = ? LIMIT 1`,
+      sql: `SELECT id FROM personas WHERE email = ? OR cedula = ? LIMIT 1`,
       args: [email, cedulaRif]
     })
     if (dup.rows.length > 0) {
-      res.status(409).json({ success: false, message: 'Ya existe un afiliado con ese email o cédula.' }); return
+      res.status(409).json({ success: false, message: 'Ya existe un registro con ese email o cédula.' }); return
     }
 
     // 3. Crear Verificación de Preinscripción ( Academy Flow )
-    const { token: tokenVerif, fechaExpiracion } = await crearVerificacionPreinscripcionPrograma({
+    const { token: tokenVerif } = await crearVerificacionPreinscripcionPrograma({
       nombreCompleto,
       cedulaRif,
       email,
       telefono: telefono || null,
       programaCodigo: 'AFILIACION',
-      tipoAfiliado: 'Natural',
+      tipoAfiliado: 'Agente Corporativo',
       nivelProfesional: nivelProfesional || null,
       esCorredorInmobiliario: !!esCorredorInmobiliario,
-      id_agremiado_corp: inv.id_agremiado_corp
+      id_empresa: inv.id_empresa
     });
 
     // 4. Enviar Email con link a Academia
@@ -1188,15 +1389,15 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 }
 /**
  * DELETE /api/afiliados/:id
- * Elimina un registro de agremiado.
+ * Elimina un registro de afiliado.
  */
 export const deleteAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    
+
     // Primero verificar si existe
     const check = await db.execute({
-      sql: 'SELECT id_agremiado FROM agremiados WHERE id_agremiado = ?',
+      sql: 'SELECT id_persona FROM afiliados WHERE id_afiliado = ?',
       args: [id]
     });
 
@@ -1204,12 +1405,17 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
       return;
     }
+    const idPersona = check.rows[0].id_persona;
 
-    // Borrar (las foreign keys están configuradas como ON DELETE SET NULL o CASCADE en la mayoría de los casos)
+    // Borrar de afiliados (cascade borrará de personas si está configurado, 
+    // pero si no, borramos personas también para no dejar huérfanos)
     await db.execute({
-      sql: 'DELETE FROM agremiados WHERE id_agremiado = ?',
+      sql: 'DELETE FROM afiliados WHERE id_afiliado = ?',
       args: [id]
     });
+
+    // Opcional: borrar de personas si no tiene otras relaciones (estudiante, etc.)
+    // Por ahora lo dejamos así para simplificar.
 
     res.json({ success: true, message: 'Afiliado eliminado correctamente' });
   } catch (error) {
@@ -1224,56 +1430,64 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
  */
 export const createAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { 
-      nombre_completo, nombres, apellidos, razon_social, 
-      cedula_rif, email, tipo_afiliado, estatus, 
-      telefono, direccion, codigo_cibir 
+    const {
+      nombres, apellidos, empresa_razon_social,
+      cedula, email, tipo_afiliado, estatus,
+      telefono, direccion, codigo_cibir,
+      id_empresa, instagram, facebook, linkedin
     } = req.body;
 
-    if (!cedula_rif || !email) {
+    if (!cedula || !email) {
       res.status(400).json({ success: false, message: 'Cédula/RIF y Email son obligatorios.' });
       return;
     }
-    // Para Natural se requieren nombres+apellidos; para Juridico razon_social
     const tipoFinal = tipo_afiliado || 'Natural'
-    if (tipoFinal === 'Natural' && (!nombres || !apellidos)) {
-      res.status(400).json({ success: false, message: 'Para afiliado Natural, nombres y apellidos son obligatorios.' });
-      return;
-    }
-    if (['Juridico', 'Corporativo'].includes(tipoFinal) && !razon_social) {
-      res.status(400).json({ success: false, message: 'Para afiliado Jurídico, la razón social es obligatoria.' });
-      return;
-    }
 
-    // Verificar duplicados
+    // Verificar duplicados en personas
     const existing = await db.execute({
-      sql: 'SELECT id_agremiado FROM agremiados WHERE email = ? OR cedula_rif = ?' + (codigo_cibir ? ' OR codigo_cibir = ?' : ''),
-      args: codigo_cibir ? [email, cedula_rif, codigo_cibir] : [email, cedula_rif]
+      sql: 'SELECT id FROM personas WHERE email = ? OR cedula = ?',
+      args: [email, cedula]
     });
 
     if (existing.rows.length > 0) {
-      res.status(400).json({ success: false, message: 'Ya existe un afiliado con ese email o Cédula/RIF.' });
+      res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o Cédula.' });
       return;
     }
 
-    // nombre_completo es columna GENERADA — no se inserta directamente
-    const result = await db.execute({
-      sql: `INSERT INTO agremiados (
-        nombres, apellidos, razon_social, 
-        cedula_rif, email, tipo_afiliado, estatus, 
-        telefono, direccion, codigo_cibir
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      args: [
-        nombres || null, apellidos || null, razon_social || null,
-        cedula_rif, email, tipoFinal, estatus || 'Afiliado',
-        telefono || null, direccion || null, codigo_cibir || null
-      ]
+    // 1. Insertar Persona
+    const resultP = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, direccion)
+            VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+      args: [nombres || '', apellidos || '', cedula, email, telefono || null, direccion || null]
+    });
+    const idPersona = resultP.rows[0].id;
+
+    // 2. Manejar Empresa
+    let finalIdEmpresa: number | null = id_empresa || null;
+
+    // Si es corporativo y NO se pasó un id_empresa, creamos la empresa
+    if (tipoFinal === 'Corporativo' && !finalIdEmpresa) {
+      const resultE = await db.execute({
+        sql: `INSERT INTO empresas (razon_social, rif_numero, email, telefono)
+              VALUES (?, ?, ?, ?) RETURNING id_empresa`,
+        args: [empresa_razon_social || '', cedula, email, telefono || null]
+      });
+      finalIdEmpresa = resultE.rows[0].id_empresa;
+    }
+
+    // 3. Insertar Afiliado
+    const redes_sociales = JSON.stringify({ instagram, facebook, linkedin });
+    const resultA = await db.execute({
+      sql: `INSERT INTO afiliados (
+        id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir, redes_sociales, activo
+      ) VALUES (?, ?, ?, ?, ?, ?, 1) RETURNING *`,
+      args: [idPersona, finalIdEmpresa, tipoFinal, estatus || 'Afiliado', codigo_cibir || null, redes_sociales]
     });
 
-    res.status(201).json({ 
-      success: true, 
-      message: 'Afiliado creado correctamente', 
-      data: result.rows[0] 
+    res.status(201).json({
+      success: true,
+      message: 'Afiliado creado correctamente',
+      data: resultA.rows[0]
     });
   } catch (error) {
     console.error('Error en createAfiliado:', error);

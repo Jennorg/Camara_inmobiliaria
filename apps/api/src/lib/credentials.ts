@@ -6,12 +6,12 @@ import { db } from './db.js'
  * Crea una fila en `users` con rol='afiliado' y devuelve la contraseña
  * en texto plano.
  *
- * @param idAgremiado - ID del agremiado al que se le asignan las credenciales
- * @param email       - Email del agremiado (será su usuario de acceso)
+ * @param idAfiliado - ID del afiliado al que se le asignan las credenciales
+ * @param email       - Email del afiliado (será su usuario de acceso)
  * @returns           - Contraseña generada en texto plano (uso temporal)
  */
 export async function generarCredenciales(
-  idAgremiado: number,
+  idAfiliado: number,
   email: string
 ): Promise<string> {
   // Contraseña genérica: CIEBO- + 6 últimos dígitos del timestamp
@@ -19,9 +19,9 @@ export async function generarCredenciales(
   const passwordHash = await bcrypt.hash(rawPassword, 10)
 
   await db.execute({
-    sql: `INSERT OR IGNORE INTO users (email, password_hash, rol, id_agremiado)
-          VALUES (?, ?, 'afiliado', ?)`,
-    args: [email, passwordHash, idAgremiado],
+    sql: `INSERT OR IGNORE INTO users (email, password_hash, roles)
+          VALUES (?, ?, '["afiliado"]')`,
+    args: [email, passwordHash],
   })
 
   return rawPassword

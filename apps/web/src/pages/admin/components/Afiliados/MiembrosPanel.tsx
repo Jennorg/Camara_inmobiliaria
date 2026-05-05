@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard } from '@/utils/formatters'
+import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 
 import {
   UserPlus, Search, Filter, RefreshCw, Trash2, Edit3, Save, X,
@@ -10,39 +11,6 @@ import {
   ShieldAlert, ArrowUpDown
 } from 'lucide-react'
 
-type Agremiado = {
-  id_agremiado: number
-  codigo_cibir: string | null
-  cedula_rif_tipo: string | null
-  cedula_rif: string
-  nombre_completo: string
-  nombres: string | null
-  apellidos: string | null
-  razon_social: string | null
-  cedula_personal: string | null
-  tipo_afiliado: 'Natural' | 'Corporativo'
-  email: string
-  telefono: string | null
-  direccion: string | null
-  fecha_nacimiento: string | null
-  nivel_academico: string | null
-  notas: string | null
-  estatus: string
-  inscripcion_pagada: number
-  fecha_registro: string
-  id_agremiado_corp: number | null
-  id_representante_legal: number | null
-  corp_razon_social: string | null
-  corp_rif: string | null
-  instagram: string | null
-  facebook: string | null
-  linkedin: string | null
-  twitter: string | null
-  website: string | null
-  logo_url: string | null
-  banner_url: string | null
-  activo: number
-}
 
 const ID_PREFIXES = ['V', 'E', 'J', 'G', 'P']
 
@@ -53,20 +21,20 @@ export default function MiembrosPanel() {
     'Content-Type': 'application/json'
   }), [token])
 
-  const [items, setItems] = useState<Agremiado[]>([])
+  const [items, setItems] = useState<AfiliadoDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo'>('Todos')
   const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('nombre_asc')
 
-  const [selected, setSelected] = useState<Agremiado | null>(null)
+  const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
   const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState<Partial<Agremiado>>({})
-  const [companies, setCompanies] = useState<Agremiado[]>([])
+  const [editForm, setEditForm] = useState<Partial<AfiliadoDTO>>({})
+  const [companies, setCompanies] = useState<AfiliadoDTO[]>([])
 
   const [showNewModal, setShowNewModal] = useState(false)
-  const [newForm, setNewForm] = useState<Partial<Agremiado>>({
+  const [newForm, setNewForm] = useState<Partial<AfiliadoDTO>>({
     tipo_afiliado: 'Natural',
     estatus: 'Afiliado'
   })
@@ -77,32 +45,60 @@ export default function MiembrosPanel() {
     try {
       const res = await fetch(`${API_URL}/api/afiliados`, { headers: authHeaders })
       const json = await res.json()
-      if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando miembros')
-      const all = json.data as Agremiado[]
-      setItems(all)
-      setCompanies(all.filter(i => i.tipo_afiliado === 'Corporativo'))
-    } catch (e: any) {
-      setError(e.message)
+      if (json.success) {
+        setItems(json.data)
+        // Guardar empresas (tipo Corporativo) para el selector de vinculación
+        setCompanies(json.data.filter((a: AfiliadoDTO) => a.tipo_afiliado === 'Corporativo'))
+      }
+    } catch (err) {
+      setError('Error de conexión')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
+
+  const handleSelect = (item: AfiliadoDTO) => {
+    setSelected(item)
+    setIsEditing(false)
+    setEditForm(item)
+  }
+
+  const updateField = async (field: keyof AfiliadoDTO, value: any) => {
+    if (!selected) return
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value })
+      })
+      if (res.ok) {
+        const updated = { ...selected, [field]: value }
+        setSelected(updated)
+        setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const associatedMembers = useMemo(() => {
-    if (!selected || selected.tipo_afiliado !== 'Corporativo') return []
-    return items.filter(item => item.id_agremiado_corp === selected.id_agremiado)
+    if (!selected || selected.tipo_afiliado !== 'Corporativo' || !selected.id_empresa) return []
+    return items.filter(item => item.id_empresa === selected.id_empresa && item.id_afiliado !== selected.id_afiliado)
   }, [items, selected])
 
   const filteredItems = useMemo(() => {
     let result = items.filter(item => {
       const nombre = (item.nombre_completo || '').toLowerCase()
-      const rif = (item.cedula_rif || '').toLowerCase()
+      const cedula = (item.cedula || '').toLowerCase()
+      const rif = (item.empresa_rif_numero || '').toLowerCase()
       const email = (item.email || '').toLowerCase()
       const s = search.toLowerCase()
 
-      const matchSearch = nombre.includes(s) || rif.includes(s) || email.includes(s)
+      const matchSearch = nombre.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
       const matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
       return matchSearch && matchTipo
     })
@@ -124,7 +120,7 @@ export default function MiembrosPanel() {
     return result;
   }, [items, search, filterTipo, sortState])
 
-  const handleEdit = (item: Agremiado) => {
+  const handleEdit = (item: AfiliadoDTO) => {
     setSelected(item)
     setEditForm(item)
     setIsEditing(true)
@@ -133,7 +129,7 @@ export default function MiembrosPanel() {
   const handleSave = async () => {
     if (!selected) return
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_agremiado}`, {
+      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
         headers: authHeaders,
         body: JSON.stringify(editForm)
@@ -272,9 +268,9 @@ export default function MiembrosPanel() {
           ) : (
             filteredItems.map(item => (
               <button
-                key={item.id_agremiado}
+                key={item.id_afiliado}
                 onClick={() => { setSelected(item); setIsEditing(false); }}
-                className={`w-full p-4 text-left hover:bg-slate-50 transition-colors group flex items-center justify-between ${selected?.id_agremiado === item.id_agremiado ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'border-l-4 border-transparent'}`}
+                className={`w-full p-4 text-left hover:bg-slate-50 transition-colors group flex items-center justify-between ${selected?.id_afiliado === item.id_afiliado ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'border-l-4 border-transparent'}`}
               >
                 <div className="min-w-0">
                   <p className="font-bold text-slate-800 text-sm truncate">{formatNombreCard(item.nombre_completo)}</p>
@@ -284,11 +280,11 @@ export default function MiembrosPanel() {
                       {item.tipo_afiliado === 'Corporativo' ? 'Corporativo' : 'Independiente'}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {item.cedula_rif_tipo ? `${item.cedula_rif_tipo}-${item.cedula_rif}` : item.cedula_rif}
+                      {item.empresa_rif_tipo ? `${item.empresa_rif_tipo}-${item.empresa_rif_numero}` : item.cedula}
                     </span>
                   </div>
                 </div>
-                <ChevronRight size={14} className={`text-slate-300 group-hover:translate-x-1 transition-transform ${selected?.id_agremiado === item.id_agremiado ? 'text-emerald-500' : ''}`} />
+                <ChevronRight size={14} className={`text-slate-300 group-hover:translate-x-1 transition-transform ${selected?.id_afiliado === item.id_afiliado ? 'text-emerald-500' : ''}`} />
               </button>
             ))
           )}
@@ -322,7 +318,7 @@ export default function MiembrosPanel() {
                       <Edit3 size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(selected.id_agremiado)}
+                      onClick={() => handleDelete(selected.id_afiliado)}
                       className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 transition-colors"
                       title="Eliminar"
                     >
@@ -394,30 +390,33 @@ export default function MiembrosPanel() {
             {/* Grid de Datos */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Información Personal / Legal */}
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-6">
-                <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                    <FileText size={16} />
-                  </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Identificación y Perfil</h3>
-                </div>
-
+              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
                 <div className="space-y-4">
-                  {/* Cédula del Afiliado */}
+                  <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                      <BadgeCheck size={16} />
+                    </div>
+                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Identidad y Documentación</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <DataField label="Nombres" value={selected.nombres} isEditing={isEditing} fieldName="nombres" form={editForm} setForm={setEditForm} />
+                    <DataField label="Apellidos" value={selected.apellidos} isEditing={isEditing} fieldName="apellidos" form={editForm} setForm={setEditForm} />
+                    <DataField label="Razón Social (Si aplica)" value={selected.empresa_razon_social || 'N/A'} isEditing={isEditing} fieldName="empresa_razon_social" form={editForm} setForm={setEditForm} />
+                    <DataField label="Código CIBIR" value={selected.codigo_cibir || 'No asignado'} isEditing={isEditing} fieldName="codigo_cibir" form={editForm} setForm={setEditForm} />
+                  </div>
+
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Cédula del Afiliado
-                    </label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula / RIF</label>
                     {isEditing ? (
                       <div className="flex gap-2">
                         <select
                           className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                          value={editForm.cedula_rif?.split('-')[0] || 'V'}
+                          value={editForm.cedula?.split('-')[0] || 'V'}
                           onChange={(e) => {
-                            // Al cambiar el prefijo, mantenemos el resto del string tal cual
-                            const parts = (editForm.cedula_rif || '').split('-');
+                            const parts = (editForm.cedula || '').split('-');
                             const rest = parts.slice(1).join('-');
-                            setEditForm({ ...editForm, cedula_rif: `${e.target.value}-${rest}` })
+                            setEditForm({ ...editForm, cedula: `${e.target.value}-${rest}` })
                           }}
                         >
                           {ID_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
@@ -425,42 +424,19 @@ export default function MiembrosPanel() {
                         <input
                           type="text"
                           className="flex-1 bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                          value={(editForm.cedula_rif || '').split('-').slice(1).join('-')}
+                          value={(editForm.cedula || '').split('-').slice(1).join('-')}
                           onChange={(e) => {
-                            const pre = (editForm.cedula_rif || '').split('-')[0] || 'V'
-                            setEditForm({ ...editForm, cedula_rif: `${pre}-${e.target.value}` })
+                            const pre = (editForm.cedula || '').split('-')[0] || 'V'
+                            setEditForm({ ...editForm, cedula: `${pre}-${e.target.value}` })
                           }}
                         />
                       </div>
                     ) : (
                       <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700">
-                        {selected.cedula_rif_tipo ? `${selected.cedula_rif_tipo}-${selected.cedula_rif}` : selected.cedula_rif}
+                        {selected.empresa_rif_numero ? `${selected.empresa_rif_tipo}-${selected.empresa_rif_numero}` : selected.cedula}
                       </p>
                     )}
                   </div>
-
-                  {/* Campo adicional para Cédula Personal */}
-                  {selected.tipo_afiliado === 'Corporativo' && (
-                    <DataField
-                      label="Cédula del Representante"
-                      value={selected.cedula_personal || 'No registrada'}
-                      isEditing={isEditing}
-                      fieldName="cedula_personal"
-                      form={editForm}
-                      setForm={setEditForm}
-                    />
-                  )}
-
-                  {selected.tipo_afiliado === 'Corporativo' && (
-                    <DataField
-                      label="Representante Legal ID"
-                      value={selected.id_representante_legal ? `Agremiado #${selected.id_representante_legal}` : 'No asignado'}
-                      isEditing={false}  // La FK se gestiona aparte, no desde este campo de texto
-                      fieldName="id_representante_legal"
-                      form={editForm}
-                      setForm={setEditForm}
-                    />
-                  )}
 
                   {/* Identificación de Tipo de Afiliado y Corporativo */}
                   <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
@@ -474,40 +450,41 @@ export default function MiembrosPanel() {
                         >
                           <option value="Natural">Independiente / Persona</option>
                           <option value="Corporativo">Empresa (Corporativo)</option>
+                          <option value="Agente Corporativo">Agente (Vinculado)</option>
                         </select>
                       ) : (
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {selected.tipo_afiliado === 'Corporativo' ? 'Corporativo (Empresa)' : (selected.id_agremiado_corp ? 'Corporativo (Empleado)' : 'Independiente')}
+                          {selected.tipo_afiliado}
                         </span>
                       )}
                     </div>
 
-                    {(isEditing ? editForm.tipo_afiliado === 'Natural' : selected.tipo_afiliado === 'Natural') && (
+                    {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : selected.tipo_afiliado === 'Agente Corporativo') && (
                       <div className="pt-2 border-t border-gray-200 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vinculación a Empresa (RIF)</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vinculación a Empresa</p>
                         {isEditing ? (
                           <select
                             className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                            value={editForm.id_agremiado_corp || ''}
-                            onChange={(e) => setEditForm({ ...editForm, id_agremiado_corp: e.target.value ? Number(e.target.value) : null })}
+                            value={editForm.id_empresa || ''}
+                            onChange={(e) => setEditForm({ ...editForm, id_empresa: e.target.value ? Number(e.target.value) : null })}
                           >
-                            <option value="">Sin vinculación (Independiente)</option>
+                            <option value="">Sin vinculación</option>
                             {companies.map(c => (
-                              <option key={c.id_agremiado} value={c.id_agremiado}>
-                                {c.razon_social} (RIF: {c.cedula_rif})
+                              <option key={c.id_afiliado} value={c.id_afiliado}>
+                                {c.empresa_razon_social} (RIF: {c.empresa_rif_numero})
                               </option>
                             ))}
                           </select>
-                        ) : selected.id_agremiado_corp ? (
+                        ) : selected.id_empresa ? (
                           <>
                             <div className="flex items-center gap-2">
                               <Building2 size={14} className="text-emerald-500" />
-                              <span className="text-xs font-black text-slate-700">{selected.corp_razon_social}</span>
+                              <span className="text-xs font-bold text-slate-700">{selected.empresa_razon_social}</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 font-bold ml-6 mt-0.5">VINCULADO AL RIF: {selected.corp_rif}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">RIF: {selected.empresa_rif_numero}</p>
                           </>
                         ) : (
-                          <p className="text-xs text-slate-400 italic">No vinculado a ninguna empresa</p>
+                          <p className="text-xs font-bold text-slate-400 italic">No vinculado</p>
                         )}
                       </div>
                     )}
@@ -516,9 +493,9 @@ export default function MiembrosPanel() {
                   {selected.tipo_afiliado === 'Corporativo' && (
                     <DataField
                       label="Razón Social"
-                      value={selected.razon_social || 'N/A'}
+                      value={selected.empresa_razon_social || 'N/A'}
                       isEditing={isEditing}
-                      fieldName="razon_social"
+                      fieldName="empresa_razon_social"
                       form={editForm}
                       setForm={setEditForm}
                     />
@@ -664,7 +641,7 @@ export default function MiembrosPanel() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {associatedMembers.map(m => (
                       <div
-                        key={m.id_agremiado}
+                        key={m.id_afiliado}
                         onClick={() => setSelected(m)}
                         className="group flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer shadow-sm hover:shadow-md"
                       >
@@ -676,7 +653,7 @@ export default function MiembrosPanel() {
                             {m.nombres} {m.apellidos}
                           </p>
                           <p className="text-[9px] text-slate-400 font-bold uppercase">
-                            {m.cedula_rif_tipo}-{m.cedula_rif}
+                            {m.cedula}
                           </p>
                         </div>
                         <ChevronRight size={14} className="ml-auto text-slate-300 group-hover:text-emerald-500 transition-transform group-hover:translate-x-1" />
@@ -722,8 +699,17 @@ export default function MiembrosPanel() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} />
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} />
-                  <DataInput label="Razón Social (si es empresa)" placeholder="Inmobiliaria XYZ C.A." value={newForm.razon_social || ''} onChange={(v: string) => setNewForm({ ...newForm, razon_social: v })} />
-                  <DataInput label="Cédula / RIF" placeholder="V-12345678" value={newForm.cedula_rif || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula_rif: v })} />
+                  <DataInput 
+                    label="Razón Social (si es empresa)" 
+                    placeholder="Inmobiliaria XYZ C.A." 
+                    value={newForm.empresa_razon_social || ''} 
+                    onChange={(v: string) => setNewForm({ 
+                      ...newForm, 
+                      empresa_razon_social: v,
+                      tipo_afiliado: v.trim() ? 'Corporativo' : (newForm.id_empresa ? 'Agente Corporativo' : 'Natural')
+                    })} 
+                  />
+                  <DataInput label="Cédula / RIF" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
                   <DataInput label="Código CIBIR (Opcional)" placeholder="359" value={newForm.codigo_cibir || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo_cibir: v })} />
                 </div>
 
@@ -737,20 +723,24 @@ export default function MiembrosPanel() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Empresa a la que pertenece</label>
                     <select
                       className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                      value={newForm.id_agremiado_corp || ''}
+                      value={newForm.id_empresa || ''}
                       onChange={(e) => {
                         const corpId = e.target.value ? Number(e.target.value) : null;
-                        setNewForm({ ...newForm, id_agremiado_corp: corpId, tipo_afiliado: 'Natural' });
+                        setNewForm({ 
+                          ...newForm, 
+                          id_empresa: corpId, 
+                          tipo_afiliado: corpId ? 'Agente Corporativo' : 'Natural' 
+                        });
                       }}
                     >
                       <option value="">Independiente (Sin Empresa)</option>
                       {companies.map(c => (
-                        <option key={c.id_agremiado} value={c.id_agremiado}>
-                          {c.razon_social} (RIF: {c.cedula_rif})
+                        <option key={c.id_afiliado} value={c.id_afiliado}>
+                          {c.empresa_razon_social || c.nombre_completo} (RIF: {c.empresa_rif_numero || c.cedula})
                         </option>
                       ))}
                     </select>
-                    {newForm.id_agremiado_corp && (
+                    {newForm.id_empresa && (
                       <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1">
                         * Se registrará como afiliado vinculado al RIF de la empresa seleccionada.
                       </p>

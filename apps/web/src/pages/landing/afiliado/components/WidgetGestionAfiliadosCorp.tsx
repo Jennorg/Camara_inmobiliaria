@@ -38,11 +38,11 @@ interface Invitacion {
 }
 
 interface AfiliadoMiembro {
-  id_agremiado: number;
+  id_afiliado: number;
   nombre_completo: string;
   nombres: string | null;
   apellidos: string | null;
-  cedula_rif: string;
+  cedula: string;
   email: string;
   telefono: string;
   estatus: string;
@@ -82,14 +82,14 @@ export default function WidgetGestionAfiliadosCorp() {
   });
 
   const fetchData = async () => {
-    if (!user?.id_agremiado || !token) return;
+    if (!user?.id_empresa || !token) return;
     setLoading(true);
     try {
       const [resInv, resMbr] = await Promise.all([
-        fetch(`${API_URL}/api/afiliados/${user.id_agremiado}/invitaciones`, {
+        fetch(`${API_URL}/api/afiliados/${user.id_empresa}/invitaciones`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch(`${API_URL}/api/afiliados/${user.id_agremiado}/afiliados-corp`, {
+        fetch(`${API_URL}/api/afiliados/${user.id_empresa}/afiliados-corp`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -109,14 +109,14 @@ export default function WidgetGestionAfiliadosCorp() {
 
   useEffect(() => {
     fetchData();
-  }, [user?.id_agremiado, token]);
+  }, [user?.id_empresa, token]);
 
   const handleGenerarLink = async () => {
-    if (!user?.id_agremiado || !token) return;
+    if (!user?.id_empresa || !token) return;
     setActionLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${user.id_agremiado}/invitacion`, {
+      const res = await fetch(`${API_URL}/api/afiliados/${user.id_empresa}/invitacion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,11 +146,11 @@ export default function WidgetGestionAfiliadosCorp() {
 
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id_agremiado || !token) return;
+    if (!user?.id_empresa || !token) return;
     setActionLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${user.id_agremiado}/registrar-miembro`, {
+      const res = await fetch(`${API_URL}/api/afiliados/${user.id_empresa}/registrar-miembro`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -324,7 +324,7 @@ export default function WidgetGestionAfiliadosCorp() {
               </div>
             ) : (
               miembros.map((m) => (
-                <div key={m.id_agremiado} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                <div key={m.id_afiliado} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black text-xs">
                       {getInitials(m.nombres || m.nombre_completo, m.apellidos)}
@@ -333,9 +333,9 @@ export default function WidgetGestionAfiliadosCorp() {
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}</p>
                       <p className="text-[10px] font-medium text-gray-500">{m.email}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${m.estatus === '9_AFILIACION' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${m.estatus === 'Afiliado' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
                           }`}>
-                          {m.estatus === '9_AFILIACION' ? 'Activo' : m.estatus}
+                          {m.estatus === 'Afiliado' ? 'Activo' : m.estatus.replace(/_/g, ' ')}
                         </span>
                         <span className="text-[9px] text-gray-400 font-medium">Registrado: {new Date(m.fecha_registro).toLocaleDateString()}</span>
                       </div>

@@ -539,7 +539,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                       <span className="text-xs font-bold text-slate-600 tabular-nums bg-gray-100 px-2 py-1 rounded-md">{r.estudiante_cedula_rif || 'S/N'}</span>
+                       <span className="text-xs font-bold text-slate-600 tabular-nums bg-gray-100 px-2 py-1 rounded-md">{r.estudiante_cedula || 'S/N'}</span>
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500 tabular-nums">
                       {new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}

@@ -4,174 +4,205 @@
  * Uso:
  *   pnpm tsx src/config/initdb.ts
  *
- * Reinicio completo (borra todas las tablas de usuario y recrea el esquema):
- *   INITDB_RESET=1 pnpm tsx src/config/initdb.ts
+ * Reinicio completo:
+ *   pnpm tsx src/config/initdb.ts --reset
  */
 
 import { db } from '../lib/db.js'
 import bcrypt from 'bcryptjs'
-import fs from 'fs'
-import path from 'path'
 
 const statements = [
-  // ──────────────────────────────────────────────────────────
-  // ACTIVAR FOREIGN KEYS 
-  // ──────────────────────────────────────────────────────────
   `PRAGMA foreign_keys = ON`,
 
   // ===========================================================
-  // FASE 1 — MÓDULO DE AFILIACIÓN (WORKFLOW CIBIR)
+  // SEGURIDAD Y USUARIOS
   // ===========================================================
-  `CREATE TABLE IF NOT EXISTS agremiados (
-    id_agremiado                INTEGER     PRIMARY KEY,
+  `CREATE TABLE IF NOT EXISTS users (
+    id                  INTEGER     PRIMARY KEY,
+    email               TEXT        UNIQUE NOT NULL,
+    password_hash       TEXT        NOT NULL,
+    roles               TEXT        NOT NULL DEFAULT '["afiliado"]',
+    reset_token_hash    TEXT,
+    reset_token_expira  TEXT,
+    activo              INTEGER     NOT NULL DEFAULT 1 CHECK (activo IN (0,1)),
+    creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    actualizado_en      TEXT,
+    eliminado_en        TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_users_activos ON users(eliminado_en) WHERE eliminado_en IS NULL`,
+
+  // ===========================================================
+  // PERSONAS
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS personas (
+    id                  INTEGER     PRIMARY KEY,
+    nombres             TEXT        NOT NULL,
+    apellidos           TEXT        NOT NULL,
+    cedula              TEXT        UNIQUE NOT NULL,
+    email               TEXT        UNIQUE NOT NULL,
+    telefono            TEXT,
+    fecha_nacimiento    TEXT,
+    profesion           TEXT,
+    direccion           TEXT,
+    nivel_academico     TEXT        CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Universitario','Postgrado')),
+    creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    actualizado_en      TEXT,
+    eliminado_en        TEXT,
+    CONSTRAINT chk_email_formato CHECK (email LIKE '%@%.%')
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_personas_email ON personas(email)`,
+  `CREATE INDEX IF NOT EXISTS idx_personas_activos ON personas(eliminado_en) WHERE eliminado_en IS NULL`,
+
+  // ===========================================================
+  // EMPRESAS
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS empresas (
+    id_empresa              INTEGER     PRIMARY KEY,
+    id_user                 INTEGER     UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+    razon_social            TEXT        NOT NULL,
+    rif_tipo                TEXT        NOT NULL DEFAULT 'J' CHECK (rif_tipo IN ('J','G','P','V','E')),
+    rif_numero              TEXT        UNIQUE NOT NULL,
+    email                   TEXT        UNIQUE NOT NULL,
+    direccion               TEXT,
+    telefono                TEXT,
+    website                 TEXT,
+    logo_url                TEXT,
+    banner_url              TEXT,
+    notas                   TEXT,
+    estatus                 TEXT        NOT NULL DEFAULT 'Afiliado' CHECK (estatus IN ('Afiliado','Moroso','Suspendido','Rechazado')),
+    fecha_registro          TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    actualizado_en          TEXT,
+    eliminado_en            TEXT,
+    id_representante_legal  INTEGER     REFERENCES afiliados(id_afiliado) ON DELETE SET NULL,
+    redes_sociales          TEXT        DEFAULT '{}',
+    CONSTRAINT chk_email_formato CHECK (email LIKE '%@%.%')
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_empresas_rif ON empresas(rif_numero)`,
+  `CREATE INDEX IF NOT EXISTS idx_empresas_activos ON empresas(eliminado_en) WHERE eliminado_en IS NULL`,
+
+  // ===========================================================
+  // AFILIADOS
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS afiliados (
+    id_afiliado                 INTEGER     PRIMARY KEY,
+    id_user                     INTEGER     UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+    id_persona                  INTEGER     UNIQUE NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
     codigo_cibir                TEXT        UNIQUE,
     tipo_afiliado               TEXT        NOT NULL DEFAULT 'Natural'
-                                CHECK (tipo_afiliado IN ('Natural', 'Corporativo')),
-    razon_social                TEXT,
-    cedula_rif_tipo             TEXT        NOT NULL DEFAULT 'V'
-                                CHECK (cedula_rif_tipo IN ('V', 'J', 'E', 'G', 'P')),
-    cedula_rif                  TEXT        UNIQUE NOT NULL,
-    nombres                     TEXT,
-    apellidos                   TEXT,
-    -- Columna generada automáticamente para evitar desincronización
-    nombre_completo             TEXT        GENERATED ALWAYS AS (
-                                  CASE WHEN tipo_afiliado = 'Corporativo'
-                                    THEN razon_social
-                                    ELSE nombres || ' ' || apellidos
-                                  END
-                                ) VIRTUAL,
-    cedula_personal             TEXT,
-    email                       TEXT        UNIQUE NOT NULL,
-    direccion                   TEXT,
-    telefono                    TEXT,
-    fecha_nacimiento            TEXT,
-    nivel_academico             TEXT,
+                                            CHECK (tipo_afiliado IN ('Natural','Corporativo','Agente Corporativo')),
     notas                       TEXT,
     estatus                     TEXT        NOT NULL DEFAULT '1_PREINSCRIPCION'
-                                CHECK (estatus IN (
-                                  '1_PREINSCRIPCION',
-                                  '2_EXPEDIENTE',
-                                  '3_ENTREVISTA',
-                                  '4_VERIFICACION',
-                                  '5_CIBIR',
-                                  '6_INSCRIPCION',
-                                  'Requiere Acción',
-                                  'Afiliado',
-                                  'Moroso',
-                                  'Suspendido',
-                                  'Rechazado'
-                                )),
-    cibir_convalidado           INTEGER     NOT NULL DEFAULT 0
-                                CHECK (cibir_convalidado IN (0, 1)),
-    inscripcion_pagada          INTEGER     NOT NULL DEFAULT 0 
-                                CHECK (inscripcion_pagada IN (0, 1)),
-    -- CORPORATIVO: empresa que agrupa a otros afiliados (autoreferencia)
-    id_agremiado_corp           INTEGER     REFERENCES agremiados(id_agremiado) ON DELETE SET NULL,
-    -- REPRESENTANTE LEGAL: obligatorio para Corporativo, apunta a un afiliado Natural
-    id_representante_legal      INTEGER     REFERENCES agremiados(id_agremiado) ON DELETE SET NULL,
+                                            CHECK (estatus IN (
+                                              '1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA',
+                                              '4_VERIFICACION','5_CIBIR','6_INSCRIPCION',
+                                              'Requiere Acción','Afiliado','Moroso','Suspendido','Rechazado'
+                                            )),
+    cibir_convalidado           INTEGER     NOT NULL DEFAULT 0 CHECK (cibir_convalidado IN (0,1)),
+    inscripcion_pagada          INTEGER     NOT NULL DEFAULT 0 CHECK (inscripcion_pagada IN (0,1)),
+    id_empresa                  INTEGER     REFERENCES empresas(id_empresa) ON DELETE SET NULL,
     fecha_registro              TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     fecha_ultimo_cambio_estatus TEXT,
     actualizado_en              TEXT,
-    -- Redes sociales y web (usadas tanto por Natural como Corporativo)
-    instagram                   TEXT,
-    facebook                    TEXT,
-    linkedin                    TEXT,
-    twitter                     TEXT,
-    website                     TEXT,
-    logo_url                    TEXT,       -- Foto de perfil (Natural) o logo (Corporativo)
-    banner_url                  TEXT,       -- Imagen de portada (para ambos tipos)
-    activo                      INTEGER     NOT NULL DEFAULT 1 
-                                CHECK (activo IN (0, 1)),
-    CONSTRAINT chk_email_formato CHECK (email LIKE '%@%.%'),
-    -- Integridad de nombres según tipo
-    CONSTRAINT chk_nombres_tipo CHECK (
-      (tipo_afiliado IN ('Natural', 'Corporativo') AND nombres IS NOT NULL AND apellidos IS NOT NULL) OR
-      (tipo_afiliado = 'Corporativo' AND razon_social IS NOT NULL)
-    ),
-    -- Representante legal
-    CONSTRAINT chk_rep_legal_corporativo CHECK (
-      tipo_afiliado IN ('Natural', 'Corporativo')
-    ),
-    CONSTRAINT fk_agremiado_rep_legal
-      FOREIGN KEY (id_representante_legal) REFERENCES agremiados(id_agremiado) ON DELETE SET NULL
+    eliminado_en                TEXT,
+    redes_sociales              TEXT        DEFAULT '{}',
+    activo                      INTEGER     NOT NULL DEFAULT 1 CHECK (activo IN (0,1)),
+    CONSTRAINT chk_empresa_asignada CHECK (
+      (tipo_afiliado IN ('Corporativo','Agente Corporativo') AND id_empresa IS NOT NULL) OR
+      (tipo_afiliado = 'Natural' AND id_empresa IS NULL)
+    )
   )`,
-
-  `CREATE TABLE IF NOT EXISTS agremiados_datos_empresa (
-    id_dato_empresa     INTEGER PRIMARY KEY,
-    id_agremiado        INTEGER UNIQUE NOT NULL REFERENCES agremiados(id_agremiado) ON DELETE CASCADE,
-    razon_social        TEXT NOT NULL,
-    rif                 TEXT NOT NULL UNIQUE,
-    direccion           TEXT,
-    telefono            TEXT,
-    email               TEXT,
-    website             TEXT
-  )`,
-
-  `CREATE INDEX IF NOT EXISTS idx_agremiados_estatus ON agremiados(estatus)`,
-  `CREATE INDEX IF NOT EXISTS idx_agremiados_cedula ON agremiados(cedula_rif)`,
-  `CREATE INDEX IF NOT EXISTS idx_agremiados_corp ON agremiados(id_agremiado_corp)`,
-  `CREATE INDEX IF NOT EXISTS idx_agremiados_email ON agremiados(email)`,
-
-  // ── Documentos Adjuntos (Expediente Digital) ──
-  `CREATE TABLE IF NOT EXISTS documentos_adjuntos (
-    id_documento      INTEGER     PRIMARY KEY,
-    entidad_tipo      TEXT        NOT NULL CHECK (entidad_tipo IN ('Agremiado', 'Curso', 'Denuncia', 'Legal')),
-    entidad_id        INTEGER     NOT NULL,
-    nombre_documento  TEXT        NOT NULL,
-    url_documento     TEXT        NOT NULL,
-    tipo_archivo      TEXT,       -- PDF, JPG, etc.
-    fecha_subida      TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-  )`,
-
-  `CREATE INDEX IF NOT EXISTS idx_docs_entidad ON documentos_adjuntos(entidad_tipo, entidad_id)`,
-
-  // ── Invitaciones corporativas (links reutilizables para afiliados individuales) ──
-  `CREATE TABLE IF NOT EXISTS invitaciones_corporativas (
-    id_invitacion     INTEGER  PRIMARY KEY,
-    id_agremiado_corp INTEGER  NOT NULL REFERENCES agremiados(id_agremiado) ON DELETE CASCADE,
-    token             TEXT     UNIQUE NOT NULL,
-    nombre_empresa    TEXT     NOT NULL,
-    activo            INTEGER  NOT NULL DEFAULT 1
-                      CHECK (activo IN (0, 1)),
-    fecha_expiracion  TEXT,
-    creado_en         TEXT     NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-  )`,
-
-  `CREATE INDEX IF NOT EXISTS idx_invitaciones_corp ON invitaciones_corporativas(id_agremiado_corp)`,
-  `CREATE INDEX IF NOT EXISTS idx_invitaciones_token ON invitaciones_corporativas(token)`,
+  `CREATE INDEX IF NOT EXISTS idx_afiliados_estatus ON afiliados(estatus)`,
+  `CREATE INDEX IF NOT EXISTS idx_afiliados_empresa ON afiliados(id_empresa)`,
+  `CREATE INDEX IF NOT EXISTS idx_afiliados_persona ON afiliados(id_persona)`,
+  `CREATE INDEX IF NOT EXISTS idx_afiliados_activos ON afiliados(eliminado_en) WHERE eliminado_en IS NULL`,
 
   // ===========================================================
-  // FASE 1.5 — ESTUDIANTES (REGULARES / NO NECESARIAMENTE CIBIR)
+  // CONSOLIDACIÓN DE MÓDULOS CIBIR (nueva)
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS convalidaciones_cibir (
+    id               INTEGER PRIMARY KEY,
+    id_afiliado      INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    modulo           INTEGER NOT NULL CHECK (modulo BETWEEN 1 AND 5),
+    estatus          TEXT    NOT NULL DEFAULT 'pendiente' CHECK (estatus IN ('pendiente','aprobado','rechazado')),
+    evaluado_por     INTEGER REFERENCES users(id),
+    fecha_evaluacion TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    observaciones    TEXT,
+    UNIQUE(id_afiliado, modulo)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_convalidaciones_afiliado ON convalidaciones_cibir(id_afiliado)`,
+
+  // ===========================================================
+  // DOCUMENTOS DE AFILIADOS
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS documentos_afiliado (
+    id_documento      INTEGER     PRIMARY KEY,
+    id_afiliado       INTEGER     NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    nombre_documento  TEXT        NOT NULL,
+    url_documento     TEXT        NOT NULL,
+    tipo_archivo      TEXT,
+    fecha_subida      TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    eliminado_en      TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_docs_afiliado ON documentos_afiliado(id_afiliado)`,
+
+  // ===========================================================
+  // DOCUMENTOS DE EMPRESAS
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS documentos_empresa (
+    id_documento      INTEGER     PRIMARY KEY,
+    id_empresa        INTEGER     NOT NULL REFERENCES empresas(id_empresa) ON DELETE CASCADE,
+    nombre_documento  TEXT        NOT NULL,
+    url_documento     TEXT        NOT NULL,
+    tipo_archivo      TEXT,
+    fecha_subida      TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    eliminado_en      TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_docs_empresa ON documentos_empresa(id_empresa)`,
+
+  // ===========================================================
+  // INVITACIONES A EMPRESAS
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS invitaciones_empresa (
+    id_invitacion       INTEGER   PRIMARY KEY,
+    id_empresa          INTEGER   NOT NULL REFERENCES empresas(id_empresa) ON DELETE CASCADE,
+    token               TEXT      UNIQUE NOT NULL,
+    nombre_empresa      TEXT      NOT NULL,
+    activo              INTEGER   NOT NULL DEFAULT 1 CHECK (activo IN (0,1)),
+    fecha_expiracion    TEXT,
+    creado_en           TEXT      NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    eliminado_en        TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_invitaciones_empresa ON invitaciones_empresa(id_empresa)`,
+  `CREATE INDEX IF NOT EXISTS idx_invitaciones_activas ON invitaciones_empresa(eliminado_en) WHERE eliminado_en IS NULL`,
+
+  // ===========================================================
+  // ESTUDIANTES
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS estudiantes (
     id_estudiante     INTEGER     PRIMARY KEY,
-    -- Vínculo directo a la cuenta de usuario (estudiante puede iniciar sesión)
     id_user           INTEGER     REFERENCES users(id) ON DELETE SET NULL,
-    -- Si el estudiante es agremiado, lo vinculamos (opcional)
-    id_agremiado      INTEGER,
-    cedula_rif_tipo   TEXT        NOT NULL DEFAULT 'V'
-                      CHECK (cedula_rif_tipo IN ('V', 'J', 'E', 'G', 'P')),
-    cedula_rif        TEXT,
-    nombres           TEXT,
-    apellidos         TEXT,
-    razon_social      TEXT,
-    nombre_completo   TEXT        NOT NULL,
-    email             TEXT        NOT NULL UNIQUE,
-    telefono          TEXT,
+    id_persona        INTEGER     REFERENCES personas(id) ON DELETE SET NULL,
+    id_empresa        INTEGER     REFERENCES empresas(id_empresa) ON DELETE SET NULL,
     programa_interes  TEXT,
-    nivel_profesional TEXT        CHECK (nivel_profesional IS NULL OR nivel_profesional IN ('Bachiller','TSU','Universitario','Postgrado')),
-    es_corredor_inmobiliario INTEGER CHECK (es_corredor_inmobiliario IS NULL OR es_corredor_inmobiliario IN (0, 1)),
-    tipo              TEXT        NOT NULL DEFAULT 'Regular' CHECK (tipo IN ('Regular','Invitado','Agremiado','Afiliado','Corporativo')),
+    es_corredor_inmobiliario INTEGER CHECK (es_corredor_inmobiliario IS NULL OR es_corredor_inmobiliario IN (0,1)),
+    tipo              TEXT        NOT NULL DEFAULT 'Regular' CHECK (tipo IN ('Regular','Invitado','Afiliado','Corporativo')),
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en    TEXT,
-    CONSTRAINT fk_estudiante_agremiado FOREIGN KEY (id_agremiado) REFERENCES agremiados(id_agremiado) ON DELETE SET NULL,
-    CONSTRAINT fk_estudiante_user FOREIGN KEY (id_user) REFERENCES users(id) ON DELETE SET NULL
+    eliminado_en      TEXT,
+    UNIQUE(id_persona),
+    UNIQUE(id_empresa),
+    CONSTRAINT chk_tipo_estudiante CHECK (
+      (id_persona IS NOT NULL AND id_empresa IS NULL) OR
+      (id_persona IS NULL AND id_empresa IS NOT NULL)
+    )
   )`,
-
-  `CREATE INDEX IF NOT EXISTS idx_estudiantes_email ON estudiantes(email)`,
-  `CREATE INDEX IF NOT EXISTS idx_estudiantes_cedula ON estudiantes(cedula_rif)`,
+  `CREATE INDEX IF NOT EXISTS idx_estudiantes_persona ON estudiantes(id_persona)`,
+  `CREATE INDEX IF NOT EXISTS idx_estudiantes_empresa ON estudiantes(id_empresa)`,
   `CREATE INDEX IF NOT EXISTS idx_estudiantes_user ON estudiantes(id_user)`,
 
+  // ===========================================================
+  // VERIFICACIONES DE EMAIL
+  // ===========================================================
   `CREATE TABLE IF NOT EXISTS verificaciones_email (
     id          INTEGER  PRIMARY KEY,
     email       TEXT     NOT NULL,
@@ -180,8 +211,60 @@ const statements = [
     usado       INTEGER  DEFAULT 0
   )`,
 
+  `CREATE TABLE IF NOT EXISTS verificaciones_preinscripciones (
+    id                        INTEGER PRIMARY KEY,
+    token_verificacion        TEXT UNIQUE NOT NULL,
+    email                     TEXT NOT NULL,
+    nombres                   TEXT,
+    apellidos                 TEXT,
+    cedula                    TEXT,
+    telefono                  TEXT,
+    nivel_academico           TEXT CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Universitario','Postgrado')),
+    profesion                 TEXT,
+    tipo_afiliado             TEXT CHECK (tipo_afiliado IN ('Natural','Corporativo','Agente Corporativo')),
+    id_empresa                INTEGER REFERENCES empresas(id_empresa) ON DELETE SET NULL,
+    razon_social              TEXT,
+    rif_tipo                  TEXT,
+    rif_numero                TEXT,
+    representante_legal_nombres   TEXT,
+    representante_legal_apellidos TEXT,
+    representante_legal_cedula    TEXT,
+    representante_legal_email     TEXT,
+    programa_interes          TEXT,
+    es_corredor_inmobiliario  INTEGER CHECK (es_corredor_inmobiliario IS NULL OR es_corredor_inmobiliario IN (0,1)),
+    estatus                   TEXT NOT NULL DEFAULT 'pendiente' CHECK (estatus IN ('pendiente','verificado','completado','expirado')),
+    fecha_expiracion          TEXT NOT NULL,
+    creado_en                 TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    procesado_en              TEXT,
+    eliminado_en              TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_ver_preins_email ON verificaciones_preinscripciones(email)`,
+  `CREATE INDEX IF NOT EXISTS idx_ver_preins_estatus ON verificaciones_preinscripciones(estatus)`,
+
   // ===========================================================
-  // FASE 2 — MÓDULO ACADÉMICO (CURSOS Y PAGOS)
+  // CENTRALIZACIÓN FINANCIERA
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS transacciones (
+    id_transaccion    INTEGER     PRIMARY KEY,
+    id_user           INTEGER     NOT NULL REFERENCES users(id),
+    concepto          TEXT        NOT NULL,
+    entidad_tipo      TEXT        NOT NULL,
+    entidad_id        INTEGER     NOT NULL,
+    monto             INTEGER     NOT NULL,
+    metodo_pago       TEXT,
+    referencia        TEXT        UNIQUE,
+    estatus           TEXT        DEFAULT 'Pendiente' CHECK (estatus IN ('Pendiente','Verificando','Conciliado','Rechazado','Reembolsado')),
+    fecha_pago        TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    conciliado_por    INTEGER     REFERENCES users(id),
+    notas             TEXT,
+    actualizado_en    TEXT,
+    eliminado_en      TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_transacciones_user ON transacciones(id_user)`,
+  `CREATE INDEX IF NOT EXISTS idx_transacciones_conciliador ON transacciones(conciliado_por)`,
+
+  // ===========================================================
+  // MÓDULO ACADÉMICO
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS instructores (
     id_instructor     INTEGER     PRIMARY KEY,
@@ -190,7 +273,8 @@ const statements = [
     perfil            TEXT,
     email             TEXT,
     telefono          TEXT,
-    activo            INTEGER     DEFAULT 1
+    activo            INTEGER     DEFAULT 1 CHECK (activo IN (0,1)),
+    eliminado_en      TEXT
   )`,
 
   `CREATE TABLE IF NOT EXISTS cursos (
@@ -198,54 +282,93 @@ const statements = [
     titulo            TEXT        NOT NULL,
     slug              TEXT        UNIQUE NOT NULL,
     descripcion       TEXT,
-    contenido         TEXT,       -- Markdown o HTML
-    categoria         TEXT        CHECK (categoria IN ('Taller', 'Diplomado', 'Certificación', 'Webinar')),
+    contenido         TEXT,
+    categoria         TEXT        CHECK (categoria IN ('Taller','Diplomado','Certificación','Webinar')),
     id_instructor     INTEGER     REFERENCES instructores(id_instructor),
-    precio_miembro    REAL        DEFAULT 0,
-    precio_publico    REAL        DEFAULT 0,
+    precio_miembro    INTEGER     DEFAULT 0,
+    precio_publico    INTEGER     DEFAULT 0,
     fecha_inicio      TEXT,
     fecha_fin         TEXT,
-    modalidad         TEXT        CHECK (modalidad IN ('Presencial', 'Online', 'Híbrido')),
-    estatus           TEXT        DEFAULT 'Borrador' CHECK (estatus IN ('Borrador', 'Publicado', 'Finalizado', 'Cancelado')),
+    modalidad         TEXT        CHECK (modalidad IN ('Presencial','Online','Híbrido')),
+    estatus           TEXT        DEFAULT 'Borrador' CHECK (estatus IN ('Borrador','Publicado','Finalizado','Cancelado')),
     imagen_url        TEXT,
     banner_url        TEXT,
     cupos_totales     INTEGER,
     cupos_disponibles INTEGER,
     destacado         INTEGER     DEFAULT 0,
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-    actualizado_en    TEXT
+    actualizado_en    TEXT,
+    eliminado_en      TEXT
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_cursos_instructor ON cursos(id_instructor)`,
+  `CREATE INDEX IF NOT EXISTS idx_cursos_activos ON cursos(eliminado_en) WHERE eliminado_en IS NULL`,
 
   `CREATE TABLE IF NOT EXISTS inscripciones_cursos (
     id_inscripcion    INTEGER     PRIMARY KEY,
-    id_curso          INTEGER     NOT NULL REFERENCES cursos(id_curso) ON DELETE CASCADE,
     id_estudiante     INTEGER     NOT NULL REFERENCES estudiantes(id_estudiante) ON DELETE CASCADE,
+    id_curso          INTEGER     REFERENCES cursos(id_curso) ON DELETE CASCADE,
+    programa_codigo   TEXT,
+    tipo_inscripcion  TEXT        NOT NULL CHECK (tipo_inscripcion IN ('curso','programa')),
+    estatus           TEXT        NOT NULL DEFAULT 'Preinscrito' CHECK (estatus IN ('Preinscrito','Entrevista','Inscrito','Pagado','Rechazado','Cancelado')),
+    estatus_academico TEXT        DEFAULT 'Inscrito' CHECK (estatus_academico IN ('Inscrito','Cursando','Aprobado','Reprobado','Retirado')),
+    id_empresa        INTEGER     REFERENCES empresas(id_empresa),
     fecha_inscripcion TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-    metodo_pago       TEXT,       -- Transferencia, Pago Móvil, Zelle, etc.
-    referencia_pago   TEXT,
-    monto_pagado      REAL,
-    estado_pago       TEXT        DEFAULT 'Pendiente' CHECK (estado_pago IN ('Pendiente', 'Verificando', 'Pagado', 'Rechazado')),
-    estatus_academico TEXT        DEFAULT 'Inscrito' CHECK (estatus_academico IN ('Inscrito', 'Cursando', 'Aprobado', 'Reprobado', 'Retirado')),
+    creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    actualizado_en    TEXT,
+    completado        INTEGER     DEFAULT 0 CHECK (completado IN (0,1)),
     certificado_url   TEXT,
     notas             TEXT,
+    entrevista_fecha  TEXT,
+    entrevista_hora   TEXT,
+    entrevista_lugar  TEXT,
+    entrevista_estatus TEXT       DEFAULT 'N/A' CHECK (entrevista_estatus IN ('N/A','Pendiente','Realizada','Cancelada')),
+    nota_admin        TEXT,
+    aprobado_por      INTEGER     REFERENCES users(id),
     UNIQUE(id_curso, id_estudiante)
   )`,
 
+  `CREATE TABLE IF NOT EXISTS documentos_adjuntos (
+    id_documento      INTEGER     PRIMARY KEY,
+    entidad_tipo      TEXT        NOT NULL CHECK (entidad_tipo IN ('estudiante','afiliado','empresa','curso')),
+    entidad_id        INTEGER     NOT NULL,
+    tipo_doc          TEXT        NOT NULL,
+    url               TEXT        NOT NULL,
+    nombre_archivo    TEXT,
+    fecha_documento   TEXT,
+    creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_docs_entidad ON documentos_adjuntos(entidad_tipo, entidad_id)`,
+
   // ===========================================================
-  // FASE 3 — MÓDULO LEGAL (DENUNCIAS Y REGLAMENTOS)
+  // MÓDULO LEGAL Y DISCIPLINARIO
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS denuncias (
-    id_denuncia       INTEGER     PRIMARY KEY,
-    id_denunciante    INTEGER     REFERENCES users(id), -- Puede ser nulo para denuncias anónimas o externas
-    nombre_denunciante TEXT,
-    email_denunciante TEXT,
-    tipo_denuncia     TEXT        NOT NULL CHECK (tipo_denuncia IN ('Ética', 'Ejercicio Ilegal', 'Inmobiliaria', 'Otros')),
-    asunto            TEXT        NOT NULL,
-    descripcion       TEXT        NOT NULL,
-    estatus           TEXT        DEFAULT 'Recibida' CHECK (estatus IN ('Recibida', 'En Revisión', 'Investigación', 'Resuelta', 'Desestimada')),
-    fecha_creacion    TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-    ultima_actualizacion TEXT
+    id_denuncia          INTEGER     PRIMARY KEY,
+    id_denunciante       INTEGER     REFERENCES users(id),
+    nombre_denunciante   TEXT,
+    email_denunciante    TEXT,
+    tipo_denuncia        TEXT        NOT NULL CHECK (tipo_denuncia IN ('Ética','Ejercicio Ilegal','Inmobiliaria','Otros')),
+    asunto               TEXT        NOT NULL,
+    descripcion          TEXT        NOT NULL,
+    estatus              TEXT        DEFAULT 'Recibida' CHECK (estatus IN ('Recibida','En Revisión','Investigación','Resuelta','Desestimada')),
+    fecha_creacion       TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    ultima_actualizacion TEXT,
+    eliminado_en         TEXT
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_denuncias_usuario ON denuncias(id_denunciante)`,
+  `CREATE INDEX IF NOT EXISTS idx_denuncias_estatus ON denuncias(estatus)`,
+
+  `CREATE TABLE IF NOT EXISTS historial_denuncias (
+    id_historial      INTEGER     PRIMARY KEY,
+    id_denuncia       INTEGER     NOT NULL REFERENCES denuncias(id_denuncia) ON DELETE CASCADE,
+    estatus_anterior  TEXT,
+    estatus_nuevo     TEXT        NOT NULL,
+    comentarios       TEXT,
+    cambiado_por      INTEGER     NOT NULL REFERENCES users(id),
+    fecha_cambio      TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_historial_denuncia ON historial_denuncias(id_denuncia)`,
+  `CREATE INDEX IF NOT EXISTS idx_historial_cambiador ON historial_denuncias(cambiado_por)`,
 
   `CREATE TABLE IF NOT EXISTS evidencias_legales (
     id_evidencia      INTEGER     PRIMARY KEY,
@@ -254,27 +377,28 @@ const statements = [
     url_archivo       TEXT        NOT NULL,
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
   )`,
-
   `CREATE INDEX IF NOT EXISTS idx_evidencias_denuncia ON evidencias_legales(id_denuncia)`,
 
   `CREATE TABLE IF NOT EXISTS planes_gestion (
     id_plan           INTEGER     PRIMARY KEY,
     titulo            TEXT        NOT NULL,
-    periodo           TEXT,       -- Ej: "2024-2025"
+    periodo           TEXT,
     archivo_url       TEXT        NOT NULL,
-    activo            INTEGER     DEFAULT 1
+    activo            INTEGER     DEFAULT 1 CHECK (activo IN (0,1)),
+    eliminado_en      TEXT
   )`,
 
   `CREATE TABLE IF NOT EXISTS actas_y_convocatorias (
     id_acta           INTEGER     PRIMARY KEY,
-    tipo              TEXT        NOT NULL CHECK (tipo IN ('Acta Asamblea', 'Convocatoria', 'Circular', 'Reglamento')),
+    tipo              TEXT        NOT NULL CHECK (tipo IN ('Acta Asamblea','Convocatoria','Circular','Reglamento')),
     titulo            TEXT        NOT NULL,
     fecha_publicacion TEXT        NOT NULL,
-    archivo_url       TEXT        NOT NULL
+    archivo_url       TEXT        NOT NULL,
+    eliminado_en      TEXT
   )`,
 
   // ===========================================================
-  // CMS — CONTENIDO DINÁMICO
+  // CMS
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS cms_noticias (
     id_noticia        INTEGER     PRIMARY KEY,
@@ -285,8 +409,10 @@ const statements = [
     imagen_url        TEXT,
     categoria         TEXT,
     fecha_publicacion TEXT        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-    publicado         INTEGER     DEFAULT 0
+    publicado         INTEGER     DEFAULT 0 CHECK (publicado IN (0,1)),
+    eliminado_en      TEXT
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_cms_noticias_activas ON cms_noticias(eliminado_en) WHERE eliminado_en IS NULL`,
 
   `CREATE TABLE IF NOT EXISTS cms_cursos (
     id_cms_curso      INTEGER     PRIMARY KEY,
@@ -294,9 +420,10 @@ const statements = [
     slug              TEXT        UNIQUE NOT NULL,
     descripcion_corta TEXT,
     modalidad         TEXT,
-    precio            REAL,
+    precio            INTEGER,
     imagen_url        TEXT,
-    publicado         INTEGER     DEFAULT 1
+    publicado         INTEGER     DEFAULT 1 CHECK (publicado IN (0,1)),
+    eliminado_en      TEXT
   )`,
 
   `CREATE TABLE IF NOT EXISTS cms_convenios (
@@ -305,8 +432,10 @@ const statements = [
     descripcion       TEXT,
     logo_url          TEXT,
     link_web          TEXT,
-    activo            INTEGER     DEFAULT 1
+    activo            INTEGER     DEFAULT 1 CHECK (activo IN (0,1)),
+    eliminado_en      TEXT
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_cms_convenios_activos ON cms_convenios(eliminado_en) WHERE eliminado_en IS NULL`,
 
   `CREATE TABLE IF NOT EXISTS cms_directiva (
     id_miembro        INTEGER     PRIMARY KEY,
@@ -314,29 +443,38 @@ const statements = [
     cargo             TEXT        NOT NULL,
     periodo           TEXT,
     foto_url          TEXT,
-    orden             INTEGER     DEFAULT 0
+    orden             INTEGER     DEFAULT 0,
+    activo            INTEGER     DEFAULT 1 CHECK (activo IN (0,1)),
+    eliminado_en      TEXT
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_cms_directiva_activos ON cms_directiva(eliminado_en) WHERE eliminado_en IS NULL`,
 
   `CREATE TABLE IF NOT EXISTS cms_hitos (
     id_hito           INTEGER     PRIMARY KEY,
     año               TEXT        NOT NULL,
     titulo            TEXT        NOT NULL,
     descripcion       TEXT,
-    orden             INTEGER     DEFAULT 0
+    orden             INTEGER     DEFAULT 0,
+    eliminado_en      TEXT
   )`,
 
   `CREATE TABLE IF NOT EXISTS cms_normativas (
     id_normativa      INTEGER     PRIMARY KEY,
     titulo            TEXT        NOT NULL,
-    tipo              TEXT        CHECK (tipo IN ('Ley', 'Reglamento', 'Código')),
-    archivo_url       TEXT        NOT NULL,
-    orden             INTEGER     DEFAULT 0
+    descripcion       TEXT,
+    url_archivo       TEXT        NOT NULL,
+    categoria         TEXT,
+    orden             INTEGER     DEFAULT 0,
+    activo            INTEGER     DEFAULT 1 CHECK (activo IN (0,1)),
+    creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    eliminado_en      TEXT
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_cms_normativas_activas ON cms_normativas(eliminado_en) WHERE eliminado_en IS NULL`,
 
   `CREATE TABLE IF NOT EXISTS cms_configuracion (
     clave             TEXT        PRIMARY KEY,
     valor             TEXT,
-    grupo             TEXT
+    actualizado_en    TEXT        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
   )`,
 
   `CREATE TABLE IF NOT EXISTS cms_paginas (
@@ -346,73 +484,55 @@ const statements = [
     contenido         TEXT,
     meta_title        TEXT,
     meta_desc         TEXT,
-    actualizado_en    TEXT        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+    actualizado_en    TEXT        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    eliminado_en      TEXT
   )`,
-
-  `CREATE INDEX IF NOT EXISTS idx_cms_paginas_actualizado ON cms_paginas(actualizado_en)`,
-
-  // ===========================================================
-  // SEGURIDAD Y USUARIOS
-  // ===========================================================
-  `CREATE TABLE IF NOT EXISTS users (
-    id                INTEGER     PRIMARY KEY,
-    email             TEXT        UNIQUE NOT NULL,
-    password          TEXT        NOT NULL,
-    role              TEXT        NOT NULL DEFAULT 'User' CHECK (role IN ('Admin', 'Moderator', 'Editor', 'User', 'Student')),
-    activo            INTEGER     DEFAULT 1,
-    creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-    actualizado_en    TEXT
-  )`
+  `CREATE INDEX IF NOT EXISTS idx_cms_paginas_activas ON cms_paginas(eliminado_en) WHERE eliminado_en IS NULL`
 ]
 
 async function run() {
   console.log('--- TURSO DB INITIALIZATION ---')
 
-  const reset = process.env.INITDB_RESET === '1'
+  const reset = process.env.INITDB_RESET === '1' || process.argv.includes('--reset')
 
   if (reset) {
     console.log('  ⚠ RESET MODE: Dropping all tables...')
-    // En SQLite, debemos borrar en orden inverso o desactivar FKs
     await db.execute(`PRAGMA foreign_keys = OFF`)
-    
-    // Obtener todas las tablas
+
     const tables = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
     for (const row of tables.rows) {
       await db.execute(`DROP TABLE IF EXISTS ${row.name}`)
       console.log(`    · Dropped ${row.name}`)
     }
-    
+
     await db.execute(`PRAGMA foreign_keys = ON`)
   }
 
-  // Ejecutar statements de creación
   for (const sql of statements) {
     try {
       await db.execute(sql)
-      const label = sql.substring(0, 50).replace(/\\n/g, ' ') + '...'
-      console.log(`  · OK: ${label}`)
+      const label = sql.length > 50 ? sql.substring(0, 47) + '...' : sql
+      console.log(`  · OK: ${label.replace(/\n/g, ' ')}`)
     } catch (e: any) {
-      console.error(`  · ERROR en statement: ${sql.substring(0, 50)}...`)
-      console.error(`    ${e.message}`)
+      console.error(`  · FATAL ERROR: ${sql.substring(0, 40)}... -> ${e.message}`)
+      throw e;
     }
   }
 
   console.log('\n--- SEEDING INITIAL DATA ---')
 
-  // 1. Admin User
   const adminEmail = 'admin@admin.com'
   const hashedPassword = await bcrypt.hash('admin123', 10)
   try {
     await db.execute({
-      sql: `INSERT INTO users (email, password, role) VALUES (?, ?, ?)`,
-      args: [adminEmail, hashedPassword, 'Admin']
+      sql: `INSERT INTO users (email, password_hash, roles, activo) VALUES (?, ?, ?, ?)`,
+      args: [adminEmail, hashedPassword, '["admin", "super_admin"]', 1]
     })
     console.log(`  · Admin user ${adminEmail} created.`)
   } catch (e) {
     console.log(`  · User ${adminEmail} already exists.`)
   }
 
-  // 2. Instructor inicial
   try {
     await db.execute({
       sql: `INSERT INTO instructores (id_instructor, nombre, especialidad) VALUES (?, ?, ?)`,
@@ -423,7 +543,6 @@ async function run() {
     console.log(`  · Instructor 1 already exists.`)
   }
 
-  // 3. Convenios iniciales
   const convenios = [
     {
       nombre: 'Universidad Católica Andrés Bello (UCAB)',
@@ -432,7 +551,7 @@ async function run() {
     },
     {
       nombre: 'Banco Mercantil',
-      descripcion: 'Alianza estratégica para facilitar el acceso a servicios financieros de nuestros agremiados.',
+      descripcion: 'Alianza estratégica para facilitar el acceso a servicios financieros de nuestros afiliados.',
       link_web: 'https://www.mercantilbanco.com/'
     }
   ]
@@ -444,65 +563,7 @@ async function run() {
         args: [conv.nombre, conv.descripcion, conv.link_web]
       })
       console.log(`  · Convenio ${conv.nombre} created.`)
-    } catch (e) {
-      // console.log(`  · Convenio ${conv.nombre} already exists.`)
-    }
-  }
-
-  // 4. Afiliados (desde JSON)
-  const seedPath = path.join(process.cwd(), 'apps/api/src/config/afiliados_seed.json')
-  if (fs.existsSync(seedPath)) {
-    try {
-      const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf8'))
-      for (const a of seedData) {
-        try {
-          // Extraer tipo y número de la cédula original (V-12345678 -> V, 12345678)
-          let tipo = 'V'
-          let numero = a.cedula_rif || ''
-          
-          if (numero.includes('-')) {
-            const parts = numero.split('-')
-            tipo = parts[0].toUpperCase()
-            numero = parts.slice(1).join('-')
-          } else if (/^[VJEGP]/i.test(numero)) {
-            tipo = numero[0].toUpperCase()
-            numero = numero.substring(1)
-          }
-
-          await db.execute({
-            sql: `INSERT INTO agremiados (id_agremiado, codigo_cibir, tipo_afiliado, nombres, apellidos, razon_social, cedula_rif_tipo, cedula_rif, email, telefono, nivel_academico, estatus, notas) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: [
-              a.id_agremiado ?? null, 
-              a.id_agremiado ? String(a.id_agremiado) : null,
-              a.tipo_afiliado ?? 'Natural',
-              a.nombres ?? null, 
-              a.apellidos ?? null, 
-              a.razon_social ?? null,
-              tipo,
-              numero,
-              a.email ?? null, 
-              a.telefono ?? null,
-              a.nivel_academico ?? null, 
-              'Afiliado', 
-              a.notas ?? null
-            ]
-          })
-          
-          if (a.razon_social) {
-            await db.execute({
-              sql: `INSERT INTO agremiados_datos_empresa (id_agremiado, razon_social, rif) VALUES (?, ?, ?)`,
-              args: [a.id_agremiado ?? null, a.razon_social ?? null, 'PROV-' + a.id_agremiado]
-            })
-          }
-        } catch (e) {
-          // Ignorar duplicados o errores de inserción individual
-        }
-      }
-      console.log(`  · Seeded ${seedData.length} affiliates.`)
-    } catch (err) {
-      console.error('  · Error seeding affiliates:', err)
-    }
+    } catch (e) { }
   }
 
   console.log('\nDB Initialization complete!\n')

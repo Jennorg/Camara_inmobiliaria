@@ -22,13 +22,13 @@ app.use(cors({
 app.use(express.json())
 
 // Rutas de API
-app.use('/api/auth',      authRoutes)
-app.use('/api/users',     usersRoutes)
+app.use('/api/auth', authRoutes)
+app.use('/api/users', usersRoutes)
 app.use('/api/afiliados', afiliadosRoutes)
-app.use('/api/public',    publicRoutes)
-app.use('/api/cms',       cmsRoutes)
+app.use('/api/public', publicRoutes)
+app.use('/api/cms', cmsRoutes)
 app.use('/api/cms/uploads', uploadsRoutes)
-app.use('/api/academia',  academiaRoutes)
+app.use('/api/academia', academiaRoutes)
 
 // Rutas base
 app.get('/', (req: Request, res: Response) => {

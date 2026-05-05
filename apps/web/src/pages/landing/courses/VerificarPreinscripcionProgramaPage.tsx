@@ -72,7 +72,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   }, [token])
 
   const isAfiliacion = userData?.programaCodigo === 'AFILIACION'
-  const isCorporativo = isAfiliacion && ['Juridico', 'Corporativo'].includes(userData?.tipoAfiliado)
+  const isCorporativo = isAfiliacion && userData?.tipoAfiliado === 'Corporativo'
   const isPostgrado = formData.nivelProfesional === 'Postgrado'
   const currentNivel = NIVELES.find(n => n.value === formData.nivelProfesional)
 

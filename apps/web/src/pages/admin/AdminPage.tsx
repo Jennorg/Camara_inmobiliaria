@@ -15,7 +15,7 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   cms_paginas: { title: 'Páginas públicas', subtitle: 'Contenido JSON de rutas /beneficios, /pegi, etc.' },
   cms_config: { title: 'Configuración de Contenido', subtitle: 'Textos fijos e imágenes de la Landing' },
   media: { title: 'Medios', subtitle: 'Gestionar archivos e imágenes' },
-  afiliados: { title: 'Afiliados', subtitle: 'Gestión de candidatos y agremiados CIBIR' },
+  afiliados: { title: 'Afiliados', subtitle: 'Gestión de candidatos y afiliados CIBIR' },
   estudiantes: { title: 'Estudiantes', subtitle: 'Estudiantes regulares, preinscripciones e inscripciones' },
   users: { title: 'Usuarios', subtitle: 'Cuentas de acceso al sistema' },
   analytics: { title: 'Análisis', subtitle: 'Métricas y rendimiento general' },

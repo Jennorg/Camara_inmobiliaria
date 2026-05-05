@@ -6,12 +6,13 @@ import { formatNombreCard } from '@/utils/formatters'
 
 type Estudiante = {
   id_estudiante: number
-  id_agremiado: number | null
-  cedula_rif: string | null
+  id_persona: number | null
+  id_empresa: number | null
+  cedula: string | null
   nombre_completo: string
   email: string
   telefono: string | null
-  tipo: 'Regular' | 'Agremiado'
+  tipo: 'Regular' | 'Afiliado'
   creado_en: string
 }
 
@@ -153,7 +154,7 @@ export default function EstudiantesRegularesPanel() {
                 </div>
                 <span className="text-xs text-slate-400 truncate">{e.email}</span>
                 <span className="text-[10px] text-slate-300">
-                  {e.cedula_rif || '—'} · {new Date(e.creado_en).toLocaleDateString('es-ES')}
+                  {e.cedula || '—'} · {new Date(e.creado_en).toLocaleDateString('es-ES')}
                 </span>
               </button>
             ))

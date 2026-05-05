@@ -15,7 +15,7 @@ const DirectorioPage = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
-  const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo'>('Todos');
+  const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos');
 
   useEffect(() => {
     const fetchAfiliados = async () => {
@@ -37,7 +37,7 @@ const DirectorioPage = () => {
   }, []);
 
   const fuse = useMemo(() => new Fuse(afiliados, {
-    keys: ['nombre_completo', 'codigo_cibir', 'cedula_rif'],
+    keys: ['nombre_completo', 'codigo_cibir', 'cedula', 'empresa_rif_numero'],
     threshold: 0.25, // Un poco más estricto para evitar ruido en códigos numéricos
     ignoreLocation: true,
     minMatchCharLength: 1
@@ -61,11 +61,12 @@ const DirectorioPage = () => {
 
   // Depuración: contar tipos reales en la data
   const stats = useMemo(() => {
-    const counts: Record<string, number> = { Natural: 0, Corporativo: 0, Otros: 0 };
+    const counts: Record<string, number> = { Natural: 0, Corporativo: 0, Agente: 0, Otros: 0 };
     afiliados.forEach(a => {
       const t = a.tipo_afiliado;
       if (t === 'Natural') counts.Natural++;
-      else if (t === 'Corporativo' || t === 'Juridico') counts.Corporativo++;
+      else if (t === 'Corporativo') counts.Corporativo++;
+      else if (t === 'Agente Corporativo') counts.Agente++;
       else counts.Otros++;
     });
     return counts;
@@ -126,7 +127,8 @@ const DirectorioPage = () => {
                   {[
                     { id: 'Todos', label: 'Todos' },
                     { id: 'Natural', label: 'Independientes' },
-                    { id: 'Corporativo', label: 'Corporativos' },
+                    { id: 'Corporativo', label: 'Empresas' },
+                    { id: 'Agente Corporativo', label: 'Agentes' },
                   ].map((f) => (
                     <button
                       key={f.id}
@@ -146,6 +148,7 @@ const DirectorioPage = () => {
                 <div className="flex gap-4 text-[9px] font-bold text-slate-400 dark:text-emerald-500/40 uppercase tracking-tighter">
                   <span>Ind: {stats.Natural}</span>
                   <span>Corp: {stats.Corporativo}</span>
+                  <span>Agentes: {stats.Agente}</span>
                   {stats.Otros > 0 && <span className="text-amber-500">Sin tipo: {stats.Otros}</span>}
                 </div>
               </div>
@@ -164,7 +167,7 @@ const DirectorioPage = () => {
           ) : resultados.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
               {resultados.map((afiliado) => (
-                <AfiliadoCard key={afiliado.id_agremiado} afiliado={afiliado} />
+                <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
               ))}
             </div>
           ) : (

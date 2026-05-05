@@ -11,10 +11,18 @@ export interface AuthUser {
   email: string
   rol: UserRole              // rol primario (más alto en jerarquía)
   roles: UserRole[]          // todos los roles del usuario
-  id_agremiado: number | null
-  // Datos de perfil vinculados (estudiante)
+  
+  // Relaciones con perfiles (poblado por enrichUser middleware)
+  id_persona?: number
+  id_empresa?: number
+  id_afiliado?: number
+  id_estudiante?: number
+  
+  // Datos de perfil
   nombre_completo?: string
-  cedula_rif?: string
+  codigo_cibir?: string
+  cedula?: string
+  tipo_afiliado?: string
   telefono?: string
   nivel_profesional?: string
   es_corredor_inmobiliario?: boolean

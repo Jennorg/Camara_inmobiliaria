@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import type { JwtPayload, UserRole } from '../middlewares/auth.middleware.js'
+import { enrichUserPayload } from '../middlewares/auth.middleware.js'
 
 /** Hashea un token en crudo con SHA-256 (para almacenar en reset_token_hash). */
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
@@ -42,7 +43,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Buscar usuario por email (incluyendo campo roles)
     const result = await db.execute({
-      sql: `SELECT id, email, password_hash, roles, id_agremiado, activo FROM users WHERE email = ?`,
+      sql: `SELECT id, email, password_hash, roles, activo FROM users WHERE email = ?`,
       args: [email],
     })
 
@@ -74,23 +75,25 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         ? 'admin'
         : 'afiliado'
 
-    // Generar JWT
+    // Generar JWT (el JWT base solo contiene lo esencial)
     const payload: JwtPayload = {
       id: user.id as number,
       email: user.email as string,
       rol: rolPrimary,
-      roles,
-      id_agremiado: user.id_agremiado as number | null,
+      roles
     }
 
     const token = jwt.sign(payload, env.JWT_SECRET, {
       expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
     })
 
+    // Enriquecer el usuario para retornarlo en la respuesta del login
+    const enrichedUser = await enrichUserPayload({ ...payload })
+
     res.status(200).json({
       success: true,
       token,
-      user: payload,
+      user: enrichedUser,
     })
   } catch (error) {
     console.error('Error en login:', error)
@@ -101,32 +104,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 /**
  * GET /api/auth/me
  * Devuelve los datos del usuario autenticado (requiere JWT válido).
+ * El middleware enrichUser ya se encarga de poblar las relaciones en req.user
  */
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.user!
-
-    const result = await db.execute({
-      sql: `
-        SELECT 
-          u.id, u.email, u.roles, u.id_agremiado, u.activo, u.creado_en,
-          a.nombre_completo, a.cedula_rif, a.telefono
-        FROM users u
-        LEFT JOIN agremiados a ON a.id_agremiado = u.id_agremiado
-        WHERE u.id = ?
-      `,
-      args: [id],
-    })
-
-    const user = result.rows[0] as any
-    if (!user) {
+    if (!req.user) {
       res.status(404).json({ success: false, message: 'Usuario no encontrado' })
       return
     }
 
-    const roles = parseRoles(user.roles)
-    const rolPrimary: UserRole = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : 'afiliado'
-    res.status(200).json({ success: true, user: { ...user, roles, rol: rolPrimary } })
+    res.status(200).json({ success: true, user: req.user })
   } catch (error) {
     console.error('Error en getMe:', error)
     res.status(500).json({ success: false, message: 'Error interno del servidor' })

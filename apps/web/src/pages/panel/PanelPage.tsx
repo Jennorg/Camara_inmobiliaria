@@ -96,8 +96,8 @@ const PanelPage = () => {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'formacion' ? 'Catálogo Académico' : 'Resumen / Inicio');
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [loadingAgremiado, setLoadingAgremiado] = useState(true);
-  const [agremiado, setAgremiado] = useState<{
+  const [loadingAfiliado, setLoadingAfiliado] = useState(true);
+  const [afiliado, setAfiliado] = useState<{
     nombre_completo: string;
     nombres: string | null;
     apellidos: string | null;
@@ -108,27 +108,27 @@ const PanelPage = () => {
     razon_social?: string;
   } | null>(null);
 
-  const fetchAgremiado = () => {
-    if (!user?.id_agremiado || !token) {
-      setLoadingAgremiado(false);
+  const fetchAfiliado = () => {
+    if (!user?.id_afiliado || !token) {
+      setLoadingAfiliado(false);
       return;
     }
-    setLoadingAgremiado(true);
-    fetch(`${API_URL}/api/afiliados/${user.id_agremiado}`, {
+    setLoadingAfiliado(true);
+    fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(d => { if (d.success) setAgremiado(d.data) })
+      .then(d => { if (d.success) setAfiliado(d.data) })
       .catch(() => { })
-      .finally(() => setLoadingAgremiado(false));
+      .finally(() => setLoadingAfiliado(false));
   };
 
-  useEffect(() => { fetchAgremiado(); }, [user?.id_agremiado, token]);
+  useEffect(() => { fetchAfiliado(); }, [user?.id_afiliado, token]);
 
-  const displayName = agremiado ? formatNombreCard(agremiado.nombres || agremiado.nombre_completo, agremiado.apellidos) : (user?.email?.split('@')[0] ?? 'Usuario');
-  const displayCode = agremiado?.codigo_cibir ?? (isAdmin ? 'Administrador' : '—');
-  const isActivo = agremiado?.estatus === 'CIBIR';
-  const isPaid = agremiado?.inscripcion_pagada === 1;
+  const displayName = afiliado ? formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos) : (user?.email?.split('@')[0] ?? 'Usuario');
+  const displayCode = afiliado?.codigo_cibir ?? (isAdmin ? 'Administrador' : '—');
+  const isActivo = afiliado?.estatus === 'CIBIR';
+  const isPaid = afiliado?.inscripcion_pagada === 1;
   const isLimited = isActivo && !isPaid;
 
   // Construir nav items dinámicamente según roles
@@ -151,7 +151,7 @@ const PanelPage = () => {
     }
     
     // Si es corporativo, agregar pestaña de gestión
-    if (agremiado?.tipo_afiliado === 'Corporativo') {
+    if (afiliado?.tipo_afiliado === 'Corporativo') {
       baseItems.push({ icon: Users, label: 'Mis Afiliados' });
     }
 
@@ -181,7 +181,7 @@ const PanelPage = () => {
     // 1. Sección de Afiliado
     if (activeTab === 'Resumen / Inicio') {
       if (isAdmin) return <div className="col-span-1 lg:col-span-3 relative z-10"><CmsDashboard /></div>;
-      if (isLimited && user?.roles.includes('afiliado')) return <div className="col-span-1 lg:col-span-3"><WidgetFormalizarInscripcion onSuccess={fetchAgremiado} /></div>;
+      if (isLimited && user?.roles.includes('afiliado')) return <div className="col-span-1 lg:col-span-3"><WidgetFormalizarInscripcion onSuccess={fetchAfiliado} /></div>;
       
       // Si es solo estudiante
       if (isEstudiante && !isAfiliado) {
@@ -196,8 +196,8 @@ const PanelPage = () => {
       // Afiliado standard
       return (
         <>
-          <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAgremiado} /></div>
-          <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAgremiado} /></div>
+          <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div>
+          <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div>
           <div className="lg:col-span-3"><WidgetAcademico /></div>
         </>
       );
@@ -303,7 +303,7 @@ const PanelPage = () => {
                             : role === 'estudiante' ? 'Estudiante'
                             : isLimited ? 'CIBIR Restringido'
                               : isActivo ? 'CIBIR Activo'
-                                : agremiado ? `Estatus: ${agremiado.estatus}` : 'Afiliado'}
+                                : afiliado ? `Estatus: ${afiliado.estatus}` : 'Afiliado'}
                       </span>
                     ))}
                   </div>

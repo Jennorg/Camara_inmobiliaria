@@ -420,7 +420,7 @@ export const notificarAdminNuevaAfiliacion = async (params: {
           <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Cédula/RIF:</td><td style="padding:8px;border:1px solid #eee;">${cedulaRif}</td></tr>
           <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Teléfono:</td><td style="padding:8px;border:1px solid #eee;">${telefono}</td></tr>
         </table>
-        <p>El candidato ahora aparece como 'Preinscrito' en la lista de CIBIR.</p>
+        <p>El candidato ahora aparece como '1_PREINSCRIPCION' en la lista de CIBIR.</p>
       </div>
     `
   })

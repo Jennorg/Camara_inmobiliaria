@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { login, getMe, logout, forgotPassword, setupInitialPassword, resetPasswordWithToken } from '../controllers/auth.controller.js'
-import { requireAuth } from '../middlewares/auth.middleware.js'
+import { requireAuth, enrichUser } from '../middlewares/auth.middleware.js'
 
 const router = Router()
 
@@ -8,7 +8,7 @@ const router = Router()
 router.post('/login', login)
 
 // GET /api/auth/me — protegido
-router.get('/me', requireAuth, getMe)
+router.get('/me', requireAuth, enrichUser, getMe)
 
 // POST /api/auth/logout — público (limpia en cliente)
 router.post('/logout', logout)

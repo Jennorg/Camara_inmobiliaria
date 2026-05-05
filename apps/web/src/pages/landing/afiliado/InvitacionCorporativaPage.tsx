@@ -31,13 +31,15 @@ export default function InvitacionCorporativaPage() {
   const [showNivelDropdown, setShowNivelDropdown] = useState(false)
 
   const [form, setForm] = useState({
-    nombreCompleto: '',
+    nombres: '',
+    apellidos: '',
     cedulaPrefix: 'V',
     cedulaNumber: '',
     email: '',
     phonePrefix: '+58',
     telefono: '',
     nivelProfesional: '',
+    profesion: '',
     esCorredorInmobiliario: '',
   })
 
@@ -77,11 +79,14 @@ export default function InvitacionCorporativaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nombreCompleto: form.nombreCompleto.trim(),
+          nombres: form.nombres.trim(),
+          apellidos: form.apellidos.trim(),
+          nombreCompleto: `${form.nombres} ${form.apellidos}`.trim(),
           cedulaRif: `${form.cedulaPrefix}-${form.cedulaNumber}`,
           email: form.email,
           telefono: `${form.phonePrefix}${form.telefono}`,
           nivelProfesional: form.nivelProfesional,
+          profesion: form.profesion.trim(),
           esCorredorInmobiliario: form.esCorredorInmobiliario === 'si',
         }),
       })
@@ -176,13 +181,23 @@ export default function InvitacionCorporativaPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Nombre */}
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nombre Completo</label>
+              {/* Nombres */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nombres</label>
                 <div className="relative">
                   <User size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input required type="text" value={form.nombreCompleto} onChange={e => setForm(p => ({ ...p, nombreCompleto: e.target.value }))}
-                    placeholder="Ej. Ana García" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl border border-slate-200 outline-none focus:border-emerald-500 text-slate-800 text-sm font-medium shadow-sm`} />
+                  <input required type="text" value={form.nombres} onChange={e => setForm(p => ({ ...p, nombres: e.target.value }))}
+                    placeholder="Ej. Ana" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl border border-slate-200 outline-none focus:border-emerald-500 text-slate-800 text-sm font-medium shadow-sm`} />
+                </div>
+              </div>
+
+              {/* Apellidos */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Apellidos</label>
+                <div className="relative">
+                  <User size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input required type="text" value={form.apellidos} onChange={e => setForm(p => ({ ...p, apellidos: e.target.value }))}
+                    placeholder="Ej. García" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl border border-slate-200 outline-none focus:border-emerald-500 text-slate-800 text-sm font-medium shadow-sm`} />
                 </div>
               </div>
 
@@ -210,12 +225,22 @@ export default function InvitacionCorporativaPage() {
               </div>
 
               {/* Teléfono */}
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Teléfono</label>
                 <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                   <span className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center text-sm font-black text-slate-700">🇻🇪 +58</span>
                   <input type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))}
                     placeholder="4XX 0000000" className="flex-1 px-5 h-full bg-white outline-none text-sm font-medium text-slate-800" />
+                </div>
+              </div>
+
+              {/* Profesión */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Profesión</label>
+                <div className="relative">
+                  <Briefcase size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input required type="text" value={form.profesion} onChange={e => setForm(p => ({ ...p, profesion: e.target.value }))}
+                    placeholder="Ej. Abogado, Ingeniero..." className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl border border-slate-200 outline-none focus:border-emerald-500 text-slate-800 text-sm font-medium shadow-sm`} />
                 </div>
               </div>
 

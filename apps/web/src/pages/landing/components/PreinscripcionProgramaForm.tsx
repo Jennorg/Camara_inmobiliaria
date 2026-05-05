@@ -52,19 +52,22 @@ const BOX_H = "h-[58px]"
 export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, initialData }: Props) {
   const [formData, setFormData] = useState({
     // Campos Natural
-    nombreCompleto: initialData?.nombreCompleto || '',
+    nombres: initialData?.nombreCompleto?.split(' ')[0] || '',
+    apellidos: initialData?.nombreCompleto?.split(' ').slice(1).join(' ') || '',
     cedulaPrefix: initialData?.cedulaRif?.includes('-') ? initialData.cedulaRif.split('-')[0] : 'V',
     cedulaNumber: initialData?.cedulaRif?.includes('-') ? initialData.cedulaRif.split('-')[1] : (initialData?.cedulaRif || ''),
     email: initialData?.email || '',
     phonePrefix: '+58',
     telefono: '',
     nivelProfesional: initialData?.nivelProfesional || '',
+    profesion: '',
     esCorredorInmobiliario: initialData?.esCorredorInmobiliario === true ? 'si' : initialData?.esCorredorInmobiliario === false ? 'no' : '',
     // Campos exclusivos Corporativo
     razonSocial: '',
     rifPrefix: 'J',
     rifNumber: '',
-    representanteLegal: '',
+    representanteNombres: '',
+    representanteApellidos: '',
     cedulaRepresentante: '',
     emailRepresentante: '',
     emailEmpresa: '',
@@ -98,23 +101,29 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
         ? {
             programaCodigo,
             tipoAfiliado: 'Corporativo',
-            nombreCompleto: formData.razonSocial.trim(),
             razonSocial: formData.razonSocial.trim(),
+            rif_tipo: formData.rifPrefix,
+            rif_numero: formData.rifNumber.replace(/\D/g, ''),
             cedulaRif: `${formData.rifPrefix}-${formData.rifNumber.replace(/\D/g, '')}`,
             email: formData.emailEmpresa,
             telefono: `${formData.phonePrefix}${formData.telefono.replace(/\D/g, '')}`,
-            representanteLegal: formData.representanteLegal.trim(),
+            representanteLegal: `${formData.representanteNombres} ${formData.representanteApellidos}`.trim(),
+            representanteLegalNombres: formData.representanteNombres.trim(),
+            representanteLegalApellidos: formData.representanteApellidos.trim(),
             cedulaRepresentante: formData.cedulaRepresentante.trim(),
             emailRepresentante: formData.emailRepresentante.trim(),
           }
         : {
             programaCodigo,
             tipoAfiliado: 'Natural',
-            nombreCompleto: formData.nombreCompleto.trim(),
+            nombres: formData.nombres.trim(),
+            apellidos: formData.apellidos.trim(),
+            nombreCompleto: `${formData.nombres} ${formData.apellidos}`.trim(),
             cedulaRif: `${formData.cedulaPrefix}-${formData.cedulaNumber.replace(/\D/g, '')}`,
             email: formData.email,
             telefono: `${formData.phonePrefix}${formData.telefono.replace(/\D/g, '')}`,
             nivelProfesional: formData.nivelProfesional,
+            profesion: formData.profesion.trim(),
             esCorredorInmobiliario: formData.esCorredorInmobiliario === 'si',
           }
 
@@ -230,10 +239,17 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
               {/* Representante Legal + Cédula + Email */}
               <div className="space-y-4 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombre del Representante Legal</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombres del Representante</label>
                   <div className="relative group">
                     <UserCheck size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                    <input type="text" name="representanteLegal" required value={formData.representanteLegal} onChange={handleChange} placeholder="Ej. Carlos Mendoza" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
+                    <input type="text" name="representanteNombres" required value={formData.representanteNombres} onChange={handleChange} placeholder="Ej. Carlos" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Apellidos del Representante</label>
+                  <div className="relative group">
+                    <UserCheck size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                    <input type="text" name="representanteApellidos" required value={formData.representanteApellidos} onChange={handleChange} placeholder="Ej. Mendoza" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -271,12 +287,21 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
         ══════════════════════════════════ */}
         {!isCorporativo && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Nombre */}
+            {/* Nombres */}
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombre Completo</label>
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombres</label>
               <div className="relative group">
                 <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                <input type="text" name="nombreCompleto" required value={formData.nombreCompleto} onChange={handleChange} placeholder="Ej. Carlos Mendoza" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
+                <input type="text" name="nombres" required value={formData.nombres} onChange={handleChange} placeholder="Ej. Carlos" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
+              </div>
+            </div>
+
+            {/* Apellidos */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Apellidos</label>
+              <div className="relative group">
+                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <input type="text" name="apellidos" required value={formData.apellidos} onChange={handleChange} placeholder="Ej. Mendoza" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
               </div>
             </div>
 
@@ -309,6 +334,15 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                   <span>{formData.phonePrefix}</span>
                 </button>
                 <input type="tel" name="telefono" required value={formData.telefono} onChange={handleChange} placeholder="4XX 0000000" className="flex-1 px-5 h-full bg-white outline-none text-sm font-medium text-slate-800" />
+              </div>
+            </div>
+
+            {/* Profesión */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Profesión</label>
+              <div className="relative group">
+                <Briefcase size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <input type="text" name="profesion" required value={formData.profesion} onChange={handleChange} placeholder="Ej. Abogado, Ingeniero..." className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
               </div>
             </div>
           </div>

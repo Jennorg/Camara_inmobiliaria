@@ -26,7 +26,7 @@ interface SystemUser {
   rol: 'admin' | 'afiliado' | 'super_admin'
   activo: number
   creado_en: string
-  id_agremiado: number | null
+  id_afiliado: number | null
   nombre_completo: string | null
   codigo_cibir: string | null
 }
@@ -402,7 +402,7 @@ export default function UsersPanel() {
           <Search size={15} strokeWidth={2} className='absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none' />
           <input
             type='text'
-            placeholder='Buscar por email o agremiado...'
+            placeholder='Buscar por email o afiliado...'
             value={search}
             onChange={e => setSearch(e.target.value)}
             className='w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-700 placeholder-slate-400 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors'

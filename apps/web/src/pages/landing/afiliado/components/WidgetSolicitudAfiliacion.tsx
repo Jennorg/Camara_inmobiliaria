@@ -43,7 +43,7 @@ const WidgetSolicitudAfiliacion = () => {
             initialData={{
               email: user?.email || '',
               nombreCompleto: formatNombreCard(user?.nombre_completo) || '',
-              cedulaRif: user?.cedula_rif || '',
+              cedulaRif: user?.cedula || '',
               telefono: user?.telefono || '',
               nivelProfesional: user?.nivel_profesional || '',
               esCorredorInmobiliario: user?.es_corredor_inmobiliario

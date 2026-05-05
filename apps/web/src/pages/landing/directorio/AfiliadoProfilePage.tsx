@@ -85,7 +85,7 @@ const AfiliadoProfilePage = () => {
     );
   }
 
-  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo' || afiliado.tipo_afiliado === 'Juridico';
+  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo';
   const yearsOfService = afiliado.fecha_inicio_servicio 
     ? new Date().getFullYear() - new Date(afiliado.fecha_inicio_servicio).getFullYear()
     : 0;
@@ -151,15 +151,12 @@ const AfiliadoProfilePage = () => {
                   <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">
                     {isCorporativo ? 'Miembro Corporativo' : 'Miembro Independiente'}
                   </span>
-                  {/* @ts-ignore */}
-                  {afiliado.empresa_pertenece && (
+                  {afiliado.empresa_razon_social && (
                     <Link 
-                      /* @ts-ignore */
-                      to={`/miembros/${afiliado.empresa_id}`} 
+                      to={`/miembros/${afiliado.id_empresa}`} 
                       className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md text-emerald-100 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 hover:bg-emerald-500/30 transition-all"
                     >
-                      {/* @ts-ignore */}
-                      Parte de: {afiliado.empresa_pertenece}
+                      Parte de: {afiliado.empresa_razon_social}
                     </Link>
                   )}
                   <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md text-slate-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">
@@ -199,8 +196,7 @@ const AfiliadoProfilePage = () => {
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isCorporativo ? 'RIF' : 'Documento de Identidad'}</p>
                       <p className="text-sm font-bold text-slate-700 dark:text-emerald-50">
-                        {/* @ts-ignore */}
-                        {afiliado.cedula_rif_tipo}-{afiliado.cedula_rif}
+                        {afiliado.empresa_rif_tipo ? `${afiliado.empresa_rif_tipo}-${afiliado.empresa_rif_numero}` : afiliado.cedula}
                       </p>
                     </div>
                   </div>
@@ -340,7 +336,7 @@ const AfiliadoProfilePage = () => {
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {afiliado.afiliados_asociados.map((assoc: AfiliadoData) => (
-                      <AfiliadoCard key={assoc.id_agremiado} afiliado={assoc} />
+                      <AfiliadoCard key={assoc.id_afiliado} afiliado={assoc} />
                     ))}
                   </div>
                 </section>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard } from '@/utils/formatters'
+import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 import { FileText, ExternalLink, Download, Award, GraduationCap } from 'lucide-react'
 
 function DocLink({ label, url, compact = false }: { label: string, url?: string | null, compact?: boolean }) {
@@ -36,39 +37,6 @@ function DocLink({ label, url, compact = false }: { label: string, url?: string 
 }
 
 
-type EstatusAgremiado = 
-  | '1_SOLICITUD' | '2_REQUISITOS' | '3_CONFIRMACION' 
-  | '4_RECEPCION' | '5_ENTREVISTA' | '6_JUNTA_DIRECTIVA' 
-  | '7_RESULTADO' | '8_FORMALIZACION' | '9_AFILIACION'
-  | 'Moroso' | 'Suspendido' | 'Rechazado' | 'Preinscrito' | 'CIBIR'
-
-type Agremiado = {
-  id_agremiado: number
-  codigo_cibir: string | null
-  cedula_rif_tipo: string | null
-  cedula_rif: string
-  nombre_completo: string
-  nombres: string | null
-  apellidos: string | null
-  razon_social: string | null
-  cedula_personal: string | null
-  tipo_afiliado: 'Natural' | 'Corporativo' | 'Juridico'
-  email: string
-  telefono: string | null
-  direccion: string | null
-  fecha_nacimiento: string | null
-  nivel_academico: string | null
-  notas: string | null
-  estatus: EstatusAgremiado
-  cibir_convalidado?: number
-  inscripcion_pagada: number
-  fecha_registro: string
-  fecha_ultimo_cambio_estatus: string | null
-  url_titulo?: string | null
-  url_cv?: string | null
-  url_especializaciones?: string | null
-  url_cursos_extras?: string | null
-}
 
 export default function AfiliadosPanel() {
   const { token } = useAuth()
@@ -78,12 +46,12 @@ export default function AfiliadosPanel() {
     return h
   }, [token])
 
-  const [estatus, setEstatus] = useState<'Todos' | EstatusAgremiado>('Todos')
+  const [estatus, setEstatus] = useState<'Todos' | EstatusAfiliado>('Todos')
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo'>('Todos')
-  const [items, setItems] = useState<Agremiado[]>([])
+  const [items, setItems] = useState<AfiliadoDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [selected, setSelected] = useState<Agremiado | null>(null)
+  const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
   const load = async () => {
@@ -97,7 +65,7 @@ export default function AfiliadosPanel() {
       const res = await fetch(`${API_URL}/api/afiliados?${qs.toString()}`, { headers: authHeaders })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando afiliados')
-      setItems(json.data as Agremiado[])
+      setItems(json.data as AfiliadoDTO[])
     } catch (e: unknown) {
       const err = e as Error
       setError(err.message || 'Error inesperado')
@@ -113,7 +81,7 @@ export default function AfiliadosPanel() {
       const res = await fetch(`${API_URL}/api/afiliados/${id}`, { headers: authHeaders })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando detalle')
-      setSelected(json.data as Agremiado)
+      setSelected(json.data as AfiliadoDTO)
     } catch (e: unknown) {
       const err = e as Error
       setError(err.message || 'Error inesperado')
@@ -122,16 +90,16 @@ export default function AfiliadosPanel() {
     }
   }
 
-  const updateField = async (field: keyof Agremiado, value: any) => {
+  const updateField = async (field: keyof AfiliadoDTO, value: any) => {
     if (!selected) return
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_agremiado}`, {
+      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value })
       })
       if (res.ok) {
-        await loadDetail(selected.id_agremiado)
+        await loadDetail(selected.id_afiliado)
         if (['estatus', 'nombre_completo', 'codigo_cibir', 'tipo_afiliado'].includes(field)) await load()
       }
     } catch (err) { console.error(err) }
@@ -160,7 +128,7 @@ export default function AfiliadosPanel() {
       <div className="flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0">
         <div className="p-4 border-b border-gray-100 space-y-3">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">Afiliados / Agremiados (CIBIR)</h3>
+            <h3 className="text-sm font-semibold text-slate-800">Afiliados (CIBIR)</h3>
             <p className="text-xs text-slate-400 mt-0.5">Gestión de candidatos, aprobaciones y estatus.</p>
           </div>
           
@@ -217,10 +185,10 @@ export default function AfiliadosPanel() {
           ) : (
             items.map(a => (
               <button
-                key={a.id_agremiado}
-                onClick={() => loadDetail(a.id_agremiado)}
+                key={a.id_afiliado}
+                onClick={() => loadDetail(a.id_afiliado)}
                 className={['w-full text-left px-4 py-3.5 transition-colors flex flex-col gap-1',
-                  selected?.id_agremiado === a.id_agremiado ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
+                  selected?.id_afiliado === a.id_afiliado ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
                 ].join(' ')}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -237,7 +205,7 @@ export default function AfiliadosPanel() {
                 </div>
                 <span className="text-xs text-slate-400 truncate">{a.email}</span>
                 <span className="text-[10px] text-slate-300">
-                  #{a.id_agremiado} · {a.codigo_cibir || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
+                  #{a.id_afiliado} · {a.codigo_cibir || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
                 </span>
               </button>
             ))
@@ -272,7 +240,7 @@ export default function AfiliadosPanel() {
                   </div>
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
                     {selected.tipo_afiliado === 'Corporativo' 
-                      ? (selected.razon_social || formatNombreCard(selected.nombre_completo)) 
+                      ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo)) 
                       : formatNombreCard(selected.nombre_completo)
                     }
                   </h3>
@@ -297,13 +265,13 @@ export default function AfiliadosPanel() {
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Información del Perfil</h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {selected.tipo_afiliado === 'Juridico' && (
+                {selected.tipo_afiliado === 'Corporativo' && (
                   <div className="col-span-full flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Razón Social</label>
                     <input 
                       type="text" 
-                      value={selected.razon_social || ''} 
-                      onChange={(e) => updateField('razon_social', e.target.value)}
+                      value={selected.empresa_razon_social || ''} 
+                      onChange={(e) => updateField('empresa_razon_social', e.target.value)}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                       placeholder="Nombre de la empresa"
                     />
@@ -332,18 +300,18 @@ export default function AfiliadosPanel() {
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula / RIF</label>
                   <input 
                     type="text" 
-                    value={selected.cedula_rif_tipo ? `${selected.cedula_rif_tipo}-${selected.cedula_rif}` : selected.cedula_rif} 
+                    value={selected.empresa_rif_tipo ? `${selected.empresa_rif_tipo}-${selected.empresa_rif_numero}` : selected.cedula} 
                     disabled
                     className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
                   />
                 </div>
                 {selected.tipo_afiliado === 'Corporativo' && (
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula Personal</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula del Representante</label>
                     <input 
                       type="text" 
-                      value={selected.cedula_personal || ''} 
-                      onChange={(e) => updateField('cedula_personal', e.target.value)}
+                      value={selected.cedula || ''} 
+                      onChange={(e) => updateField('cedula', e.target.value)}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                     />
                   </div>
@@ -380,68 +348,27 @@ export default function AfiliadosPanel() {
             </div>
 
             {/* Documentation Section */}
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentación y Soportes</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DocLink 
-                  label="Resumen Curricular (CV)" 
-                  url={selected.url_cv} 
-                />
-                <DocLink 
-                  label="Título Profesional" 
-                  url={selected.url_titulo} 
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Especializaciones / Postgrados</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {(() => {
-                    try {
-                      const urls = JSON.parse(selected.url_especializaciones || '[]') as string[]
-                      if (urls.length === 0) return (
-                        <div className="col-span-full py-3 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-center">
-                          <span className="text-[10px] text-slate-400 font-medium italic">No se cargaron especializaciones</span>
-                        </div>
-                      )
-                      return urls.map((url, i) => (
-                        <DocLink key={i} label={`Soporte Postgrado #${i+1}`} url={url} compact />
-                      ))
-                    } catch (e) {
-                      return <p className="text-[10px] text-rose-500 italic">Error al cargar soportes</p>
-                    }
-                  })()}
+            {selected.documentos && selected.documentos.length > 0 && (
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentación Adjunta</h4>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    {selected.documentos.length} archivos
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {selected.documentos.map((doc: any) => (
+                    <DocLink 
+                      key={doc.id_documento} 
+                      label={doc.tipo_doc.replace(/_/g, ' ')} 
+                      url={doc.url} 
+                      compact 
+                    />
+                  ))}
                 </div>
               </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Otros Cursos / Talleres</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {(() => {
-                    try {
-                      const urls = JSON.parse(selected.url_cursos_extras || '[]') as string[]
-                      if (urls.length === 0) return (
-                        <div className="col-span-full py-3 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-center">
-                          <span className="text-[10px] text-slate-400 font-medium italic">No se cargaron certificados adicionales</span>
-                        </div>
-                      )
-                      return urls.map((url, i) => (
-                        <DocLink key={i} label={`Soporte Curso #${i+1}`} url={url} compact />
-                      ))
-                    } catch (e) {
-                      return <p className="text-[10px] text-rose-500 italic">Error al cargar soportes</p>
-                    }
-                  })()}
-                </div>
-              </div>
-
-              {!selected.url_cv && !selected.url_titulo && !selected.url_especializaciones && !selected.url_cursos_extras && (
-                <div className="p-4 bg-slate-50 rounded-xl text-center">
-                  <p className="text-xs text-slate-400 italic">No hay documentos cargados</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Process Management */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
@@ -454,15 +381,13 @@ export default function AfiliadosPanel() {
                   onChange={(e) => updateField('estatus', e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700"
                 >
-                  <option value="1_SOLICITUD">1. Solicitud de Afiliación</option>
-                  <option value="2_REQUISITOS">2. Requisitos</option>
-                  <option value="3_CONFIRMACION">3. Confirmación</option>
-                  <option value="4_RECEPCION">4. Recepción</option>
-                  <option value="5_ENTREVISTA">5. Entrevista</option>
-                  <option value="6_JUNTA_DIRECTIVA">6. Junta Directiva</option>
-                  <option value="7_RESULTADO">7. Resultado</option>
-                  <option value="8_FORMALIZACION">8. Formalización</option>
-                  <option value="9_AFILIACION">9. Afiliación (CIBIR)</option>
+                  <option value="1_PREINSCRIPCION">1. Preinscripción</option>
+                  <option value="2_EXPEDIENTE">2. Expediente</option>
+                  <option value="3_ENTREVISTA">3. Entrevista</option>
+                  <option value="4_VERIFICACION">4. Verificación</option>
+                  <option value="5_CIBIR">5. CIBIR</option>
+                  <option value="6_INSCRIPCION">6. Inscripción</option>
+                  <option value="Afiliado">Afiliado</option>
                   <option value="Moroso">Moroso</option>
                   <option value="Suspendido">Suspendido</option>
                   <option value="Rechazado">Rechazado</option>
@@ -495,16 +420,16 @@ export default function AfiliadosPanel() {
                 </label>
               </div>
 
-              {['1_SOLICITUD', '6_JUNTA_DIRECTIVA'].includes(selected.estatus) && (
+              {['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) && (
                 <div className="flex gap-2 pt-2 border-t border-slate-50">
                   <button
-                    onClick={() => procesar(selected.id_agremiado, 'aprobar')}
+                    onClick={() => procesar(selected.id_afiliado, 'aprobar')}
                     className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-bold hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-all hover:-translate-y-0.5"
                   >
-                    ✓ Aprobar (A Paso 7)
+                    ✓ Aprobar Afiliación
                   </button>
                   <button
-                    onClick={() => procesar(selected.id_agremiado, 'rechazar')}
+                    onClick={() => procesar(selected.id_afiliado, 'rechazar')}
                     className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-500 text-sm font-bold hover:bg-red-100 transition-colors"
                   >
                     ✗ Rechazar

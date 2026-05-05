@@ -17,7 +17,7 @@ type Row = {
   estudiante_nombre: string
   estudiante_email: string
   estudiante_telefono: string | null
-  estudiante_cedula_rif: string | null
+  estudiante_cedula: string | null
   entrevista_fecha?: string
   entrevista_hora?: string
   entrevista_lugar?: string
@@ -202,7 +202,7 @@ export default function PreinscripcionesPrincipalesPanel({
     return rows.filter(r =>
       r.estudiante_nombre?.toLowerCase().includes(q) ||
       r.estudiante_email?.toLowerCase().includes(q) ||
-      r.estudiante_cedula_rif?.toLowerCase().includes(q)
+      r.estudiante_cedula?.toLowerCase().includes(q)
     )
   }, [rows, search])
 
@@ -296,7 +296,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     {mapStatusUI(r.estatus)}
                   </span>
                 </div>
-                <span className="text-xs text-slate-400 truncate">{r.programa_codigo} • {r.estudiante_cedula_rif || 'S/N'}</span>
+                <span className="text-xs text-slate-400 truncate">{r.programa_codigo} • {r.estudiante_cedula || 'S/N'}</span>
                 <span className="text-[10px] text-slate-300">{new Date(r.creado_en).toLocaleDateString('es-ES', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
               </button>
             ))
@@ -321,7 +321,7 @@ export default function PreinscripcionesPrincipalesPanel({
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-slate-900 leading-tight">{formatNombreCard(selected.estudiante_nombre)}</h3>
 
-                <p className="text-xs text-slate-400 mt-0.5 truncate">{selected.estudiante_cedula_rif || 'Sin documento'}</p>
+                <p className="text-xs text-slate-400 mt-0.5 truncate">{selected.estudiante_cedula || 'Sin documento'}</p>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${getStatusStyles(selected.estatus)}`}>
@@ -335,8 +335,8 @@ export default function PreinscripcionesPrincipalesPanel({
 
             <div className="bg-white rounded-2xl p-4 border border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula/RIF</span>
-                <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula_rif || 'No indicado'}</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
+                <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>

@@ -108,7 +108,7 @@ export const REQUISITOS: ChamberPageData = {
         'Copia de Cédula de Identidad y RIF (actualizado).',
         'Fondo Negro de Título Universitario.',
         'Constancia de aprobación del curso CIBIR/PREANI.',
-        'Dos (2) cartas de recomendación moral por agremiados activos.',
+        'Dos (2) cartas de recomendación moral por afiliados activos.',
         'Pago de los aranceles correspondientes de la inscripción.'
       ]
     }
@@ -129,12 +129,12 @@ export const CONVENIOS_INSTITUCIONALES: ChamberPageData = {
 
 export const CONVENIOS_COMERCIALES: ChamberPageData = {
   title: 'Convenios Comerciales',
-  subtitle: 'Ahorro y Beneficios Corporativos para Agremiados',
+  subtitle: 'Ahorro y Beneficios Corporativos para Afiliados',
   icon: Briefcase,
   blocks: [
     {
       heading: 'Red de Alianzas',
-      body: 'Mantenemos convenios de descuento y trato preferencial para nuestros agremiados solventes en distintos rubros comerciales.',
+      body: 'Mantenemos convenios de descuento y trato preferencial para nuestros afiliados solventes en distintos rubros comerciales.',
       list: [
         'Plataformas Fintech e Instituciones Bancarias.',
         'Agencias de Seguros de Salud y Patrimoniales.',

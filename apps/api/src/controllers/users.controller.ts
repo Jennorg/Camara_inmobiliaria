@@ -22,10 +22,12 @@ const parseRoles = (rolesField: unknown): string[] => {
 export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute({
-      sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en, u.id_agremiado,
-                   a.nombre_completo, a.codigo_cibir, a.estatus as estatus_agremiado
+      sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
+                   COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, a.codigo_cibir, a.estatus as estatus_afiliado
             FROM users u
-            LEFT JOIN agremiados a ON u.id_agremiado = a.id_agremiado
+            LEFT JOIN afiliados a ON u.id = a.id_user
+            LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
             ORDER BY u.creado_en DESC`,
       args: [],
     })
@@ -46,11 +48,11 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
  * Crea un nuevo usuario.
  * Afiliados normales solo por admin/super_admin. 
  * Admins solo por super_admin.
- * Body: { email, password, rol, id_agremiado? }
+ * Body: { email, password, rol, id_afiliado? }
  */
 export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, rol, id_agremiado } = req.body
+    const { email, password, rol, id_afiliado } = req.body
 
     if (!email || !password || !rol) {
       res.status(400).json({ success: false, message: 'email, password y rol son requeridos' })
@@ -72,12 +74,21 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     const rolesJson = JSON.stringify([rol])
 
     const result = await db.execute({
-      sql: `INSERT INTO users (email, password_hash, roles, id_agremiado)
-            VALUES (?, ?, ?, ?) RETURNING id, email, roles, id_agremiado, activo, creado_en`,
-      args: [email, passwordHash, rolesJson, id_agremiado ?? null],
+      sql: `INSERT INTO users (email, password_hash, roles)
+            VALUES (?, ?, ?) RETURNING id, email, roles, activo, creado_en`,
+      args: [email, passwordHash, rolesJson],
     })
 
-    res.status(201).json({ success: true, data: result.rows[0] })
+    const newUser = result.rows[0];
+
+    if (id_afiliado) {
+      await db.execute({
+        sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ?`,
+        args: [newUser.id, id_afiliado]
+      });
+    }
+
+    res.status(201).json({ success: true, data: newUser })
   } catch (error: any) {
     if (error.message?.includes('UNIQUE constraint failed: users.email')) {
       res.status(409).json({ success: false, message: 'El email ya está registrado' })
@@ -90,12 +101,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
 /**
  * PATCH /api/users/:id
- * Actualiza rol, activo, o id_agremiado de un usuario.
+ * Actualiza rol, activo, o contraseñas de un usuario. (El vínculo con afiliado se gestiona del lado del afiliado).
  */
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { rol, activo, id_agremiado, password } = req.body
+    const { rol, activo, password } = req.body
 
     // Si queremos actualizar a un usuario, validamos permisos estrictos para administradores
     const userToUpdate = await db.execute({ sql: `SELECT roles FROM users WHERE id = ?`, args: [Number(id)] })
@@ -127,7 +138,6 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       fields.push('roles = ?'); args.push(rolesJson)
     }
     if (activo !== undefined) { fields.push('activo = ?'); args.push(activo ? 1 : 0) }
-    if (id_agremiado !== undefined) { fields.push('id_agremiado = ?'); args.push(id_agremiado) }
     if (password !== undefined) {
       if (password.length < 4) {
         res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 4 caracteres' })
@@ -144,7 +154,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
     // args ya contiene los valores de los fields; agregamos fecha y id al final
     const result = await db.execute({
-      sql: `UPDATE users SET ${fields.join(', ')}, actualizado_en = ? WHERE id = ? RETURNING id, email, roles, activo, id_agremiado`,
+      sql: `UPDATE users SET ${fields.join(', ')}, actualizado_en = ? WHERE id = ? RETURNING id, email, roles, activo`,
       args: [...args, new Date().toISOString(), id],
     })
 
@@ -166,7 +176,15 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<vo
 
     // Verificar que el usuario existe
     const userId = Number(id)
-    const check = await db.execute({ sql: `SELECT users.id, users.email, agremiados.nombre_completo FROM users LEFT JOIN agremiados ON users.id_agremiado = agremiados.id_agremiado WHERE users.id = ?`, args: [userId] })
+    const check = await db.execute({ 
+      sql: `SELECT u.id, u.email, COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo 
+            FROM users u 
+            LEFT JOIN afiliados a ON u.id = a.id_user 
+            LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            WHERE u.id = ?`, 
+      args: [userId] 
+    })
     if (check.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Usuario no encontrado' })
       return

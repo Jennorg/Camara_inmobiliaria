@@ -9,38 +9,16 @@ interface RedesSociales {
   facebook?: string;
 }
 
-export interface AfiliadoData {
-  id_agremiado: number;
-  nombre_completo: string;
-  nombres?: string;
-  apellidos?: string;
-  razon_social?: string;
-  codigo_cibir: string;
-  cedula_rif: string;
-  cedula_personal?: string;
-  foto_url: string;
-  email: string;
-  telefono?: string;
-  direccion?: string;
-  fecha_nacimiento?: string;
-  nivel_academico?: string;
-  notas?: string;
-  tipo_afiliado?: 'Natural' | 'Juridico' | 'Corporativo';
-  redes_sociales: RedesSociales;
-  website?: string;
-  descripcion?: string;
-  fecha_registro?: string;
-  fecha_inicio_servicio?: string;
-  mostrar_direccion_publica?: number | boolean;
-  direccion_publica?: string;
-}
+import { AfiliadoDTO } from '@/types/afiliados';
+
+export type AfiliadoData = AfiliadoDTO;
 
 export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
-  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo' || afiliado.tipo_afiliado === 'Juridico';
+  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo';
 
   return (
     <Link 
-      to={`/miembros/${afiliado.id_agremiado}`}
+      to={`/miembros/${afiliado.id_afiliado}`}
       className="relative overflow-hidden bg-white dark:bg-[#04432f] rounded-[1.5rem] p-5 shadow-sm border border-slate-200 dark:border-emerald-500/20 hover:border-emerald-500 dark:hover:border-emerald-400 hover:shadow-xl transition-all duration-500 group hover:-translate-y-1 block"
     >
       {/* Elemento decorativo de fondo */}
@@ -88,14 +66,12 @@ export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
         {/* Información del Miembro */}
         <div className="space-y-1 mb-5">
           <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-lg leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
-            {isCorporativo 
-              ? (afiliado.razon_social || formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)) 
-              : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+            {afiliado.empresa_razon_social || afiliado.nombre_completo}
           </h3>
           
-          {isCorporativo && afiliado.razon_social && (
+          {afiliado.empresa_razon_social && (
             <p className="text-[10px] text-slate-400 dark:text-emerald-100/40 font-medium">
-              Representante: {formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+              Representante: {afiliado.nombre_completo}
             </p>
           )}
 
