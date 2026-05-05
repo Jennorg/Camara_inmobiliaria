@@ -71,7 +71,7 @@ export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
           
           {afiliado.empresa_razon_social && (
             <p className="text-[10px] text-slate-400 dark:text-emerald-100/40 font-medium">
-              Representante: {afiliado.nombre_completo}
+              Representante: {afiliado.representante_nombre || (afiliado.nombres + ' ' + afiliado.apellidos)}
             </p>
           )}
 

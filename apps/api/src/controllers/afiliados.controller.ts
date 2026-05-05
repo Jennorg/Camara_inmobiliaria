@@ -607,6 +607,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       sql: `
       SELECT a.id_afiliado, 
              COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, 
+             p.nombres || ' ' || p.apellidos as representante_nombre,
              p.nombres, p.apellidos, a.codigo_cibir, 
              p.cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
              a.tipo_afiliado,

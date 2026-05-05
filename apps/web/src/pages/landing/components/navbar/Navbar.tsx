@@ -92,7 +92,7 @@ const Navbar = ({
                 </>
               ) : (
                 <button
-                  onClick={() => setShowLoginModal(true)}
+                  onClick={() => setIsSesionModalOpen ? setIsSesionModalOpen(true) : setShowLoginModal(true)}
                   className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95'
                 >
                   {labelLogin}
@@ -157,12 +157,20 @@ const Navbar = ({
 
           <div className="p-6">
             <button 
-              onClick={() => { setShowLoginModal(true); setIsMobileMenuOpen(false); }}
+              onClick={() => { 
+                if (setIsSesionModalOpen) {
+                  setIsSesionModalOpen(true);
+                } else {
+                  setShowLoginModal(true);
+                }
+                setIsMobileMenuOpen(false); 
+              }}
               className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg bg-emerald-500 text-white"
             >
               {user ? "Mi Panel" : "Iniciar Sesión"}
             </button>
           </div>
+
         </div>
       </div>
     </>

@@ -11,15 +11,21 @@
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
+        "@hookform/resolvers": "^5.2.2",
         "@tailwindcss/vite": "^4.2.1",
         "@vitejs/plugin-react": "^5.1.4",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
         "fuse.js": "^7.3.0",
         "lucide-react": "^0.577.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
+        "react-hook-form": "^7.75.0",
         "react-router-dom": "^7.13.0",
         "sweetalert2": "^11.26.24",
-        "tailwindcss": "^4.2.1"
+        "tailwind-merge": "^3.5.0",
+        "tailwindcss": "^4.2.1",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.2",

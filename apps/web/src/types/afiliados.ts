@@ -108,6 +108,7 @@ export interface AfiliadoDTO {
 
   // ── Campos calculados o DTO específicos ──
   nombre_completo?: string;
+  representante_nombre?: string;
   instagram?: string;
   facebook?: string;
   linkedin?: string;

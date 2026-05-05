@@ -497,25 +497,39 @@ async function run() {
 
   if (reset) {
     console.log('  ⚠ RESET MODE: Dropping all tables...')
-    await db.execute(`PRAGMA foreign_keys = OFF`)
-
     const tables = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    
+    await db.execute(`PRAGMA foreign_keys = OFF`)
+    
     for (const row of tables.rows) {
-      await db.execute(`DROP TABLE IF EXISTS ${row.name}`)
-      console.log(`    · Dropped ${row.name}`)
+      try {
+        await db.execute(`DROP TABLE IF EXISTS "${row.name}"`)
+        console.log(`    · Dropped ${row.name}`)
+      } catch (e: any) {
+        if (e.message.includes('no such table')) {
+          console.log(`    · ${row.name} already gone (skipped)`)
+        } else {
+          console.error(`    · ERROR dropping ${row.name}: ${e.message}`)
+        }
+      }
     }
-
+    
     await db.execute(`PRAGMA foreign_keys = ON`)
   }
 
+  console.log('  ⚠ Creating tables and indices...')
   for (const sql of statements) {
     try {
       await db.execute(sql)
       const label = sql.length > 50 ? sql.substring(0, 47) + '...' : sql
       console.log(`  · OK: ${label.replace(/\n/g, ' ')}`)
     } catch (e: any) {
-      console.error(`  · FATAL ERROR: ${sql.substring(0, 40)}... -> ${e.message}`)
-      throw e;
+      if (e.message.includes('already exists')) {
+        console.log(`  · Skip: Table/Index already exists`)
+      } else {
+        console.error(`  · FATAL ERROR during creation: ${e.message}`)
+        throw e;
+      }
     }
   }
 
@@ -563,6 +577,40 @@ async function run() {
         args: [conv.nombre, conv.descripcion, conv.link_web]
       })
       console.log(`  · Convenio ${conv.nombre} created.`)
+    } catch (e) { }
+  }
+
+  const directiva = [
+    { nombre: 'Juan Pérez', cargo: 'Presidente', periodo: '2024-2026', orden: 1 },
+    { nombre: 'María García', cargo: 'Vicepresidente', periodo: '2024-2026', orden: 2 },
+    { nombre: 'Roberto Mendoza', cargo: 'Tesorero', periodo: '2024-2026', orden: 3 },
+    { nombre: 'Elena Castro', cargo: 'Secretario', periodo: '2024-2026', orden: 4 }
+  ]
+
+  for (const m of directiva) {
+    try {
+      await db.execute({
+        sql: `INSERT INTO cms_directiva (nombre, cargo, periodo, orden) VALUES (?, ?, ?, ?)`,
+        args: [m.nombre, m.cargo, m.periodo, m.orden]
+      })
+      console.log(`  · Miembro Directiva ${m.nombre} created.`)
+    } catch (e) { }
+  }
+
+  const normativas = [
+    { titulo: 'Estatutos de la Cámara Inmobiliaria', categoria: 'Estatutos', url: '/docs/estatutos.pdf', orden: 1 },
+    { titulo: 'Código de Ética Profesional', categoria: 'Ética', url: '/docs/codigo_etica.pdf', orden: 2 },
+    { titulo: 'Reglamento de Afiliación', categoria: 'Reglamentos', url: '/docs/reglamento_afiliacion.pdf', orden: 3 },
+    { titulo: 'Ley de Arrendamiento Inmobiliario', categoria: 'Leyes', url: '/docs/ley_arrendamiento.pdf', orden: 4 }
+  ]
+
+  for (const n of normativas) {
+    try {
+      await db.execute({
+        sql: `INSERT INTO cms_normativas (titulo, categoria, url_archivo, orden) VALUES (?, ?, ?, ?)`,
+        args: [n.titulo, n.categoria, n.url, n.orden]
+      })
+      console.log(`  · Normativa ${n.titulo} created.`)
     } catch (e) { }
   }
 

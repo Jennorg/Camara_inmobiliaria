@@ -27,6 +27,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   // Form state
   const [formData, setFormData] = useState({
     nivelProfesional: '' as 'Bachiller' | 'TSU' | 'Universitario' | 'Postgrado' | '',
+    profesion: '',
     url_titulo: '',
     url_cv: '',
     especializaciones: [] as { nombre: string; url: string; fecha: string }[],
@@ -53,6 +54,7 @@ export default function VerificarPreinscripcionProgramaPage() {
           setFormData(prev => ({
             ...prev,
             nivelProfesional: (json.data.nivelProfesional as any) || '',
+            profesion: json.data.profesion || '',
             url_titulo: '',
             url_cv: '',
             especializaciones: [],
@@ -100,14 +102,15 @@ export default function VerificarPreinscripcionProgramaPage() {
       const res = await fetch(`${API_URL}/api/public/preinscripciones/confirmar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          nivelProfesional: formData.nivelProfesional,
-          url_titulo: formData.url_titulo,
-          url_cv: formData.url_cv,
-          especializaciones: JSON.stringify(formData.especializaciones),
-          cursos_extras: JSON.stringify(formData.cursos_extras),
-        }),
+          body: JSON.stringify({
+            token,
+            nivelProfesional: formData.nivelProfesional,
+            profesion: formData.profesion.trim(),
+            url_titulo: formData.url_titulo,
+            url_cv: formData.url_cv,
+            especializaciones: JSON.stringify(formData.especializaciones),
+            cursos_extras: JSON.stringify(formData.cursos_extras),
+          }),
       })
       const json = await res.json()
       if (res.ok && json.success) setStatus('success')
@@ -214,6 +217,27 @@ export default function VerificarPreinscripcionProgramaPage() {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Profesión */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-blue-400" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Profesión u Oficio</h3></div></div>
+                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Indica tu profesión principal.</p>
+                  </div>
+                  <div className="relative group">
+                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                      <Briefcase size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={formData.profesion}
+                      onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
+                      placeholder="Ej. Abogado, Administrador, Corredor..."
+                      className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm font-bold text-slate-700 ${INPUT_H}`}
+                    />
                   </div>
                 </div>
 

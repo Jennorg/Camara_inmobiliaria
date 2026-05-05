@@ -1,0 +1,149 @@
+import React, { useState } from 'react'
+import { useForm, FormProvider } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { Check, Loader2, ArrowRight, Info, AlertCircle } from 'lucide-react'
+import CompanySection from './CompanySection'
+import RepresentativeSection from './RepresentativeSection'
+import { Button } from '@/components/ui/button'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+const affiliationSchema = z.object({
+  razonSocial: z.string().min(3, 'La razón social es muy corta'),
+  rifPrefix: z.string(),
+  rifNumber: z.string().min(7, 'RIF inválido'),
+  emailEmpresa: z.string().email('Email corporativo inválido'),
+  representanteNombres: z.string().min(2, 'Nombre muy corto'),
+  representanteApellidos: z.string().min(2, 'Apellido muy corto'),
+  cedulaRepresentante: z.string().min(6, 'Cédula inválida'),
+  emailRepresentante: z.string().email('Email personal inválido'),
+  phonePrefix: z.string(),
+  telefono: z.string().min(7, 'Teléfono inválido'),
+})
+
+type AffiliationValues = z.infer<typeof affiliationSchema>
+
+interface Props {
+  programaCodigo: string
+  onSuccess?: () => void
+}
+
+export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
+  const [loading, setLoading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const methods = useForm<AffiliationValues>({
+    resolver: zodResolver(affiliationSchema),
+    defaultValues: {
+      rifPrefix: 'J',
+      phonePrefix: '+58',
+    }
+  })
+
+  const onSubmit = async (data: AffiliationValues) => {
+    setLoading(true)
+    setErrorMsg('')
+    try {
+      const body = {
+        programaCodigo,
+        tipoAfiliado: 'Corporativo',
+        nombreCompleto: data.razonSocial.trim(),
+        razonSocial: data.razonSocial.trim(),
+        rif_tipo: data.rifPrefix,
+        rif_numero: data.rifNumber.replace(/\D/g, ''),
+        cedulaRif: `${data.rifPrefix}-${data.rifNumber.replace(/\D/g, '')}`,
+        email: data.emailEmpresa,
+        telefono: `${data.phonePrefix}${data.telefono.replace(/\D/g, '')}`,
+        representanteLegal: `${data.representanteNombres} ${data.representanteApellidos}`.trim(),
+        representanteLegalNombres: data.representanteNombres.trim(),
+        representanteLegalApellidos: data.representanteApellidos.trim(),
+        cedulaRepresentante: data.cedulaRepresentante.trim(),
+        emailRepresentante: data.emailRepresentante.trim(),
+      }
+
+      const res = await fetch(`${API_URL}/api/public/preinscripciones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al registrar')
+      setSubmitted(true)
+      onSuccess?.()
+    } catch (err: any) {
+      setErrorMsg(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="text-center py-24 px-6 animate-in fade-in zoom-in duration-700">
+        <div className="w-24 h-24 bg-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto mb-10 ring-1 ring-emerald-500/30 shadow-2xl shadow-emerald-500/20 backdrop-blur-md">
+          <Check className="text-emerald-400" size={48} strokeWidth={3} />
+        </div>
+        <h3 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tighter italic leading-none">
+          ¡Solicitud <span className="text-emerald-500">Recibida</span>!
+        </h3>
+        <p className="text-emerald-100/40 max-w-md mx-auto leading-relaxed font-medium text-base">
+          Hemos recibido los datos de su institución con éxito. Un asesor de la Cámara revisará la información y le contactará vía correo electrónico para formalizar la afiliación.
+        </p>
+        <div className="mt-12 pt-8 border-t border-white/5 max-w-xs mx-auto">
+           <p className="text-[10px] uppercase tracking-[0.4em] font-black text-white/10">
+             Cámara Inmobiliaria • 2026
+           </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <FormProvider {...methods}>
+      <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-12 pb-10">
+        <div className="flex items-start gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-left shadow-lg shadow-emerald-500/5">
+          <div className="bg-emerald-500 rounded-lg p-1.5 mt-0.5 shadow-lg shadow-emerald-500/20">
+            <Info size={16} className="text-white" />
+          </div>
+          <p className="text-xs leading-relaxed text-emerald-100/80">
+            <span className="font-black text-emerald-300 block mb-1 uppercase tracking-widest text-[10px]">Importante: Flujo Corporativo</span>
+            Al registrar su empresa, podrá gestionar las afiliaciones de sus empleados y corredores asociados de manera centralizada.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-10 items-stretch">
+          <CompanySection />
+          <RepresentativeSection />
+        </div>
+
+        <div className="flex flex-col gap-6 pt-4">
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="w-full"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : (
+              <div className="flex items-center gap-3">
+                <span>Confirmar Registro de Empresa</span>
+                <ArrowRight size={16} />
+              </div>
+            )}
+          </Button>
+
+          {errorMsg && (
+            <div className="flex items-center gap-3 text-red-100 bg-red-500/20 border border-red-400/40 p-5 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle size={18} className="text-red-400" />
+              {errorMsg}
+            </div>
+          )}
+
+          <p className="text-[10px] text-center uppercase tracking-[0.3em] font-black text-white/20 mt-4">
+            Cámara Inmobiliaria • Protocolo de Afiliación 2026
+          </p>
+        </div>
+      </form>
+    </FormProvider>
+  )
+}

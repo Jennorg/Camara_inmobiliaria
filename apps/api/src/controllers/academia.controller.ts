@@ -52,10 +52,11 @@ async function upsertEstudianteByEmail(params: {
   cedulaRif?: string | null
   telefono?: string | null
   tipo?: string | null
-  nivelProfesional?: 'Bachiller' | 'Universitario' | 'Postgrado' | null
+  nivelProfesional?: 'Bachiller' | 'TSU' | 'Universitario' | 'Postgrado' | null
+  profesion?: string | null
   esCorredorInmobiliario?: boolean | null
 }): Promise<{ id_estudiante: number }> {
-  const { nombres, apellidos, razonSocial, cedulaRif, email, telefono, tipo, nivelProfesional, esCorredorInmobiliario } = params
+  const { nombres, apellidos, razonSocial, cedulaRif, email, telefono, tipo, nivelProfesional, profesion, esCorredorInmobiliario } = params
 
   // 1. Buscar si es Empresa o Persona
   let idPersona: number | null = null
@@ -82,10 +83,20 @@ async function upsertEstudianteByEmail(params: {
     })
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number
+      // Actualizar nivel y profesion si se proveen
+      if (nivelProfesional || profesion) {
+        await db.execute({
+          sql: `UPDATE personas SET 
+                  nivel_academico = COALESCE(?, nivel_academico),
+                  profesion = COALESCE(?, profesion)
+                WHERE id = ?`,
+          args: [nivelProfesional || null, profesion || null, idPersona]
+        })
+      }
     } else {
       const insP = await db.execute({
-        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null]
+        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
     }
@@ -331,10 +342,6 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
     const emailRepresentante = isCorporativo ? (typeof req.body?.emailRepresentante === 'string' ? req.body.emailRepresentante.trim().toLowerCase() : null) : null
 
     // Validaciones específicas por tipo
-    if (!isCorporativo && !nivelProfesional) {
-      res.status(400).json({ success: false, message: 'Por favor, selecciona un nivel profesional válido (Bachiller, TSU, Universitario, Postgrado).' })
-      return
-    }
     if (isCorporativo && (!razonSocial || !representanteLegal || !cedulaRepresentante || !emailRepresentante)) {
       res.status(400).json({ success: false, message: 'Para afiliación corporativa se requiere Razón Social, Representante Legal, su Cédula y su Correo.' })
       return
@@ -452,6 +459,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       telefono,
       tipo: finalTipo,
       nivelProfesional: req.body?.nivelProfesional ? normalizeNivelProfesional(req.body.nivelProfesional) : nivelProfesional,
+      profesion: typeof req.body?.profesion === 'string' ? req.body.profesion.trim() : (registro.profesion || null),
       esCorredorInmobiliario: req.body?.esCorredorInmobiliario !== undefined ? normalizeEsCorredorInmobiliario(req.body.esCorredorInmobiliario) : esCorredorInmobiliario,
     })
 
