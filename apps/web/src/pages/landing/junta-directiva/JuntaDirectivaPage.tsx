@@ -5,7 +5,7 @@ import Footer from '@/pages/landing/components/Footer'
 import { API_URL } from '@/config/env'
 
 // ── Cache key & TTL ────────────────────────────────────────────────────────────
-const CACHE_KEY = 'cache_directiva_v1'
+const CACHE_KEY = 'cache_directiva_v2'
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutos
 
 interface CacheEntry {
@@ -92,15 +92,6 @@ export default function EquipoDirectivo() {
   const [loading, setLoading] = useState(directiva.length === 0)
 
   useEffect(() => {
-    // Si ya tenemos datos del caché, no bloquear la UI
-    const cached = readCache()
-    if (cached) {
-      setDirectiva(cached)
-      setLoading(false)
-      window.scrollTo(0, 0)
-      return
-    }
-
     setLoading(true)
     fetch(`${API_URL}/api/cms/directiva`)
       .then(res => res.json())
@@ -110,7 +101,6 @@ export default function EquipoDirectivo() {
             .filter((m: MiembroDirectiva) => m.activo !== 0 && m.activo !== false)
             .sort((a: MiembroDirectiva, b: MiembroDirectiva) => (a.orden || 0) - (b.orden || 0))
           setDirectiva(activos)
-          writeCache(activos)
         }
       })
       .catch(err => console.error('Error fetching directiva:', err))

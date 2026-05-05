@@ -581,34 +581,43 @@ async function run() {
   }
 
   const directiva = [
-    { nombre: 'Juan Pérez', cargo: 'Presidente', periodo: '2024-2026', orden: 1 },
-    { nombre: 'María García', cargo: 'Vicepresidente', periodo: '2024-2026', orden: 2 },
-    { nombre: 'Roberto Mendoza', cargo: 'Tesorero', periodo: '2024-2026', orden: 3 },
-    { nombre: 'Elena Castro', cargo: 'Secretario', periodo: '2024-2026', orden: 4 }
+    { nombre: 'Francisco Piñango', cargo: 'Presidente', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/f27423cc-13ab-4f52-98d9-a522c3399a7a-francisco.png', orden: 1 },
+    { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/5e52879f-0239-4704-90d3-dd91eccd1d81-Zulay.png', orden: 2 },
+    { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/44df32ba-c5f7-44b7-b5d6-08c304049f5f-Margaret.png', orden: 3 },
+    { nombre: 'Romelina Rodríguez', cargo: 'Directora de Finanzas', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/62a9b887-b201-4a67-ac02-23ec8c145903-Romelia.png', orden: 4 },
+    { nombre: 'Margot Castro', cargo: 'Directora de Asuntos Legales', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/2d321e4e-d27b-4360-8fd6-6308d618ac23-Margot.png', orden: 5 },
+    { nombre: 'Pedro Vallenilla', cargo: 'Director de Comunicaciones', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/54535e6d-04ae-4b48-b412-043d83874b17-Pedro.png', orden: 6 },
+    { nombre: 'Graciela Ledezma', cargo: 'Directora de Formación', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/842e53dc-6a64-41f0-bb29-2156b31436d6-Graciela.png', orden: 7 },
+    { nombre: 'Yorjharry Vicent', cargo: 'Director de Eventos', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/0bdc53ba-09a4-48b5-94c0-3eb2036972a4-Yorjharry.png', orden: 8 },
+    { nombre: 'Rina Centeno', cargo: 'Directora de Responsabilidad Social', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/369c66b5-ef78-4fd9-9a7a-96a53b05f2b8-Rina.png', orden: 9 },
+    { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto_url: 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/directiva/ddf60ab1-7113-479d-80c4-c9a3fcdde232-Pedro_C.png', orden: 10 },
   ]
 
   for (const m of directiva) {
     try {
       await db.execute({
-        sql: `INSERT INTO cms_directiva (nombre, cargo, periodo, orden) VALUES (?, ?, ?, ?)`,
-        args: [m.nombre, m.cargo, m.periodo, m.orden]
+        sql: `INSERT INTO cms_directiva (nombre, cargo, foto_url, orden, activo) VALUES (?, ?, ?, ?, 1)`,
+        args: [m.nombre, m.cargo, m.foto_url, m.orden]
       })
       console.log(`  · Miembro Directiva ${m.nombre} created.`)
     } catch (e) { }
   }
 
   const normativas = [
-    { titulo: 'Estatutos de la Cámara Inmobiliaria', categoria: 'Estatutos', url: '/docs/estatutos.pdf', orden: 1 },
-    { titulo: 'Código de Ética Profesional', categoria: 'Ética', url: '/docs/codigo_etica.pdf', orden: 2 },
-    { titulo: 'Reglamento de Afiliación', categoria: 'Reglamentos', url: '/docs/reglamento_afiliacion.pdf', orden: 3 },
-    { titulo: 'Ley de Arrendamiento Inmobiliario', categoria: 'Leyes', url: '/docs/ley_arrendamiento.pdf', orden: 4 }
+    { titulo: "ESTATUTOS CIV", categoria: "Reglamentos y Estatutos", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/48add48d-420a-4ae5-ab70-5fc02369b56e-Estatutos-CIV.pdf" },
+    { titulo: "CÓDIGO DE ÉTICA DEL PROFESIONAL INMOBILIARIO", categoria: "Reglamentos y Estatutos", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/812fd943-a934-4ab9-a7e1-cf4d0831c10f-Codigo-etica-vigencia_-29-09-2.020-ONCDOFT.pdf" },
+    { titulo: "REGLAMENTO CERTIFICACIÓN DEL PROFESIONAL INMOBILIARIO CIV", categoria: "Reglamentos y Estatutos", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/6e9fd86a-a714-414e-b38d-ae999297e522-REGLAMENTO-DE-CERTIFICACION-CIV-APROBADO-JUNTA-DIRECTIVA-1-1.pdf" },
+    { titulo: "LEY PARA LA REGULARIZACIÓN Y CONTROL DE LOS ARRENDAMIENTOS DE VIVIENDA", categoria: "Reglamentos y Estatutos", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/15705918-16ba-42c6-9637-a2cb0eb53a2f-mietengesetz-venezuela-1.pdf" },
+    { titulo: "ACTA DE ASAMBLEA ORDINARIA CIEB (SEPT 2012)", categoria: "Actas de Asamblea", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/2723a35a-a51f-40d2-ad23-08aef4c57104-Acta_Asamblea_Ordinaria_de_la_Camara.pdf" },
+    { titulo: "ACTA CONSTITUTIVA Y ESTATURIA DE LA CÁMARA", categoria: "Actas de Asamblea", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/b2cf8ff2-5ef7-45c3-b113-ad2e97f44eab-Acta-1.pdf" },
+    { titulo: "LEY DE FISCALIZACIÓN Y FINANCIAMIENTO DE LAS ONG", categoria: "Leyes y Decretos", url: "https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/normativas/8262feae-4105-41e7-8cf4-1d6a7baa741a-GACETA-6855_(1).pdf" }
   ]
 
   for (const n of normativas) {
     try {
       await db.execute({
-        sql: `INSERT INTO cms_normativas (titulo, categoria, url_archivo, orden) VALUES (?, ?, ?, ?)`,
-        args: [n.titulo, n.categoria, n.url, n.orden]
+        sql: `INSERT INTO cms_normativas (titulo, categoria, url_archivo, orden, activo) VALUES (?, ?, ?, 0, 1)`,
+        args: [n.titulo, n.categoria, n.url]
       })
       console.log(`  · Normativa ${n.titulo} created.`)
     } catch (e) { }
