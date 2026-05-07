@@ -16,8 +16,6 @@ import ConveniosSection from '@/pages/landing/components/sections/ConveniosSecti
 import NoticiasSection from '@/pages/landing/components/sections/NoticiasSection'
 
 export default function LandingPage() {
-  const [isModalSesionOpen, setIsSesionModalOpen] = useState(false)
-  const [isModalRegisterOpen, setIsRegisterModalOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
 
   return (
@@ -31,8 +29,6 @@ export default function LandingPage() {
       <Navbar
         darkMode={darkMode}
         setDarkMode={setDarkMode}
-        setIsSesionModalOpen={setIsSesionModalOpen}
-        setIsRegisterModalOpen={setIsRegisterModalOpen}
       />
 
       <div className='bg-[#022c22]'>
@@ -53,10 +49,6 @@ export default function LandingPage() {
       <ConveniosSection />
 
       <Footer />
-
-  {/* MODALS */ }
-  { isModalSesionOpen && <LoginModal onClose={() => setIsSesionModalOpen(false)} /> }
-  { isModalRegisterOpen && <RegisterModal onClose={() => setIsRegisterModalOpen(false)} /> }
     </div >
   )
 }

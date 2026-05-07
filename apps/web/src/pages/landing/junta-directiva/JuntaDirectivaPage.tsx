@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import bgBolivar from '@/assets/Pzo.jpg'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import SEO from '@/components/SEO'
 import { API_URL } from '@/config/env'
 
 // ── Cache key & TTL ────────────────────────────────────────────────────────────
@@ -133,8 +134,13 @@ export default function EquipoDirectivo() {
   }, [])
 
   return (
-    <div className='min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30'>
-      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
+    <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
+      <SEO 
+        title="Junta Directiva" 
+        description="Conoce a los líderes que guían la Cámara Inmobiliaria del Estado Bolívar. Compromiso y visión para el sector inmobiliario."
+      />
+      <Navbar 
+        darkMode={darkMode} setDarkMode={setDarkMode} />
       <header className='relative px-6 lg:px-20 py-16 lg:py-24 flex items-center justify-center min-h-[40vh] bg-cover animate-header-bg' style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
         <div className='text-center space-y-4'>
           <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Liderazgo Gremial</p>

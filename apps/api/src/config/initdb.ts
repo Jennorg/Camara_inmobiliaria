@@ -535,16 +535,126 @@ async function run() {
 
   console.log('\n--- SEEDING INITIAL DATA ---')
 
-  const adminEmail = 'admin@admin.com'
+  const adminEmail = 'admin@ciebo.com'
   const hashedPassword = await bcrypt.hash('admin123', 10)
+  const hashedTestPassword = await bcrypt.hash('Ciebo2026!', 10)
+  
   try {
-    await db.execute({
+    // 1. ADMIN
+    const adminRes = await db.execute({
       sql: `INSERT INTO users (email, password_hash, roles, activo) VALUES (?, ?, ?, ?)`,
       args: [adminEmail, hashedPassword, '["admin", "super_admin"]', 1]
     })
-    console.log(`  · Admin user ${adminEmail} created.`)
-  } catch (e) {
-    console.log(`  · User ${adminEmail} already exists.`)
+    const adminId = Number(adminRes.lastInsertRowid)
+
+    const persAdmin = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
+      args: ['Admin', 'Cámara', 'V00000000', adminEmail]
+    })
+    const personaIdAdmin = Number(persAdmin.lastInsertRowid)
+
+    await db.execute({
+      sql: `INSERT INTO afiliados (id_user, id_persona, tipo_afiliado, estatus) VALUES (?, ?, ?, ?)`,
+      args: [adminId, personaIdAdmin, 'Natural', 'Afiliado']
+    })
+
+    console.log(`  · Admin user ${adminEmail} created with profile (ID: ${adminId}).`)
+
+    // 2. ESTUDIANTE REGULAR
+    const estEmail = 'estudiante@test.com'
+    const estRes = await db.execute({
+      sql: `INSERT INTO users (email, password_hash, roles, activo) VALUES (?, ?, ?, ?)`,
+      args: [estEmail, hashedTestPassword, '["estudiante"]', 1]
+    })
+    const userIdEst = Number(estRes.lastInsertRowid)
+    
+    const persEst = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
+      args: ['Juan', 'Estudiante', 'V11111111', estEmail]
+    })
+    const personaIdEst = Number(persEst.lastInsertRowid)
+
+    await db.execute({
+      sql: `INSERT INTO estudiantes (id_user, id_persona, programa_interes, tipo) VALUES (?, ?, ?, ?)`,
+      args: [userIdEst, personaIdEst, 'Diplomado Inmobiliario', 'Regular']
+    })
+    console.log(`  · Student user ${estEmail} created.`)
+
+    // 3. AFILIADO CORPORATIVO (DUEÑO)
+    const corpEmail = 'corporativo@test.com'
+    const corpRes = await db.execute({
+      sql: `INSERT INTO users (email, password_hash, roles, activo) VALUES (?, ?, ?, ?)`,
+      args: [corpEmail, hashedTestPassword, '["afiliado"]', 1]
+    })
+    const userIdCorp = Number(corpRes.lastInsertRowid)
+
+    const persCorp = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
+      args: ['Carlos', 'Empresario', 'V22222222', corpEmail]
+    })
+    const personaIdCorp = Number(persCorp.lastInsertRowid)
+
+    const empRes = await db.execute({
+      sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, id_user) VALUES (?, ?, ?, ?, ?)`,
+      args: ['Inmobiliaria Test C.A.', 'J', 'J-12345678-9', 'contacto@testcorp.com', userIdCorp]
+    })
+    const empresaId = Number(empRes.lastInsertRowid)
+
+    const afilCorp = await db.execute({
+      sql: `INSERT INTO afiliados (id_user, id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir) VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [userIdCorp, personaIdCorp, empresaId, 'Corporativo', 'Afiliado', 'CORP-001']
+    })
+    const idAfiliadoOwner = Number(afilCorp.lastInsertRowid)
+
+    // Actualizar representante legal de la empresa
+    await db.execute({
+      sql: `UPDATE empresas SET id_representante_legal = ? WHERE id_empresa = ?`,
+      args: [idAfiliadoOwner, empresaId]
+    })
+    console.log(`  · Corporate user ${corpEmail} and company created.`)
+
+    // 4. AFILIADO NATURAL
+    const natEmail = 'natural@test.com'
+    const natRes = await db.execute({
+      sql: `INSERT INTO users (email, password_hash, roles, activo) VALUES (?, ?, ?, ?)`,
+      args: [natEmail, hashedTestPassword, '["afiliado"]', 1]
+    })
+    const userIdNat = Number(natRes.lastInsertRowid)
+
+    const persNat = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
+      args: ['Maria', 'Natural', 'V33333333', natEmail]
+    })
+    const personaIdNat = Number(persNat.lastInsertRowid)
+
+    await db.execute({
+      sql: `INSERT INTO afiliados (id_user, id_persona, tipo_afiliado, estatus, codigo_cibir) VALUES (?, ?, ?, ?, ?)`,
+      args: [userIdNat, personaIdNat, 'Natural', 'Afiliado', 'NAT-001']
+    })
+    console.log(`  · Natural user ${natEmail} created.`)
+
+    // 5. AGENTE CORPORATIVO
+    const ageEmail = 'agente@test.com'
+    const ageRes = await db.execute({
+      sql: `INSERT INTO users (email, password_hash, roles, activo) VALUES (?, ?, ?, ?)`,
+      args: [ageEmail, hashedTestPassword, '["afiliado"]', 1]
+    })
+    const userIdAge = Number(ageRes.lastInsertRowid)
+
+    const persAge = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
+      args: ['Pedro', 'Agente', 'V44444444', ageEmail]
+    })
+    const personaIdAge = Number(persAge.lastInsertRowid)
+
+    await db.execute({
+      sql: `INSERT INTO afiliados (id_user, id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir) VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [userIdAge, personaIdAge, empresaId, 'Agente Corporativo', 'Afiliado', 'AGE-001']
+    })
+    console.log(`  · Agent user ${ageEmail} linked to company.`)
+
+  } catch (e: any) {
+    console.log(`  · Error seeding test users: ${e.message}`)
   }
 
   try {

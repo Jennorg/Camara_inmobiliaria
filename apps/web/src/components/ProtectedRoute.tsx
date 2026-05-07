@@ -5,6 +5,7 @@ import { useAuth, type UserRole } from '@/context/AuthContext'
 interface ProtectedRouteProps {
   /** Si se especifica, el usuario debe tener al menos uno de estos roles */
   requiredRoles?: UserRole[]
+  children?: React.ReactNode
 }
 
 /**
@@ -12,9 +13,9 @@ interface ProtectedRouteProps {
  * - Si está cargando: muestra spinner.
  * - Si no hay usuario autenticado: redirige a `/`.
  * - Si los roles no coinciden: redirige a `/panel` (vista unificada).
- * - Si todo OK: renderiza los hijos con <Outlet />.
+ * - Si todo OK: renderiza los hijos o <Outlet />.
  */
-export default function ProtectedRoute({ requiredRoles }: ProtectedRouteProps) {
+export default function ProtectedRoute({ requiredRoles, children }: ProtectedRouteProps) {
   const { user, isLoading, hasRole } = useAuth()
 
   if (isLoading) {
@@ -29,6 +30,17 @@ export default function ProtectedRoute({ requiredRoles }: ProtectedRouteProps) {
   }
 
   if (!user) {
+    const hostname = window.location.hostname;
+    const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
+
+    if (isApp && !isLocal) {
+      const baseDomain = hostname.replace('app.', '');
+      const protocol = window.location.protocol;
+      const port = window.location.port ? `:${window.location.port}` : '';
+      window.location.href = `${protocol}//${baseDomain}${port}/`;
+      return null;
+    }
     return <Navigate to="/" replace />
   }
 
@@ -45,5 +57,5 @@ export default function ProtectedRoute({ requiredRoles }: ProtectedRouteProps) {
     }
   }
 
-  return <Outlet />
+  return children ? <>{children}</> : <Outlet />
 }

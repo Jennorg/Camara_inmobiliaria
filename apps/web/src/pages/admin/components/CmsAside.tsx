@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import logo from '@/assets/Logo.png'
 import { useAuth } from '@/context/AuthContext'
 
 interface NavItem {
@@ -131,6 +132,21 @@ const icons = {
       <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
     </svg>
   ),
+  building: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+      <path d="M9 22v-4h6v4" />
+      <path d="M8 6h.01" />
+      <path d="M16 6h.01" />
+      <path d="M8 10h.01" />
+      <path d="M16 10h.01" />
+      <path d="M8 14h.01" />
+      <path d="M16 14h.01" />
+      <path d="M12 6h.01" />
+      <path d="M12 10h.01" />
+      <path d="M12 14h.01" />
+    </svg>
+  ),
 }
 
 interface NavGroup {
@@ -189,11 +205,13 @@ const NavButton = ({
   isActive,
   isCollapsed,
   onClick,
+  compact = false,
 }: {
   item: NavItem
   isActive: boolean
   isCollapsed: boolean
   onClick: () => void
+  compact?: boolean
 }) => (
   <button
     onClick={onClick}
@@ -202,8 +220,9 @@ const NavButton = ({
       ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
       : undefined}
     className={[
-      'relative flex items-center gap-3 rounded-xl py-2.5 transition-all duration-150 w-full text-left group',
+      'relative flex items-center gap-3 rounded-xl transition-all duration-150 w-full text-left group',
       isCollapsed ? 'justify-center px-0' : 'px-3',
+      compact ? 'py-1.5' : 'py-2',
       isActive
         ? ''
         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
@@ -261,14 +280,14 @@ const SidebarContent = ({
   return (
     <>
       {/* Logo area */}
-      <div className={['flex items-center gap-3 px-4 py-5 border-b border-gray-100 overflow-hidden', isCollapsed ? 'justify-center px-0' : ''].join(' ')}>
-        <div className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-[#00D084] text-white font-bold text-base shadow-sm">
-          RE
+      <div className={['flex items-center gap-2.5 px-3 py-2 border-b border-gray-100 overflow-hidden', isCollapsed ? 'justify-center px-0' : ''].join(' ')}>
+        <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 overflow-hidden">
+          <img src={logo} alt="Logo" className="w-full h-full object-contain grayscale brightness-0" />
         </div>
         {!isCollapsed && (
           <div className="flex flex-col leading-tight min-w-0 flex-1">
-            <span className="text-slate-800 font-bold text-sm truncate">CIEBO</span>
-            <span className="text-slate-400 text-xs truncate">Panel Admin</span>
+            <span className="text-slate-800 font-black text-[10px] tracking-tighter uppercase">Cámara Inmobiliaria</span>
+            <span className="text-slate-400 font-black text-[9px] tracking-widest uppercase">de Bolívar</span>
           </div>
         )}
         {isMobile && onClose && (
@@ -279,7 +298,7 @@ const SidebarContent = ({
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 py-4 flex flex-col gap-0.5 px-2 overflow-y-auto">
+      <nav className="flex-1 py-1 flex flex-col gap-0 px-2 overflow-y-auto custom-scrollbar">
         {NAV_MAIN.filter(i => i.id !== 'admin_users' || user?.rol === 'super_admin').map((item) => {
           const isCmsGroup = item.id === 'cms'
           const isGroupActive = isCmsGroup
@@ -301,7 +320,7 @@ const SidebarContent = ({
                   ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
                   : undefined}
                 className={[
-                  'relative flex items-center gap-3 rounded-xl py-2.5 transition-all duration-150 w-full text-left group',
+                  'relative flex items-center gap-3 rounded-xl py-1.5 transition-all duration-150 w-full text-left group',
                   isCollapsed ? 'justify-center px-0' : 'px-3',
                   isGroupActive && !isCmsGroup ? '' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
                   isCmsGroup && cmsOpen ? 'text-slate-700 font-semibold' : ''
@@ -336,7 +355,7 @@ const SidebarContent = ({
                             ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
                             : undefined}
                           className={[
-                            'flex items-center gap-2.5 rounded-xl py-2 px-3 text-sm transition-all duration-150 w-full text-left',
+                            'flex items-center gap-2.5 rounded-xl py-1.5 px-3 text-[13px] transition-all duration-150 w-full text-left',
                             isSubActive ? 'text-[#00D084]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                           ].join(' ')}
                         >
@@ -356,7 +375,7 @@ const SidebarContent = ({
                                 key={sc.id}
                                 onClick={() => onNav(sc.id)}
                                 className={[
-                                  'py-1.5 px-2 text-[11px] font-medium transition-all rounded-lg text-left',
+                                  'py-1 px-2 text-[10px] font-medium transition-all rounded-lg text-left',
                                   activeId === sc.id 
                                     ? 'text-emerald-600 bg-emerald-50' 
                                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
@@ -378,7 +397,7 @@ const SidebarContent = ({
       </nav>
 
       {/* Bottom nav */}
-      <div className="pb-4 px-2 flex flex-col gap-1 border-t border-gray-100 pt-4">
+      <div className="pb-3 px-2 flex flex-col gap-0.5 border-t border-gray-100 pt-2">
         {NAV_BOTTOM.map((item) => (
           <NavButton
             key={item.id}
@@ -386,6 +405,7 @@ const SidebarContent = ({
             isActive={activeId === item.id}
             isCollapsed={isCollapsed}
             onClick={() => onNav(item.id)}
+            compact
           />
         ))}
         {/* Logout */}
@@ -393,7 +413,7 @@ const SidebarContent = ({
           onClick={onLogout}
           title={isCollapsed ? 'Cerrar sesión' : undefined}
           className={[
-            'flex items-center gap-3 rounded-xl py-2.5 w-full text-left transition-all duration-150 mt-1',
+            'flex items-center gap-3 rounded-xl py-1.5 w-full text-left transition-all duration-150 mt-0.5',
             isCollapsed ? 'justify-center px-0' : 'px-3',
             'text-red-400 hover:bg-red-50 hover:text-red-600',
           ].join(' ')}

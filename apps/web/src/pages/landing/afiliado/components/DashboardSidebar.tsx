@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { LogOut, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import logo from '@/assets/Logo.png';
+import { LogOut, X, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 
 export interface NavItem {
   icon: React.ElementType;
@@ -82,24 +83,23 @@ const SidebarContent = ({
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div
-        className={`flex items-center gap-3 px-5 py-6 border-b border-white/10 ${isCollapsed ? 'justify-center' : ''}`}
+        className={`flex items-center gap-3 px-5 py-3 border-b border-white/10 ${isCollapsed ? 'justify-center' : ''}`}
       >
         <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center shadow-inner flex-shrink-0 font-black text-base"
-          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-on-accent)' }}
+          className="w-9 h-9 flex items-center justify-center flex-shrink-0"
         >
-          CI
+          <img src={logo} alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
         </div>
-        {!isCollapsed && (
-          <div className="flex flex-col leading-tight">
-            <span className="font-extrabold text-base tracking-tighter uppercase" style={{ color: 'var(--color-text-on-dark)' }}>
-              CIEBO
+        <div className={`flex flex-col leading-tight transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+          <div className="flex flex-col leading-tight whitespace-nowrap">
+            <span className="font-extrabold text-[11px] tracking-tighter uppercase leading-none text-white">
+              Cámara Inmobiliaria
             </span>
-            <span className="text-[10px] font-bold tracking-widest uppercase opacity-50" style={{ color: 'var(--color-accent)' }}>
-              Mi Portal
+            <span className="text-[10px] font-bold tracking-widest uppercase text-white/50">
+              de Bolívar
             </span>
           </div>
-        )}
+        </div>
         {isMobile && onMobileClose && (
           <button
             onClick={onMobileClose}
@@ -111,17 +111,19 @@ const SidebarContent = ({
       </div>
 
       {/* Nav */}
-      <nav className="flex-grow py-4 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-grow py-2 px-2 space-y-0.5 overflow-y-auto custom-scrollbar">
         {navItems.map((item) => {
           const hasChildren = !!item.children?.length;
           const isExpanded = expandedTabs.includes(item.label);
           
           return item.isDivider ? (
-            <div key={item.label} className="px-3 pt-4 pb-1">
-              <span className="text-[9px] font-black tracking-widest uppercase opacity-40 text-white">
-                {item.label.replace('— ', '').replace(' —', '')}
-              </span>
-              <div className="mt-1 border-t border-white/10" />
+            <div key={item.label} className={['transition-all duration-300 px-3', isCollapsed ? 'py-2 px-4' : 'pt-2 pb-0.5'].join(' ')}>
+              <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
+                <span className="text-[9px] font-black tracking-widest uppercase opacity-40 text-white leading-none whitespace-nowrap">
+                  {item.label.replace('— ', '').replace(' —', '')}
+                </span>
+              </div>
+              <div className={`${!isCollapsed ? 'mt-1' : ''} border-t border-white/10`} />
             </div>
           ) : (
             <React.Fragment key={item.label}>
@@ -138,7 +140,7 @@ const SidebarContent = ({
                     : undefined
                 }
                 className={[
-                  'flex items-center gap-3 w-full rounded-xl py-3 transition-all duration-150 text-left group',
+                  'flex items-center gap-3 w-full rounded-xl py-2 transition-all duration-150 text-left group',
                   isCollapsed ? 'justify-center px-2' : 'px-3',
                   activeTab === item.label
                     ? 'shadow-lg'
@@ -146,14 +148,16 @@ const SidebarContent = ({
                 ].join(' ')}
               >
                 <item.icon size={20} className={activeTab === item.label ? '' : 'group-hover:scale-110 transition-transform'} />
-                {!isCollapsed && <span className="font-semibold text-sm tracking-tight flex-1">{item.label}</span>}
-                {!isCollapsed && hasChildren && (
-                  <ChevronRight size={14} className={['transition-transform duration-200 opacity-40', isExpanded ? 'rotate-90' : ''].join(' ')} />
-                )}
+                <div className={`flex-1 flex items-center justify-between overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-full opacity-100 ml-3'}`}>
+                  <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
+                  {hasChildren && (
+                    <ChevronRight size={14} className={['transition-transform duration-200 opacity-40 flex-shrink-0', isExpanded ? 'rotate-90' : ''].join(' ')} />
+                  )}
+                </div>
               </button>
 
               {hasChildren && isExpanded && !isCollapsed && (
-                <div className="ml-6 pl-3 border-l border-white/10 flex flex-col gap-1 mt-1 mb-2">
+                <div className="ml-6 pl-3 border-l border-white/10 flex flex-col gap-0 mt-0.5 mb-1">
                   {item.children?.map(child => (
                     <button
                       key={child.label}
@@ -162,7 +166,7 @@ const SidebarContent = ({
                         onMobileClose?.();
                       }}
                       className={[
-                        'py-2 px-2 text-xs font-bold transition-all rounded-lg text-left',
+                        'py-1.5 px-2 text-xs font-bold transition-all rounded-lg text-left',
                         activeTab === child.label 
                           ? 'text-white bg-white/10' 
                           : 'text-white/40 hover:text-white hover:bg-white/5'
@@ -179,14 +183,16 @@ const SidebarContent = ({
       </nav>
 
       {/* Logout */}
-      <div className={`p-4 border-t border-white/10 ${isCollapsed ? 'flex justify-center' : ''}`}>
+      <div className={`p-2 border-t border-white/10 ${isCollapsed ? 'flex justify-center' : ''}`}>
         <button
           onClick={onLogout}
-          className={`flex items-center gap-3 w-full px-3 py-3 rounded-xl transition-colors hover:bg-white/10 ${isCollapsed ? 'justify-center' : ''}`}
+          className={`flex items-center gap-3 w-full px-3 py-1.5 rounded-xl transition-colors hover:bg-white/10 ${isCollapsed ? 'justify-center' : ''}`}
           style={{ color: 'var(--color-danger)' }}
         >
-          <LogOut size={18} />
-          {!isCollapsed && <span className="font-bold text-sm">Cerrar Sesión</span>}
+          <LogOut size={20} className="flex-shrink-0" />
+          <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 ml-0' : 'w-auto opacity-100 ml-3'}`}>
+            <span className="font-bold text-sm uppercase tracking-tighter whitespace-nowrap">Cerrar Sesión</span>
+          </div>
         </button>
       </div>
     </div>

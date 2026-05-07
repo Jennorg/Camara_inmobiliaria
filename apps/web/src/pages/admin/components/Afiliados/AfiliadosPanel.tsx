@@ -234,7 +234,7 @@ export default function AfiliadosPanel() {
                       onChange={(e) => updateField('tipo_afiliado', e.target.value)}
                       className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-slate-100 text-slate-500 border-none focus:ring-0 cursor-pointer"
                     >
-                      <option value="Natural">Natural</option>
+                      <option value="Natural">Independiente</option>
                       <option value="Corporativo">Corporativo</option>
                     </select>
                   </div>
@@ -273,7 +273,7 @@ export default function AfiliadosPanel() {
                       value={selected.empresa_razon_social || ''} 
                       onChange={(e) => updateField('empresa_razon_social', e.target.value)}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
-                      placeholder="Nombre de la empresa"
+                      placeholder="Nombre del corporativo"
                     />
                   </div>
                 )}

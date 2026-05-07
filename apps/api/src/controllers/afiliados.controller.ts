@@ -93,22 +93,21 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    e.website as empresa_website,
                    e.email as empresa_email,
                    e.telefono as empresa_telefono,
-                   COALESCE(e_redes.instagram, json_extract(a.redes_sociales, '$.instagram')) as instagram,
-                   COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
-                   COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
-                   COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
-                   COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo
+                   json_extract(a.redes_sociales, '$.instagram') as instagram,
+                   json_extract(a.redes_sociales, '$.facebook') as facebook,
+                   json_extract(a.redes_sociales, '$.linkedin') as linkedin,
+                   json_extract(a.redes_sociales, '$.twitter') as twitter,
+                   json_extract(e.redes_sociales, '$.instagram') as empresa_instagram,
+                   json_extract(e.redes_sociales, '$.facebook') as empresa_facebook,
+                   json_extract(e.redes_sociales, '$.linkedin') as empresa_linkedin,
+                   json_extract(e.redes_sociales, '$.twitter') as empresa_twitter,
+                   CASE 
+                     WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
+                     ELSE p.nombres || ' ' || p.apellidos 
+                   END as nombre_completo
             FROM afiliados a
             JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-            LEFT JOIN (
-              SELECT id_empresa, 
-                     json_extract(redes_sociales, '$.instagram') as instagram,
-                     json_extract(redes_sociales, '$.facebook') as facebook,
-                     json_extract(redes_sociales, '$.linkedin') as linkedin,
-                     json_extract(redes_sociales, '$.twitter') as twitter
-              FROM empresas
-            ) e_redes ON a.id_empresa = e_redes.id_empresa
             WHERE a.id_afiliado = ?`,
       args: [Number(id)],
     })
@@ -386,7 +385,10 @@ export const getAfiliados = async (req: Request, res: Response) => {
              COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
              COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
              COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
-             COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo
+             CASE 
+               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
+               ELSE p.nombres || ' ' || p.apellidos 
+             END as nombre_completo
       FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -606,7 +608,10 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     const result = await db.execute({
       sql: `
       SELECT a.id_afiliado, 
-             COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, 
+             CASE 
+               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
+               ELSE p.nombres || ' ' || p.apellidos 
+             END as nombre_completo, 
              p.nombres || ' ' || p.apellidos as representante_nombre,
              p.nombres, p.apellidos, a.codigo_cibir, 
              p.cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
@@ -663,7 +668,10 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     const result = await db.execute({
       sql: `
         SELECT a.*, 
-               COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, 
+               CASE 
+                 WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
+                 ELSE p.nombres || ' ' || p.apellidos 
+               END as nombre_completo, 
                p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
                p.fecha_nacimiento, p.nivel_academico, p.profesion,
                e.razon_social as empresa_razon_social, 
@@ -916,13 +924,23 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Error al actualizar estado' });
   }
 };
+
 export const updateAfiliado = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const fields = req.body;
+    const requesterId = req.user!.id_afiliado;
+    const requesterRoles = req.user!.roles ?? [req.user!.rol];
+    const isAdmin = requesterRoles.some(r => ['admin', 'super_admin'].includes(r));
+
+    // 1. Autorización: Solo el dueño o un admin
+    if (!isAdmin && requesterId !== Number(id)) {
+      return res.status(403).json({ success: false, message: 'No tienes permiso para actualizar este perfil.' });
+    }
 
     // Campos permitidos por entidad
     const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion'];
+    const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo_cibir', 'id_empresa', 'activo'];
     const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
       'codigo_cibir', 'id_empresa', 'notas', 'activo', 'redes_sociales'
@@ -936,6 +954,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       empresa_website: 'website',
       empresa_logo_url: 'logo_url'
     };
+
+    // Si no es admin, limpiar campos restringidos
+    if (!isAdmin) {
+      adminOnlyFields.forEach(f => delete fields[f]);
+    }
 
     // 1. Obtener el registro actual para saber qué id_persona e id_empresa tiene
     const current = await db.execute({
@@ -1004,6 +1027,36 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         // Si ya estaba redes_sociales en los campos, priorizamos el merge
         const idx = aUpdates.findIndex(u => u.startsWith('redes_sociales'));
         aArgs[idx] = JSON.stringify(newRedes);
+      }
+    }
+
+    // Re-procesar redes sociales de la EMPRESA if any
+    const empresaSocialsToUpdate: Record<string, any> = {};
+    socialFields.forEach(sf => {
+      const key = `empresa_${sf}`;
+      if (fields[key] !== undefined) empresaSocialsToUpdate[sf] = fields[key];
+    });
+
+    if (Object.keys(empresaSocialsToUpdate).length > 0 && idEmpresa) {
+      // Leer redes actuales de la empresa
+      const currE = await db.execute({
+        sql: `SELECT redes_sociales FROM empresas WHERE id_empresa = ?`,
+        args: [idEmpresa]
+      });
+      let currentERedes: Record<string, any> = {};
+      if (currE.rows.length > 0) {
+        try {
+          currentERedes = JSON.parse(currE.rows[0].redes_sociales as string || '{}');
+        } catch (e) { currentERedes = {}; }
+      }
+
+      const newERedes = { ...currentERedes, ...empresaSocialsToUpdate };
+      if (!eUpdates.some(u => u.startsWith('redes_sociales'))) {
+        eUpdates.push('redes_sociales = ?');
+        eArgs.push(JSON.stringify(newERedes));
+      } else {
+        const idx = eUpdates.findIndex(u => u.startsWith('redes_sociales'));
+        eArgs[idx] = JSON.stringify(newERedes);
       }
     }
 
@@ -1493,5 +1546,50 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('Error en createAfiliado:', error);
     res.status(500).json({ success: false, message: 'Error interno al crear afiliado' });
+  }
+};
+
+/**
+ * POST /api/afiliados/:id/convertir-natural
+ * Permite que un Agente Corporativo abandone su empresa y se convierta en Afiliado Natural.
+ */
+export const convertirAgenteANatural = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.user!.id_afiliado;
+    const requesterRoles = req.user!.roles ?? [req.user!.rol];
+
+    // Solo el propio afiliado o un admin puede hacerlo
+    if (!requesterRoles.some(r => ['admin', 'super_admin'].includes(r)) && requesterId !== Number(id)) {
+      res.status(403).json({ success: false, message: 'Acceso denegado' });
+      return;
+    }
+
+    // Verificar que sea un Agente Corporativo
+    const current = await db.execute({
+      sql: 'SELECT tipo_afiliado FROM afiliados WHERE id_afiliado = ?',
+      args: [id]
+    });
+
+    if (current.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
+      return;
+    }
+
+    if (current.rows[0].tipo_afiliado !== 'Agente Corporativo') {
+      res.status(400).json({ success: false, message: 'Solo los Agentes Corporativos pueden realizar esta acción' });
+      return;
+    }
+
+    // Realizar la conversión
+    await db.execute({
+      sql: "UPDATE afiliados SET tipo_afiliado = 'Natural', id_empresa = NULL WHERE id_afiliado = ?",
+      args: [id]
+    });
+
+    res.json({ success: true, message: 'Conversión a Afiliado Natural exitosa' });
+  } catch (error) {
+    console.error('convertirAgenteANatural:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };

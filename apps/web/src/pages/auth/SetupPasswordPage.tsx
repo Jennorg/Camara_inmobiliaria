@@ -97,7 +97,7 @@ export default function SetupPasswordPage() {
         <div className="w-16 h-16 bg-emerald-600 rounded-2xl shadow-lg flex items-center justify-center mb-4 transform -rotate-3">
           <ShieldCheck className="text-white w-10 h-10" />
         </div>
-        <h2 className="text-xl font-black text-slate-800 tracking-tight">CIEBO <span className="text-emerald-500">Membresía</span></h2>
+        <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Cámara <span className="text-emerald-500">Inmobiliaria</span></h2>
       </div>
 
       <div className="max-w-md w-full bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 p-8 sm:p-10 border border-slate-100 relative overflow-hidden">

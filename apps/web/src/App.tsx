@@ -1,9 +1,11 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
-import { AuthProvider } from '@/context/AuthContext'
+import { HelmetProvider } from 'react-helmet-async'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollToHash from '@/components/ScrollToHash'
 import ScrollToTop from '@/components/ScrollToTop'
+import SEO from '@/components/SEO'
 
 // Static imports (Removing lazy/preload)
 import LandingPage from '@/pages/landing/LandingPage'
@@ -37,15 +39,38 @@ function PreservingQueryNavigate({ to }: { to: string }) {
   return <Navigate to={q ? `${to}?${q}` : to} replace />
 }
 
+// ─── Componente para manejar la raíz dinámica ────────────────────────────────
+const RootRoute = () => {
+  const { user } = useAuth();
+  const hostname = window.location.hostname;
+  const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
+  
+  // Si estamos en el subdominio app, el root ES el panel (protegido)
+  if (isApp) return <ProtectedRoute><PanelPage /></ProtectedRoute>;
+  
+  // Si estamos en localhost y hay sesión, permitimos ver el panel en la raíz para facilitar desarrollo
+  if (isLocal && user) return <ProtectedRoute><PanelPage /></ProtectedRoute>;
+  
+  // Por defecto, la raíz muestra la landing
+  return (
+    <>
+      <SEO />
+      <LandingPage />
+    </>
+  );
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <ScrollToHash />
-      <ScrollToTop />
-      <AuthProvider>
+    <HelmetProvider>
+      <BrowserRouter>
+        <ScrollToHash />
+        <ScrollToTop />
+        <AuthProvider>
         <Routes>
-          {/* Rutas públicas */}
-          <Route path='/'              element={<LandingPage />} />
+          {/* Rutas principales dependientes del host */}
+          <Route path='/' element={<RootRoute />} />
           <Route path='/cursos'        element={<CursosCatalogPage />} />
           <Route path='/talleres'      element={<CursosCatalogPage />} />
           <Route path='/mision_vision' element={<MisionVisionPage />} />
@@ -90,5 +115,6 @@ export default function App() {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+    </HelmetProvider>
   )
 }

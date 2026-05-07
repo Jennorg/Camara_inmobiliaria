@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado } from '../controllers/afiliados.controller.js';
+import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural } from '../controllers/afiliados.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -29,7 +29,7 @@ router.post('/registro/verificar', verificarEmail);
 router.post('/formalizar', requireAuth, formalizarInscripcion);
 
 // PATCH /api/afiliados/:id — Actualización general del afiliado
-router.patch('/:id', requireAuth, requireRole('admin', 'super_admin'), updateAfiliado);
+router.patch('/:id', requireAuth, updateAfiliado);
 
 // DELETE /api/afiliados/:id
 router.delete('/:id', requireAuth, requireRole('admin', 'super_admin'), deleteAfiliado);
@@ -58,6 +58,9 @@ router.get('/:id/afiliados-corp', requireAuth, listarAfiliadosCorporativos);
 
 // POST /api/afiliados/:id/registrar-miembro — Registro directo por la empresa
 router.post('/:id/registrar-miembro', requireAuth, registrarMiembroDirecto);
+
+// POST /api/afiliados/:id/convertir-natural — Agente a Natural
+router.post('/:id/convertir-natural', requireAuth, convertirAgenteANatural);
 
 export { router as afiliadosRoutes };
 

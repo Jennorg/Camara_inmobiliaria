@@ -139,13 +139,13 @@ export const getConvenios = async (_req: Request, res: Response) => {
 
 export const createConvenio = async (req: Request, res: Response) => {
   try {
-    const { nombre_aliado, descripcion, logo_url, link_web } = req.body;
-    if (!nombre_aliado) {
-      return res.status(400).json({ success: false, message: 'nombre_aliado es requerido' });
+    const { nombre, descripcion, logo_url, link_web } = req.body;
+    if (!nombre) {
+      return res.status(400).json({ success: false, message: 'nombre es requerido' });
     }
     const result = await db.execute({
-      sql: `INSERT INTO cms_convenios (nombre_aliado, descripcion, logo_url, link_web) VALUES (?, ?, ?, ?) RETURNING *`,
-      args: [nombre_aliado, descripcion ?? null, logo_url ?? null, link_web ?? null]
+      sql: `INSERT INTO cms_convenios (nombre, descripcion, logo_url, link_web) VALUES (?, ?, ?, ?) RETURNING *`,
+      args: [nombre, descripcion ?? null, logo_url ?? null, link_web ?? null]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -157,13 +157,13 @@ export const createConvenio = async (req: Request, res: Response) => {
 export const updateConvenio = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { nombre_aliado, descripcion, logo_url, link_web } = req.body;
-    if (!nombre_aliado) {
-      return res.status(400).json({ success: false, message: 'nombre_aliado es requerido' });
+    const { nombre, descripcion, logo_url, link_web } = req.body;
+    if (!nombre) {
+      return res.status(400).json({ success: false, message: 'nombre es requerido' });
     }
     const result = await db.execute({
-      sql: `UPDATE cms_convenios SET nombre_aliado=?, descripcion=?, logo_url=?, link_web=? WHERE id_convenio=? RETURNING *`,
-      args: [nombre_aliado, descripcion ?? null, logo_url ?? null, link_web ?? null, id]
+      sql: `UPDATE cms_convenios SET nombre=?, descripcion=?, logo_url=?, link_web=? WHERE id_convenio=? RETURNING *`,
+      args: [nombre, descripcion ?? null, logo_url ?? null, link_web ?? null, id]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Convenio no encontrado' });
     return res.json({ success: true, data: result.rows[0] });
@@ -244,7 +244,7 @@ export const deleteMiembroDirectiva = async (req: Request, res: Response) => {
 
 export const getHitos = async (_req: Request, res: Response) => {
   try {
-    const result = await db.execute('SELECT * FROM cms_hitos ORDER BY anio ASC, id_hito ASC');
+    const result = await db.execute('SELECT * FROM cms_hitos ORDER BY año ASC, id_hito ASC');
     return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('getHitos:', error);
@@ -257,7 +257,7 @@ export const createHito = async (req: Request, res: Response) => {
     const { anio, titulo, descripcion } = req.body;
     if (!anio || !titulo) return res.status(400).json({ success: false, message: 'anio y titulo son requeridos' });
     const result = await db.execute({
-      sql: `INSERT INTO cms_hitos (anio, titulo, descripcion) VALUES (?, ?, ?) RETURNING *`,
+      sql: `INSERT INTO cms_hitos (año, titulo, descripcion) VALUES (?, ?, ?) RETURNING *`,
       args: [anio, titulo, descripcion ?? null]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -272,7 +272,7 @@ export const updateHito = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { anio, titulo, descripcion } = req.body;
     const result = await db.execute({
-      sql: `UPDATE cms_hitos SET anio=?, titulo=?, descripcion=? WHERE id_hito=? RETURNING *`,
+      sql: `UPDATE cms_hitos SET año=?, titulo=?, descripcion=? WHERE id_hito=? RETURNING *`,
       args: [anio, titulo, descripcion ?? null, id]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Hito no encontrado' });

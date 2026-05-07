@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import logoLight from '@/assets/Logo2.png' // Logo para modo claro
 import logoDark from '@/assets/Logo3.png'  // Logo para modo oscuro
 import LoginModal from '@/pages/landing/components/LoginModal'
+import RegisterModal from '@/pages/landing/components/RegisterModal'
 import NavItem from './NavItem'
 import { NAV_ITEMS } from './navData'
 import { Menu, X, LogOut, Moon, Sun } from 'lucide-react'
@@ -18,11 +19,10 @@ interface NavbarProps {
 const Navbar = ({
   darkMode,
   setDarkMode,
-  setIsSesionModalOpen,
-  setIsRegisterModalOpen,
 }: NavbarProps) => {
   const { user, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const labelLogin = "Iniciar Sesión";
@@ -72,7 +72,16 @@ const Navbar = ({
               {user ? (
                 <>
                   <Link
-                    to='/panel'
+                    to={(() => {
+                      const hostname = window.location.hostname;
+                      const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
+                      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
+                      
+                      if (isApp || isLocal) return '/';
+                      
+                      const baseDomain = hostname.replace('www.', '');
+                      return `${window.location.protocol}//app.${baseDomain}${window.location.port ? `:${window.location.port}` : ''}/`;
+                    })()}
                     className='hidden md:flex items-center gap-2 px-4 py-1.5 bg-emerald-900/30 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-bold hover:bg-emerald-800/50 hover:border-emerald-400 transition-all shadow-inner'
                   >
                     <span className='relative flex h-2.5 w-2.5'>
@@ -92,7 +101,7 @@ const Navbar = ({
                 </>
               ) : (
                 <button
-                  onClick={() => setIsSesionModalOpen ? setIsSesionModalOpen(true) : setShowLoginModal(true)}
+                  onClick={() => setShowLoginModal(true)}
                   className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95'
                 >
                   {labelLogin}
@@ -112,6 +121,7 @@ const Navbar = ({
         </div>
 
         {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+        {showRegisterModal && <RegisterModal onClose={() => setShowRegisterModal(false)} />}
       </nav>
 
       {/* MOBILE DRAWER */}
@@ -158,11 +168,7 @@ const Navbar = ({
           <div className="p-6">
             <button 
               onClick={() => { 
-                if (setIsSesionModalOpen) {
-                  setIsSesionModalOpen(true);
-                } else {
-                  setShowLoginModal(true);
-                }
+                setShowLoginModal(true);
                 setIsMobileMenuOpen(false); 
               }}
               className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg bg-emerald-500 text-white"

@@ -39,6 +39,7 @@ import MiembrosPanel from '@/pages/admin/components/Afiliados/MiembrosPanel';
 
 import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
+import SettingsPanel from './components/SettingsPanel';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/context/AuthContext';
@@ -152,8 +153,11 @@ const PanelPage = () => {
     
     // Si es corporativo, agregar pestaña de gestión
     if (afiliado?.tipo_afiliado === 'Corporativo') {
-      baseItems.push({ icon: Users, label: 'Mis Afiliados' });
+      baseItems.push({ icon: Users, label: 'Mis Agentes' });
     }
+
+    // Item de Configuración para todos
+    baseItems.push({ icon: Settings, label: 'Configuración' });
 
     if (isAdmin) {
       let adminItems = [
@@ -214,7 +218,8 @@ const PanelPage = () => {
     }
     if (activeTab === 'Sistema de Denuncias') return <Section label="Sistema de Denuncias" />;
     if (activeTab === 'Solicitud de Afiliación') return <div className="col-span-1 lg:col-span-3"><WidgetSolicitudAfiliacion /></div>;
-    if (activeTab === 'Mis Afiliados') return <div className="col-span-1 lg:col-span-3"><WidgetGestionAfiliadosCorp /></div>;
+    if (activeTab === 'Mis Agentes') return <div className="col-span-1 lg:col-span-3"><WidgetGestionAfiliadosCorp /></div>;
+    if (activeTab === 'Configuración') return <SettingsPanel />;
 
     // 2. Sección Administrativa
     if (!isAdmin) return null;
@@ -248,7 +253,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Administradores', 'Análisis y Métricas', 'Gestión de Formación'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Administradores', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>

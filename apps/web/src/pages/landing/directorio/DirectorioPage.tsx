@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Fuse from 'fuse.js';
-import { Search, Users, Loader2 } from 'lucide-react';
+import { Search, MapPin, Building2, Filter, ChevronRight, User, Star, ShieldCheck, Users, Loader2 } from 'lucide-react';
+import SEO from '@/components/SEO';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
@@ -12,10 +13,8 @@ const DirectorioPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [darkMode, setDarkMode] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
-  const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos');
+  const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
 
   useEffect(() => {
     const fetchAfiliados = async () => {
@@ -52,6 +51,9 @@ const DirectorioPage = () => {
         // Normalización extrema
         const itemType = String(a.tipo_afiliado || 'Natural').toLowerCase().trim();
         const targetType = String(filterType).toLowerCase().trim();
+        if (targetType === 'agente') {
+          return itemType === 'agente corporativo' || itemType === 'agente';
+        }
         return itemType === targetType;
       });
     }
@@ -66,7 +68,7 @@ const DirectorioPage = () => {
       const t = a.tipo_afiliado;
       if (t === 'Natural') counts.Natural++;
       else if (t === 'Corporativo') counts.Corporativo++;
-      else if (t === 'Agente Corporativo') counts.Agente++;
+      else if (t === 'Agente Corporativo' || t === 'Agente') counts.Agente++;
       else counts.Otros++;
     });
     return counts;
@@ -74,11 +76,13 @@ const DirectorioPage = () => {
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+      <SEO
+        title="Directorio de Miembros"
+        description="Encuentra a los profesionales inmobiliarios certificados en el Estado Bolívar. Consulta nuestro directorio de agentes y corporativos."
+      />
       <Navbar
         darkMode={darkMode}
         setDarkMode={setDarkMode}
-        setIsSesionModalOpen={setIsLoginOpen}
-        setIsRegisterModalOpen={setIsRegisterOpen}
       />
 
       <main className="flex-grow pt-24 pb-20">
@@ -108,16 +112,16 @@ const DirectorioPage = () => {
                   className="block w-full pl-16 pr-24 py-5 rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-lg relative z-0"
                 />
                 <div className="absolute inset-y-0 right-4 flex items-center z-10">
-                   <div className="flex items-center gap-2">
-                     {filterType !== 'Todos' && (
-                        <span className="text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2 py-1 rounded-md">
-                          {filterType === 'Natural' ? 'Independientes' : 'Corporativos'}
-                        </span>
-                     )}
-                     <span className="text-xs font-bold text-slate-500 dark:text-emerald-200 bg-slate-50 dark:bg-[#022c22] px-3 py-1.5 rounded-full border border-slate-200 dark:border-emerald-500/20">
-                       {resultados.length}
-                     </span>
-                   </div>
+                  <div className="flex items-center gap-2">
+                    {filterType !== 'Todos' && (
+                      <span className="text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2 py-1 rounded-md">
+                        {filterType === 'Natural' ? 'Independientes' : 'Corporativos'}
+                      </span>
+                    )}
+                    <span className="text-xs font-bold text-slate-500 dark:text-emerald-200 bg-slate-50 dark:bg-[#022c22] px-3 py-1.5 rounded-full border border-slate-200 dark:border-emerald-500/20">
+                      {resultados.length}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -127,23 +131,22 @@ const DirectorioPage = () => {
                   {[
                     { id: 'Todos', label: 'Todos' },
                     { id: 'Natural', label: 'Independientes' },
-                    { id: 'Corporativo', label: 'Empresas' },
-                    { id: 'Agente Corporativo', label: 'Agentes' },
+                    { id: 'Corporativo', label: 'Corporativos' },
+                    { id: 'Agente', label: 'Agentes' },
                   ].map((f) => (
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-                        filterType === f.id
+                      className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
-                      }`}
+                        }`}
                     >
                       {f.label}
                     </button>
                   ))}
                 </div>
-                
+
                 {/* Debug Info (Visible en desarrollo) */}
                 <div className="flex gap-4 text-[9px] font-bold text-slate-400 dark:text-emerald-500/40 uppercase tracking-tighter">
                   <span>Ind: {stats.Natural}</span>
@@ -176,21 +179,21 @@ const DirectorioPage = () => {
                 <Users size={32} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <h3 className="text-2xl font-black text-slate-800 dark:text-emerald-50 mb-2">
-                {searchQuery.trim() 
-                  ? 'No se encontraron resultados' 
-                  : filterType !== 'Todos' 
+                {searchQuery.trim()
+                  ? 'No se encontraron resultados'
+                  : filterType !== 'Todos'
                     ? `Sin miembros ${filterType === 'Natural' ? 'Independientes' : 'Corporativos'}`
                     : 'Directorio vacío'}
               </h3>
               <p className="text-slate-500 dark:text-emerald-100/70 font-medium max-w-md mx-auto">
-                {searchQuery.trim() 
+                {searchQuery.trim()
                   ? <>No pudimos encontrar coincidencias para "<strong>{searchQuery}</strong>". Revisa la ortografía o intenta buscar por Código o Cédula/RIF.</>
                   : filterType !== 'Todos'
                     ? `Actualmente no hay miembros de tipo ${filterType === 'Natural' ? 'Independiente' : 'Corporativo'} registrados con estatus de Afiliación.`
                     : 'Actualmente no hay profesionales certificados registrados en esta lista pública.'}
               </p>
               {filterType !== 'Todos' && (
-                <button 
+                <button
                   onClick={() => {
                     setFilterType('Todos');
                     setSearchQuery('');

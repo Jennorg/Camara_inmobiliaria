@@ -1,4 +1,4 @@
-export type EstatusAfiliado =
+export type EstatusAfiliado = 
   | '1_PREINSCRIPCION'
   | '2_EXPEDIENTE'
   | '3_ENTREVISTA'
@@ -52,7 +52,7 @@ export interface Afiliado {
   id_empresa?: number | null;
   id_user?: number | null;
   codigo_cibir?: string | null;
-  tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente Corporativo';
+  tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
   cibir_convalidado: number;
   inscripcion_pagada: number;
@@ -76,7 +76,7 @@ export interface AfiliadoDTO {
   id_empresa: number | null;
   id_user: number | null;
   codigo_cibir: string | null;
-  tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente Corporativo';
+  tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
   cibir_convalidado: number;
   inscripcion_pagada: number;

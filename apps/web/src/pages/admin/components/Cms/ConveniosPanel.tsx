@@ -5,7 +5,7 @@ import { sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
 
 interface ConvenioItem {
   id: string | number;
-  nombre_aliado: string;
+  nombre: string;
   descripcion: string | null;
   logo_url: string | null;
   link_web: string | null;
@@ -15,7 +15,7 @@ export const ConveniosPanel = () => {
   const [items, setItems] = useState<ConvenioItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
-  const [form, setForm] = useState({ nombre_aliado: '', descripcion: '', logo_url: '', link_web: '' })
+  const [form, setForm] = useState({ nombre: '', descripcion: '', logo_url: '', link_web: '' })
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -55,7 +55,7 @@ export const ConveniosPanel = () => {
       const item = items.find(i => String(i.id) === String(selectedId))
       if (item) {
         setForm({ 
-          nombre_aliado: item.nombre_aliado, 
+          nombre: item.nombre, 
           descripcion: item.descripcion || '', 
           logo_url: item.logo_url || '', 
           link_web: item.link_web || ''
@@ -67,7 +67,7 @@ export const ConveniosPanel = () => {
   const openEdit = (item: ConvenioItem) => { 
     setSelectedId(item.id); 
     setForm({ 
-      nombre_aliado: item.nombre_aliado, 
+      nombre: item.nombre, 
       descripcion: item.descripcion || '', 
       logo_url: item.logo_url || '', 
       link_web: item.link_web || ''
@@ -77,7 +77,7 @@ export const ConveniosPanel = () => {
 
   const openNew = () => { 
     setSelectedId('new'); 
-    setForm({ nombre_aliado: '', descripcion: '', logo_url: '', link_web: '' }); 
+    setForm({ nombre: '', descripcion: '', logo_url: '', link_web: '' }); 
     setIsEditing(true) 
   }
 
@@ -129,8 +129,8 @@ export const ConveniosPanel = () => {
       <div className="grid grid-cols-1 gap-5">
         <FormField label="Nombre del Aliado / Empresa">
           <Input
-            value={form.nombre_aliado}
-            onChange={f('nombre_aliado')}
+            value={form.nombre}
+            onChange={f('nombre')}
             placeholder="Ej. Banco de Venezuela, UCAB, etc."
             className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
           />
@@ -259,11 +259,11 @@ export const ConveniosPanel = () => {
         <div className="flex items-center justify-between gap-3 p-1 w-full group cursor-pointer">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-slate-400 font-black text-sm flex-shrink-0 overflow-hidden p-1.5 shadow-xs">
-              {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-contain" /> : item.nombre_aliado.charAt(0)}
+              {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
             </div>
             <div className="flex flex-col min-w-0">
               <span className={`text-sm font-semibold truncate ${sel ? 'text-[#00B870]' : 'text-slate-800'}`}>
-                {item.nombre_aliado}
+                {item.nombre}
               </span>
               <span className="text-[10px] text-slate-400 truncate uppercase font-bold tracking-tighter line-clamp-1">{item.descripcion || 'Sin descripción'}</span>
             </div>
@@ -279,10 +279,10 @@ export const ConveniosPanel = () => {
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-slate-400 font-black text-xl overflow-hidden p-2 shadow-sm">
-                {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-contain" /> : item.nombre_aliado.charAt(0)}
+                {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800 leading-tight">{item.nombre_aliado}</h3>
+                <h3 className="text-base font-bold text-slate-800 leading-tight">{item.nombre}</h3>
                 {item.link_web && (
                    <a href={item.link_web} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-emerald-600 hover:underline mt-1 font-medium">
                      <Globe size={12} />

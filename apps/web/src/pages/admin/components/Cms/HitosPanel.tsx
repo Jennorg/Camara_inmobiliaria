@@ -18,7 +18,18 @@ export const HitosPanel = () => {
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
 
-  const load = useCallback(async () => { setLoading(true); const data = await api.get('/api/cms/hitos'); if (data.success) setItems(data.data); setLoading(false) }, [])
+  const load = useCallback(async () => { 
+    setLoading(true); 
+    const data = await api.get('/api/cms/hitos'); 
+    if (data.success && Array.isArray(data.data)) {
+      setItems(data.data.map((it: any) => ({
+        ...it,
+        id: it.id_hito,
+        anio: it.año // Map DB 'año' to frontend 'anio'
+      })));
+    } 
+    setLoading(false) 
+  }, [])
   useEffect(() => { load() }, [load])
   const openEdit = (item: HitoItem) => { setSelectedId(item.id); setForm({ anio: item.anio, titulo: item.titulo, descripcion: item.descripcion, orden: item.orden }); setIsEditing(true) }
   const openNew = () => { setSelectedId('new'); setForm({ anio: '', titulo: '', descripcion: '', orden: items.length }); setIsEditing(true) }

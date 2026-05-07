@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { Helmet } from 'react-helmet-async';
 
 interface SEOProps {
   title?: string;
@@ -14,95 +15,57 @@ const SEO: React.FC<SEOProps> = ({
   description, 
   keywords, 
   image = '/assets/Logo2.png', 
-  url = 'https://camarainmobiliariadebolivar.com',
+  url,
   type = 'website'
 }) => {
-  const baseTitle = 'Cámara Inmobiliaria del Estado Bolívar (CIBIR)';
+  const baseTitle = 'Cámara Inmobiliaria Bolívar (CIBIR)';
   const fullTitle = title ? `${title} | ${baseTitle}` : baseTitle;
-  const defaultDescription = 'Página oficial de la Cámara Inmobiliaria del Estado Bolívar. Agremiamos a profesionales inmobiliarios, promovemos la ética, formación continua y el desarrollo del sector de bienes raíces en la región.';
-  const defaultKeywords = 'cámara inmobiliaria bolívar, bienes raíces puerto ordaz, inmobiliarias ciudad bolívar, formación inmobiliaria, cibir, profesionales inmobiliarios venezuela';
+  const defaultDescription = 'Página oficial de la Cámara Inmobiliaria del Estado Bolívar. Agremiamos a profesionales inmobiliarios, promovemos la ética y formación continua.';
+  const defaultKeywords = 'cámara inmobiliaria bolívar, bienes raíces puerto ordaz, formación inmobiliaria, cibir, profesionales inmobiliarios venezuela';
+  
+  const currentUrl = url || (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
 
-  useEffect(() => {
-    // Title
-    document.title = fullTitle;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Cámara Inmobiliaria del Estado Bolívar",
+    "alternateName": "CIBIR",
+    "url": "https://camarainmobiliariadebolivar.com",
+    "logo": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
+    "sameAs": [
+      "https://www.instagram.com/camarainmobiliariabolivar",
+      "https://twitter.com/camarainmobiliariabolivar"
+    ]
+  };
 
-    // Helper to set or create meta tags
-    const setMetaTag = (attrName: string, attrValue: string, content: string) => {
-      let element = document.querySelector(`meta[${attrName}="${attrValue}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(attrName, attrValue);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', content);
-    };
+  return (
+    <Helmet>
+      {/* Basic */}
+      <title>{fullTitle}</title>
+      <meta name="description" content={description || defaultDescription} />
+      <meta name="keywords" content={keywords || defaultKeywords} />
+      <link rel="canonical" href={currentUrl} />
 
-    // Standard Meta Tags
-    setMetaTag('name', 'description', description || defaultDescription);
-    setMetaTag('name', 'keywords', keywords || defaultKeywords);
-    setMetaTag('name', 'robots', 'index, follow');
+      {/* OpenGraph */}
+      <meta property="og:title" content={fullTitle} />
+      <meta property="og:description" content={description || defaultDescription} />
+      <meta property="og:image" content={image} />
+      <meta property="og:url" content={currentUrl} />
+      <meta property="og:type" content={type} />
+      <meta property="og:site_name" content="Cámara Inmobiliaria de Bolívar" />
 
-    // OpenGraph Tags
-    setMetaTag('property', 'og:title', fullTitle);
-    setMetaTag('property', 'og:description', description || defaultDescription);
-    setMetaTag('property', 'og:image', image);
-    setMetaTag('property', 'og:url', url);
-    setMetaTag('property', 'og:type', type);
-    setMetaTag('property', 'og:site_name', 'Cámara Inmobiliaria de Bolívar');
+      {/* Twitter */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={fullTitle} />
+      <meta name="twitter:description" content={description || defaultDescription} />
+      <meta name="twitter:image" content={image} />
 
-    // Twitter Card Tags
-    setMetaTag('name', 'twitter:card', 'summary_large_image');
-    setMetaTag('name', 'twitter:title', fullTitle);
-    setMetaTag('name', 'twitter:description', description || defaultDescription);
-    setMetaTag('name', 'twitter:image', image);
-
-    // Canonical Link
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', url);
-
-  }, [fullTitle, description, keywords, image, url, type]);
-
-  // Structured Data (JSON-LD) for Organization
-  useEffect(() => {
-    const scriptId = 'structured-data-org';
-    let script = document.getElementById(scriptId) as HTMLScriptElement;
-    
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.type = 'application/ld+json';
-      document.head.appendChild(script);
-    }
-
-    const structuredData = {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Cámara Inmobiliaria del Estado Bolívar",
-      "alternateName": "CIBIR",
-      "url": "https://camarainmobiliariadebolivar.com",
-      "logo": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "telephone": "",
-        "contactType": "customer service",
-        "areaServed": "VE",
-        "availableLanguage": "Spanish"
-      },
-      "sameAs": [
-        "https://www.instagram.com/camarainmobiliariabolivar",
-        "https://twitter.com/camarainmobiliariabolivar"
-      ]
-    };
-
-    script.text = JSON.stringify(structuredData);
-  }, []);
-
-  return null;
+      {/* Structured Data */}
+      <script type="application/ld+json">
+        {JSON.stringify(structuredData)}
+      </script>
+    </Helmet>
+  );
 };
 
 export default SEO;

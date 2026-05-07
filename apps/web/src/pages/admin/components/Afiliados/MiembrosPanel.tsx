@@ -25,7 +25,7 @@ export default function MiembrosPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo'>('Todos')
+  const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos')
   const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('nombre_asc')
 
   const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
@@ -99,7 +99,12 @@ export default function MiembrosPanel() {
       const s = search.toLowerCase()
 
       const matchSearch = nombre.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
-      const matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
+
+      let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
+      if (filterTipo === 'Agente') {
+        matchTipo = item.tipo_afiliado === 'Agente'
+      }
+
       return matchSearch && matchTipo
     })
 
@@ -256,6 +261,12 @@ export default function MiembrosPanel() {
               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Corporativo' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
             >
               Corp.
+            </button>
+            <button
+              onClick={() => setFilterTipo('Agente')}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Agente' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
+            >
+              Agentes
             </button>
           </div>
         </div>
@@ -449,8 +460,8 @@ export default function MiembrosPanel() {
                           onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
                         >
                           <option value="Natural">Independiente / Persona</option>
-                          <option value="Corporativo">Empresa (Corporativo)</option>
-                          <option value="Agente Corporativo">Agente (Vinculado)</option>
+                          <option value="Corporativo">Corporativo</option>
+                          <option value="Agente">Agente (Vinculado)</option>
                         </select>
                       ) : (
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -459,9 +470,9 @@ export default function MiembrosPanel() {
                       )}
                     </div>
 
-                    {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : selected.tipo_afiliado === 'Agente Corporativo') && (
+                    {(isEditing ? editForm.tipo_afiliado === 'Agente' : selected.tipo_afiliado === 'Agente') && (
                       <div className="pt-2 border-t border-gray-200 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vinculación a Empresa</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vinculación a Corporativo</p>
                         {isEditing ? (
                           <select
                             className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
@@ -629,7 +640,7 @@ export default function MiembrosPanel() {
                     </div>
                     <div>
                       <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Afiliados Asociados</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Trabajadores directos de la empresa</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Trabajadores directos del corporativo</p>
                     </div>
                   </div>
                   <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">
@@ -699,15 +710,15 @@ export default function MiembrosPanel() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} />
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} />
-                  <DataInput 
-                    label="Razón Social (si es empresa)" 
-                    placeholder="Inmobiliaria XYZ C.A." 
-                    value={newForm.empresa_razon_social || ''} 
-                    onChange={(v: string) => setNewForm({ 
-                      ...newForm, 
+                  <DataInput
+                    label="Razón Social (si es corporativo)"
+                    placeholder="Inmobiliaria XYZ C.A."
+                    value={newForm.empresa_razon_social || ''}
+                    onChange={(v: string) => setNewForm({
+                      ...newForm,
                       empresa_razon_social: v,
-                      tipo_afiliado: v.trim() ? 'Corporativo' : (newForm.id_empresa ? 'Agente Corporativo' : 'Natural')
-                    })} 
+                      tipo_afiliado: v.trim() ? 'Corporativo' : (newForm.id_empresa ? 'Agente' : 'Natural')
+                    })}
                   />
                   <DataInput label="Cédula / RIF" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
                   <DataInput label="Código CIBIR (Opcional)" placeholder="359" value={newForm.codigo_cibir || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo_cibir: v })} />
@@ -720,20 +731,20 @@ export default function MiembrosPanel() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Empresa a la que pertenece</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Corporativo al que pertenece</label>
                     <select
                       className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
                       value={newForm.id_empresa || ''}
                       onChange={(e) => {
                         const corpId = e.target.value ? Number(e.target.value) : null;
-                        setNewForm({ 
-                          ...newForm, 
-                          id_empresa: corpId, 
-                          tipo_afiliado: corpId ? 'Agente Corporativo' : 'Natural' 
+                        setNewForm({
+                          ...newForm,
+                          id_empresa: corpId,
+                          tipo_afiliado: corpId ? 'Agente' : 'Natural'
                         });
                       }}
                     >
-                      <option value="">Independiente (Sin Empresa)</option>
+                      <option value="">Independiente (Sin Corporativo)</option>
                       {companies.map(c => (
                         <option key={c.id_afiliado} value={c.id_afiliado}>
                           {c.empresa_razon_social || c.nombre_completo} (RIF: {c.empresa_rif_numero || c.cedula})
@@ -742,7 +753,7 @@ export default function MiembrosPanel() {
                     </select>
                     {newForm.id_empresa && (
                       <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1">
-                        * Se registrará como afiliado vinculado al RIF de la empresa seleccionada.
+                        * Se registrará como afiliado vinculado al RIF del corporativo seleccionado.
                       </p>
                     )}
                   </div>

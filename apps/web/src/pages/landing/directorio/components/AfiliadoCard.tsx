@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Instagram, Linkedin, Building2, User } from 'lucide-react';
+import { Mail, Instagram, Linkedin, Building2, User, Briefcase } from 'lucide-react';
 import { formatNombreCard, getInitials } from '@/utils/formatters';
 import { Link } from 'react-router-dom';
 
@@ -14,8 +14,6 @@ import { AfiliadoDTO } from '@/types/afiliados';
 export type AfiliadoData = AfiliadoDTO;
 
 export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
-  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo';
-
   return (
     <Link 
       to={`/miembros/${afiliado.id_afiliado}`}
@@ -27,22 +25,27 @@ export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
       <div className="relative flex flex-col items-center text-center">
         {/* Badge de tipo y estatus */}
         <div className="w-full flex justify-between items-center mb-4">
-           <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-[#022c22] rounded-full border border-slate-200/50 dark:border-emerald-500/10">
-             {isCorporativo ? (
-               <>
-                 <Building2 size={10} className="text-emerald-600 dark:text-emerald-400" />
-                 <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Corporativo</span>
-               </>
-             ) : (
-               <>
-                 <User size={10} className="text-emerald-600 dark:text-emerald-400" />
-                 <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Independiente</span>
-               </>
-             )}
-           </div>
-           <span className="text-[9px] font-black uppercase tracking-[0.1em] px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full">
-             Activo
-           </span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-[#022c22] rounded-full border border-slate-200/50 dark:border-emerald-500/10">
+              {afiliado.tipo_afiliado === 'Corporativo' ? (
+                <>
+                  <Building2 size={10} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Corporativo</span>
+                </>
+              ) : (afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente') ? (
+                <>
+                  <Briefcase size={10} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Agente</span>
+                </>
+              ) : (
+                <>
+                  <User size={10} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Independiente</span>
+                </>
+              )}
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-[0.1em] px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full">
+              Activo
+            </span>
         </div>
 
         {/* Avatar */}
@@ -66,12 +69,20 @@ export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
         {/* Información del Miembro */}
         <div className="space-y-1 mb-5">
           <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-lg leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
-            {afiliado.empresa_razon_social || afiliado.nombre_completo}
+            {afiliado.tipo_afiliado === 'Corporativo' 
+              ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
+              : (afiliado.nombres ? `${afiliado.nombres} ${afiliado.apellidos}` : afiliado.nombre_completo)}
           </h3>
           
-          {afiliado.empresa_razon_social && (
+          {afiliado.tipo_afiliado === 'Corporativo' && (
             <p className="text-[10px] text-slate-400 dark:text-emerald-100/40 font-medium">
-              Representante: {afiliado.representante_nombre || (afiliado.nombres + ' ' + afiliado.apellidos)}
+              Representante: {afiliado.nombres ? `${afiliado.nombres} ${afiliado.apellidos}` : afiliado.nombre_completo}
+            </p>
+          )}
+
+          {(afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente') && afiliado.empresa_razon_social && (
+            <p className="text-[10px] text-slate-400 dark:text-emerald-100/40 font-medium">
+              Parte de: {afiliado.empresa_razon_social}
             </p>
           )}
 

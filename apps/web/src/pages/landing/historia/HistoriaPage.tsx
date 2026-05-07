@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import bgBolivar from '@/assets/Camara_Metropolitana.jpg'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import SEO from '@/components/SEO'
 import { API_URL } from '@/config/env'
 
 const useScrollReveal = () => {
@@ -52,6 +53,10 @@ export default function Historia() {
   }, [])
   return (
     <div className='min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth'>
+      <SEO 
+        title="Nuestra Historia" 
+        description="Conoce la trayectoria de la Cámara Inmobiliaria del Estado Bolívar. Décadas impulsando el profesionalismo inmobiliario en la región."
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header
         className='relative px-6 lg:px-20 py-16 lg:py-24 flex items-center justify-center min-h-[45vh] bg-cover animate-header-bg'

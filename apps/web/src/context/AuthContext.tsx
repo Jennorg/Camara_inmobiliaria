@@ -26,6 +26,7 @@ export interface AuthUser {
   telefono?: string
   nivel_profesional?: string
   es_corredor_inmobiliario?: boolean
+  estatus?: string
 }
 
 interface AuthContextValue {
@@ -40,6 +41,7 @@ interface AuthContextValue {
   isSuperAdmin: boolean
   isAfiliado: boolean
   isEstudiante: boolean
+  refreshUser: () => Promise<void>
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -79,7 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Restore session on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY)
+    // 1. Verificar si viene un token por URL (para saltos de subdominio)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    
+    if (urlToken) {
+      localStorage.setItem(TOKEN_KEY, urlToken);
+      // Limpiar el token de la URL para seguridad y estética
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    }
+
+    const storedToken = urlToken || localStorage.getItem(TOKEN_KEY)
     if (!storedToken) { setLoading(false); return }
 
     fetch(`${API_URL}/api/auth/me`, {
@@ -118,9 +130,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(data.token)
     setUser(newUser)
 
+    // Salto al subdominio app. si no estamos en él (y no es localhost)
+    const hostname = window.location.hostname;
+    const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
+
+    if (!isApp && !isLocal) {
+      const baseDomain = hostname.replace('www.', '');
+      const protocol = window.location.protocol;
+      const port = window.location.port ? `:${window.location.port}` : '';
+      const redirectUrl = `${protocol}//app.${baseDomain}${port}/?token=${data.token}`;
+      window.location.href = redirectUrl;
+      return;
+    }
+
     // Selector general si tiene múltiples roles al panel unificado
     if (newUser.roles.length > 1) {
-      navigate('/panel')
+      navigate('/')
       return
     }
 
@@ -131,11 +157,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (newUser.rol === 'estudiante') {
-      navigate('/panel?tab=formacion')
+      navigate('/?tab=formacion')
       return
     }
 
-    navigate('/panel')
+    navigate('/')
   }, [navigate])
 
   // Logout function
@@ -143,8 +169,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(TOKEN_KEY)
     setToken(null)
     setUser(null)
+
+    const hostname = window.location.hostname;
+    const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
+
+    if (isApp) {
+      const baseDomain = hostname.replace('app.', '');
+      const protocol = window.location.protocol;
+      const port = window.location.port ? `:${window.location.port}` : '';
+      window.location.href = `${protocol}//${baseDomain}${port}`;
+      return;
+    }
+
     navigate('/')
   }, [navigate])
+
+  const refreshUser = useCallback(async () => {
+    if (!token) return
+    try {
+      const res = await fetch(`${API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.success && data.user) {
+        setUser(normalizeUser(data.user))
+      }
+    } catch (err) {
+      console.error('Error refreshing user:', err)
+    }
+  }, [token])
 
   // Helpers de roles
   const hasRole = useCallback((role: UserRole) => {
@@ -164,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isSuperAdmin: isSuperAdminVal,
       isAfiliado: isAfiliadoVal,
       isEstudiante: isEstudianteVal,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>
