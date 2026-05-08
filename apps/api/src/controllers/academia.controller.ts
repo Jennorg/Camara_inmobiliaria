@@ -1272,7 +1272,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as estudiante_nombre,
           COALESCE(p.email, emp.email) as estudiante_email,
           COALESCE(p.telefono, emp.telefono) as estudiante_telefono,
-          COALESCE(p.cedula, emp.rif_numero) as estudiante_cedula,
+          COALESCE(p.cedula, 'J-' || REPLACE(emp.rif_numero, 'J-', '')) as estudiante_cedula,
           p.nivel_academico as estudiante_nivel_profesional,
           e.es_corredor_inmobiliario as estudiante_es_corredor_inmobiliario,
           e.tipo as tipo_estudiante,
@@ -1530,6 +1530,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       args: [req.user?.id || null, now, id]
     })
 
+    let insertedAfiliadoId: number | null = null;
     // --- PUENTE HACIA AFILIADOS (Si es AFILIACION) ---
     if (row.programa_codigo === 'AFILIACION') {
       try {
@@ -1551,22 +1552,34 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
         // 2. Actualizar el estatus en la tabla afiliados
         // Buscamos el afiliado vinculado a este estudiante
         const estRes = await db.execute({
-          sql: `SELECT id_persona, id_empresa FROM estudiantes WHERE id_estudiante = ?`,
+          sql: `SELECT e.id_persona, e.id_empresa, a.id_persona as rep_id_persona
+                FROM estudiantes e
+                LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+                LEFT JOIN afiliados a ON emp.id_representante_legal = a.id_afiliado
+                WHERE e.id_estudiante = ?`,
           args: [row.id_estudiante]
         })
         const est = estRes.rows[0] as any
-
+ 
         if (est) {
-          await db.execute({
+          const finalIdPersona = est.id_persona || est.rep_id_persona
+ 
+          if (!finalIdPersona) {
+            throw new Error(`No se encontró id_persona ni rep_id_persona para el estudiante ${row.id_estudiante}`)
+          }
+ 
+          const resIns = await db.execute({
             sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir, actualizado_en, activo)
                   VALUES (?, ?, CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END, 'Afiliado', ?, ?, 1)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     estatus = 'Afiliado',
                     codigo_cibir = COALESCE(afiliados.codigo_cibir, excluded.codigo_cibir),
                     actualizado_en = excluded.actualizado_en,
-                    activo = 1`,
-            args: [est.id_persona, est.id_empresa, est.id_empresa, nextCode, now]
+                    activo = 1
+                  RETURNING id_afiliado`,
+            args: [finalIdPersona, est.id_empresa, est.id_empresa, nextCode, now]
           })
+          insertedAfiliadoId = resIns.rows[0].id_afiliado as number
         }
       } catch (err) {
         console.error('Error al mapear entrevista aprobada a afiliado:', err);
@@ -1585,14 +1598,15 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     // Registrar módulos CIEBO
     if (resultado === 'Aprobado' || (resultado === 'Parcial' && Array.isArray(modulosConvalidados))) {
       const modulos = resultado === 'Aprobado' ? [1, 2, 3, 4, 5] : modulosConvalidados
-
-      if (row.id_afiliado) {
+ 
+      const targetAfiliadoId = row.id_afiliado || insertedAfiliadoId
+      if (targetAfiliadoId) {
         for (const num of modulos) {
           await db.execute({
             sql: `INSERT INTO convalidaciones_cibir (id_afiliado, modulo, estatus, evaluado_por)
                   VALUES (?, ?, 'aprobado', ?)
                   ON CONFLICT(id_afiliado, modulo) DO UPDATE SET estatus='aprobado', fecha_evaluacion=strftime('%Y-%m-%dT%H:%M:%SZ','now')`,
-            args: [row.id_afiliado, num, req.user?.id || null]
+            args: [targetAfiliadoId, num, req.user?.id || null]
           })
         }
       } else {

@@ -68,10 +68,10 @@ export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
 
         {/* Información del Miembro */}
         <div className="space-y-1 mb-5">
-          <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-lg leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors">
+          <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-lg leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors uppercase">
             {afiliado.tipo_afiliado === 'Corporativo' 
               ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
-              : (afiliado.nombres ? `${afiliado.nombres} ${afiliado.apellidos}` : afiliado.nombre_completo)}
+              : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
           </h3>
           
           {afiliado.tipo_afiliado === 'Corporativo' && (

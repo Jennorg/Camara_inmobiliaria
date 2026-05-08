@@ -499,9 +499,9 @@ async function run() {
   if (reset) {
     console.log('  ⚠ RESET MODE: Dropping all tables...')
     const tables = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-    
+
     await db.execute(`PRAGMA foreign_keys = OFF`)
-    
+
     for (const row of tables.rows) {
       try {
         await db.execute(`DROP TABLE IF EXISTS "${row.name}"`)
@@ -514,7 +514,7 @@ async function run() {
         }
       }
     }
-    
+
     await db.execute(`PRAGMA foreign_keys = ON`)
   }
 
@@ -539,7 +539,7 @@ async function run() {
   const adminEmail = 'admin@ciebo.com'
   const hashedPassword = await bcrypt.hash('admin123', 10)
   const hashedTestPassword = await bcrypt.hash('Ciebo2026!', 10)
-  
+
   try {
     // 1. ADMIN
     const adminRes = await db.execute({
@@ -561,6 +561,7 @@ async function run() {
 
     console.log(`  · Admin user ${adminEmail} created with profile (ID: ${adminId}).`)
 
+    /*
     // 2. ESTUDIANTE REGULAR
     const estEmail = 'estudiante@test.com'
     const estRes = await db.execute({
@@ -568,7 +569,7 @@ async function run() {
       args: [estEmail, hashedTestPassword, '["estudiante"]', 1]
     })
     const userIdEst = Number(estRes.lastInsertRowid)
-    
+
     const persEst = await db.execute({
       sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
       args: ['Juan', 'Estudiante', 'V11111111', estEmail]
@@ -653,6 +654,7 @@ async function run() {
       args: [userIdAge, personaIdAge, empresaId, 'Agente Corporativo', 'Afiliado', 'AGE-001']
     })
     console.log(`  · Agent user ${ageEmail} linked to company.`)
+    */
 
   } catch (e: any) {
     console.log(`  · Error seeding test users: ${e.message}`)
@@ -672,20 +674,16 @@ async function run() {
     {
       nombre: 'Universidad Católica Andrés Bello (UCAB)',
       descripcion: 'Convenio de cooperación académica para diplomados y certificaciones inmobiliarias.',
-      link_web: 'https://www.ucab.edu.ve/'
+      link_web: 'https://www.ucab.edu.ve/',
+      logo_url: 'https://www.ucab.edu.ve/wp-content/uploads/2019/04/Logo_UCAB_2.png'
     },
-    {
-      nombre: 'Banco Mercantil',
-      descripcion: 'Alianza estratégica para facilitar el acceso a servicios financieros de nuestros afiliados.',
-      link_web: 'https://www.mercantilbanco.com/'
-    }
   ]
 
   for (const conv of convenios) {
     try {
       await db.execute({
-        sql: `INSERT INTO cms_convenios (nombre, descripcion, link_web) VALUES (?, ?, ?)`,
-        args: [conv.nombre, conv.descripcion, conv.link_web]
+        sql: `INSERT INTO cms_convenios (nombre, descripcion, link_web, logo_url) VALUES (?, ?, ?, ?)`,
+        args: [conv.nombre, conv.descripcion, conv.link_web, (conv as any).logo_url || null]
       })
       console.log(`  · Convenio ${conv.nombre} created.`)
     } catch (e) { }
