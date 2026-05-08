@@ -6,8 +6,10 @@ interface SEOProps {
   description?: string;
   keywords?: string;
   image?: string;
+  imageAlt?: string;
   url?: string;
   type?: 'website' | 'article';
+  index?: boolean;
 }
 
 const SEO: React.FC<SEOProps> = ({ 
@@ -15,13 +17,15 @@ const SEO: React.FC<SEOProps> = ({
   description, 
   keywords, 
   image = '/assets/Logo2.png', 
+  imageAlt = 'Logo Cámara Inmobiliaria de Bolívar',
   url,
-  type = 'website'
+  type = 'website',
+  index = true
 }) => {
   const baseTitle = 'Cámara Inmobiliaria Bolívar (CIBIR)';
   const fullTitle = title ? `${title} | ${baseTitle}` : baseTitle;
-  const defaultDescription = 'Página oficial de la Cámara Inmobiliaria del Estado Bolívar. Agremiamos a profesionales inmobiliarios, promovemos la ética y formación continua.';
-  const defaultKeywords = 'cámara inmobiliaria bolívar, bienes raíces puerto ordaz, formación inmobiliaria, cibir, profesionales inmobiliarios venezuela';
+  const defaultDescription = 'Gremio líder de profesionales inmobiliarios en el Estado Bolívar, Venezuela. Encuentra agentes certificados, inmobiliarias de confianza y formación especializada.';
+  const defaultKeywords = 'inmobiliarias en bolivar, bienes raices puerto ordaz, corredores inmobiliarios venezuela, cibir bolivar, agentes inmobiliarios certificados, venta de casas puerto ordaz, apartamentos ciudad bolivar';
   
   const currentUrl = url || (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
 
@@ -32,6 +36,13 @@ const SEO: React.FC<SEOProps> = ({
     "alternateName": "CIBIR",
     "url": "https://camarainmobiliariadebolivar.com",
     "logo": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
+    "description": defaultDescription,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Puerto Ordaz",
+      "addressRegion": "Bolívar",
+      "addressCountry": "VE"
+    },
     "sameAs": [
       "https://www.instagram.com/camarainmobiliariabolivar",
       "https://twitter.com/camarainmobiliariabolivar"
@@ -44,14 +55,17 @@ const SEO: React.FC<SEOProps> = ({
       <title>{fullTitle}</title>
       <meta name="description" content={description || defaultDescription} />
       <meta name="keywords" content={keywords || defaultKeywords} />
+      <meta name="robots" content={index ? "index, follow" : "noindex, nofollow"} />
       <link rel="canonical" href={currentUrl} />
 
       {/* OpenGraph */}
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description || defaultDescription} />
       <meta property="og:image" content={image} />
+      <meta property="og:image:alt" content={imageAlt} />
       <meta property="og:url" content={currentUrl} />
       <meta property="og:type" content={type} />
+      <meta property="og:locale" content="es_ES" />
       <meta property="og:site_name" content="Cámara Inmobiliaria de Bolívar" />
 
       {/* Twitter */}
@@ -59,6 +73,7 @@ const SEO: React.FC<SEOProps> = ({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description || defaultDescription} />
       <meta name="twitter:image" content={image} />
+      <meta name="twitter:image:alt" content={imageAlt} />
 
       {/* Structured Data */}
       <script type="application/ld+json">

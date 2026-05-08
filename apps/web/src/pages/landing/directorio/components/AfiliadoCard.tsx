@@ -34,7 +34,7 @@ export const AfiliadoCard = ({ afiliado }: { afiliado: AfiliadoData }) => {
               ) : (afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente') ? (
                 <>
                   <Briefcase size={10} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Agente</span>
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Agente Corporativo</span>
                 </>
               ) : (
                 <>

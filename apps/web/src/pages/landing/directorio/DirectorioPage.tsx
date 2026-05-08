@@ -132,15 +132,15 @@ const DirectorioPage = () => {
                     { id: 'Todos', label: 'Todos' },
                     { id: 'Natural', label: 'Independientes' },
                     { id: 'Corporativo', label: 'Corporativos' },
-                    { id: 'Agente', label: 'Agentes' },
+                    { id: 'Agente', label: 'Agentes Corporativos' },
                   ].map((f) => (
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${filterType === f.id
+                      className={`px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center ${filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
-                        }`}
+                        } ${f.id === 'Agente' ? 'max-w-[120px] leading-[1.1] py-1' : ''}`}
                     >
                       {f.label}
                     </button>
@@ -151,7 +151,7 @@ const DirectorioPage = () => {
                 <div className="flex gap-4 text-[9px] font-bold text-slate-400 dark:text-emerald-500/40 uppercase tracking-tighter">
                   <span>Ind: {stats.Natural}</span>
                   <span>Corp: {stats.Corporativo}</span>
-                  <span>Agentes: {stats.Agente}</span>
+                  <span>Agentes Corp: {stats.Agente}</span>
                   {stats.Otros > 0 && <span className="text-amber-500">Sin tipo: {stats.Otros}</span>}
                 </div>
               </div>

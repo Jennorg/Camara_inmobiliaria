@@ -6,6 +6,50 @@ const resend = new Resend(env.RESEND_API_KEY);
 const FROM_NAME = 'Cámara Inmobiliaria de Bolívar';
 const DEFAULT_FROM = `${FROM_NAME} <${env.RESEND_FROM_EMAIL}>`;
 
+/** Template base profesional */
+const renderEmailTemplate = (content: string, title?: string) => `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f3f4f6; }
+        .container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+        .card { background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .header { background-color: #065f46; padding: 40px 20px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; text-transform: uppercase; }
+        .content { padding: 40px; }
+        .footer { padding: 32px 20px; text-align: center; color: #6b7280; font-size: 12px; }
+        .btn { background-color: #10b981; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: 700; display: inline-block; transition: background-color 0.2s; }
+        .divider { height: 1px; background-color: #f3f4f6; margin: 32px 0; }
+        .badge { background-color: #ecfdf5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 16px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="card">
+          <div class="header">
+            <h1>Cámara Inmobiliaria</h1>
+            <div style="color: #6ee7b7; font-size: 10px; font-weight: 700; margin-top: 4px;">ESTADO BOLÍVAR</div>
+          </div>
+          <div class="content">
+            ${title ? `<div class="badge">${title}</div>` : ''}
+            ${content}
+          </div>
+        </div>
+        <div class="footer">
+          <p><strong>Cámara Inmobiliaria del Estado Bolívar</strong></p>
+          <p>Av. Las Américas, Edif. Cámara de Comercio, Puerto Ordaz.</p>
+          <p>&copy; 2026 Todos los derechos reservados.</p>
+          <div style="margin-top: 20px;">
+            <a href="${env.APP_URL}" style="color: #065f46; text-decoration: none; font-weight: 600;">Visitar nuestro portal</a>
+          </div>
+        </div>
+      </div>
+    </body>
+  </html>
+`;
+
 /** Correo de verificación de dirección (registro CIBIR) */
 export const enviarCorreoVerificacion = async (nombre: string, emailOriginal: string, token: string) => {
   const enlaceVerificacion = `${env.APP_URL}/cibir/verificar?token=${token}`
@@ -13,19 +57,17 @@ export const enviarCorreoVerificacion = async (nombre: string, emailOriginal: st
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: 'Confirma tu registro en la Cámara Inmobiliaria (CIBIR)',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;">
-        <h2 style="color:#166534;">¡Hola, ${nombre}!</h2>
-        <p>Has solicitado preinscribirte al curso <strong>CIBIR</strong> de la Cámara Inmobiliaria del Estado Bolívar.</p>
-        <p>Para confirmar tu correo electrónico (<em>${emailOriginal}</em>) haz clic en el enlace:</p>
-        <div style="text-align:center;margin:30px 0;">
-          <a href="${enlaceVerificacion}" style="background-color:#16a34a;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Confirmar mi correo</a>
-        </div>
-        <p style="font-size:14px;color:#666;">O copia y pega esto en tu navegador: ${enlaceVerificacion}</p>
-        <hr style="border:none;border-top:1px solid #ddd;margin-top:30px;"/>
-        <p style="font-size:12px;color:#999;">Si no fuiste tú, ignora este correo.</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Has solicitado preinscribirte al curso <strong>CIBIR</strong> de la Cámara Inmobiliaria del Estado Bolívar.</p>
+      <p>Para confirmar tu correo electrónico (<em>${emailOriginal}</em>) y continuar con tu proceso, haz clic en el siguiente botón:</p>
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${enlaceVerificacion}" class="btn">Confirmar Correo Electrónico</a>
       </div>
-    `
+      <div class="divider"></div>
+      <p style="font-size: 14px; color: #6b7280;">Si el botón no funciona, puedes copiar y pegar este enlace en tu navegador:</p>
+      <p style="font-size: 12px; color: #3b82f6; word-break: break-all;">${enlaceVerificacion}</p>
+    `, 'Verificación de Registro')
   })
   if (error) { console.error('enviarCorreoVerificacion:', error); throw error }
   return data
@@ -45,33 +87,20 @@ export const enviarCorreoInvitacionCorporativa = async (params: {
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: `Invitación de ${nombreEmpresa} — Cámara Inmobiliaria`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #f0f0f0;border-radius:16px;padding:32px;">
-        <div style="text-align:center;margin-bottom:24px;">
-          <div style="background-color:#ecfdf5;color:#059669;display:inline-block;padding:8px 16px;border-radius:99px;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:0.1em;">
-            Invitación Corporativa
-          </div>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>La empresa <strong>${nombreEmpresa}</strong> te ha registrado como parte de su equipo en la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>.</p>
+      <div style="background-color: #f9fafb; border-radius: 16px; padding: 24px; margin: 32px 0;">
+        <p style="margin-top: 0; font-weight: 700; color: #1f2937;">Siguiente paso:</p>
+        <p>Para completar tu perfil y cargar tus documentos obligatorios (Cédula y Título), haz clic en el botón:</p>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${enlaceVerificacion}" class="btn">Completar mi Perfil</a>
         </div>
-        <h2 style="color:#111827;text-align:center;margin-top:0;">¡Hola, ${nombre}!</h2>
-        <p style="text-align:center;color:#4b5563;font-size:16px;">
-          La empresa <strong>${nombreEmpresa}</strong> te ha registrado como parte de su equipo en la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>.
-        </p>
-        <div style="background-color:#f9fafb;border-radius:12px;padding:24px;margin:32px 0;text-align:center;">
-          <p style="margin-top:0;font-weight:bold;color:#1f2937;">Para completar tu perfil y cargar tus documentos obligatorios (Cédula y Título):</p>
-          <a href="${enlaceVerificacion}" style="background-color:#16a34a;color:white;padding:14px 32px;text-decoration:none;border-radius:10px;font-weight:bold;display:inline-block;margin-top:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-            Completar mi Perfil
-          </a>
-          <p style="font-size:12px;color:#9ca3af;margin-top:16px;">O copia este enlace: ${enlaceVerificacion}</p>
-        </div>
-        <p style="font-size:14px;color:#6b7280;line-height:1.5;">
-          Una vez confirmado, tu solicitud entrará en el proceso de revisión de la Cámara. Recibirás actualizaciones sobre el estatus de tu afiliación por este medio.
-        </p>
-        <hr style="border:none;border-top:1px solid #f3f4f6;margin:32px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;margin-bottom:0;">
-          &copy; 2026 Cámara Inmobiliaria del Estado Bolívar. Todos los derechos reservados.
-        </p>
       </div>
-    `
+      <p style="font-size: 14px; color: #6b7280;">
+        Una vez completado, tu solicitud entrará en el proceso de revisión. Recibirás actualizaciones sobre el estatus de tu afiliación por este medio.
+      </p>
+    `, 'Invitación Corporativa')
   })
   if (error) { console.error('enviarCorreoInvitacionCorporativa:', error); throw error }
   return data
@@ -95,19 +124,16 @@ export const enviarCorreoConfirmacionPreinscripcionPrograma = async (params: {
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;">
-        <h2 style="color:#166534;">¡Hola, ${nombre}!</h2>
-        <p>Has solicitado ${accion} Cámara Inmobiliaria del Estado Bolívar.</p>
-        <p>Para confirmar tu correo electrónico (<em>${emailOriginal}</em>) y continuar con el proceso, haz clic aquí:</p>
-        <div style="text-align:center;margin:30px 0;">
-          <a href="${enlace}" style="background-color:#16a34a;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Confirmar mi solicitud</a>
-        </div>
-        <p style="font-size:14px;color:#666;">O copia y pega esto en tu navegador: ${enlace}</p>
-        <hr style="border:none;border-top:1px solid #ddd;margin-top:30px;"/>
-        <p style="font-size:12px;color:#999;">Si no fuiste tú, ignora este correo.</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Has solicitado ${accion} Cámara Inmobiliaria del Estado Bolívar.</p>
+      <p>Para confirmar tu correo electrónico (<em>${emailOriginal}</em>) y continuar con el proceso, por favor presiona el botón:</p>
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${enlace}" class="btn">Confirmar mi Solicitud</a>
       </div>
-    `,
+      <div class="divider"></div>
+      <p style="font-size: 14px; color: #6b7280;">Si no fuiste tú, puedes ignorar este mensaje de forma segura.</p>
+    `, esAfiliacion ? 'Afiliación' : 'Preinscripción')
   })
   if (error) {
     console.error('enviarCorreoConfirmacionPreinscripcionPrograma:', error)
@@ -123,23 +149,18 @@ export const enviarCorreoAprobacion = async (nombre: string, emailOriginal: stri
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: '¡Felicidades! Tu solicitud ha sido aprobada',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #eee;border-radius:12px;padding:24px;">
-        <h1 style="color:#059669;text-align:center;">¡BIENVENIDO!</h1>
-        <h2 style="color:#1f2937;">Hola, ${nombre}</h2>
-        <p>Tu solicitud de afiliación a la <strong>Cámara Inmobiliaria del Estado Bolívar</strong> ha sido aprobada.</p>
-        <div style="background-color:#f0fdf4;border-left:4px solid #059669;padding:16px;margin:24px 0;">
-          <p style="margin:0;font-weight:bold;color:#065f46;">Próximo paso: Configura tu acceso</p>
-          <p style="margin:8px 0 0;font-size:14px;color:#065f46;">Establece tu contraseña para ingresar al portal.</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Felicidades, ${nombre}!</h2>
+      <p>Tu solicitud de afiliación a la <strong>Cámara Inmobiliaria del Estado Bolívar</strong> ha sido aprobada con éxito.</p>
+      <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
+        <p style="margin-top: 0; font-weight: 700; color: #065f46;">Próximo paso: Configura tu acceso</p>
+        <p>Establece tu contraseña para ingresar al portal y comenzar a disfrutar de los beneficios de la Cámara.</p>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${enlaceSetup}" class="btn">Establecer mi Contraseña</a>
         </div>
-        <div style="text-align:center;margin:32px 0;">
-          <a href="${enlaceSetup}" style="background-color:#059669;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">Establecer mi Contraseña</a>
-        </div>
-        <p style="font-size:13px;color:#6b7280;text-align:center;">Este enlace tiene validez de 48 horas.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:32px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;">&copy; 2026 Cámara Inmobiliaria del Estado Bolívar</p>
       </div>
-    `
+      <p style="font-size: 13px; color: #6b7280; text-align: center;">Este enlace tiene una validez de 48 horas por motivos de seguridad.</p>
+    `, 'Afiliación Aprobada')
   })
   if (error) { console.error('enviarCorreoAprobacion:', error); throw error }
   return data
@@ -152,21 +173,15 @@ export const enviarCorreoResetAdmin = async (nombre: string, emailOriginal: stri
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: 'Restablecimiento de contraseña — Cámara Inmobiliaria',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #eee;border-radius:12px;padding:24px;">
-        <h2 style="color:#065f46;">Hola, ${nombre}</h2>
-        <p>Un administrador ha iniciado un restablecimiento de contraseña para tu cuenta (<em>${emailOriginal}</em>).</p>
-        <p>Haz clic para crear tu nueva contraseña. Enlace válido por <strong>24 horas</strong>.</p>
-        <div style="text-align:center;margin:32px 0;">
-          <a href="${enlace}" style="background-color:#059669;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">
-            Establecer nueva contraseña
-          </a>
-        </div>
-        <p style="font-size:13px;color:#6b7280;">Si no esperabas este correo, ignóralo.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;">&copy; 2026 Cámara Inmobiliaria del Estado Bolívar</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">Hola, ${nombre}</h2>
+      <p>Un administrador ha iniciado un restablecimiento de contraseña para tu cuenta (<em>${emailOriginal}</em>).</p>
+      <p>Haz clic en el botón inferior para crear tu nueva contraseña. El enlace es válido por <strong>24 horas</strong>.</p>
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${enlace}" class="btn">Restablecer Contraseña</a>
       </div>
-    `,
+      <p style="font-size: 13px; color: #6b7280;">Si no esperabas este correo, puedes ignorarlo con seguridad.</p>
+    `, 'Seguridad')
   })
   if (error) throw new Error(`enviarCorreoResetAdmin: ${JSON.stringify(error)}`)
   return data
@@ -179,21 +194,15 @@ export const enviarCorreoOlvideContrasena = async (emailOriginal: string, token:
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: 'Recupera tu contraseña — Cámara Inmobiliaria',
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #eee;border-radius:12px;padding:24px;">
-        <h2 style="color:#065f46;">Recupera tu acceso</h2>
-        <p>Recibimos una solicitud para restablecer la contraseña de <strong>${emailOriginal}</strong>.</p>
-        <p>Haz clic en el botón para crear una nueva contraseña. Enlace válido por <strong>1 hora</strong>.</p>
-        <div style="text-align:center;margin:32px 0;">
-          <a href="${enlace}" style="background-color:#059669;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">
-            Restablecer mi contraseña
-          </a>
-        </div>
-        <p style="font-size:13px;color:#6b7280;">Si no solicitaste esto, ignora el correo.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;">&copy; 2026 Cámara Inmobiliaria del Estado Bolívar</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">Recupera tu acceso</h2>
+      <p>Hemos recibido una solicitud para restablecer la contraseña de <strong>${emailOriginal}</strong>.</p>
+      <p>Haz clic en el botón inferior para crear una nueva contraseña. Este enlace es válido por <strong>1 hora</strong>.</p>
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${enlace}" class="btn">Restablecer mi Contraseña</a>
       </div>
-    `,
+      <p style="font-size: 13px; color: #6b7280;">Si no solicitaste este cambio, no es necesario realizar ninguna acción.</p>
+    `, 'Seguridad')
   })
   if (error) throw new Error(`enviarCorreoOlvideContrasena: ${JSON.stringify(error)}`)
   return data
@@ -213,23 +222,18 @@ export const enviarCorreoComprobanteGraduacion = async (params: {
     from: DEFAULT_FROM,
     to: emailEstudiante,
     subject: `Tu comprobante de aprobación digital — ${tituloFormacion}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;">
-        <h2 style="color:#166534;">¡Felicitaciones, ${nombre}!</h2>
-        <p>Tu participación en <strong>${tituloFormacion}</strong> ha sido registrada como <strong>completada</strong>.</p>
-        <p>Puedes descargar o compartir el <strong>comprobante de aprobación digital</strong> desde:</p>
-        <div style="text-align:center;margin:28px 0;">
-          <a href="${urlComprobante}" style="background-color:#059669;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">
-            Ver comprobante y exportar PDF
-          </a>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Felicitaciones, ${nombre}!</h2>
+      <p>Tu participación en <strong>${tituloFormacion}</strong> ha sido registrada como <strong>completada</strong> con éxito.</p>
+      <div style="background-color: #f8fafc; border-radius: 16px; padding: 24px; margin: 32px 0;">
+        <p style="margin-top: 0; font-weight: 700; color: #1f2937;">Certificación Digital:</p>
+        <p>Ya puedes descargar o compartir tu comprobante de aprobación oficial desde nuestro portal:</p>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${urlComprobante}" class="btn">Ver Comprobante (PDF)</a>
         </div>
-        <div style="background:#f8fafc;border-radius:8px;padding:14px;margin:20px 0;font-size:13px;color:#334155;">
-          <p style="margin:0 0 6px;"><strong>Código de validación:</strong> ${codigoValidacion}</p>
-        </div>
-        <hr style="border:none;border-top:1px solid #ddd;margin-top:30px;"/>
-        <p style="font-size:12px;color:#999;">Cámara Inmobiliaria del Estado Bolívar</p>
+        <p style="font-size: 11px; color: #94a3b8; margin-top: 20px; text-align: center;">Código de validación: ${codigoValidacion}</p>
       </div>
-    `,
+    `, 'Certificación')
   })
   if (error) { console.error('enviarCorreoComprobanteGraduacion:', error); throw error }
   return data
@@ -248,27 +252,18 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: `Continúa tu inscripción — ${programaCodigo}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #eee;border-radius:12px;padding:24px;">
-        <h2 style="color:#059669;">¡Hola, ${nombre}!</h2>
-        <p>Tu correo ha sido verificado con éxito para el programa <strong>${programaCodigo}</strong>.</p>
-        
-        <div style="background-color:#f0fdf4;border-left:4px solid #059669;padding:16px;margin:24px 0;">
-          <p style="margin:0;font-weight:bold;color:#065f46;">Siguiente Paso: Crea tu contraseña</p>
-          <p style="margin:8px 0 0;font-size:14px;color:#065f46;">Para acceder a tu panel de formación y completar tu registro, por favor establece tu contraseña:</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Tu correo ha sido verificado con éxito para el programa <strong>${programaCodigo}</strong>.</p>
+      <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
+        <p style="margin-top: 0; font-weight: 700; color: #065f46;">Siguiente Paso: Crea tu contraseña</p>
+        <p>Para acceder a tu panel de formación y completar tu registro, por favor establece tu contraseña segura:</p>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${enlaceSetup}" class="btn">Establecer mi Contraseña</a>
         </div>
-
-        <div style="text-align:center;margin:32px 0;">
-          <a href="${enlaceSetup}" style="background-color:#059669;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">Establecer mi Contraseña</a>
-        </div>
-
-        <p style="font-size:13px;color:#6b7280;text-align:center;">Una vez creada, podrás entrar en el sistema. Posteriormente, un administrador se pondrá en contacto contigo para agendar tu entrevista.</p>
-        
-        <p style="font-size:13px;color:#6b7280;text-align:center;">Este enlace tiene validez de 48 horas.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:32px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;">&copy; 2026 Cámara Inmobiliaria del Estado Bolívar</p>
       </div>
-    `
+      <p style="font-size: 13px; color: #6b7280;">Una vez creada, podrás entrar al sistema. Un administrador se pondrá en contacto contigo para los siguientes pasos.</p>
+    `, 'Formación')
   })
   if (error) { console.error('enviarCorreoSetPasswordEstudiante:', error); throw error }
   return data
@@ -290,24 +285,19 @@ export const enviarCorreoAprobacionEstudiante = async (params: {
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: `Cita de Entrevista — ${programaCodigo}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #eee;border-radius:12px;padding:24px;">
-        <h2 style="color:#1e40af;">¡Hola, ${nombre}!</h2>
-        <p>Tu solicitud para el programa <strong>${programaCodigo}</strong> ha avanzado a la fase de entrevista.</p>
-        
-        <div style="background-color:#f8fafc;border-left:4px solid #1e40af;padding:16px;margin:24px 0;">
-          <h3 style="margin:0 0 10px;color:#1e40af;font-size:16px;">Detalles de la Cita</h3>
-          <p style="margin:4px 0;"><strong>Fecha:</strong> ${entrevistaFecha}</p>
-          <p style="margin:4px 0;"><strong>Hora:</strong> ${entrevistaHora}</p>
-          <p style="margin:4px 0;"><strong>Lugar:</strong> ${entrevistaLugar}</p>
-        </div>
-
-        <p style="font-size:14px;color:#64748b;">Por favor, asiste puntualmente a la cita. Si no has configurado tu contraseña, puedes hacerlo usando el enlace que te enviamos anteriormente.</p>
-
-        <hr style="border:none;border-top:1px solid #eee;margin:32px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;">&copy; 2026 Cámara Inmobiliaria del Estado Bolívar</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Tu solicitud para el programa <strong>${programaCodigo}</strong> ha avanzado a la fase de entrevista presencial.</p>
+      <div style="background-color: #f8fafc; border-radius: 16px; padding: 24px; margin: 32px 0; border: 1px solid #e2e8f0;">
+        <h3 style="margin-top: 0; color: #065f46; font-size: 16px;">Detalles de tu Cita:</h3>
+        <table style="width: 100%; font-size: 14px;">
+          <tr><td style="padding: 4px 0; color: #64748b; width: 80px;">Fecha:</td><td style="font-weight: 700;">${entrevistaFecha}</td></tr>
+          <tr><td style="padding: 4px 0; color: #64748b;">Hora:</td><td style="font-weight: 700;">${entrevistaHora}</td></tr>
+          <tr><td style="padding: 4px 0; color: #64748b;">Lugar:</td><td style="font-weight: 700;">${entrevistaLugar}</td></tr>
+        </table>
       </div>
-    `
+      <p style="font-size: 14px; color: #64748b;">Por favor, asiste puntualmente con tu documentación física si aún no la has consignado. ¡Te esperamos!</p>
+    `, 'Cita de Entrevista')
   })
   if (error) { console.error('enviarCorreoAprobacionEstudiante:', error); throw error }
   return data
@@ -329,29 +319,24 @@ export const enviarCorreoResultadoEntrevista = async (params: {
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: esAprobado ? `¡Bienvenido al sistema! — ${programaCodigo}` : `Resultado de tu solicitud — ${programaCodigo}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #eee;border-radius:12px;padding:24px;">
-        <h2 style="color:${esAprobado ? '#059669' : '#dc2626'};">${esAprobado ? '¡Felicidades!' : 'Información sobre tu solicitud'}</h2>
-        <p>Hola, ${nombre}. Tras la entrevista realizada, tu resultado es: <strong>${resultado === 'Parcial' ? 'Aprobado Parcial' : resultado}</strong>.</p>
-        
-        ${esAprobado ? `
-          <div style="background-color:#f0fdf4;border-left:4px solid #059669;padding:16px;margin:24px 0;">
-            <p style="margin:0;font-weight:bold;color:#065f46;">Ya tienes acceso a la intranet</p>
-            <p style="margin:8px 0 0;font-size:14px;color:#065f46;">Puedes ingresar a tu panel para ver el estado de tus módulos y formación.</p>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">${esAprobado ? '¡Felicidades!' : 'Información sobre tu solicitud'}</h2>
+      <p>Hola, ${nombre}. Tras la entrevista realizada para el programa <strong>${programaCodigo}</strong>, tu resultado es: <span style="font-weight: 800; color: ${esAprobado ? '#10b981' : '#ef4444'};">${resultado === 'Parcial' ? 'Aprobado Parcial' : resultado}</span>.</p>
+      
+      ${esAprobado ? `
+        <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
+          <p style="margin-top: 0; font-weight: 700; color: #065f46;">Acceso a la Intranet</p>
+          <p>Ya puedes ingresar a tu panel personal para gestionar tu formación y ver tu progreso.</p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="${enlacePortal}" class="btn">${token ? 'Configurar y Entrar' : 'Ir a mi Panel'}</a>
           </div>
-          <div style="text-align:center;margin:32px 0;">
-            <a href="${enlacePortal}" style="background-color:#059669;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">
-              ${token ? 'Configurar Contraseña y Entrar' : 'Ir a mi Panel'}
-            </a>
-          </div>
-        ` : `
-          <p>Lamentamos informarte que tu solicitud no ha sido aprobada en esta ocasión. Te invitamos a estar atento a próximas cohortes.</p>
-        `}
-
-        <hr style="border:none;border-top:1px solid #eee;margin:32px 0;"/>
-        <p style="font-size:12px;color:#9ca3af;text-align:center;">&copy; 2026 Cámara Inmobiliaria del Estado Bolívar</p>
-      </div>
-    `
+        </div>
+      ` : `
+        <div style="background-color: #fef2f2; border-radius: 16px; padding: 24px; margin: 32px 0;">
+          <p style="margin: 0; color: #991b1b;">Lamentamos informarte que tu solicitud no ha sido aprobada en esta ocasión. Te invitamos a estar atento a próximas cohortes y seguir participando en nuestras actividades.</p>
+        </div>
+      `}
+    `, 'Resultado')
   })
   if (error) { console.error('enviarCorreoResultadoEntrevista:', error); throw error }
   return data
@@ -374,28 +359,22 @@ export const notificarAdminNuevaPreinscripcion = async (params: {
     from: DEFAULT_FROM,
     to: env.ADMIN_EMAIL,
     subject: `NUEVA SOLICITUD: Preinscripción ${programaCodigo}`,
-    html: `
-      <div style="font-family:sans-serif;color:#333;max-width:600px;margin:0 auto;border:1px solid #eee;padding:20px;border-radius:8px;">
-        <h2 style="color:#1e40af;text-align:center;">Nueva Solicitud Recibida</h2>
-        <p>Se ha registrado un nuevo interesado en el programa/curso:</p>
-        <table style="width:100%;border-collapse:collapse;margin:20px 0;">
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;width:120px;">ID:</td><td style="padding:8px;border:1px solid #eee;">#${idInscripcion}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Programa:</td><td style="padding:8px;border:1px solid #eee;">${programaCodigo}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Nombre:</td><td style="padding:8px;border:1px solid #eee;">${nombre}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Email:</td><td style="padding:8px;border:1px solid #eee;">${email}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Cédula/RIF:</td><td style="padding:8px;border:1px solid #eee;">${cedulaRif || 'N/A'}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Teléfono:</td><td style="padding:8px;border:1px solid #eee;">${telefono || 'N/A'}</td></tr>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #1e40af; font-size: 20px;">Nueva Solicitud Recibida</h2>
+      <p>Se ha registrado un nuevo interesado en el sistema:</p>
+      <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0;">
+        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0; color: #64748b; width: 100px;">Programa:</td><td style="font-weight: 700;">${programaCodigo}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Nombre:</td><td style="font-weight: 700;">${nombre}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Email:</td><td style="font-weight: 700;">${email}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Cédula/RIF:</td><td style="font-weight: 700;">${cedulaRif || 'N/A'}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;">Teléfono:</td><td style="font-weight: 700;">${telefono || 'N/A'}</td></tr>
         </table>
-        
-        <div style="text-align:center;margin:30px 0;">
-          <a href="${enlaceGestion}" style="background-color:#1e40af;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">
-            Agendar Entrevista
-          </a>
-        </div>
-        
-        <p style="font-size:13px;color:#666;text-align:center;">Haz clic en el botón superior para procesar esta solicitud desde el Panel de Administración.</p>
       </div>
-    `
+      <div style="text-align: center; margin-top: 32px;">
+        <a href="${enlaceGestion}" class="btn" style="background-color: #1e40af;">Gestionar en Panel</a>
+      </div>
+    `, 'Notificación Admin')
   })
 }
 
@@ -410,18 +389,18 @@ export const notificarAdminNuevaAfiliacion = async (params: {
     from: DEFAULT_FROM,
     to: env.ADMIN_EMAIL,
     subject: `NUEVA SOLICITUD: Afiliación (CIBIR)`,
-    html: `
-      <div style="font-family:sans-serif;color:#333;">
-        <h2 style="color:#047857;">Nueva Solicitud de Afiliación</h2>
-        <p>Un nuevo candidato ha iniciado su proceso de afiliación y verificado su correo.</p>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Nombre:</td><td style="padding:8px;border:1px solid #eee;">${nombre}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Email:</td><td style="padding:8px;border:1px solid #eee;">${email}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Cédula/RIF:</td><td style="padding:8px;border:1px solid #eee;">${cedulaRif}</td></tr>
-          <tr><td style="padding:8px;border:1px solid #eee;font-weight:bold;">Teléfono:</td><td style="padding:8px;border:1px solid #eee;">${telefono}</td></tr>
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #047857; font-size: 20px;">Nueva Solicitud de Afiliación</h2>
+      <p>Un candidato ha verificado su correo y completado la preinscripción CIBIR:</p>
+      <div style="background-color: #f0fdf4; border-radius: 12px; padding: 20px; border: 1px solid #d1fae5;">
+        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0; color: #065f46; width: 100px;">Nombre:</td><td style="font-weight: 700;">${nombre}</td></tr>
+          <tr><td style="padding: 6px 0; color: #065f46;">Email:</td><td style="font-weight: 700;">${email}</td></tr>
+          <tr><td style="padding: 6px 0; color: #065f46;">Cédula/RIF:</td><td style="font-weight: 700;">${cedulaRif}</td></tr>
+          <tr><td style="padding: 6px 0; color: #065f46;">Teléfono:</td><td style="font-weight: 700;">${telefono}</td></tr>
         </table>
-        <p>El candidato ahora aparece como '1_PREINSCRIPCION' en la lista de CIBIR.</p>
       </div>
-    `
+      <p style="font-size: 13px; color: #6b7280; margin-top: 20px;">El candidato ya se encuentra en fase de <strong>Preinscripción</strong> en el panel administrativo.</p>
+    `, 'Notificación Admin')
   })
 }

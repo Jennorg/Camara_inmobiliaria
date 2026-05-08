@@ -21,6 +21,11 @@ type Row = {
   entrevista_fecha?: string
   entrevista_hora?: string
   entrevista_lugar?: string
+  representante_nombre?: string | null
+  representante_cedula?: string | null
+  representante_email?: string | null
+  representante_telefono?: string | null
+  tipo_estudiante?: string | null
 }
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -287,9 +292,9 @@ export default function PreinscripcionesPrincipalesPanel({
                   selected?.id_inscripcion === r.id_inscripcion ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
                 ].join(' ')}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={['text-sm font-semibold truncate', selected?.id_inscripcion === r.id_inscripcion ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>
-                    {formatNombreCard(r.estudiante_nombre)}
+                <div className="flex items-start justify-between gap-2">
+                  <span className={['text-sm font-semibold flex-1', selected?.id_inscripcion === r.id_inscripcion ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>
+                    {r.estudiante_nombre}
                   </span>
 
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusStyles(r.estatus)}`}>
@@ -319,38 +324,112 @@ export default function PreinscripcionesPrincipalesPanel({
                 {selected.estudiante_nombre.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 leading-tight">{formatNombreCard(selected.estudiante_nombre)}</h3>
+                <h3 className="text-sm font-bold text-slate-900 leading-tight">{selected.estudiante_nombre}</h3>
 
                 <p className="text-xs text-slate-400 mt-0.5 truncate">{selected.estudiante_cedula || 'Sin documento'}</p>
               </div>
               <div className="flex flex-col items-end gap-1">
                 <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${getStatusStyles(selected.estatus)}`}>
-                  {mapStatusUI(selected.estatus)}
+                  {mapStatusUI(selected.estatus)} por: {selected.programa_codigo === 'AFILIACION' ? 'Afiliación' : selected.programa_codigo}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                  {selected.programa_codigo}
-                </span>
+                {(selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J')) && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                    JURÍDICO
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
-                <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>
+            {selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J') ? (
+              <>
+                {/* Sección Empresa */}
+                <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                      <path d="M9 22v-4h6v4"></path>
+                      <path d="M8 6h.01"></path>
+                      <path d="M16 6h.01"></path>
+                      <path d="M12 6h.01"></path>
+                      <path d="M12 10h.01"></path>
+                      <path d="M12 14h.01"></path>
+                      <path d="M16 10h.01"></path>
+                      <path d="M16 14h.01"></path>
+                      <path d="M8 10h.01"></path>
+                      <path d="M8 14h.01"></path>
+                    </svg>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Información de la Empresa</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">RIF</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">
+                        {selected.representante_telefono ? (selected.estudiante_telefono || 'No indicado') : 'No indicado'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:col-span-2">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección Representante */}
+                <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Información del Representante</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-0.5 sm:col-span-2">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nombre</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_nombre}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_cedula || 'No indicado'}</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">
+                        {selected.representante_telefono || selected.estudiante_telefono || 'No indicado'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 sm:col-span-2">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_email || 'No indicado'}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Vista Normal (Persona Natural) */
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_telefono || 'No indicado'}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{new Date(selected.creado_en).toLocaleString('es-ES')}</span>
+                </div>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
-                <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_telefono || 'No indicado'}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
-                <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
-                <span className="text-sm text-slate-700 font-medium break-all">{new Date(selected.creado_en).toLocaleString('es-ES')}</span>
-              </div>
-            </div>
+            )}
 
             {/* Documentos */}
             <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col gap-3">
@@ -364,19 +443,15 @@ export default function PreinscripcionesPrincipalesPanel({
               ) : (
                 <div className="flex flex-col gap-2">
                   {documentos.map((doc) => {
+                    const isCorp = documentos.some(d => d.tipo_doc === 'registro_mercantil');
                     const labelMap: Record<string, string> = {
-                      titulo: 'Título Académico',
+                      titulo: isCorp ? 'RIF de la Empresa' : 'Título Académico',
                       cv: 'Curriculum Vitae',
                       especializacion: 'Especialización',
                       curso_extra: 'Curso Extra',
                       comprobante: 'Comprobante',
-                    }
-                    const colorMap: Record<string, string> = {
-                      titulo: 'bg-blue-50 text-blue-700 hover:bg-blue-100',
-                      cv: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-                      especializacion: 'bg-purple-50 text-purple-700 hover:bg-purple-100',
-                      curso_extra: 'bg-amber-50 text-amber-700 hover:bg-amber-100',
-                      comprobante: 'bg-slate-50 text-slate-600 hover:bg-slate-100',
+                      titulo_representante: 'Título del Representante',
+                      registro_mercantil: 'Registro Mercantil',
                     }
                     return (
                       <a
@@ -384,7 +459,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         href={doc.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${colorMap[doc.tipo_doc] || colorMap.comprobante}`}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors bg-slate-50 text-slate-700 hover:bg-slate-100"
                       >
                         <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M13.8 12H3" />
@@ -537,7 +612,7 @@ export default function PreinscripcionesPrincipalesPanel({
               <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="relative z-10">
                 <h3 className="text-2xl font-black tracking-tight">Veredicto Final</h3>
-                <p className="text-slate-400 text-sm mt-1 font-medium">Aspirante: <span className="text-white font-bold">{formatNombreCard(selected.estudiante_nombre)}</span></p>
+                <p className="text-slate-400 text-sm mt-1 font-medium">Aspirante: <span className="text-white font-bold">{selected.estudiante_nombre}</span></p>
 
               </div>
               <button

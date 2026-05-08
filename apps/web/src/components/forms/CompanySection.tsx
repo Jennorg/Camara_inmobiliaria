@@ -1,7 +1,16 @@
 import React from 'react'
 import { useFormContext } from 'react-hook-form'
-import { Building2, Mail } from 'lucide-react'
+import { Building2, Mail, Phone } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+
+const COUNTRIES = [
+  { code: '+58', flag: '🇻🇪', label: 'Venezuela' },
+  { code: '+1',  flag: '🇺🇸', label: 'USA' },
+  { code: '+34', flag: '🇪🇸', label: 'España' },
+  { code: '+57', flag: '🇨🇴', label: 'Colombia' },
+  { code: '+5 Panama', flag: '🇵🇦', label: 'Panamá' },
+  { code: '+1',  flag: '🇵🇷', label: 'Puerto Rico' },
+]
 
 export default function CompanySection() {
   const { register, formState: { errors } } = useFormContext()
@@ -48,7 +57,6 @@ export default function CompanySection() {
             </div>
             {errors.rifNumber && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.rifNumber.message as string}</p>}
           </div>
-
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Correo Corporativo</label>
             <Input 
@@ -59,6 +67,24 @@ export default function CompanySection() {
               className={errors.emailEmpresa ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
             {errors.emailEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.emailEmpresa.message as string}</p>}
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Teléfono de la Empresa (Opcional)</label>
+            <div className="flex gap-2">
+              <select 
+                {...register('phonePrefixEmpresa')}
+                className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
+              >
+                {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+              </select>
+              <Input 
+                {...register('telefonoEmpresa')}
+                placeholder="4XX 0000000"
+                className={errors.telefonoEmpresa ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+              />
+            </div>
+            {errors.telefonoEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.telefonoEmpresa.message as string}</p>}
           </div>
         </div>
       </div>

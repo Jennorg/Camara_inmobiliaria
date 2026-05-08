@@ -226,6 +226,7 @@ const statements = [
     razon_social              TEXT,
     rif_tipo                  TEXT,
     rif_numero                TEXT,
+    empresa_telefono          TEXT,
     representante_legal_nombres   TEXT,
     representante_legal_apellidos TEXT,
     representante_legal_cedula    TEXT,

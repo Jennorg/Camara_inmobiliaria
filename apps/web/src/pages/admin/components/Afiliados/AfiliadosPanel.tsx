@@ -191,9 +191,9 @@ export default function AfiliadosPanel() {
                   selected?.id_afiliado === a.id_afiliado ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
                 ].join(' ')}
               >
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold truncate text-slate-800">{formatNombreCard(a.nombre_completo)}</span>
+                    <span className="text-sm font-semibold text-slate-800">{a.nombre_completo}</span>
 
                     <span className={`text-[9px] font-black uppercase tracking-widest ${a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' : 'text-blue-500'}`}>
                       {a.tipo_afiliado === 'Corporativo' ? 'Corporativo' : 'Independiente'}

@@ -118,7 +118,7 @@ async function upsertEstudianteByEmail(params: {
             WHERE id_estudiante = ?`,
       args: [
         esCorredorInmobiliario == null ? null : Number(esCorredorInmobiliario),
-        tipo ?? 'Regular', 
+        tipo ?? 'Regular',
         new Date().toISOString(),
         id,
       ],
@@ -155,12 +155,13 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   representanteLegal?: string | null
   cedulaRepresentante?: string | null
   emailRepresentante?: string | null
+  empresaTelefono?: string | null
   id_empresa?: number | null
 }): Promise<{ token: string, fechaExpiracion: string }> {
   const {
     nombreCompleto, nombres, apellidos, cedulaRif, email, telefono, programaCodigo,
     tipoAfiliado, nivelProfesional, esCorredorInmobiliario,
-    razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, id_empresa
+    razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa
   } = params
 
   const expiracion = new Date()
@@ -186,17 +187,19 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
             programa_interes, tipo_afiliado, nivel_academico, es_corredor_inmobiliario,
             razon_social, representante_legal_nombres, representante_legal_apellidos, 
             representante_legal_cedula, representante_legal_email, 
+            empresa_telefono,
             id_empresa, fecha_expiracion
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       token, email, nombres || null, apellidos || null, cedulaRif || null, telefono || null,
-      programaCodigo, tipoAfiliado || 'Natural', nivelProfesional || null, 
+      programaCodigo, tipoAfiliado || 'Natural', nivelProfesional || null,
       esCorredorInmobiliario === null ? null : (esCorredorInmobiliario === 'si' || esCorredorInmobiliario === true ? 1 : 0),
       razonSocial ?? null,
       repNombres || null,
       repApellidos || null,
       cedulaRepresentante ?? null,
       emailRepresentante ?? null,
+      empresaTelefono ?? null,
       id_empresa ?? null,
       fechaExpiracion
     ],
@@ -257,9 +260,9 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
 
         if (diasTranscurridos < DIAS_BLOQUEO) {
           const diasRestantes = DIAS_BLOQUEO - diasTranscurridos
-          res.status(403).json({ 
-            success: false, 
-            message: `Tu solicitud previa fue rechazada definitivamente. Podrás realizar una nueva solicitud en ${diasRestantes} días.` 
+          res.status(403).json({
+            success: false,
+            message: `Tu solicitud previa fue rechazada definitivamente. Podrás realizar una nueva solicitud en ${diasRestantes} días.`
           })
           return
         }
@@ -279,9 +282,9 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       if (activeAfiliado.rows.length > 0) {
         const row = activeAfiliado.rows[0] as any
         if (row.estatus === 'Requiere Acción') {
-          res.status(200).json({ 
-            success: true, 
-            message: 'Ya posees una solicitud de afiliación activa que requiere correcciones. Por favor, revisa tu correo electrónico para encontrar el enlace de edición y completar tu registro.' 
+          res.status(200).json({
+            success: true,
+            message: 'Ya posees una solicitud de afiliación activa que requiere correcciones. Por favor, revisa tu correo electrónico para encontrar el enlace de edición y completar tu registro.'
           })
           return
         }
@@ -421,11 +424,16 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
     const programaCodigo = normalizeProgramaCodigo(registro.programa_interes)
     const email = String(registro.email ?? '').trim().toLowerCase()
+
     const nombres = String(registro.nombres ?? '').trim()
     const apellidos = String(registro.apellidos ?? '').trim()
-    const nombreCompleto = `${nombres} ${apellidos}`.trim()
+    const nombrePersona = `${nombres} ${apellidos}`.trim()
+    const repNombreFull = `${registro.representante_legal_nombres || ''} ${registro.representante_legal_apellidos || ''}`.trim()
+    const nombreCompleto = registro.razon_social || nombrePersona || repNombreFull || 'Aspirante'
+
     const cedulaRif = registro.cedula ? String(registro.cedula).trim() : null
     const telefono = registro.telefono ? String(registro.telefono).trim() : null
+    const empresaTelefono = registro.empresa_telefono ? String(registro.empresa_telefono).trim() : null
     const nivelProfesional = normalizeNivelProfesional(registro.nivel_academico)
     const esCorredorInmobiliario = normalizeEsCorredorInmobiliario(registro.es_corredor_inmobiliario)
     const isAfiliacion = programaCodigo === 'AFILIACION'
@@ -444,7 +452,6 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
     // Si es corporativo, el registro principal debe ser la PERSONA
     const finalEmail = isCorporativo ? (registro.representante_legal_email || email) : email
-    const repNombreFull = `${registro.representante_legal_nombres || ''} ${registro.representante_legal_apellidos || ''}`.trim()
     const finalNombre = isCorporativo ? (repNombreFull || nombreCompleto) : nombreCompleto
     const finalCedula = isCorporativo ? (registro.representante_legal_cedula || cedulaRif) : cedulaRif
     const finalTipo = isAfiliacion ? (isCorporativo ? 'Corporativo' : 'Afiliado') : 'Regular'
@@ -456,12 +463,68 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       razonSocial: isCorporativo ? registro.razon_social : null,
       cedulaRif: finalCedula,
       email: finalEmail,
-      telefono,
+      telefono: isCorporativo ? empresaTelefono : telefono,
       tipo: finalTipo,
       nivelProfesional: req.body?.nivelProfesional ? normalizeNivelProfesional(req.body.nivelProfesional) : nivelProfesional,
       profesion: typeof req.body?.profesion === 'string' ? req.body.profesion.trim() : (registro.profesion || null),
       esCorredorInmobiliario: req.body?.esCorredorInmobiliario !== undefined ? normalizeEsCorredorInmobiliario(req.body.esCorredorInmobiliario) : esCorredorInmobiliario,
     })
+
+    // Si es corporativo, crear el representante y vincularlo a la empresa
+    if (isCorporativo) {
+      const est = await db.execute({
+        sql: `SELECT id_empresa FROM estudiantes WHERE id_estudiante = ?`,
+        args: [id_estudiante]
+      })
+      const idEmpresa = est.rows[0]?.id_empresa as number | null
+
+      if (idEmpresa) {
+        let idRepPersona: number | null = null
+        if (registro.representante_legal_email) {
+          const resP = await db.execute({
+            sql: `SELECT id FROM personas WHERE email = ? LIMIT 1`,
+            args: [registro.representante_legal_email]
+          })
+          if (resP.rows.length > 0) {
+            idRepPersona = resP.rows[0].id as number
+          }
+        }
+
+        if (!idRepPersona) {
+          const insP = await db.execute({
+            sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+            args: [
+              registro.representante_legal_nombres || '',
+              registro.representante_legal_apellidos || '',
+              registro.representante_legal_cedula || `TEMP-V-${Date.now()}`,
+              registro.representante_legal_email || null,
+              registro.telefono || null
+            ]
+          })
+          idRepPersona = insP.rows[0].id as number
+        }
+
+        let idRepAfiliado: number | null = null
+        const resA = await db.execute({
+          sql: `SELECT id_afiliado FROM afiliados WHERE id_persona = ? LIMIT 1`,
+          args: [idRepPersona]
+        })
+        if (resA.rows.length > 0) {
+          idRepAfiliado = resA.rows[0].id_afiliado as number
+        } else {
+          const insA = await db.execute({
+            sql: `INSERT INTO afiliados (id_persona, tipo_afiliado, id_empresa) VALUES (?, 'Corporativo', ?) RETURNING id_afiliado`,
+            args: [idRepPersona, idEmpresa]
+          })
+          idRepAfiliado = insA.rows[0].id_afiliado as number
+        }
+
+        await db.execute({
+          sql: `UPDATE empresas SET id_representante_legal = ? WHERE id_empresa = ?`,
+          args: [idRepAfiliado, idEmpresa]
+        })
+      }
+    }
 
     // Si ya existe preinscripción/inscripción, marcar como éxito idempotente.
     const existing = await db.execute({
@@ -547,13 +610,19 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       if (typeof req.body?.url_cv === 'string' && req.body.url_cv) {
         docsToInsert.push({ tipo: 'cv', url: req.body.url_cv })
       }
+      if (typeof req.body?.url_registro_mercantil === 'string' && req.body.url_registro_mercantil) {
+        docsToInsert.push({ tipo: 'registro_mercantil', url: req.body.url_registro_mercantil })
+      }
+      if (typeof req.body?.url_titulo_representante === 'string' && req.body.url_titulo_representante) {
+        docsToInsert.push({ tipo: 'titulo_representante', url: req.body.url_titulo_representante })
+      }
 
       const especializacionesRaw = req.body?.especializaciones
       if (especializacionesRaw) {
         try {
           const list: { nombre?: string; url: string; fecha?: string }[] = JSON.parse(especializacionesRaw)
-          list.forEach(item => { 
-            if (item.url) docsToInsert.push({ tipo: 'especializacion', url: item.url, nombre: item.nombre, fecha: item.fecha }) 
+          list.forEach(item => {
+            if (item.url) docsToInsert.push({ tipo: 'especializacion', url: item.url, nombre: item.nombre, fecha: item.fecha })
           })
         } catch (e) { console.error('Error parsing especializaciones:', e) }
       }
@@ -567,11 +636,11 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       }
 
       if (docsToInsert.length > 0) {
-        const tipos = ['titulo', 'cv', 'especializacion', 'curso_extra']
+        const tipos = ['titulo', 'cv', 'especializacion', 'curso_extra', 'registro_mercantil', 'titulo_representante']
         await db.execute({
           sql: `DELETE FROM documentos_adjuntos 
                 WHERE entidad_tipo = 'estudiante' AND entidad_id = ? 
-                AND tipo_doc IN (?, ?, ?, ?)`,
+                AND tipo_doc IN (?, ?, ?, ?, ?, ?)`,
           args: [id_estudiante, ...tipos]
         })
 
@@ -680,12 +749,12 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                     actualizado_en = excluded.actualizado_en
                   RETURNING id`,
             args: [
-              registro.nombres || '', 
-              registro.apellidos || '', 
-              registro.cedula || `TEMP-V-${Date.now()}`, 
-              registro.email, 
-              registro.telefono || telefono, 
-              nivelAcademico, 
+              registro.nombres || '',
+              registro.apellidos || '',
+              registro.cedula || `TEMP-V-${Date.now()}`,
+              registro.email,
+              registro.telefono || telefono,
+              nivelAcademico,
               now
             ]
           })
@@ -1115,13 +1184,21 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
       return
     }
 
-    res.json({ 
-      success: true, 
+    const nombreCompleto = (
+      registro.razon_social ||
+      `${registro.nombres || ''} ${registro.apellidos || ''}`.trim() ||
+      `${registro.representante_legal_nombres || ''} ${registro.representante_legal_apellidos || ''}`.trim() ||
+      'Aspirante'
+    ).trim()
+
+    res.json({
+      success: true,
       data: {
-        nombreCompleto: `${registro.nombres || ''} ${registro.apellidos || ''}`.trim(),
+        nombreCompleto,
         email: registro.email,
         programaCodigo: registro.programa_interes,
         tipoAfiliado: registro.tipo_afiliado ?? 'Natural',
+        razonSocial: registro.razon_social,
         cedulaRif: registro.cedula,
         telefono: registro.telefono,
         nivelProfesional: registro.nivel_academico,
@@ -1130,7 +1207,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
         url_cv: registro.url_cv,
         url_especializaciones: registro.url_especializaciones,
         url_cursos_extras: registro.url_cursos_extras,
-      } 
+      }
     })
   } catch (error) {
     console.error('publicGetVerificacionPreinscripcionByToken:', error)
@@ -1197,11 +1274,18 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           COALESCE(p.telefono, emp.telefono) as estudiante_telefono,
           COALESCE(p.cedula, emp.rif_numero) as estudiante_cedula,
           p.nivel_academico as estudiante_nivel_profesional,
-          e.es_corredor_inmobiliario as estudiante_es_corredor_inmobiliario
+          e.es_corredor_inmobiliario as estudiante_es_corredor_inmobiliario,
+          e.tipo as tipo_estudiante,
+          p_rep.nombres || ' ' || p_rep.apellidos as representante_nombre,
+          p_rep.cedula as representante_cedula,
+          p_rep.email as representante_email,
+          p_rep.telefono as representante_telefono
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
         LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+        LEFT JOIN afiliados a_rep ON emp.id_representante_legal = a_rep.id_afiliado
+        LEFT JOIN personas p_rep ON a_rep.id_persona = p_rep.id
         WHERE ${whereParts.join(' AND ')}
         ORDER BY ic.fecha_inscripcion DESC
       `,

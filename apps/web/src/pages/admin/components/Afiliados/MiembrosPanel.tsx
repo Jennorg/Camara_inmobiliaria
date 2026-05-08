@@ -264,9 +264,10 @@ export default function MiembrosPanel() {
             </button>
             <button
               onClick={() => setFilterTipo('Agente')}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Agente' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
+              className={`flex-1 py-1 rounded-lg text-[8px] leading-tight font-black uppercase tracking-tighter border transition-all flex flex-col items-center justify-center ${filterTipo === 'Agente' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
             >
-              Agentes
+              <span>Agentes</span>
+              <span>Corporativos</span>
             </button>
           </div>
         </div>
