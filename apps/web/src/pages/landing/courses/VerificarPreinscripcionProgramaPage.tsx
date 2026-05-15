@@ -54,18 +54,24 @@ export default function VerificarPreinscripcionProgramaPage() {
         const json = await res.json()
         if (res.ok && json.success) {
           setUserData(json.data)
-          setFormData(prev => ({
-            ...prev,
-            nivelProfesional: (json.data.nivelProfesional as any) || '',
-            profesion: json.data.profesion || '',
-            url_titulo: '',
-            url_cv: '',
-            url_registro_mercantil: '',
-            url_titulo_representante: '',
-            especializaciones: [],
-            cursos_extras: [],
-          }))
-          setStatus('form')
+          
+          // Si es uno de los 4 grandes cursos, saltamos el formulario y confirmamos automáticamente
+          if (['PADI', 'PEGI', 'PREANI', 'CIBIR'].includes(json.data.programaCodigo)) {
+            submitConfirmation({ token })
+          } else {
+            setFormData(prev => ({
+              ...prev,
+              nivelProfesional: (json.data.nivelProfesional as any) || '',
+              profesion: json.data.profesion || '',
+              url_titulo: '',
+              url_cv: '',
+              url_registro_mercantil: '',
+              url_titulo_representante: '',
+              especializaciones: [],
+              cursos_extras: [],
+            }))
+            setStatus('form')
+          }
         } else {
           setStatus('error')
           setMessage(json.message || 'Token inválido.')
@@ -76,6 +82,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       }
     }
     verificarToken()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   const isAfiliacion = userData?.programaCodigo === 'AFILIACION'
@@ -83,6 +90,22 @@ export default function VerificarPreinscripcionProgramaPage() {
   const isPostgrado = formData.nivelProfesional === 'Postgrado'
   const currentNivel = NIVELES.find(n => n.value === formData.nivelProfesional)
   const displayName = userData?.nombreCompleto
+
+  const submitConfirmation = async (dataToSubmit: any) => {
+    setSubmitLoading(true)
+    setStatus('verifying')
+    try {
+      const res = await fetch(`${API_URL}/api/public/preinscripciones/confirmar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSubmit),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) setStatus('success')
+      else { setStatus('error'); setMessage(json.message); }
+    } catch { setStatus('error'); setMessage('Error de conexión.'); }
+    finally { setSubmitLoading(false); }
+  }
 
   const handleConfirmar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,29 +145,17 @@ export default function VerificarPreinscripcionProgramaPage() {
       return
     }
 
-    setSubmitLoading(true)
-    setStatus('verifying')
-    try {
-      const res = await fetch(`${API_URL}/api/public/preinscripciones/confirmar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          nivelProfesional: formData.nivelProfesional,
-          profesion: formData.profesion.trim(),
-          url_titulo: formData.url_titulo,
-          url_cv: formData.url_cv,
-          url_registro_mercantil: formData.url_registro_mercantil,
-          url_titulo_representante: formData.url_titulo_representante,
-          especializaciones: JSON.stringify(formData.especializaciones),
-          cursos_extras: JSON.stringify(formData.cursos_extras),
-        }),
-      })
-      const json = await res.json()
-      if (res.ok && json.success) setStatus('success')
-      else { setStatus('error'); setMessage(json.message); }
-    } catch { setStatus('error'); setMessage('Error de conexión.'); }
-    finally { setSubmitLoading(false); }
+    submitConfirmation({
+      token,
+      nivelProfesional: formData.nivelProfesional,
+      profesion: formData.profesion.trim(),
+      url_titulo: formData.url_titulo,
+      url_cv: formData.url_cv,
+      url_registro_mercantil: formData.url_registro_mercantil,
+      url_titulo_representante: formData.url_titulo_representante,
+      especializaciones: JSON.stringify(formData.especializaciones),
+      cursos_extras: JSON.stringify(formData.cursos_extras),
+    });
   }
 
   const selectedNivel = NIVELES.find(n => n.value === userData?.nivel_profesional)

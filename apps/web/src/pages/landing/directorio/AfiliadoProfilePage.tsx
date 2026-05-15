@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, Mail, Phone, MapPin, User, 
   Globe, Instagram, Linkedin, 
@@ -9,7 +9,7 @@ import {
 import { API_URL } from '@/config/env';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
-import { formatNombreCard, getInitials } from '@/utils/formatters';
+import { formatNombreCard, getInitials, formatRif } from '@/utils/formatters';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 
 interface AfiliadoProfile extends AfiliadoData {
@@ -19,6 +19,7 @@ interface AfiliadoProfile extends AfiliadoData {
 const AfiliadoProfilePage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [afiliado, setAfiliado] = useState<AfiliadoProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +86,8 @@ const AfiliadoProfilePage = () => {
     );
   }
 
-  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo';
+  const isRepMode = new URLSearchParams(location.search).get('mode') === 'rep';
+  const isCorporativo = afiliado.tipo_afiliado === 'Corporativo' && !isRepMode;
   const yearsOfService = afiliado.fecha_inicio_servicio 
     ? new Date().getFullYear() - new Date(afiliado.fecha_inicio_servicio).getFullYear()
     : 0;
@@ -123,9 +125,9 @@ const AfiliadoProfilePage = () => {
               {/* Profile Image */}
               <div className="relative shrink-0">
                 <div className="w-40 h-40 md:w-56 md:h-56 rounded-[2rem] overflow-hidden border-[6px] border-white/10 dark:border-white/5 shadow-2xl bg-slate-900 flex items-center justify-center">
-                   {afiliado.foto_url ? (
+                   {!isRepMode && ((isCorporativo && afiliado.empresa_logo_url) || afiliado.foto_url) ? (
                      <img 
-                       src={afiliado.foto_url} 
+                       src={(isCorporativo && afiliado.empresa_logo_url) ? afiliado.empresa_logo_url : afiliado.foto_url} 
                        alt={afiliado.nombre_completo}
                        className="w-full h-full object-cover"
                      />
@@ -142,26 +144,23 @@ const AfiliadoProfilePage = () => {
                 <div className="space-y-1">
                   <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
                     {isCorporativo 
-                      ? (afiliado.razon_social || formatNombreCard(afiliado.nombre_completo)) 
-                      : formatNombreCard(afiliado.nombre_completo)}
+                      ? (afiliado.empresa_razon_social || afiliado.razon_social || formatNombreCard(afiliado.nombre_completo)) 
+                      : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
                   </h1>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                   <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">
-                    {isCorporativo ? 'Miembro Corporativo' : 'Miembro Independiente'}
+                    {isCorporativo ? 'Miembro Corporativo' : isRepMode ? 'Representante Legal' : 'Miembro Independiente'}
                   </span>
-                  {afiliado.empresa_razon_social && (
+                  {afiliado.empresa_razon_social && !isCorporativo && (
                     <Link 
-                      to={`/miembros/${afiliado.id_empresa}`} 
+                      to={isRepMode ? `/miembros/${afiliado.id_afiliado}` : `/miembros/${afiliado.id_empresa}`} 
                       className="px-4 py-1.5 bg-emerald-500/20 backdrop-blur-md text-emerald-100 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 hover:bg-emerald-500/30 transition-all"
                     >
-                      Parte de: {afiliado.empresa_razon_social}
+                      {isRepMode ? 'Representante de:' : 'Parte de:'} {afiliado.empresa_razon_social}
                     </Link>
                   )}
-                  <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md text-slate-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">
-                    Miembro desde: {afiliado.fecha_registro ? new Date(afiliado.fecha_registro).getFullYear() : '2024'}
-                  </span>
                   <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md text-slate-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">
                     Código: {afiliado.codigo_cibir || '---'}
                   </span>
@@ -196,7 +195,7 @@ const AfiliadoProfilePage = () => {
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{isCorporativo ? 'RIF' : 'Documento de Identidad'}</p>
                       <p className="text-sm font-bold text-slate-700 dark:text-emerald-50">
-                        {afiliado.empresa_rif_tipo ? `${afiliado.empresa_rif_tipo}-${afiliado.empresa_rif_numero}` : afiliado.cedula}
+                        {isCorporativo && afiliado.empresa_rif_numero ? formatRif(afiliado.empresa_rif_tipo, afiliado.empresa_rif_numero) : afiliado.cedula}
                       </p>
                     </div>
                   </div>
@@ -206,8 +205,12 @@ const AfiliadoProfilePage = () => {
                       <Mail size={20} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Correo Electrónico</p>
-                      <p className="text-sm font-bold text-slate-700 dark:text-emerald-50 truncate max-w-[200px] md:max-w-none">{afiliado.email}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        {isCorporativo ? 'Correo Corporativo' : 'Correo Electrónico'}
+                      </p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-emerald-50 truncate max-w-[200px] md:max-w-none">
+                        {isCorporativo ? (afiliado.empresa_email || afiliado.email) : afiliado.email}
+                      </p>
                     </div>
                   </div>
 
@@ -216,10 +219,38 @@ const AfiliadoProfilePage = () => {
                       <Phone size={20} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Teléfono</p>
-                      <p className="text-sm font-bold text-slate-700 dark:text-emerald-50">{afiliado.telefono || 'No disponible'}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        {isCorporativo ? 'Teléfono Corporativo' : 'Teléfono'}
+                      </p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-emerald-50">
+                        {isCorporativo ? (afiliado.empresa_telefono || afiliado.telefono || 'No disponible') : (afiliado.telefono || 'No disponible')}
+                      </p>
                     </div>
                   </div>
+
+                  {isCorporativo && (afiliado.email || afiliado.telefono) && (
+                    <>
+                      <hr className="border-slate-100 dark:border-emerald-500/10" />
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Representante Legal</p>
+                        <div className="flex items-center gap-5">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-blue-500 shrink-0 shadow-sm">
+                            <User size={20} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-700 dark:text-emerald-50">
+                              {formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+                            </p>
+                            <div className="text-[10px] text-slate-500 mt-0.5 space-x-2">
+                              {afiliado.email && <span>{afiliado.email}</span>}
+                              {afiliado.telefono && <span>• {afiliado.telefono}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <hr className="border-slate-100 dark:border-emerald-500/10" />
+                    </>
+                  )}
 
                   <div className="flex items-center gap-5">
                     <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-emerald-500 shrink-0 shadow-sm">
@@ -284,7 +315,7 @@ const AfiliadoProfilePage = () => {
                   Perfil Académico y Profesional
                 </h3>
 
-                <div className="mb-12">
+                <div className="mb-12 space-y-4">
                   <div className="relative p-6 rounded-[2rem] bg-slate-50 dark:bg-[#022c22] flex items-center gap-5 overflow-hidden group">
                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" />
                     <div className="w-12 h-12 rounded-2xl bg-white dark:bg-blue-500/10 flex items-center justify-center text-blue-500 shadow-sm shrink-0">
@@ -297,6 +328,21 @@ const AfiliadoProfilePage = () => {
                       </p>
                     </div>
                   </div>
+
+                  {afiliado.profesion && (
+                    <div className="relative p-6 rounded-[2rem] bg-slate-50 dark:bg-[#022c22] flex items-center gap-5 overflow-hidden group">
+                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />
+                      <div className="w-12 h-12 rounded-2xl bg-white dark:bg-emerald-500/10 flex items-center justify-center text-emerald-500 shadow-sm shrink-0">
+                        <Briefcase size={24} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Profesión / Especialidad</p>
+                        <p className="text-lg font-black text-slate-800 dark:text-white leading-none">
+                          {afiliado.profesion}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -336,7 +382,11 @@ const AfiliadoProfilePage = () => {
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     {afiliado.afiliados_asociados.map((assoc: AfiliadoData) => (
-                      <AfiliadoCard key={assoc.id_afiliado} afiliado={assoc} />
+                      <AfiliadoCard 
+                        key={assoc.id_afiliado} 
+                        afiliado={assoc} 
+                        forceRepMode={assoc.id_afiliado === afiliado.id_afiliado}
+                      />
                     ))}
                   </div>
                 </section>

@@ -72,16 +72,7 @@ const Navbar = ({
               {user ? (
                 <>
                   <Link
-                    to={(() => {
-                      const hostname = window.location.hostname;
-                      const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
-                      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
-                      
-                      if (isApp || isLocal) return '/';
-                      
-                      const baseDomain = hostname.replace('www.', '');
-                      return `${window.location.protocol}//app.${baseDomain}${window.location.port ? `:${window.location.port}` : ''}/`;
-                    })()}
+                    to='/panel'
                     className='hidden md:flex items-center gap-2 px-4 py-1.5 bg-emerald-900/30 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-bold hover:bg-emerald-800/50 hover:border-emerald-400 transition-all shadow-inner'
                   >
                     <span className='relative flex h-2.5 w-2.5'>
@@ -168,7 +159,11 @@ const Navbar = ({
           <div className="p-6">
             <button 
               onClick={() => { 
-                setShowLoginModal(true);
+                if (user) {
+                  window.location.href = '/panel';
+                } else {
+                  setShowLoginModal(true);
+                }
                 setIsMobileMenuOpen(false); 
               }}
               className="w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg bg-emerald-500 text-white"

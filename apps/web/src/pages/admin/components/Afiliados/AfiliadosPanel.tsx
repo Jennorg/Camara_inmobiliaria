@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { formatNombreCard } from '@/utils/formatters'
+import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 import { FileText, ExternalLink, Download, Award, GraduationCap } from 'lucide-react'
 
@@ -300,7 +300,7 @@ export default function AfiliadosPanel() {
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula / RIF</label>
                   <input 
                     type="text" 
-                    value={selected.empresa_rif_tipo ? `${selected.empresa_rif_tipo}-${selected.empresa_rif_numero}` : selected.cedula} 
+                    value={selected.empresa_rif_numero ? formatRif(selected.empresa_rif_tipo, selected.empresa_rif_numero) : selected.cedula} 
                     disabled
                     className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
                   />

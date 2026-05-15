@@ -69,3 +69,24 @@ export const getInitials = (
   
   return (first + last) || 'CI';
 };
+
+/**
+ * Formatea el RIF evitando la duplicación del prefijo (ej: "J-J-12345678-9")
+ */
+export const formatRif = (tipo?: string | null, numero?: string | null): string => {
+  if (!numero) return '';
+  if (!tipo) return numero;
+
+  const numUpper = numero.toUpperCase();
+  const tipoUpper = tipo.toUpperCase();
+
+  if (numUpper.startsWith(`${tipoUpper}-`)) {
+    return numero;
+  }
+  
+  if (numUpper.startsWith(tipoUpper)) {
+    return `${tipoUpper}-${numero.slice(tipo.length)}`;
+  }
+
+  return `${tipoUpper}-${numero}`;
+};

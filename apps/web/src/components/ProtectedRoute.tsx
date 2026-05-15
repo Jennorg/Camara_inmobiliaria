@@ -30,17 +30,6 @@ export default function ProtectedRoute({ requiredRoles, children }: ProtectedRou
   }
 
   if (!user) {
-    const hostname = window.location.hostname;
-    const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
-
-    if (isApp && !isLocal) {
-      const baseDomain = hostname.replace('app.', '');
-      const protocol = window.location.protocol;
-      const port = window.location.port ? `:${window.location.port}` : '';
-      window.location.href = `${protocol}//${baseDomain}${port}/`;
-      return null;
-    }
     return <Navigate to="/" replace />
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Fuse from 'fuse.js';
 import { Search, MapPin, Building2, Filter, ChevronRight, User, Star, ShieldCheck, Users, Loader2 } from 'lucide-react';
 import SEO from '@/components/SEO';
@@ -15,6 +15,48 @@ const DirectorioPage = () => {
   const [darkMode, setDarkMode] = useState(false);
 
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [searchQuery, filterType]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => setIsDragging(false);
+  const handleMouseUp = () => setIsDragging(false);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount(prev => prev + 30);
+      }
+    }, { rootMargin: '300px' });
+
+    if (node) observer.current.observe(node);
+  }, [loading]);
 
   useEffect(() => {
     const fetchAfiliados = async () => {
@@ -58,7 +100,15 @@ const DirectorioPage = () => {
       });
     }
 
-    return base;
+    // Ordenar por código (codigo_cibir) de forma numérica. Items sin código van al final.
+    return [...base].sort((a, b) => {
+      const codeA = a.codigo_cibir ? parseInt(a.codigo_cibir, 10) : Infinity;
+      const codeB = b.codigo_cibir ? parseInt(b.codigo_cibir, 10) : Infinity;
+      if (isNaN(codeA) && isNaN(codeB)) return 0;
+      if (isNaN(codeA)) return 1;
+      if (isNaN(codeB)) return -1;
+      return codeA - codeB;
+    });
   }, [searchQuery, afiliados, fuse, filterType]);
 
   // Depuración: contar tipos reales en la data
@@ -99,22 +149,22 @@ const DirectorioPage = () => {
             </p>
 
             {/* Buscador y Filtros */}
-            <div className="absolute left-1/2 -translate-x-1/2 -bottom-44 w-full max-w-2xl px-6 space-y-6">
+            <div className="relative w-full max-w-2xl px-6 space-y-6 mx-auto mt-8">
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none z-10">
                   <Search className="text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={24} />
                 </div>
                 <input
                   type="text"
-                  placeholder="Buscar por nombre, cédula o código..."
+                  placeholder="Buscar por nombre..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-16 pr-24 py-5 rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-lg relative z-0"
+                  className="block w-full pl-16 pr-16 sm:pr-24 py-5 rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-lg relative z-0"
                 />
                 <div className="absolute inset-y-0 right-4 flex items-center z-10">
                   <div className="flex items-center gap-2">
                     {filterType !== 'Todos' && (
-                      <span className="text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2 py-1 rounded-md">
+                      <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2 py-1 rounded-md">
                         {filterType === 'Natural' ? 'Independientes' : 'Corporativos'}
                       </span>
                     )}
@@ -126,21 +176,28 @@ const DirectorioPage = () => {
               </div>
 
               {/* Filtros de Tipo */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-col items-center gap-3 w-full">
+                <div 
+                  ref={scrollRef}
+                  onMouseDown={handleMouseDown}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseUp={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                  className="flex flex-row items-center justify-start sm:justify-center gap-2 md:gap-3 w-full overflow-x-auto pb-2 px-2 scrollbar-none cursor-grab active:cursor-grabbing"
+                >
                   {[
                     { id: 'Todos', label: 'Todos' },
                     { id: 'Natural', label: 'Independientes' },
                     { id: 'Corporativo', label: 'Corporativos' },
-                    { id: 'Agente', label: 'Agentes Corporativos' },
+                    { id: 'Agente', label: 'Agentes' },
                   ].map((f) => (
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center ${filterType === f.id
+                      className={`flex-shrink-0 px-4 md:px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center ${filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
-                        } ${f.id === 'Agente' ? 'max-w-[120px] leading-[1.1] py-1' : ''}`}
+                        }`}
                     >
                       {f.label}
                     </button>
@@ -148,7 +205,7 @@ const DirectorioPage = () => {
                 </div>
 
                 {/* Debug Info (Visible en desarrollo) */}
-                <div className="flex gap-4 text-[9px] font-bold text-slate-400 dark:text-emerald-500/40 uppercase tracking-tighter">
+                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[9px] font-bold text-slate-400 dark:text-emerald-500/40 uppercase tracking-tighter">
                   <span>Ind: {stats.Natural}</span>
                   <span>Corp: {stats.Corporativo}</span>
                   <span>Agentes Corp: {stats.Agente}</span>
@@ -161,18 +218,25 @@ const DirectorioPage = () => {
         </section>
 
         {/* Results Section */}
-        <section className="max-w-[1600px] mx-auto px-6 pt-32 pb-16">
+        <section className="max-w-[1600px] mx-auto px-6 pt-10 pb-16">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 opacity-50">
               <Loader2 size={48} className="animate-spin text-emerald-600 mb-4" />
               <p className="font-bold text-lg text-slate-500">Cargando directorio seguro...</p>
             </div>
           ) : resultados.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-              {resultados.map((afiliado) => (
-                <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+                {resultados.slice(0, visibleCount).map((afiliado) => (
+                  <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
+                ))}
+              </div>
+              {visibleCount < resultados.length && (
+                <div ref={lastElementRef} className="h-20 flex items-center justify-center mt-12 w-full col-span-full">
+                  <Loader2 size={32} className="animate-spin text-emerald-600" />
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-20 bg-white dark:bg-[#04432f] rounded-[2rem] border border-slate-200 dark:border-emerald-500/20 shadow-sm max-w-2xl mx-auto transition-colors mt-8">
               <div className="w-20 h-20 bg-emerald-50 dark:bg-[#022c22] rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-100 dark:border-emerald-500/10">

@@ -25,6 +25,7 @@ import DashboardHeader from '@/pages/landing/afiliado/components/DashboardHeader
 import WidgetFinanciero from '@/pages/landing/afiliado/components/WidgetFinanciero';
 import WidgetNotificaciones from '@/pages/landing/afiliado/components/WidgetNotificaciones';
 import WidgetAcademico from '@/pages/landing/afiliado/components/WidgetAcademico';
+import WidgetMisCursos from '@/pages/landing/afiliado/components/WidgetMisCursos';
 import WidgetFormalizarInscripcion from '@/pages/landing/afiliado/components/WidgetFormalizarInscripcion';
 import WidgetMisCertificados from '@/pages/landing/afiliado/components/WidgetMisCertificados';
 import WidgetSolicitudAfiliacion from '@/pages/landing/afiliado/components/WidgetSolicitudAfiliacion';
@@ -192,6 +193,7 @@ const PanelPage = () => {
         return (
           <>
             <div className="lg:col-span-3"><WidgetSolicitudAfiliacion /></div>
+            <div className="lg:col-span-3"><WidgetMisCursos /></div>
             <div className="lg:col-span-3"><WidgetAcademico /></div>
           </>
         )
@@ -202,6 +204,7 @@ const PanelPage = () => {
         <>
           <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div>
           <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div>
+          <div className="lg:col-span-3"><WidgetMisCursos /></div>
           <div className="lg:col-span-3"><WidgetAcademico /></div>
         </>
       );

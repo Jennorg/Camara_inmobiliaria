@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural } from '../controllers/afiliados.controller.js';
+import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural } from '../controllers/afiliados.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -15,6 +15,9 @@ router.get('/cibir/solicitudes', requireAuth, requireRole('admin', 'super_admin'
 
 // GET /api/afiliados/me/certificados — comprobantes digitales del usuario autenticado
 router.get('/me/certificados', requireAuth, getMisCertificados);
+
+// GET /api/afiliados/me/cursos — cursos inscritos y progreso de módulos
+router.get('/me/cursos', requireAuth, getMisCursos);
 
 // GET /api/afiliados/:id — para el portal del afiliado (requiere auth)
 router.get('/:id', requireAuth, getAfiliadoById);

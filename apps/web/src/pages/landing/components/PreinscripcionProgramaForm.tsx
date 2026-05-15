@@ -32,6 +32,8 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
     phonePrefix: '+58',
     telefono: '',
     esCorredorInmobiliario: initialData?.esCorredorInmobiliario === true ? 'si' : initialData?.esCorredorInmobiliario === false ? 'no' : '',
+    nivelProfesional: initialData?.nivelProfesional || '',
+    profesion: initialData?.profesion || '',
     // Campos exclusivos Corporativo
     razonSocial: '',
     rifPrefix: 'J',
@@ -86,6 +88,8 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             email: formData.email,
             telefono: `${formData.phonePrefix}${formData.telefono.replace(/\D/g, '')}`,
             esCorredorInmobiliario: formData.esCorredorInmobiliario === 'si',
+            nivelProfesional: formData.nivelProfesional || null,
+            profesion: formData.profesion.trim() || null,
           }
 
       const res = await fetch(`${API_URL}/api/public/preinscripciones`, {
@@ -209,6 +213,27 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                     {opt === 'si' ? 'Sí, lo soy' : 'No'}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nivel Académico</label>
+              <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
+                <select name="nivelProfesional" value={formData.nivelProfesional} onChange={handleChange} className="flex-1 px-5 h-full bg-white outline-none text-sm font-medium text-slate-800">
+                  <option value="">Selecciona tu nivel</option>
+                  <option value="Bachiller">Bachiller</option>
+                  <option value="TSU">TSU</option>
+                  <option value="Universitario">Universitario</option>
+                  <option value="Postgrado">Postgrado</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Profesión</label>
+              <div className="relative group">
+                <Briefcase size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <input type="text" name="profesion" value={formData.profesion} onChange={handleChange} placeholder="Ej. Abogado, Ingeniero" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
               </div>
             </div>
           </div>

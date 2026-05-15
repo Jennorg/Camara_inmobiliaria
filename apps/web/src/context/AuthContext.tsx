@@ -130,23 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(data.token)
     setUser(newUser)
 
-    // Salto al subdominio app. si no estamos en él (y no es localhost)
-    const hostname = window.location.hostname;
-    const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('192.168.');
-
-    if (!isApp && !isLocal) {
-      const baseDomain = hostname.replace('www.', '');
-      const protocol = window.location.protocol;
-      const port = window.location.port ? `:${window.location.port}` : '';
-      const redirectUrl = `${protocol}//app.${baseDomain}${port}/?token=${data.token}`;
-      window.location.href = redirectUrl;
-      return;
-    }
-
     // Selector general si tiene múltiples roles al panel unificado
     if (newUser.roles.length > 1) {
-      navigate('/')
+      navigate('/panel')
       return
     }
 
@@ -157,11 +143,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (newUser.rol === 'estudiante') {
-      navigate('/?tab=formacion')
+      navigate('/panel?tab=formacion')
       return
     }
 
-    navigate('/')
+    navigate('/panel')
   }, [navigate])
 
   // Logout function
@@ -169,17 +155,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(TOKEN_KEY)
     setToken(null)
     setUser(null)
-
-    const hostname = window.location.hostname;
-    const isApp = hostname.startsWith('app.') || hostname.includes('.app.');
-
-    if (isApp) {
-      const baseDomain = hostname.replace('app.', '');
-      const protocol = window.location.protocol;
-      const port = window.location.port ? `:${window.location.port}` : '';
-      window.location.href = `${protocol}//${baseDomain}${port}`;
-      return;
-    }
 
     navigate('/')
   }, [navigate])

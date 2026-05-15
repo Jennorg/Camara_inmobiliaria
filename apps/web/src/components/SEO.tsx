@@ -12,21 +12,21 @@ interface SEOProps {
   index?: boolean;
 }
 
-const SEO: React.FC<SEOProps> = ({ 
-  title, 
-  description, 
-  keywords, 
-  image = '/assets/Logo2.png', 
+const SEO: React.FC<SEOProps> = ({
+  title,
+  description,
+  keywords,
+  image = '/assets/Logo2.png',
   imageAlt = 'Logo Cámara Inmobiliaria de Bolívar',
   url,
   type = 'website',
   index = true
 }) => {
-  const baseTitle = 'Cámara Inmobiliaria Bolívar (CIBIR)';
-  const fullTitle = title ? `${title} | ${baseTitle}` : baseTitle;
+  const baseTitle = 'Cámara Inmobiliaria de Bolívar';
+  const fullTitle = title ? `${title}` : baseTitle;
   const defaultDescription = 'Gremio líder de profesionales inmobiliarios en el Estado Bolívar, Venezuela. Encuentra agentes certificados, inmobiliarias de confianza y formación especializada.';
   const defaultKeywords = 'inmobiliarias en bolivar, bienes raices puerto ordaz, corredores inmobiliarios venezuela, cibir bolivar, agentes inmobiliarios certificados, venta de casas puerto ordaz, apartamentos ciudad bolivar';
-  
+
   const currentUrl = url || (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
 
   const structuredData = {

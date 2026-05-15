@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { formatNombreCard } from '@/utils/formatters'
+import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 
 import {
@@ -26,7 +26,7 @@ export default function MiembrosPanel() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos')
-  const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('nombre_asc')
+  const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('codigo_asc')
 
   const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
   const [isEditing, setIsEditing] = useState(false)
@@ -292,7 +292,7 @@ export default function MiembrosPanel() {
                       {item.tipo_afiliado === 'Corporativo' ? 'Corporativo' : 'Independiente'}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {item.empresa_rif_tipo ? `${item.empresa_rif_tipo}-${item.empresa_rif_numero}` : item.cedula}
+                      {item.empresa_rif_numero ? formatRif(item.empresa_rif_tipo, item.empresa_rif_numero) : item.cedula}
                     </span>
                   </div>
                 </div>
@@ -445,7 +445,7 @@ export default function MiembrosPanel() {
                       </div>
                     ) : (
                       <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700">
-                        {selected.empresa_rif_numero ? `${selected.empresa_rif_tipo}-${selected.empresa_rif_numero}` : selected.cedula}
+                        {selected.empresa_rif_numero ? formatRif(selected.empresa_rif_tipo, selected.empresa_rif_numero) : selected.cedula}
                       </p>
                     )}
                   </div>

@@ -150,6 +150,7 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   programaCodigo: string
   tipoAfiliado?: string | null
   nivelProfesional?: string | null
+  profesion?: string | null
   esCorredorInmobiliario?: boolean | string | null
   razonSocial?: string | null
   representanteLegal?: string | null
@@ -160,7 +161,7 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
 }): Promise<{ token: string, fechaExpiracion: string }> {
   const {
     nombreCompleto, nombres, apellidos, cedulaRif, email, telefono, programaCodigo,
-    tipoAfiliado, nivelProfesional, esCorredorInmobiliario,
+    tipoAfiliado, nivelProfesional, profesion, esCorredorInmobiliario,
     razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa
   } = params
 
@@ -184,15 +185,15 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   await db.execute({
     sql: `INSERT INTO verificaciones_preinscripciones (
             token_verificacion, email, nombres, apellidos, cedula, telefono, 
-            programa_interes, tipo_afiliado, nivel_academico, es_corredor_inmobiliario,
+            programa_interes, tipo_afiliado, nivel_academico, profesion, es_corredor_inmobiliario,
             razon_social, representante_legal_nombres, representante_legal_apellidos, 
             representante_legal_cedula, representante_legal_email, 
             empresa_telefono,
             id_empresa, fecha_expiracion
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       token, email, nombres || null, apellidos || null, cedulaRif || null, telefono || null,
-      programaCodigo, tipoAfiliado || 'Natural', nivelProfesional || null,
+      programaCodigo, tipoAfiliado || 'Natural', nivelProfesional || null, profesion || null,
       esCorredorInmobiliario === null ? null : (esCorredorInmobiliario === 'si' || esCorredorInmobiliario === true ? 1 : 0),
       razonSocial ?? null,
       repNombres || null,
@@ -222,6 +223,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
+    const profesion = typeof req.body?.profesion === 'string' ? req.body.profesion.trim() : null
     const url_titulo = typeof req.body?.url_titulo === 'string' ? req.body.url_titulo.trim() : null
     const url_cv = typeof req.body?.url_cv === 'string' ? req.body.url_cv.trim() : null
     const url_especializaciones = typeof req.body?.url_especializaciones === 'string' ? req.body.url_especializaciones.trim() : null
@@ -365,6 +367,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       programaCodigo,
       tipoAfiliado,
       nivelProfesional,
+      profesion,
       esCorredorInmobiliario,
       razonSocial,
       representanteLegal,
@@ -445,7 +448,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     }
 
     // Para AFILIACION, nivelProfesional y esCorredorInmobiliario son opcionales
-    if (!isAfiliacion && (!nivelProfesional || esCorredorInmobiliario === null)) {
+    if (!isAfiliacion && (esCorredorInmobiliario === null)) {
       res.status(400).json({ success: false, message: 'Registro de verificación incompleto' })
       return
     }
@@ -577,14 +580,23 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
 
         const resetTokenHash = sha256(resetToken)
-        await db.execute({
+        const userRes = await db.execute({
           sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
                 VALUES (?, ?, '["estudiante"]', ?, ?)
                 ON CONFLICT(email) DO UPDATE SET 
                   reset_token_hash = excluded.reset_token_hash, 
                   reset_token_expira = excluded.reset_token_expira,
-                  actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')`,
+                  actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+                RETURNING id`,
           args: [email, placeholderPass, resetTokenHash, expiracion.toISOString()]
+        })
+        
+        const newUserId = userRes.rows[0].id;
+        
+        // Update estudiante with the new user id
+        await db.execute({
+          sql: `UPDATE estudiantes SET id_user = ? WHERE id_estudiante = ? AND id_user IS NULL`,
+          args: [newUserId, id_estudiante]
         })
 
         // 3. Enviar correo para establecer contraseña

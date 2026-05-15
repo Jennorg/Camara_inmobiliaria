@@ -60,7 +60,7 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
         )
         ORDER BY c.fecha_emision DESC
       `,
-      args: [userEmail, userEmail, idAfiliado, idAfiliado, idAfiliado, idAfiliado],
+      args: [userEmail, userEmail, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null],
     })
 
     res.json({ success: true, data: result.rows })
@@ -69,6 +69,89 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
     res.status(500).json({ success: false, message: 'Error al obtener certificados' })
   }
 }
+
+/**
+ * GET /api/afiliados/me/cursos
+ * Lista los cursos en los que el usuario autenticado está inscrito y el progreso de sus módulos si aplica.
+ */
+export const getMisCursos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { enrichUserPayload } = await import('../middlewares/auth.middleware.js');
+    const enrichedUser = await enrichUserPayload(req.user!);
+
+    const idEstudiante = enrichedUser.id_estudiante;
+    const idAfiliado = enrichedUser.id_afiliado;
+    const userEmail = (enrichedUser.email ?? '').trim().toLowerCase();
+
+    const inscripciones = await db.execute({
+      sql: `
+        SELECT 
+          ic.id_inscripcion,
+          ic.programa_codigo,
+          ic.tipo_inscripcion,
+          ic.estatus,
+          ic.estatus_academico,
+          ic.creado_en as fecha_inscripcion,
+          cu.titulo as curso_nombre,
+          cu.categoria as nivel_academico,
+          cu.imagen_url
+        FROM inscripciones_cursos ic
+        LEFT JOIN cursos cu ON ic.id_curso = cu.id_curso
+        LEFT JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+        LEFT JOIN personas p ON e.id_persona = p.id
+        WHERE (e.id_estudiante = ? AND ? IS NOT NULL)
+           OR (? <> '' AND LOWER(TRIM(p.email)) = ?)
+           OR (? <> '' AND EXISTS (
+                SELECT 1 FROM personas p_inner 
+                WHERE p_inner.id = e.id_persona 
+                AND LOWER(TRIM(p_inner.email)) = ?
+              ))
+        ORDER BY ic.creado_en DESC
+      `,
+      args: [
+        idEstudiante || null, idEstudiante || null, 
+        userEmail, userEmail, 
+        userEmail, userEmail
+      ]
+    });
+
+    console.log('getMisCursos DEBUG ->', {
+      idEstudiante, idAfiliado, userEmail, inscripcionesCount: inscripciones.rows.length
+    });
+
+    const cursosConModulos = [];
+
+    for (const row of inscripciones.rows) {
+      const cursoData: any = { ...row };
+      
+      // Ajuste para nombre del programa (cuando no hay id_curso)
+      if (!cursoData.curso_nombre && cursoData.programa_codigo) {
+        cursoData.curso_nombre = cursoData.programa_codigo === 'CIBIR' ? 'Programa CIBIR' : cursoData.programa_codigo;
+        cursoData.nivel_academico = 'Profesional'; // default fallback
+      }
+      
+      if (row.programa_codigo === 'CIBIR' && idAfiliado) {
+        const modulos = await db.execute({
+          sql: `
+            SELECT modulo, estatus, fecha_evaluacion 
+            FROM convalidaciones_cibir 
+            WHERE id_afiliado = ?
+            ORDER BY modulo ASC
+          `,
+          args: [idAfiliado]
+        });
+        cursoData.modulos = modulos.rows;
+      }
+      
+      cursosConModulos.push(cursoData);
+    }
+
+    res.json({ success: true, data: cursosConModulos });
+  } catch (error) {
+    console.error('getMisCursos:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener los cursos inscritos' });
+  }
+};
 
 export const getAfiliadoById = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -626,7 +709,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
       WHERE a.estatus = 'Afiliado' AND a.activo = 1
-      ORDER BY nombre_completo ASC
+      ORDER BY CAST(a.codigo_cibir AS INTEGER) ASC
     `,
       args: []
     });
