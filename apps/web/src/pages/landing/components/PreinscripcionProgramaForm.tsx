@@ -132,7 +132,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Tipo de Afiliación</label>
           <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-xl border border-white/10 h-[52px]">
             {([
-              { val: 'Natural', label: 'Independiente', icon: User },
+              { val: 'Natural', label: 'Agente Independiente', icon: User },
               { val: 'Corporativo', label: 'Corporativo', icon: Building2 },
             ] as const).map(({ val, label, icon: Icon }) => (
               <button

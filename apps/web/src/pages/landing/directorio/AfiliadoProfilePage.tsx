@@ -151,7 +151,7 @@ const AfiliadoProfilePage = () => {
 
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                   <span className="px-4 py-1.5 bg-white/10 backdrop-blur-md text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5">
-                    {isCorporativo ? 'Miembro Corporativo' : isRepMode ? 'Representante Legal' : 'Miembro Independiente'}
+                    {isCorporativo ? 'Miembro Corporativo' : isRepMode ? 'Representante Legal' : 'Agente Independiente'}
                   </span>
                   {afiliado.empresa_razon_social && !isCorporativo && (
                     <Link 

@@ -43,7 +43,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false }: { afiliado: Afi
               ) : (
                 <>
                   <User size={10} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Independiente</span>
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Agente Independiente</span>
                 </>
               )}
             </div>

@@ -149,7 +149,7 @@ const DirectorioPage = () => {
             </p>
 
             {/* Buscador y Filtros */}
-            <div className="relative w-full max-w-2xl px-6 space-y-6 mx-auto mt-8">
+            <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none z-10">
                   <Search className="text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={24} />
@@ -165,7 +165,7 @@ const DirectorioPage = () => {
                   <div className="flex items-center gap-2">
                     {filterType !== 'Todos' && (
                       <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2 py-1 rounded-md">
-                        {filterType === 'Natural' ? 'Independientes' : 'Corporativos'}
+                        {filterType === 'Natural' ? 'Agentes Independientes' : filterType === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}
                       </span>
                     )}
                     <span className="text-xs font-bold text-slate-500 dark:text-emerald-200 bg-slate-50 dark:bg-[#022c22] px-3 py-1.5 rounded-full border border-slate-200 dark:border-emerald-500/20">
@@ -183,13 +183,13 @@ const DirectorioPage = () => {
                   onMouseLeave={handleMouseLeave}
                   onMouseUp={handleMouseUp}
                   onMouseMove={handleMouseMove}
-                  className="flex flex-row items-center justify-start sm:justify-center gap-2 md:gap-3 w-full overflow-x-auto pb-2 px-2 scrollbar-none cursor-grab active:cursor-grabbing"
+                  className="flex flex-row items-center justify-start sm:justify-center gap-2 md:gap-3 w-full overflow-x-auto pb-2 px-2 scrollbar-hide cursor-grab active:cursor-grabbing"
                 >
                   {[
                     { id: 'Todos', label: 'Todos' },
-                    { id: 'Natural', label: 'Independientes' },
+                    { id: 'Natural', label: 'Agentes Independientes' },
                     { id: 'Corporativo', label: 'Corporativos' },
-                    { id: 'Agente', label: 'Agentes' },
+                    { id: 'Agente', label: 'Agentes Corporativos' },
                   ].map((f) => (
                     <button
                       key={f.id}
@@ -246,14 +246,14 @@ const DirectorioPage = () => {
                 {searchQuery.trim()
                   ? 'No se encontraron resultados'
                   : filterType !== 'Todos'
-                    ? `Sin miembros ${filterType === 'Natural' ? 'Independientes' : 'Corporativos'}`
+                    ? `Sin miembros ${filterType === 'Natural' ? 'Agentes Independientes' : filterType === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}`
                     : 'Directorio vacío'}
               </h3>
               <p className="text-slate-500 dark:text-emerald-100/70 font-medium max-w-md mx-auto">
                 {searchQuery.trim()
                   ? <>No pudimos encontrar coincidencias para "<strong>{searchQuery}</strong>". Revisa la ortografía o intenta buscar por Código o Cédula/RIF.</>
                   : filterType !== 'Todos'
-                    ? `Actualmente no hay miembros de tipo ${filterType === 'Natural' ? 'Independiente' : 'Corporativo'} registrados con estatus de Afiliación.`
+                    ? `Actualmente no hay miembros de tipo ${filterType === 'Natural' ? 'Agente Independiente' : filterType === 'Agente' ? 'Agente Corporativo' : 'Corporativo'} registrados con estatus de Afiliación.`
                     : 'Actualmente no hay profesionales certificados registrados en esta lista pública.'}
               </p>
               {filterType !== 'Todos' && (

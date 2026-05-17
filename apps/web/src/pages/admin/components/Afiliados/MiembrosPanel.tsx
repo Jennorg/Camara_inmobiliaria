@@ -100,10 +100,10 @@ export default function MiembrosPanel() {
 
       const matchSearch = nombre.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
 
-      let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
-      if (filterTipo === 'Agente') {
-        matchTipo = item.tipo_afiliado === 'Agente'
-      }
+       let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
+       if (filterTipo === 'Agente') {
+         matchTipo = item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
+       }
 
       return matchSearch && matchTipo
     })
@@ -250,25 +250,24 @@ export default function MiembrosPanel() {
             >
               Todos
             </button>
-            <button
-              onClick={() => setFilterTipo('Natural')}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Natural' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
-            >
-              Indep.
-            </button>
-            <button
-              onClick={() => setFilterTipo('Corporativo')}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Corporativo' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
-            >
-              Corp.
-            </button>
-            <button
-              onClick={() => setFilterTipo('Agente')}
-              className={`flex-1 py-1 rounded-lg text-[8px] leading-tight font-black uppercase tracking-tighter border transition-all flex flex-col items-center justify-center ${filterTipo === 'Agente' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
-            >
-              <span>Agentes</span>
-              <span>Corporativos</span>
-            </button>
+             <button
+               onClick={() => setFilterTipo('Natural')}
+               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Natural' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
+             >
+               Agentes Independientes
+             </button>
+             <button
+               onClick={() => setFilterTipo('Corporativo')}
+               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Corporativo' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
+             >
+               Corporativos
+             </button>
+             <button
+               onClick={() => setFilterTipo('Agente')}
+               className={`flex-1 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Agente' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
+             >
+               Agentes Corporativos
+             </button>
           </div>
         </div>
 
@@ -288,9 +287,13 @@ export default function MiembrosPanel() {
                   <p className="font-bold text-slate-800 text-sm truncate">{formatNombreCard(item.nombre_completo)}</p>
 
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${item.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {item.tipo_afiliado === 'Corporativo' ? 'Corporativo' : 'Independiente'}
-                    </span>
+                     <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${
+                       item.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 
+                       item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                     }`}>
+                       {item.tipo_afiliado === 'Corporativo' ? 'Corporativos' : 
+                        item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Agentes Independientes'}
+                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
                       {item.empresa_rif_numero ? formatRif(item.empresa_rif_tipo, item.empresa_rif_numero) : item.cedula}
                     </span>
@@ -454,21 +457,25 @@ export default function MiembrosPanel() {
                   <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Afiliación</p>
-                      {isEditing ? (
-                        <select
-                          className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10"
-                          value={editForm.tipo_afiliado}
-                          onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
-                        >
-                          <option value="Natural">Independiente / Persona</option>
-                          <option value="Corporativo">Corporativo</option>
-                          <option value="Agente">Agente (Vinculado)</option>
-                        </select>
-                      ) : (
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {selected.tipo_afiliado}
-                        </span>
-                      )}
+                       {isEditing ? (
+                         <select
+                           className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10"
+                           value={editForm.tipo_afiliado}
+                           onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
+                         >
+                           <option value="Natural">Agentes Independientes</option>
+                           <option value="Corporativo">Corporativos</option>
+                           <option value="Agente">Agentes Corporativos</option>
+                         </select>
+                       ) : (
+                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                           selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 
+                           selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                         }`}>
+                           {selected.tipo_afiliado === 'Corporativo' ? 'Corporativos' : 
+                            selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Agentes Independientes'}
+                         </span>
+                       )}
                     </div>
 
                     {(isEditing ? editForm.tipo_afiliado === 'Agente' : selected.tipo_afiliado === 'Agente') && (
