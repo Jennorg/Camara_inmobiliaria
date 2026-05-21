@@ -2,6 +2,7 @@ import React from 'react'
 import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard'
 import CmsArticlesPanel from '@/pages/admin/components/Cms/CmsArticlesPanel'
 import FormacionPanel from '@/pages/admin/components/Formacion/FormacionPanel'
+import PreinscripcionesPrincipalesPanel from '@/pages/admin/components/Formacion/PreinscripcionesPrincipalesPanel'
 import AnalyticsPanel from '@/pages/admin/components/Analytics/AnalyticsPanel'
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
@@ -82,6 +83,7 @@ const PANELS: Record<string, React.ReactNode> = {
   // Main CMS generic redirect
   cms: <CmsArticlesPanel externalTab="config" />, 
   formacion: <FormacionPanel />,
+  solicitudes_academicas: <PreinscripcionesPrincipalesPanel />,
   media: <Placeholder title='Media Library' icon={icons.media} />,
   afiliados: <AfiliadosPanel />,
   estudiantes: <EstudiantesRegularesPanel />,

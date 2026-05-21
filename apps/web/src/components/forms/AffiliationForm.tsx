@@ -6,8 +6,7 @@ import { Check, Loader2, ArrowRight, Info, AlertCircle } from 'lucide-react'
 import CompanySection from './CompanySection'
 import RepresentativeSection from './RepresentativeSection'
 import { Button } from '@/components/ui/button'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { apiUrl } from '@/config/env'
 
 const affiliationSchema = z.object({
   razonSocial: z.string().min(3, 'La razón social es muy corta'),
@@ -66,7 +65,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
         emailRepresentante: data.emailRepresentante.trim(),
       }
 
-      const res = await fetch(`${API_URL}/api/public/preinscripciones`, {
+      const res = await fetch(apiUrl('/api/public/preinscripciones'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -75,8 +74,13 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
       if (!res.ok || !json.success) throw new Error(json.message || 'Error al registrar')
       setSubmitted(true)
       onSuccess?.()
-    } catch (err: any) {
-      setErrorMsg(err.message)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al registrar'
+      setErrorMsg(
+        msg === 'Failed to fetch'
+          ? 'No se pudo conectar con el servidor. Revise VITE_API_URL (sin barra final) y CORS en la API.'
+          : msg
+      )
     } finally {
       setLoading(false)
     }

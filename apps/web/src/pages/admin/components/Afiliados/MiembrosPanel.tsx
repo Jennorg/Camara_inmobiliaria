@@ -249,12 +249,47 @@ export default function MiembrosPanel() {
     }
   }
 
+  const newTipo = newForm.tipo_afiliado || 'Natural'
+  const isNewCorporativo = newTipo === 'Corporativo'
+
+  const openNewMemberModal = () => {
+    setNewForm({ tipo_afiliado: 'Natural', estatus: 'Afiliado' })
+    setShowNewModal(true)
+  }
+
+  const handleNewTipoChange = (tipo: 'Natural' | 'Corporativo') => {
+    setNewForm((prev) => ({
+      ...prev,
+      tipo_afiliado: tipo,
+      ...(tipo === 'Corporativo'
+        ? { id_empresa: null }
+        : { empresa_razon_social: undefined, empresa_rif_tipo: undefined, empresa_rif_numero: undefined, empresa_email: undefined, empresa_telefono: undefined, empresa_website: undefined }),
+    }))
+  }
+
   const handleCreate = async () => {
     try {
+      const tipoFinal = isNewCorporativo ? 'Corporativo' : (newForm.id_empresa ? 'Agente' : 'Natural')
+      const rifEmpresa = newForm.empresa_rif_numero?.trim()
+      const payload = {
+        ...newForm,
+        tipo_afiliado: tipoFinal,
+        id_empresa: isNewCorporativo ? null : (newForm.id_empresa || null),
+        cedula: isNewCorporativo && rifEmpresa
+          ? rifEmpresa
+          : (newForm.cedula || ''),
+        email: isNewCorporativo
+          ? (newForm.empresa_email || newForm.email)
+          : newForm.email,
+        telefono: isNewCorporativo
+          ? (newForm.empresa_telefono || newForm.telefono)
+          : newForm.telefono,
+      }
+
       const res = await fetch(`${API_URL}/api/afiliados`, {
         method: 'POST',
         headers: authHeaders,
-        body: JSON.stringify(newForm)
+        body: JSON.stringify(payload)
       })
       const json = await res.json()
       if (res.ok && json.success) {
@@ -293,7 +328,7 @@ export default function MiembrosPanel() {
                 <FileDown size={18} />
               </button>
               <button
-                onClick={() => setShowNewModal(true)}
+                onClick={openNewMemberModal}
                 className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-500/20"
               >
                 <UserPlus size={18} />
@@ -962,118 +997,175 @@ labelClassName="hidden"
               </button>
             </div>
 
-            <div className="p-8 overflow-y-auto space-y-8 flex-1">
-              {/* Información de Identidad */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                    <UserIcon size={16} />
-                  </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Identidad del Afiliado</h3>
+            <div className="p-8 overflow-y-auto space-y-6 flex-1">
+              <FormSection
+                icon={<Briefcase size={16} />}
+                title="Tipo de afiliado"
+                subtitle="Define si es independiente, corporativo o agente de una empresa"
+              >
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
+                  <select
+                    className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                    value={newTipo}
+                    onChange={(e) => handleNewTipoChange(e.target.value as 'Natural' | 'Corporativo')}
+                  >
+                    <option value="Natural">Agente independiente</option>
+                    <option value="Corporativo">Corporativo (empresa)</option>
+                  </select>
+                  {!isNewCorporativo && newForm.id_empresa && (
+                    <p className="text-[10px] text-amber-600 font-bold ml-1 mt-1">
+                      Se registrará como agente corporativo vinculado a la empresa seleccionada abajo.
+                    </p>
+                  )}
                 </div>
+              </FormSection>
 
+              <FormSection
+                icon={<UserIcon size={16} />}
+                title="Información personal"
+                subtitle="Datos del representante o del afiliado independiente"
+              >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} />
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} />
-                  <DataInput
-                    label="Razón Social (si es corporativo)"
-                    placeholder="Inmobiliaria XYZ C.A."
-                    value={newForm.empresa_razon_social || ''}
-                    onChange={(v: string) => setNewForm({
-                      ...newForm,
-                      empresa_razon_social: v,
-                      tipo_afiliado: v.trim() ? 'Corporativo' : (newForm.id_empresa ? 'Agente' : 'Natural')
-                    })}
-                  />
-                  <DataInput label="Cédula / RIF" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
-                  <DataInput label="Código CIBIR (Opcional)" placeholder="359" value={newForm.codigo_cibir || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo_cibir: v })} />
-                </div>
-
-                <div className="p-4 bg-emerald-50/50 border border-emerald-100/50 rounded-2xl space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building2 size={14} className="text-emerald-500" />
-                    <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Afiliación Corporativa (Opcional)</span>
-                  </div>
-
+                  {!isNewCorporativo && (
+                    <DataInput label="Cédula" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
+                  )}
+                  {isNewCorporativo && (
+                    <DataInput label="Cédula del representante legal" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
+                  )}
+                  <DataInput label="Fecha de nacimiento" type="date" value={newForm.fecha_nacimiento || ''} onChange={(v: string) => setNewForm({ ...newForm, fecha_nacimiento: v })} />
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Corporativo al que pertenece</label>
-                    <select
-                      className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                      value={newForm.id_empresa || ''}
-                      onChange={(e) => {
-                        const corpId = e.target.value ? Number(e.target.value) : null;
-                        setNewForm({
-                          ...newForm,
-                          id_empresa: corpId,
-                          tipo_afiliado: corpId ? 'Agente' : 'Natural'
-                        });
-                      }}
-                    >
-                      <option value="">Independiente (Sin Corporativo)</option>
-                      {companies.map(c => (
-                        <option key={c.id_afiliado} value={c.id_afiliado}>
-                          {c.empresa_razon_social || c.nombre_completo} (RIF: {c.empresa_rif_numero || c.cedula})
-                        </option>
-                      ))}
-                    </select>
-                    {newForm.id_empresa && (
-                      <p className="text-[10px] text-emerald-600 font-bold ml-1 mt-1">
-                        * Se registrará como afiliado vinculado al RIF del corporativo seleccionado.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Contacto y Perfil */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                    <Mail size={16} />
-                  </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Contacto y Perfil</h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DataInput label="Correo Electrónico" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} />
-                  <DataInput label="Teléfono" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nivel Académico</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nivel académico</label>
                     <select
                       className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
                       value={newForm.nivel_academico || ''}
                       onChange={(e) => setNewForm({ ...newForm, nivel_academico: e.target.value })}
                     >
                       <option value="">No especificado</option>
-                      <option value="Bachiller">Bachiller</option>
-                      <option value="TSU">TSU</option>
-                      <option value="Universitario">Universitario</option>
-                      <option value="Postgrado">Postgrado</option>
+                      {ACADEMIC_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
-
-                  <DataInput label="Fecha Nacimiento" type="date" value={newForm.fecha_nacimiento || ''} onChange={(v: string) => setNewForm({ ...newForm, fecha_nacimiento: v })} />
                 </div>
+              </FormSection>
 
-                <DataInput label="Dirección" placeholder="Av. Principal..." value={newForm.direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, direccion: v })} />
-              </div>
-
-              {/* Redes Sociales */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                    <BadgeCheck size={16} />
+              {isNewCorporativo && (
+                <FormSection
+                  icon={<Building2 size={16} />}
+                  title="Información de la empresa"
+                  subtitle="Datos legales y de contacto del corporativo"
+                  variant="emerald"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <DataInput
+                        label="Razón social"
+                        placeholder="Inmobiliaria XYZ C.A."
+                        value={newForm.empresa_razon_social || ''}
+                        onChange={(v: string) => setNewForm({ ...newForm, empresa_razon_social: v })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF</label>
+                      <select
+                        className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        value={newForm.empresa_rif_tipo || 'J'}
+                        onChange={(e) => setNewForm({ ...newForm, empresa_rif_tipo: e.target.value })}
+                      >
+                        {ID_PREFIXES.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <DataInput
+                      label="Número RIF"
+                      placeholder="12345678-9"
+                      value={newForm.empresa_rif_numero || ''}
+                      onChange={(v: string) => setNewForm({ ...newForm, empresa_rif_numero: v })}
+                    />
+                    <DataInput label="Correo de la empresa" placeholder="contacto@empresa.com" value={newForm.empresa_email || newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_email: v, email: v })} />
+                    <DataInput label="Teléfono de la empresa" placeholder="+58 412..." value={newForm.empresa_telefono || newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_telefono: v, telefono: v })} />
+                    <div className="sm:col-span-2">
+                      <DataInput label="Sitio web" placeholder="https://www.empresa.com" value={newForm.empresa_website || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_website: v })} />
+                    </div>
                   </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Redes Sociales</h3>
-                </div>
+                </FormSection>
+              )}
 
-                <div className="space-y-4">
+              {!isNewCorporativo && (
+                <FormSection
+                  icon={<Building2 size={16} />}
+                  title="Vinculación corporativa"
+                  subtitle="Opcional: vincular a un corporativo existente como agente"
+                  variant="emerald"
+                >
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Corporativo al que pertenece</label>
+                    <select
+                      className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                      value={newForm.id_empresa || ''}
+                      onChange={(e) => {
+                        const corpId = e.target.value ? Number(e.target.value) : null
+                        setNewForm({
+                          ...newForm,
+                          id_empresa: corpId,
+                          tipo_afiliado: corpId ? 'Agente' : 'Natural',
+                        })
+                      }}
+                    >
+                      <option value="">Ninguno (independiente)</option>
+                      {companies.map((c) => (
+                        <option key={c.id_afiliado} value={c.id_empresa ?? ''}>
+                          {c.empresa_razon_social || c.nombre_completo} (RIF: {c.empresa_rif_numero || c.cedula})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </FormSection>
+              )}
+
+              <FormSection
+                icon={<Mail size={16} />}
+                title="Contacto y ubicación"
+                subtitle={isNewCorporativo ? 'Dirección fiscal o de oficina principal' : 'Correo, teléfono y dirección del afiliado'}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {!isNewCorporativo && (
+                    <>
+                      <DataInput label="Correo electrónico" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} />
+                      <DataInput label="Teléfono" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
+                    </>
+                  )}
+                  <div className={isNewCorporativo ? 'sm:col-span-2' : 'sm:col-span-2'}>
+                    <DataInput label="Dirección" placeholder="Av. Principal, Ciudad..." value={newForm.direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, direccion: v })} />
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection
+                icon={<BadgeCheck size={16} />}
+                title="Afiliación CIBIR"
+                subtitle="Identificación gremial"
+              >
+                <DataInput label="Código CIBIR (opcional)" placeholder="359" value={newForm.codigo_cibir || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo_cibir: v })} />
+              </FormSection>
+
+              <FormSection
+                icon={<Globe size={16} />}
+                title="Redes sociales"
+                subtitle="Opcional"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <DataInput label="Instagram" placeholder="@usuario" value={newForm.instagram || ''} onChange={(v: string) => setNewForm({ ...newForm, instagram: v })} />
                   <DataInput label="Facebook" placeholder="facebook.com/usuario" value={newForm.facebook || ''} onChange={(v: string) => setNewForm({ ...newForm, facebook: v })} />
-                  <DataInput label="LinkedIn" placeholder="linkedin.com/in/usuario" value={newForm.linkedin || ''} onChange={(v: string) => setNewForm({ ...newForm, linkedin: v })} />
+                  <div className="sm:col-span-2">
+                    <DataInput label="LinkedIn" placeholder="linkedin.com/in/usuario" value={newForm.linkedin || ''} onChange={(v: string) => setNewForm({ ...newForm, linkedin: v })} />
+                  </div>
                 </div>
-              </div>
+              </FormSection>
             </div>
 
             <div className="p-8 border-t border-gray-50 flex gap-4 shrink-0 bg-white">
@@ -1244,6 +1336,44 @@ function DataField({ label, value, isEditing, fieldName, form, setForm, type = '
         <p className={`bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 ${className}`}>{value}</p>
       )}
     </div>
+  )
+}
+
+function FormSection({
+  icon,
+  title,
+  subtitle,
+  children,
+  variant = 'default',
+}: {
+  icon: React.ReactNode
+  title: string
+  subtitle?: string
+  children: React.ReactNode
+  variant?: 'default' | 'emerald'
+}) {
+  const isEmerald = variant === 'emerald'
+  return (
+    <section
+      className={`rounded-2xl border p-5 space-y-4 ${
+        isEmerald ? 'bg-emerald-50/40 border-emerald-100' : 'bg-slate-50/50 border-gray-100'
+      }`}
+    >
+      <div className="flex items-start gap-3 pb-3 border-b border-gray-100/80">
+        <div
+          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+            isEmerald ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-400 border border-gray-100'
+          }`}
+        >
+          {icon}
+        </div>
+        <div>
+          <h4 className="font-black text-slate-800 text-sm uppercase tracking-wider">{title}</h4>
+          {subtitle && <p className="text-[11px] text-slate-400 font-medium mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
   )
 }
 

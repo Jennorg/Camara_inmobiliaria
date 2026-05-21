@@ -39,6 +39,25 @@ html { height: 100%; }
 body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialiased; }
 #root { min-height: 100%; }
 
+/* El carril tiene 2 bloques iguales; -50% = exactamente un bloque (bucle sin corte) */
+@keyframes affiliation-ticker {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-affiliation-ticker {
+  animation: affiliation-ticker 45s linear infinite;
+  backface-visibility: hidden;
+}
+
+.group:hover .animate-affiliation-ticker {
+  animation-play-state: paused;
+}
+
 /* ── CMS Animations ────────────────────────────────────────────────────────── */
 @keyframes cms-fade-up {
   from { opacity: 0; transform: translateY(8px); }

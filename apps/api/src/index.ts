@@ -1,25 +1,40 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { env } from './config/env.js'
+import { isOriginAllowed } from './lib/cors.js'
 import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes } from './routes/index.js'
 
 
 const app = express()
 
-// Middleware
-app.use(cors({
+// Normaliza paths con doble barra (evita 308 en Vercel sin cabeceras CORS)
+app.use((req, _res, next) => {
+  const q = req.url.indexOf('?')
+  const path = q === -1 ? req.url : req.url.slice(0, q)
+  const query = q === -1 ? '' : req.url.slice(q)
+  const cleaned = path.replace(/\/{2,}/g, '/')
+  if (cleaned !== path) req.url = cleaned + query
+  next()
+})
+
+const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Permite requests sin Origin (curl, server-to-server, Postman)
     if (!origin) return callback(null, true)
-    // En dev permitimos todo para no bloquear el DX
     if (env.NODE_ENV !== 'production') return callback(null, true)
 
-    const allowed = env.CORS_ORIGINS.includes(origin)
-    return callback(allowed ? null : new Error('Not allowed by CORS'), allowed)
+    if (isOriginAllowed(origin)) return callback(null, true)
+
+    console.warn(`[CORS] Origin bloqueado: ${origin} | Permitidos: ${env.CORS_ORIGINS.join(', ')}`)
+    return callback(null, false)
   },
   credentials: true,
-}))
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+})
+
+app.use(corsMiddleware)
 app.use(express.json())
+app.options('{*path}', corsMiddleware)
 
 // Rutas de API
 app.use('/api/auth', authRoutes)

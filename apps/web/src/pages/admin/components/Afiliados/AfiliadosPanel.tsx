@@ -5,6 +5,7 @@ import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
+import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 
 function DocLink({ label, url, compact = false }: { label: string, url?: string | null, compact?: boolean }) {
@@ -273,6 +274,13 @@ export default function AfiliadosPanel() {
                 </div>
               </div>
             </div>
+
+            <EstablecerAccesoAfiliado
+              token={token}
+              afiliado={selected}
+              compact
+              onSuccess={() => loadDetail(selected.id_afiliado)}
+            />
 
             {/* Profile Info */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">

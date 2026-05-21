@@ -183,4 +183,10 @@ El `vercel.json` redirige todas las rutas al `index.html` para el correcto funci
 vercel --prod
 ```
 
-Configura `VITE_API_URL` en las variables de entorno de Vercel apuntando a la URL de la API en producción.
+Configura `VITE_API_URL` en Vercel apuntando a la API **sin barra final**:
+
+```env
+VITE_API_URL=https://cim-back-five.vercel.app
+```
+
+Si termina en `/` o con `//`, el navegador puede llamar `//api/...`, recibir un redirect **308** sin cabeceras CORS y fallar la preinscripción.

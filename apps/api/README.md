@@ -61,7 +61,7 @@ JWT_EXPIRES_IN=7d
 APP_URL=http://localhost:5173
 
 # CORS (uno o varios, separados por coma)
-CORS_ORIGINS=http://localhost:5173,https://cim-front.vercel.app
+CORS_ORIGINS=http://localhost:5173,https://cim-front.vercel.app,https://*.vercel.app
 ```
 
 ### 2. Instalar y ejecutar

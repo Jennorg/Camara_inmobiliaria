@@ -23,6 +23,7 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute({
       sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
+                   a.id_afiliado,
                    COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, a.codigo_cibir, a.estatus as estatus_afiliado
             FROM users u
             LEFT JOIN afiliados a ON u.id = a.id_user
@@ -139,12 +140,15 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     }
     if (activo !== undefined) { fields.push('activo = ?'); args.push(activo ? 1 : 0) }
     if (password !== undefined) {
-      if (password.length < 4) {
-        res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 4 caracteres' })
+      if (password.length < 8) {
+        res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 8 caracteres' })
         return
       }
       const hash = await bcrypt.hash(password, 10)
       fields.push('password_hash = ?'); args.push(hash)
+      fields.push('reset_token_hash = NULL')
+      fields.push('reset_token_expira = NULL')
+      fields.push('activo = 1')
     }
 
     if (fields.length === 0) {

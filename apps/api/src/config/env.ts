@@ -51,7 +51,7 @@ const parsed = envSchema.parse(process.env)
 const corsRaw = parsed.CORS_ORIGINS ?? parsed.CORS_ORIGIN ?? parsed.APP_URL
 const corsList = corsRaw
   .split(',')
-  .map(s => s.trim())
+  .map(s => s.trim().replace(/\/$/, ''))
   .filter(Boolean)
 
 export const env = {

@@ -1,21 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { API_URL } from '@/config/env'
-import { useAuth } from '@/context/AuthContext'
+import React, { useState } from 'react'
 import AsignarEstudiantePanel from './AsignarEstudiantePanel'
-import PreinscripcionesPrincipalesPanel from './PreinscripcionesPrincipalesPanel'
 import CursosAdminPanel from './CursosAdminPanel'
 
 // ─── MAIN FORMACION PANEL ─────────────────────────────────────────────────────
-type SubTab = 'cursos' | 'preinscripciones' | 'asignar'
-
+type SubTab = 'cursos' | 'asignar'
 
 const FormacionPanel = () => {
-  const { token } = useAuth()
   const [activeTab, setActiveTab] = useState<SubTab>('cursos')
 
-  const tabs: { id: SubTab; label: string; badge?: number }[] = [
+  const tabs: { id: SubTab; label: string }[] = [
     { id: 'cursos', label: 'Cursos & Talleres' },
-    { id: 'preinscripciones', label: 'Preinscripciones' },
     { id: 'asignar', label: 'Asignar Estudiante' },
   ]
 
@@ -42,7 +36,6 @@ const FormacionPanel = () => {
       {/* Content */}
       <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden">
         {activeTab === 'cursos' && <CursosAdminPanel />}
-        {activeTab === 'preinscripciones' && <PreinscripcionesPrincipalesPanel />}
         {activeTab === 'asignar' && <AsignarEstudiantePanel />}
 
       </div>

@@ -6,7 +6,11 @@ import CmsContent from '@/pages/admin/components/CmsContent'
 const NAV_META: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Resumen financiero y actividad reciente' },
   articles: { title: 'Artículos', subtitle: 'Gestionar el contenido del sitio' },
-  formacion: { title: 'Formación', subtitle: 'Cursos, talleres y programa CIBIR' },
+  formacion: { title: 'Formación', subtitle: 'Cursos, talleres y asignación de estudiantes' },
+  solicitudes_academicas: {
+    title: 'Solicitudes académicas',
+    subtitle: 'Postulaciones, entrevistas y admisión a programas (PREANI, PEGI, PADI, CIBIR y afiliación)',
+  },
   cms: { title: 'Contenido', subtitle: 'Todas las secciones de la Landing' },
   cms_noticias: { title: 'Noticias', subtitle: 'Últimas novedades y artículos' },
   cms_convenios: { title: 'Convenios', subtitle: 'Alianzas y beneficios para afiliados' },
@@ -16,7 +20,8 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   cms_config: { title: 'Configuración de Contenido', subtitle: 'Textos fijos e imágenes de la Landing' },
   media: { title: 'Medios', subtitle: 'Gestionar archivos e imágenes' },
   afiliados: { title: 'Afiliados', subtitle: 'Gestión de candidatos y afiliados CIBIR' },
-  estudiantes: { title: 'Estudiantes', subtitle: 'Estudiantes regulares, preinscripciones e inscripciones' },
+  estudiantes: { title: 'Estudiantes', subtitle: 'Estudiantes regulares e inscripciones activas' },
+  admin_users: { title: 'Administradores', subtitle: 'Cuentas con acceso al panel administrativo' },
   users: { title: 'Usuarios', subtitle: 'Cuentas de acceso al sistema' },
   analytics: { title: 'Análisis', subtitle: 'Métricas y rendimiento general' },
   settings: { title: 'Configuración del Sistema', subtitle: 'Ajustes del sistema y preferencias' },

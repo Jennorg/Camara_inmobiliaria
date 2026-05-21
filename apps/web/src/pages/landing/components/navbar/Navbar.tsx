@@ -6,6 +6,7 @@ import logoDark from '@/assets/Logo3.png'  // Logo para modo oscuro
 import LoginModal from '@/pages/landing/components/LoginModal'
 import RegisterModal from '@/pages/landing/components/RegisterModal'
 import NavItem from './NavItem'
+import AffiliationTicker from './AffiliationTicker'
 import { NAV_ITEMS } from './navData'
 import { Menu, X, LogOut, Moon, Sun } from 'lucide-react'
 
@@ -30,19 +31,19 @@ const Navbar = ({
 
   return (
     <>
-      <nav className={`sticky top-0 z-50 transition-colors duration-300 border-b ${
+      <nav className={`sticky top-0 z-50 overflow-x-hidden transition-colors duration-300 border-b ${
         darkMode 
           ? "bg-[#011a14]/95 border-white/10 text-white" 
           : "bg-white border-slate-100 text-emerald-950 shadow-sm"
       }`}>
-        <div className="flex items-center  lg:px-2 py-2">
+        <div className="flex items-center lg:px-2 py-2">
           
-          {/* 1. ZONA LOGO: Cambia dinámicamente según darkMode */}
-          <div className="flex-1 flex justify-start pl-[5%] ">
-            <Link to="/" className="relative group flex items-center p-2 transition-all duration-300 z-50">
+          {/* 1. ZONA LOGO */}
+          <div className="flex-1 flex justify-start pl-[5%]">
+            <Link to="/" className="relative group flex items-center p-1 transition-all duration-300 z-50">
               <img 
                 src={darkMode ? logoDark : logoLight} 
-                className={`h-16 lg:h-24 w-auto object-contain transition-all duration-500 group-hover:scale-105 ${
+                className={`h-16 lg:h-20 w-auto object-contain transition-all duration-500 group-hover:scale-105 ${
                   darkMode ? "drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "drop-shadow-[0_0_12px_rgba(5,150,105,0.2)]"
                 }`} 
                 alt="Logo CIBIR" 
@@ -110,6 +111,8 @@ const Navbar = ({
             </button>
           </div>
         </div>
+
+        <AffiliationTicker darkMode={darkMode} />
 
         {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
         {showRegisterModal && <RegisterModal onClose={() => setShowRegisterModal(false)} />}

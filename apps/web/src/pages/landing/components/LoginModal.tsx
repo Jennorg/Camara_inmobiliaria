@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import logo from '@/assets/Logo2.png'
 import ForgotPasswordModal from '@/pages/landing/components/ForgotPasswordModal'
@@ -120,8 +121,19 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             </div>
           </form>
 
+          <p className='mt-8 text-center text-sm text-slate-500'>
+            ¿No estas afiliado?{' '}
+            <Link
+              to='/afiliate'
+              onClick={onClose}
+              className='font-semibold text-emerald-600 hover:text-emerald-700 underline underline-offset-2 decoration-emerald-500/40 hover:decoration-emerald-600 transition-colors'
+            >
+              Afíliate aquí
+            </Link>
+          </p>
+
           {/* Footer del Modal */}
-          <div className='mt-10 text-center'>
+          <div className='mt-8 text-center'>
             <p className='text-slate-400 text-[11px] font-medium'>
               CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR
             </p>

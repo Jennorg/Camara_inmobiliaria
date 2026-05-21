@@ -147,6 +147,12 @@ const icons = {
       <path d="M12 14h.01" />
     </svg>
   ),
+  solicitudes: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+    </svg>
+  ),
 }
 
 interface NavGroup {
@@ -177,6 +183,7 @@ const NAV_MAIN: NavGroup[] = [
   { id: 'dashboard', label: 'Dashboard', icon: icons.dashboard },
   { id: 'cms', label: 'Contenido', icon: icons.cms, children: CMS_CHILDREN },
   { id: 'formacion', label: 'Formación', icon: icons.formacion },
+  { id: 'solicitudes_academicas', label: 'Solicitudes académicas', icon: icons.solicitudes },
   { id: 'media', label: 'Medios', icon: icons.media },
   { id: 'afiliados', label: 'Afiliados', icon: icons.users },
   { id: 'estudiantes', label: 'Estudiantes', icon: icons.formacion },

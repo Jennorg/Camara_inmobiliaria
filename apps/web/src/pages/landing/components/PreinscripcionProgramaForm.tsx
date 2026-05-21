@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import { Building2, User, Mail, Briefcase, GraduationCap, School, Award, ChevronDown, Check, ArrowRight, Loader2, AlertCircle, Info, UserCheck } from 'lucide-react'
 import AffiliationForm from '@/components/forms/AffiliationForm'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { apiUrl } from '@/config/env'
 
 interface Props {
   programaCodigo: string
@@ -92,7 +91,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             profesion: formData.profesion.trim() || null,
           }
 
-      const res = await fetch(`${API_URL}/api/public/preinscripciones`, {
+      const res = await fetch(apiUrl('/api/public/preinscripciones'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

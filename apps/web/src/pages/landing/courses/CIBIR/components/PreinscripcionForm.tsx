@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Mail, CheckCircle2, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
-import { API_URL } from '@/config/env'
+import { apiUrl } from '@/config/env'
 
 const COUNTRIES = [
   { code: '+58', flag: '🇻🇪', label: 'Venezuela' },
@@ -73,7 +73,7 @@ const PreinscripcionForm = () => {
     const phone = `${formData.phonePrefix}${phoneNum}`;
 
     try {
-      const response = await fetch(`${API_URL}/api/afiliados/registro`, {
+      const response = await fetch(apiUrl('/api/afiliados/registro'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

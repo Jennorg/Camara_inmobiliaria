@@ -1680,3 +1680,54 @@ export const convertirAgenteANatural = async (req: Request, res: Response): Prom
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };
+
+/**
+ * PATCH /api/afiliados/:id/acceso-panel
+ * Crea o actualiza la contraseña de acceso al panel para un afiliado (solo admin).
+ * Body: { password: string, email?: string }
+ */
+export const establecerAccesoPanel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const { password, email } = req.body as { password?: string; email?: string }
+
+    if (!password || password.length < 8) {
+      res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 8 caracteres' })
+      return
+    }
+
+    const { establecerAccesoPanelAfiliado } = await import('../lib/credentials.js')
+    const result = await establecerAccesoPanelAfiliado(id, password, email)
+
+    res.status(200).json({
+      success: true,
+      message: result.created
+        ? 'Cuenta de acceso creada y vinculada al afiliado'
+        : 'Contraseña de acceso actualizada',
+      data: result,
+    })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : ''
+    if (msg === 'AFILIADO_NO_ENCONTRADO') {
+      res.status(404).json({ success: false, message: 'Afiliado no encontrado' })
+      return
+    }
+    if (msg === 'EMAIL_REQUERIDO') {
+      res.status(400).json({
+        success: false,
+        message: 'El afiliado no tiene email registrado. Indique un correo de acceso.',
+      })
+      return
+    }
+    if (msg === 'EMAIL_EN_USO') {
+      res.status(409).json({ success: false, message: 'Ese correo ya está registrado para otro usuario' })
+      return
+    }
+    if (msg.includes('UNIQUE constraint failed: users.email')) {
+      res.status(409).json({ success: false, message: 'El email ya está registrado para otro usuario' })
+      return
+    }
+    console.error('establecerAccesoPanel:', error)
+    res.status(500).json({ success: false, message: 'Error interno del servidor' })
+  }
+}

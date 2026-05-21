@@ -19,6 +19,7 @@ const ic = 'shrink-0 opacity-95'
 const icBtn = (active: boolean) => (active ? 'text-white' : 'text-slate-500')
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
+import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
 
 interface SystemUser {
   id: number
@@ -192,7 +193,9 @@ export default function UsersPanel() {
       <div className='flex items-center justify-between'>
         <div>
           <h1 className='text-2xl font-black text-slate-800'>Gestión de Usuarios</h1>
-          <p className='text-sm text-slate-400 mt-1'>Administra las cuentas de acceso al sistema</p>
+          <p className='text-sm text-slate-400 mt-1'>
+            Administra cuentas y establece contraseñas de afiliados para el panel
+          </p>
         </div>
         <div className='flex gap-3'>
           <button
@@ -211,6 +214,11 @@ export default function UsersPanel() {
           </button>
         </div>
       </div>
+
+      <EstablecerAccesoAfiliado
+        token={token}
+        onSuccess={msg => setFeedback({ type: 'ok', msg })}
+      />
 
       {/* Feedback */}
       {feedback && (
@@ -263,6 +271,7 @@ export default function UsersPanel() {
                   onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                   className='w-full bg-slate-50 border border-slate-100 rounded-2xl pl-11 pr-4 py-3 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white transition-all placeholder:text-slate-300'
                   placeholder='Mínimo 8 caracteres'
+                  minLength={8}
                 />
               </div>
             </div>
@@ -316,7 +325,7 @@ export default function UsersPanel() {
                 <KeyRound size={20} />
               </div>
               <div>
-                <h3 className='font-bold text-slate-800'>Actualizar Contraseña</h3>
+                <h3 className='font-bold text-slate-800'>Establecer contraseña</h3>
                 <p className='text-xs text-slate-500'>{resettingUser.email}</p>
               </div>
             </div>
@@ -330,11 +339,12 @@ export default function UsersPanel() {
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   className='w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-amber-400'
-                  placeholder='Nueva clave de acceso'
+                  placeholder='Mínimo 8 caracteres'
+                  minLength={8}
                 />
               </div>
               <p className='text-[10px] text-slate-400 leading-relaxed italic'>
-                * Al actualizar, el usuario deberá usar esta nueva clave para ingresar inmediatamente.
+                El afiliado podrá iniciar sesión de inmediato con esta clave (se activa la cuenta).
               </p>
             </div>
 
@@ -509,8 +519,15 @@ export default function UsersPanel() {
                 <tr key={u.id} className='hover:bg-slate-50 transition'>
                   <td className='px-5 py-4'>
                     <p className='font-semibold text-slate-700'>{u.email}</p>
-                    <p className='text-xs text-slate-400 mt-0.5'>
+                    {u.nombre_completo && (
+                      <p className='text-xs text-slate-500 mt-0.5 truncate max-w-[220px]'>
+                        {u.nombre_completo}
+                        {u.codigo_cibir ? ` · ${u.codigo_cibir}` : ''}
+                      </p>
+                    )}
+                    <p className='text-[10px] text-slate-400 mt-0.5'>
                       {new Date(u.creado_en).toLocaleDateString('es-VE')}
+                      {u.id_afiliado ? ` · Afiliado #${u.id_afiliado}` : ''}
                     </p>
                   </td>
                   <td className='px-5 py-4'>
@@ -557,7 +574,7 @@ export default function UsersPanel() {
                         className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 transition shadow-sm'
                       >
                         <KeyRound size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
-                        Reset
+                        Contraseña
                       </button>
                       <button
                         type='button'
