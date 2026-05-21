@@ -89,8 +89,8 @@ export const useAfiliadoProfile = (): UseAfiliadoProfileResult => {
       (assoc) => assoc.id_afiliado !== leaderNode.id_afiliado
     );
 
-    const companyLogo = isCorporativo ? afiliado.empresa_logo_url : (afiliado.empresa_logo_url || null);
-    const displayEmblem = companyLogo || logoCibir;
+    const companyLogo = afiliado.empresa_logo_url || null;
+    const displayEmblem = (isCorporativo && companyLogo) ? companyLogo : logoCibir;
 
     const showEmpresaSection =
       isCorporativo ||

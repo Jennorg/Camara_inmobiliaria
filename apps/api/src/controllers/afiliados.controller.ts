@@ -7,19 +7,6 @@ const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 const avatarFallback = (name: string) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=047857&color=fff&size=200`;
 
-const resolvePublicFotoUrl = (row: {
-  nombre_completo: string;
-  tipo_afiliado?: string;
-  foto_url?: string | null;
-  empresa_logo_url?: string | null;
-}) => {
-  const stored = (row.foto_url as string) || '';
-  if (row.tipo_afiliado === 'Corporativo') {
-    return (row.empresa_logo_url as string) || stored || avatarFallback(row.nombre_completo);
-  }
-  return stored || avatarFallback(row.nombre_completo);
-};
-
 import {
   enviarCorreoVerificacion,
   enviarCorreoAprobacion,
@@ -737,10 +724,9 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       console.log(`[DEBUG] Tipos encontrados:`, [...new Set(result.rows.map(r => r.tipo_afiliado))]);
     }
 
-    // Usamos logo_url real si existe, sino ui-avatars como fallback
     const mappedData = result.rows.map((row) => ({
       ...row,
-      foto_url: resolvePublicFotoUrl(row as { nombre_completo: string; tipo_afiliado?: string; foto_url?: string | null; empresa_logo_url?: string | null }),
+      foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
       redes_sociales: {
         instagram: row.instagram || '',
         linkedin: row.linkedin || '',
@@ -811,7 +797,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
 
     const mappedData: any = {
       ...row,
-      foto_url: resolvePublicFotoUrl(row as { nombre_completo: string; tipo_afiliado?: string; foto_url?: string | null; empresa_logo_url?: string | null }),
+      foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
       redes_sociales: {
         instagram: row.instagram || '',
         linkedin: row.linkedin || '',

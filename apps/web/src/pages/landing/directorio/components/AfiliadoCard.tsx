@@ -7,6 +7,68 @@ import { AfiliadoDTO } from '@/types/afiliados';
 
 export type AfiliadoData = AfiliadoDTO;
 
+/** Tarjeta corporativa: logo con contain; personas: foto con cover. */
+function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
+  if (isCorpView) {
+    const url = afiliado.empresa_logo_url || afiliado.foto_url || null;
+    return { url, isLogo: !!afiliado.empresa_logo_url };
+  }
+  return { url: afiliado.foto_url || null, isLogo: false };
+}
+
+function CardImage({
+  afiliado,
+  isCorpView,
+  size = 'default',
+}: {
+  afiliado: AfiliadoData;
+  isCorpView: boolean;
+  size?: 'default' | 'mini';
+}) {
+  const { url, isLogo } = getCardImage(afiliado, isCorpView);
+  const initials = getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos);
+  const alt = isCorpView
+    ? `Logo de ${afiliado.empresa_razon_social || afiliado.nombre_completo}`
+    : `Foto de ${afiliado.nombre_completo}`;
+
+  if (size === 'mini') {
+    return (
+      <div
+        className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center ${
+          isLogo ? 'bg-white p-1.5' : 'bg-[#022c22]'
+        }`}
+      >
+        {url ? (
+          <img src={url} alt={alt} className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover'}`} />
+        ) : (
+          <span className="text-white font-black text-sm uppercase tracking-tighter">{initials}</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mb-2.5 w-full -mx-4 -mt-4 pt-2">
+      <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500 to-teal-300 rounded-[1rem] blur-lg opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
+      <div
+        className={`relative w-full h-36 rounded-[1rem] overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center mt-1.5 ${
+          isLogo ? 'bg-white p-4' : 'bg-[#022c22]'
+        }`}
+      >
+        {url ? (
+          <img
+            src={url}
+            alt={alt}
+            className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
+          />
+        ) : (
+          <span className="text-white font-black text-xl uppercase tracking-tighter">{initials}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface AfiliadoCardProps {
   afiliado: AfiliadoData;
   forceRepMode?: boolean;
@@ -23,19 +85,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
         to={forceRepMode ? `/miembros/${afiliado.id_afiliado}?mode=rep` : `/miembros/${afiliado.id_afiliado}`}
         className="group flex flex-col items-center gap-1 focus:outline-none"
       >
-        <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center bg-[#022c22] group-hover:scale-105 transition-transform duration-300">
-          {afiliado.foto_url ? (
-            <img
-              src={afiliado.foto_url}
-              alt={`Foto de ${afiliado.nombre_completo}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-white font-black text-sm uppercase tracking-tighter">
-              {getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
-            </span>
-          )}
-        </div>
+        <CardImage afiliado={afiliado} isCorpView={isCorpView} size="mini" />
         <div className="text-center">
           <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-[10px] md:text-xs leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors uppercase truncate max-w-[100px]">
             {isCorpView 
@@ -99,23 +149,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
             </span>
         </div>
         
-        {/* Avatar */}
-        <div className="relative mb-2.5 w-full -mx-4 -mt-4 pt-2">
-          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500 to-teal-300 rounded-[1rem] blur-lg opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
-          <div className="relative w-full h-36 rounded-[1rem] overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center bg-[#022c22] mt-1.5">
-            {afiliado.foto_url ? (
-              <img
-                src={afiliado.foto_url}
-                alt={`Foto de ${afiliado.nombre_completo}`}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            ) : (
-              <span className="text-white font-black text-xl uppercase tracking-tighter">
-                {getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
-              </span>
-            )}
-          </div>
-        </div>
+        <CardImage afiliado={afiliado} isCorpView={isCorpView} />
         
         {/* Información del Miembro */}
         <div className="space-y-0.5 mb-3 w-full">

@@ -26,11 +26,13 @@ export const ProfileHeroView = ({
 
       <div className="relative flex flex-col items-center">
         <div className="flex justify-center mb-8">
-          <img 
-            src={displayEmblem} 
-            alt="Logo / Escudo" 
-            className="max-h-36 md:max-h-44 object-contain rounded-2xl" 
-          />
+          <div className={`flex items-center justify-center rounded-2xl p-4 ${isCorporativo && companyLogo ? 'bg-white' : ''}`}>
+            <img
+              src={displayEmblem}
+              alt={isCorporativo ? `Logo de ${afiliado.empresa_razon_social || 'empresa'}` : 'CIBIR'}
+              className="max-h-36 md:max-h-44 max-w-[280px] object-contain"
+            />
+          </div>
         </div>
 
         {(isCorporativo || afiliado.empresa_razon_social) ? (
@@ -59,9 +61,9 @@ export const ProfileHeroView = ({
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-[3px] border-white dark:border-[#070b12] shadow-xl shrink-0 bg-slate-900 flex items-center justify-center">
               {afiliado.foto_url ? (
-                <img 
-                  src={afiliado.foto_url} 
-                  alt={afiliado.nombres} 
+                <img
+                  src={afiliado.foto_url}
+                  alt={`Foto de ${formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}`}
                   className="w-full h-full object-cover"
                 />
               ) : (
