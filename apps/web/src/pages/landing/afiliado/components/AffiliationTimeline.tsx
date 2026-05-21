@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ClipboardList, Mail, UserCheck, Calendar, Users, Award, CreditCard, ShieldCheck } from 'lucide-react';
+import { Check, ClipboardList, Mail, UserCheck, Calendar, Users, Award, CreditCard, ShieldCheck, GraduationCap } from 'lucide-react';
 
 const STEPS = [
   { id: '1_PREINSCRIPCION', label: 'Preinscripción', icon: ClipboardList, desc: 'Solicitud inicial registrada' },

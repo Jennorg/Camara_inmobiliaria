@@ -3,6 +3,7 @@ import React from 'react';
 interface DashboardCardProps {
   children: React.ReactNode;
   title: string;
+  description?: string;
   icon?: React.ElementType;
   actionText?: string;
   actionIcon?: React.ElementType;
@@ -12,6 +13,7 @@ interface DashboardCardProps {
 const DashboardCard = ({
   children,
   title,
+  description,
   icon: Icon,
   actionText,
   actionIcon: ActionIcon,
@@ -35,9 +37,16 @@ const DashboardCard = ({
     >
       <div className="flex items-center gap-2.5">
         {Icon && <Icon size={17} style={{ color: 'var(--color-accent-hover)' }} />}
-        <h3 className="font-bold text-sm uppercase tracking-wider" style={{ color: 'var(--color-primary)' }}>
-          {title}
-        </h3>
+        <div>
+          <h3 className="font-bold text-sm uppercase tracking-wider" style={{ color: 'var(--color-primary)' }}>
+            {title}
+          </h3>
+          {description && (
+            <p className="text-[10px] text-gray-400 font-medium normal-case mt-0.5">
+              {description}
+            </p>
+          )}
+        </div>
       </div>
       {actionText && (
         <button

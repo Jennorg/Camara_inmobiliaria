@@ -113,6 +113,14 @@ export interface AfiliadoDTO {
   facebook?: string;
   linkedin?: string;
   cedula_personal?: string; // Para compatibilidad con lógica de representantes
+  foto_url?: string;
+  fecha_inicio_servicio?: string;
+  razon_social?: string;
+  direccion_publica?: string | null;
+  descripcion?: string | null;
+  website?: string;
+  twitter?: string;
+  documentos?: any[]; // Added to support admin panel document list
 }
 
 export interface AfiliadoCompleto {

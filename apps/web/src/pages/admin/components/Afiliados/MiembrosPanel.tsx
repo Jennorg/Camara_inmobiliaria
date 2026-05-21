@@ -1,14 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { formatNombreCard, formatRif } from '@/utils/formatters'
+import { formatNombreCard, formatRif, getInitials } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
+import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
 
 import {
   UserPlus, Search, Filter, RefreshCw, Trash2, Edit3, Save, X,
   ChevronRight, Building2, User as UserIcon, CheckCircle2, AlertCircle,
   Mail, Phone, MapPin, BadgeCheck, FileText, Calendar, CreditCard,
-  ShieldAlert, ArrowUpDown
+  ShieldAlert, ArrowUpDown, ChevronDown, ImageIcon, Upload, Loader2,
+  Briefcase, StickyNote, Globe
 } from 'lucide-react'
 
 
@@ -26,12 +28,21 @@ export default function MiembrosPanel() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos')
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('codigo_asc')
 
   const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState<Partial<AfiliadoDTO>>({})
   const [companies, setCompanies] = useState<AfiliadoDTO[]>([])
+  type ImageEditKind = 'logo' | 'foto'
+  const [imageEditKind, setImageEditKind] = useState<ImageEditKind | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageError, setImageError] = useState('')
+  const [imageDragOver, setImageDragOver] = useState(false)
+  const imageFileInputRef = useRef<HTMLInputElement>(null)
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [newForm, setNewForm] = useState<Partial<AfiliadoDTO>>({
@@ -65,6 +76,73 @@ export default function MiembrosPanel() {
     setSelected(item)
     setIsEditing(false)
     setEditForm(item)
+    setImageEditKind(null)
+    setImagePreview(null)
+    setImageFile(null)
+    setImageError('')
+  }
+
+  const openImageEditor = (kind: ImageEditKind) => {
+    if (!selected) return
+    setImageEditKind(kind)
+    setImageError('')
+    setImageFile(null)
+    setImagePreview(
+      kind === 'logo'
+        ? selected.empresa_logo_url || null
+        : selected.foto_url || null
+    )
+  }
+
+  const closeImageEditor = () => {
+    setImageEditKind(null)
+    setImageFile(null)
+    setImagePreview(null)
+    setImageError('')
+  }
+
+  const handleImageFileChange = (file: File) => {
+    setImageFile(file)
+    setImageError('')
+    const reader = new FileReader()
+    reader.onload = (e) => setImagePreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleSaveImage = async () => {
+    if (!selected || !imageEditKind) return
+    setImageUploading(true)
+    setImageError('')
+    try {
+      const isLogo = imageEditKind === 'logo'
+      let finalUrl = imagePreview || (isLogo ? selected.empresa_logo_url : selected.foto_url) || ''
+      if (imageFile) {
+        finalUrl = await uploadFileSupabase(
+          imageFile,
+          isLogo ? 'logos/empresas' : 'fotos/afiliados'
+        )
+      }
+      const payload = isLogo ? { empresa_logo_url: finalUrl } : { foto_url: finalUrl }
+      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        const updated = isLogo
+          ? { ...selected, empresa_logo_url: finalUrl }
+          : { ...selected, foto_url: finalUrl }
+        setSelected(updated)
+        setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
+        closeImageEditor()
+      } else {
+        setImageError('Error al guardar en el servidor')
+      }
+    } catch (err: any) {
+      setImageError(err?.message || 'Error al subir la imagen')
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   const updateField = async (field: keyof AfiliadoDTO, value: any) => {
@@ -243,31 +321,67 @@ export default function MiembrosPanel() {
             </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="relative w-full">
             <button
-              onClick={() => setFilterTipo('Todos')}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Todos' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
+              type="button"
+              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              className="w-full flex items-center justify-between gap-1.5 px-2 py-2 bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
-              Todos
+              <div className="flex items-center gap-2 overflow-hidden">
+                <Filter size={14} className="text-slate-400 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-widest truncate">
+                  Filtro: {filterTipo === 'Todos' ? 'Todos' : filterTipo === 'Natural' ? 'Agentes Independientes' : filterTipo === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className={`w-2 h-2 rounded-full ${
+                  filterTipo === 'Todos' ? 'bg-slate-400' :
+                  filterTipo === 'Natural' ? 'bg-blue-500' :
+                  filterTipo === 'Corporativo' ? 'bg-emerald-500' : 'bg-amber-500'
+                }`} />
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+              </div>
             </button>
-             <button
-               onClick={() => setFilterTipo('Natural')}
-               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Natural' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
-             >
-               Agentes Independientes
-             </button>
-             <button
-               onClick={() => setFilterTipo('Corporativo')}
-               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Corporativo' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
-             >
-               Corporativos
-             </button>
-             <button
-               onClick={() => setFilterTipo('Agente')}
-               className={`flex-1 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filterTipo === 'Agente' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-gray-200 hover:border-slate-300'}`}
-             >
-               Agentes Corporativos
-             </button>
+
+            {showFilterDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
+                <div className="absolute left-0 right-0 mt-1.5 rounded-xl bg-white shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="py-1">
+                    {[
+                      { id: 'Todos', label: 'Todos' },
+                      { id: 'Natural', label: 'Agentes Independientes' },
+                      { id: 'Corporativo', label: 'Corporativos' },
+                      { id: 'Agente', label: 'Agentes Corporativos' },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setFilterTipo(f.id as any);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-2 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 flex items-center justify-between ${
+                          filterTipo === f.id
+                            ? f.id === 'Todos' ? 'bg-slate-800 text-white' : f.id === 'Natural' ? 'bg-blue-600 text-white' : f.id === 'Corporativo' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="truncate mr-2">{f.label}</span>
+                        {filterTipo === f.id ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                        ) : (
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            f.id === 'Todos' ? 'bg-slate-300' :
+                            f.id === 'Natural' ? 'bg-blue-400' :
+                            f.id === 'Corporativo' ? 'bg-emerald-400' : 'bg-amber-400'
+                          }`} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -361,9 +475,83 @@ export default function MiembrosPanel() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center shrink-0 shadow-inner ${selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
-                  {selected.tipo_afiliado === 'Corporativo' ? <Building2 size={40} /> : <UserIcon size={40} />}
-                </div>
+                {/* Avatar / Logo */}
+                {selected.tipo_afiliado === 'Corporativo' ? (
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="relative">
+                      <div
+                        className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                        onClick={() => openImageEditor('logo')}
+                        title="Haz clic para cambiar el logo de la empresa"
+                      >
+                        {selected.empresa_logo_url ? (
+                          <img src={selected.empresa_logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <Building2 size={36} className="text-emerald-400" />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                        onClick={() => openImageEditor('logo')}
+                        title="Editar logo"
+                      >
+                        <Edit3 size={12} className="text-slate-500" />
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <div
+                        className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                        onClick={() => openImageEditor('foto')}
+                        title="Haz clic para cambiar la foto del representante"
+                      >
+                        {selected.foto_url ? (
+                          <img src={selected.foto_url} alt="Representante" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-sm font-black text-emerald-700 uppercase">
+                            {getInitials(selected.nombres, selected.apellidos)}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                        onClick={() => openImageEditor('foto')}
+                        title="Editar foto del representante"
+                      >
+                        <Edit3 size={10} className="text-slate-500" />
+                      </button>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider text-center mt-1.5 max-w-[4.5rem]">
+                        Representante
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-blue-50 border-2 border-blue-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                      onClick={() => openImageEditor('foto')}
+                      title="Haz clic para cambiar la foto de perfil"
+                    >
+                      {selected.foto_url ? (
+                        <img src={selected.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xl font-black text-blue-600 uppercase tracking-tighter">
+                          {getInitials(selected.nombres, selected.apellidos)}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                      onClick={() => openImageEditor('foto')}
+                      title="Editar foto de perfil"
+                    >
+                      <Edit3 size={12} className="text-slate-500" />
+                    </button>
+                  </div>
+                )}
+
 
                 <div className="text-center sm:text-left space-y-1">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
@@ -395,36 +583,72 @@ export default function MiembrosPanel() {
                       form={editForm}
                       setForm={setEditForm}
                       className="!bg-transparent !p-0 !border-none !text-slate-400 !font-bold !text-sm !uppercase !tracking-widest"
-                      labelClassName="hidden"
+labelClassName="hidden"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Grid de Datos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Información Personal / Legal */}
+            {/* Grid de Datos — Secciones dinámicas por tipo de afiliado */}
+            <div className="grid grid-cols-1 gap-6">
+
+              {/* ── SECCIÓN: INFORMACIÓN DE LA EMPRESA (solo Corporativo) ── */}
+              {(isEditing ? editForm.tipo_afiliado === 'Corporativo' : selected.tipo_afiliado === 'Corporativo') && (
+                <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-emerald-100">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                        <Building2 size={16} />
+                      </div>
+                      <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Información de la Empresa</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <DataField label="Razón Social" value={selected.empresa_razon_social || 'Sin razón social'} isEditing={isEditing} fieldName="empresa_razon_social" form={editForm} setForm={setEditForm} />
+                      <DataField label="Correo de la Empresa" value={selected.empresa_email || 'Sin correo'} isEditing={isEditing} fieldName="empresa_email" form={editForm} setForm={setEditForm} />
+                      <DataField label="Teléfono de la Empresa" value={selected.empresa_telefono || 'Sin teléfono'} isEditing={isEditing} fieldName="empresa_telefono" form={editForm} setForm={setEditForm} />
+                      <DataField label="Sitio Web" value={selected.empresa_website || 'Sin sitio web'} isEditing={isEditing} fieldName="empresa_website" form={editForm} setForm={setEditForm} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── SECCIÓN PERSONAL: Representante Legal / Agente / Info Personal ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                    <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                      <BadgeCheck size={16} />
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      (isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'bg-emerald-50 text-emerald-500' :
+                      ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-50 text-amber-500' :
+                      'bg-blue-50 text-blue-500'
+                    }`}>
+                      <UserIcon size={16} />
                     </div>
-                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Identidad y Documentación</h3>
+                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">
+                      {(isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'Representante Legal' :
+                       ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Información del Agente' :
+                       'Información Personal'}
+                    </h3>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Datos en grid 3 columnas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <DataField label="Nombres" value={selected.nombres} isEditing={isEditing} fieldName="nombres" form={editForm} setForm={setEditForm} />
                     <DataField label="Apellidos" value={selected.apellidos} isEditing={isEditing} fieldName="apellidos" form={editForm} setForm={setEditForm} />
-                    <DataField label="Razón Social (Si aplica)" value={selected.empresa_razon_social || 'N/A'} isEditing={isEditing} fieldName="empresa_razon_social" form={editForm} setForm={setEditForm} />
                     <DataField label="Código CIBIR" value={selected.codigo_cibir || 'No asignado'} isEditing={isEditing} fieldName="codigo_cibir" form={editForm} setForm={setEditForm} />
+                    <DataField label="Correo Electrónico" value={selected.email} isEditing={isEditing} fieldName="email" form={editForm} setForm={setEditForm} />
+                    <DataField label="Teléfono" value={selected.telefono || 'Sin teléfono'} isEditing={isEditing} fieldName="telefono" form={editForm} setForm={setEditForm} />
+                    <DataField label="Dirección" value={selected.direccion || 'Sin dirección'} isEditing={isEditing} fieldName="direccion" form={editForm} setForm={setEditForm} />
+                    <DataField label="Fecha de Nacimiento" value={selected.fecha_nacimiento || 'N/A'} isEditing={isEditing} fieldName="fecha_nacimiento" form={editForm} setForm={setEditForm} type="date" />
+                    <DataField label="Nivel Académico" value={selected.nivel_academico || 'No especificado'} isEditing={isEditing} fieldName="nivel_academico" form={editForm} setForm={setEditForm} type="select" options={ACADEMIC_OPTIONS} />
+                    <DataField label="Profesión / Especialidad" value={selected.profesion || 'No especificada'} isEditing={isEditing} fieldName="profesion" form={editForm} setForm={setEditForm} />
                   </div>
 
+                  {/* Cédula con editor de prefijo */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula / RIF</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula</label>
                     {isEditing ? (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 max-w-xs">
                         <select
                           className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
                           value={editForm.cedula?.split('-')[0] || 'V'}
@@ -447,40 +671,40 @@ export default function MiembrosPanel() {
                         />
                       </div>
                     ) : (
-                      <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700">
-                        {selected.empresa_rif_numero ? formatRif(selected.empresa_rif_tipo, selected.empresa_rif_numero) : selected.cedula}
+                      <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 w-fit">
+                        {selected.cedula}
                       </p>
                     )}
                   </div>
 
-                  {/* Identificación de Tipo de Afiliado y Corporativo */}
+                  {/* Tipo de Afiliación + Vinculación empresa para Agentes */}
                   <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Afiliación</p>
-                       {isEditing ? (
-                         <select
-                           className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10"
-                           value={editForm.tipo_afiliado}
-                           onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
-                         >
-                           <option value="Natural">Agentes Independientes</option>
-                           <option value="Corporativo">Corporativos</option>
-                           <option value="Agente">Agentes Corporativos</option>
-                         </select>
-                       ) : (
-                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                           selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 
-                           selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                         }`}>
-                           {selected.tipo_afiliado === 'Corporativo' ? 'Corporativos' : 
-                            selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Agentes Independientes'}
-                         </span>
-                       )}
+                      {isEditing ? (
+                        <select
+                          className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10"
+                          value={editForm.tipo_afiliado}
+                          onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
+                        >
+                          <option value="Natural">Agente Independiente</option>
+                          <option value="Corporativo">Corporativo</option>
+                          <option value="Agente">Agente Corporativo</option>
+                        </select>
+                      ) : (
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                          selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
+                          (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {selected.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
+                           (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Agente Corporativo' : 'Agente Independiente'}
+                        </span>
+                      )}
                     </div>
 
-                    {(isEditing ? editForm.tipo_afiliado === 'Agente' : selected.tipo_afiliado === 'Agente') && (
+                    {(isEditing ? editForm.tipo_afiliado === 'Agente' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
                       <div className="pt-2 border-t border-gray-200 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Vinculación a Corporativo</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
                         {isEditing ? (
                           <select
                             className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
@@ -508,129 +732,149 @@ export default function MiembrosPanel() {
                       </div>
                     )}
                   </div>
-
-                  {selected.tipo_afiliado === 'Corporativo' && (
-                    <DataField
-                      label="Razón Social"
-                      value={selected.empresa_razon_social || 'N/A'}
-                      isEditing={isEditing}
-                      fieldName="empresa_razon_social"
-                      form={editForm}
-                      setForm={setEditForm}
-                    />
-                  )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <DataField
-                      label="Nombres"
-                      value={selected.nombres || 'N/A'}
-                      isEditing={isEditing}
-                      fieldName="nombres"
-                      form={editForm}
-                      setForm={setEditForm}
-                    />
-                    <DataField
-                      label="Apellidos"
-                      value={selected.apellidos || 'N/A'}
-                      isEditing={isEditing}
-                      fieldName="apellidos"
-                      form={editForm}
-                      setForm={setEditForm}
-                    />
-                  </div>
-                  <DataField
-                    label="Nivel Académico"
-                    value={selected.nivel_academico || 'No especificado'}
-                    isEditing={isEditing}
-                    fieldName="nivel_academico"
-                    form={editForm}
-                    setForm={setEditForm}
-                    type="select"
-                    options={ACADEMIC_OPTIONS}
-                  />
                 </div>
               </div>
 
-              {/* Información de Contacto y Ubicación */}
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-6">
-                <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                  <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                    <MapPin size={16} />
-                  </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Contacto y Ubicación</h3>
-                </div>
-
-                <div className="space-y-4">
-                  <DataField
-                    label="Correo Electrónico"
-                    value={selected.email}
-                    isEditing={isEditing}
-                    fieldName="email"
-                    form={editForm}
-                    setForm={setEditForm}
-                  />
-                  <DataField
-                    label="Teléfono"
-                    value={selected.telefono || 'Sin teléfono'}
-                    isEditing={isEditing}
-                    fieldName="telefono"
-                    form={editForm}
-                    setForm={setEditForm}
-                  />
-                  <DataField
-                    label="Dirección"
-                    value={selected.direccion || 'Sin dirección'}
-                    isEditing={isEditing}
-                    fieldName="direccion"
-                    form={editForm}
-                    setForm={setEditForm}
-                  />
-                  <DataField
-                    label="Fecha Nacimiento"
-                    value={selected.fecha_nacimiento || 'N/A'}
-                    isEditing={isEditing}
-                    fieldName="fecha_nacimiento"
-                    form={editForm}
-                    setForm={setEditForm}
-                    type="date"
-                  />
-                </div>
-              </div>
-
-              {/* Redes Sociales y Web (Full Width) */}
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 md:col-span-2 space-y-6">
+              {/* ── SECCIÓN: REDES SOCIALES ── */}
+              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-4">
                 <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                     <BadgeCheck size={16} />
                   </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Redes Sociales y Web</h3>
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Redes Sociales</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <DataField label="Instagram" value={selected.instagram || 'No configurado'} isEditing={isEditing} fieldName="instagram" form={editForm} setForm={setEditForm} />
+                  <DataField label="Facebook" value={selected.facebook || 'No configurado'} isEditing={isEditing} fieldName="facebook" form={editForm} setForm={setEditForm} />
+                  <DataField label="LinkedIn" value={selected.linkedin || 'No configurado'} isEditing={isEditing} fieldName="linkedin" form={editForm} setForm={setEditForm} />
+                  <DataField label="X (Twitter)" value={selected.twitter || 'No configurado'} isEditing={isEditing} fieldName="twitter" form={editForm} setForm={setEditForm} />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-6">
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
+                <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                  <ShieldAlert size={16} />
+                </div>
+                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Control Administrativo</h3>
+              </div>
+              <div className="space-y-4">
+                {/* Estatus */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estatus de Afiliación</label>
+                  {isEditing ? (
+                    <select
+                      className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                      value={editForm.estatus || ''}
+                      onChange={(e) => setEditForm({ ...editForm, estatus: e.target.value as EstatusAfiliado })}
+                    >
+                      <option value="1_PREINSCRIPCION">Preinscripción</option>
+                      <option value="2_EXPEDIENTE">Expediente</option>
+                      <option value="3_ENTREVISTA">Entrevista</option>
+                      <option value="4_VERIFICACION">Verificación</option>
+                      <option value="5_CIBIR">CIBIR</option>
+                      <option value="6_INSCRIPCION">Inscripción</option>
+                      <option value="Requiere Acción">Requiere Acción</option>
+                      <option value="Afiliado">Afiliado</option>
+                      <option value="Moroso">Moroso</option>
+                      <option value="Suspendido">Suspendido</option>
+                      <option value="Rechazado">Rechazado</option>
+                    </select>
+                  ) : (
+                    <p className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
+                      selected.estatus === 'Afiliado' ? 'bg-emerald-100 text-emerald-700' :
+                      selected.estatus === 'Moroso' ? 'bg-amber-100 text-amber-700' :
+                      selected.estatus === 'Suspendido' || selected.estatus === 'Rechazado' ? 'bg-rose-100 text-rose-700' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>
+                      {selected.estatus}
+                    </p>
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <DataField
-                    label="Instagram"
-                    value={selected.instagram || 'No configurado'}
-                    isEditing={isEditing}
-                    fieldName="instagram"
-                    form={editForm}
-                    setForm={setEditForm}
-                  />
-                  <DataField
-                    label="Facebook"
-                    value={selected.facebook || 'No configurado'}
-                    isEditing={isEditing}
-                    fieldName="facebook"
-                    form={editForm}
-                    setForm={setEditForm}
-                  />
-                  <DataField
-                    label="LinkedIn"
-                    value={selected.linkedin || 'No configurado'}
-                    isEditing={isEditing}
-                    fieldName="linkedin"
-                    form={editForm}
-                    setForm={setEditForm}
-                  />
+                {/* RIF Empresa (solo Corporativo) */}
+                {(selected.tipo_afiliado === 'Corporativo' || (isEditing && editForm.tipo_afiliado === 'Corporativo')) && (
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RIF de la Empresa</label>
+                    {isEditing ? (
+                      <div className="flex gap-2">
+                        <select
+                          className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                          value={editForm.empresa_rif_tipo || 'J'}
+                          onChange={(e) => setEditForm({ ...editForm, empresa_rif_tipo: e.target.value })}
+                        >
+                          {['J','G','P','V','E'].map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <input
+                          type="text"
+                          className="flex-1 bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                          value={editForm.empresa_rif_numero || ''}
+                          placeholder="12345678-9"
+                          onChange={(e) => setEditForm({ ...editForm, empresa_rif_numero: e.target.value })}
+                        />
+                      </div>
+                    ) : (
+                      <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700">
+                        {selected.empresa_rif_tipo}-{selected.empresa_rif_numero || 'Sin RIF'}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Notas internas */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1">
+                    <StickyNote size={10} /> Notas Internas (Admin)
+                  </label>
+                  {isEditing ? (
+                    <textarea
+                      rows={3}
+                      className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none"
+                      value={editForm.notas || ''}
+                      placeholder="Notas internas visibles solo para administradores..."
+                      onChange={(e) => setEditForm({ ...editForm, notas: e.target.value })}
+                    />
+                  ) : (
+                    <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm text-slate-600 whitespace-pre-wrap">
+                      {selected.notas || <span className="text-slate-300 italic">Sin notas</span>}
+                    </p>
+                  )}
                 </div>
+
+                {/* Pagos y CIBIR */}
+                {isEditing && (
+                  <div className="flex gap-4 flex-wrap pt-2 border-t border-gray-50">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-emerald-600"
+                        checked={!!editForm.inscripcion_pagada}
+                        onChange={(e) => setEditForm({ ...editForm, inscripcion_pagada: e.target.checked ? 1 : 0 })}
+                      />
+                      <span className="text-xs font-bold text-slate-600">Inscripción Pagada</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-emerald-600"
+                        checked={!!editForm.cibir_convalidado}
+                        onChange={(e) => setEditForm({ ...editForm, cibir_convalidado: e.target.checked ? 1 : 0 })}
+                      />
+                      <span className="text-xs font-bold text-slate-600">CIBIR Convalidado</span>
+                    </label>
+                  </div>
+                )}
+                {!isEditing && (
+                  <div className="flex gap-3 flex-wrap">
+                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${ selected.inscripcion_pagada ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {selected.inscripcion_pagada ? '✓' : '✗'} Inscripción Pagada
+                    </span>
+                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${ selected.cibir_convalidado ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {selected.cibir_convalidado ? '✓' : '✗'} CIBIR Convalidado
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -832,6 +1076,114 @@ export default function MiembrosPanel() {
               >
                 <Save size={18} />
                 Registrar Miembro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDITOR DE IMAGEN (logo o foto de perfil) ─────────────────────────── */}
+      {imageEditKind && selected && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={closeImageEditor}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-black text-slate-800 text-base">
+                  {imageEditKind === 'logo' ? 'Logo de la Empresa' : 'Foto de Perfil'}
+                </p>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                  {imageEditKind === 'logo'
+                    ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo))
+                    : formatNombreCard(selected.nombre_completo)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeImageEditor}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div
+              className={`relative w-full h-36 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
+                imageDragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
+              }`}
+              onClick={() => imageFileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setImageDragOver(true) }}
+              onDragLeave={() => setImageDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setImageDragOver(false)
+                const file = e.dataTransfer.files?.[0]
+                if (file && file.type.startsWith('image/')) handleImageFileChange(file)
+              }}
+            >
+              {imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className={`max-h-full max-w-full p-3 ${imageEditKind === 'foto' ? 'object-cover rounded-xl w-full h-full' : 'object-contain'}`}
+                />
+              ) : (
+                <>
+                  <ImageIcon size={28} className="text-slate-300" />
+                  <p className="text-xs font-bold text-slate-400 text-center px-4">
+                    Arrastra o haz clic para seleccionar
+                    <br />
+                    <span className="text-slate-300 font-normal text-[10px]">PNG, JPG, WEBP</span>
+                  </p>
+                </>
+              )}
+              <input
+                ref={imageFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleImageFileChange(file)
+                }}
+              />
+            </div>
+
+            {imagePreview && (
+              <button
+                type="button"
+                onClick={() => { setImagePreview(null); setImageFile(null) }}
+                className="w-full text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-1"
+              >
+                <X size={10} /> Quitar imagen
+              </button>
+            )}
+
+            {imageError && (
+              <p className="text-xs font-bold text-rose-500 text-center">{imageError}</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={closeImageEditor}
+                className="flex-1 bg-slate-100 text-slate-600 text-sm font-bold py-3 rounded-2xl hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveImage}
+                disabled={imageUploading}
+                className="flex-[2] bg-emerald-500 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-600 disabled:opacity-60 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                {imageUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                {imageUploading ? 'Subiendo...' : imageEditKind === 'logo' ? 'Guardar Logo' : 'Guardar Foto'}
               </button>
             </div>
           </div>

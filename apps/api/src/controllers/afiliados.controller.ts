@@ -4,6 +4,22 @@ import { db } from '../lib/db.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 
+const avatarFallback = (name: string) =>
+  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=047857&color=fff&size=200`;
+
+const resolvePublicFotoUrl = (row: {
+  nombre_completo: string;
+  tipo_afiliado?: string;
+  foto_url?: string | null;
+  empresa_logo_url?: string | null;
+}) => {
+  const stored = (row.foto_url as string) || '';
+  if (row.tipo_afiliado === 'Corporativo') {
+    return (row.empresa_logo_url as string) || stored || avatarFallback(row.nombre_completo);
+  }
+  return stored || avatarFallback(row.nombre_completo);
+};
+
 import {
   enviarCorreoVerificacion,
   enviarCorreoAprobacion,
@@ -168,7 +184,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
     const result = await db.execute({
       sql: `SELECT a.*, 
                    p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
-                   p.fecha_nacimiento, p.nivel_academico, p.profesion,
+                   p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
                    e.rif_numero as empresa_rif_numero,
@@ -456,7 +472,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
     let sql = `
       SELECT a.*, 
              p.nombres, p.apellidos, 
-             p.cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico,
+             p.cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico, p.foto_url,
              e.razon_social as empresa_razon_social, 
              e.rif_tipo as empresa_rif_tipo,
              e.rif_numero as empresa_rif_numero,
@@ -696,11 +712,13 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
                ELSE p.nombres || ' ' || p.apellidos 
              END as nombre_completo, 
              p.nombres || ' ' || p.apellidos as representante_nombre,
-             p.nombres, p.apellidos, a.codigo_cibir, 
+             p.nombres, p.apellidos, a.codigo_cibir, p.foto_url,
              p.cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
              a.tipo_afiliado,
              e.razon_social as empresa_razon_social,
              e.logo_url as empresa_logo_url, e.website as empresa_website,
+             p.email as email,
+             e.email as empresa_email,
              json_extract(a.redes_sociales, '$.instagram') as instagram,
              json_extract(a.redes_sociales, '$.facebook') as facebook,
              json_extract(a.redes_sociales, '$.linkedin') as linkedin,
@@ -722,7 +740,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     // Usamos logo_url real si existe, sino ui-avatars como fallback
     const mappedData = result.rows.map((row) => ({
       ...row,
-      foto_url: (row.empresa_logo_url as string) || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.nombre_completo as string)}&background=047857&color=fff&size=200`,
+      foto_url: resolvePublicFotoUrl(row as { nombre_completo: string; tipo_afiliado?: string; foto_url?: string | null; empresa_logo_url?: string | null }),
       redes_sociales: {
         instagram: row.instagram || '',
         linkedin: row.linkedin || '',
@@ -756,7 +774,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                  ELSE p.nombres || ' ' || p.apellidos 
                END as nombre_completo, 
                p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
-               p.fecha_nacimiento, p.nivel_academico, p.profesion,
+               p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
                e.razon_social as empresa_razon_social, 
                e.rif_tipo as empresa_rif_tipo,
                e.rif_numero as empresa_rif_numero,
@@ -793,7 +811,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
 
     const mappedData: any = {
       ...row,
-      foto_url: (row.empresa_logo_url as string) || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.nombre_completo as string)}&background=047857&color=fff&size=200`,
+      foto_url: resolvePublicFotoUrl(row as { nombre_completo: string; tipo_afiliado?: string; foto_url?: string | null; empresa_logo_url?: string | null }),
       redes_sociales: {
         instagram: row.instagram || '',
         linkedin: row.linkedin || '',
@@ -806,7 +824,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     if (row.tipo_afiliado === 'Corporativo') {
       const assocResult = await db.execute({
         sql: `
-          SELECT a.id_afiliado, p.nombres || ' ' || p.apellidos as nombre_completo, a.codigo_cibir, p.cedula, a.tipo_afiliado
+          SELECT a.id_afiliado, p.nombres || ' ' || p.apellidos as nombre_completo, a.codigo_cibir, p.cedula, a.tipo_afiliado, p.foto_url
           FROM afiliados a
           JOIN personas p ON a.id_persona = p.id
           WHERE a.id_empresa = ? AND a.estatus = 'Afiliado' AND a.activo = 1
@@ -815,7 +833,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
       });
       mappedData.afiliados_asociados = assocResult.rows.map((r: any) => ({
         ...r,
-        foto_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(r.nombre_completo)}&background=047857&color=fff&size=200`
+        foto_url: (r.foto_url as string) || avatarFallback(r.nombre_completo)
       }));
     }
 
@@ -1022,7 +1040,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     // Campos permitidos por entidad
-    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion'];
+    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
     const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo_cibir', 'id_empresa', 'activo'];
     const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',

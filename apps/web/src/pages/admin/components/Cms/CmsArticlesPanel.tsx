@@ -7,8 +7,7 @@ import { NormativasPanel } from '@/pages/admin/components/Cms/NormativasPanel'
 import { ConveniosPanel } from '@/pages/admin/components/Cms/ConveniosPanel'
 import { LandingPreviewPane } from '@/pages/admin/components/Cms/LandingPreviewPane'
 
-export type CmsTab = 'noticias' | 'normativas' | 'directiva' | 'config' | 'paginas' 
-  | 'leyes' | 'reglamentos' | 'normas' | 'actas' | 'cursos' | 'hitos' | 'convenios'
+export type CmsTab = 'noticias' | 'normativas' | 'directiva' | 'config' | 'paginas' | 'leyes' | 'reglamentos' | 'normas' | 'actas' | 'cursos' | 'hitos' | 'convenios';
 
 /** Maps each CMS tab to its relevant landing section anchor */
 const SECTION_ANCHORS: Record<CmsTab, string> = {
@@ -23,6 +22,7 @@ const SECTION_ANCHORS: Record<CmsTab, string> = {
   actas: '',
   cursos: '',
   hitos: '',
+  convenios: '',
 }
 
 const MIN_LEFT = 360   // px

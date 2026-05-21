@@ -45,6 +45,7 @@ const statements = [
     profesion           TEXT,
     direccion           TEXT,
     nivel_academico     TEXT        CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Universitario','Postgrado')),
+    foto_url            TEXT,
     creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en      TEXT,
     eliminado_en        TEXT,
@@ -532,6 +533,13 @@ async function run() {
         throw e;
       }
     }
+  }
+
+  try {
+    await db.execute(`ALTER TABLE personas ADD COLUMN foto_url TEXT`)
+    console.log('  · Migration: personas.foto_url')
+  } catch {
+    // columna ya existe
   }
 
   console.log('\n--- SEEDING INITIAL DATA ---')
