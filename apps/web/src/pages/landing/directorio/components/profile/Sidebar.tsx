@@ -1,5 +1,5 @@
 import React from 'react';
-import { AfiliadoData } from '../components/AfiliadoCard';
+import { AfiliadoData } from '../AfiliadoCard';
 import { DataSections } from './DataSections';
 
 interface SidebarProps {

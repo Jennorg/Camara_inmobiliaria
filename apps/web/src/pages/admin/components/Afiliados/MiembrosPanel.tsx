@@ -10,8 +10,10 @@ import {
   ChevronRight, Building2, User as UserIcon, CheckCircle2, AlertCircle,
   Mail, Phone, MapPin, BadgeCheck, FileText, Calendar, CreditCard,
   ShieldAlert, ArrowUpDown, ChevronDown, ImageIcon, Upload, Loader2,
-  Briefcase, StickyNote, Globe
+  Briefcase, StickyNote, Globe, FileDown
 } from 'lucide-react'
+import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
+import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 
 
 const ID_PREFIXES = ['V', 'E', 'J', 'G', 'P']
@@ -45,6 +47,7 @@ export default function MiembrosPanel() {
   const imageFileInputRef = useRef<HTMLInputElement>(null)
 
   const [showNewModal, setShowNewModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const [newForm, setNewForm] = useState<Partial<AfiliadoDTO>>({
     tipo_afiliado: 'Natural',
     estatus: 'Afiliado'
@@ -280,12 +283,22 @@ export default function MiembrosPanel() {
         <div className="p-4 border-b border-gray-100 space-y-4 shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-black text-slate-800">Directorio</h2>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-500/20"
-            >
-              <UserPlus size={18} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowExportModal(true)}
+                title="Exportar listado en PDF"
+                className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-colors"
+              >
+                <FileDown size={18} />
+              </button>
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-500/20"
+              >
+                <UserPlus size={18} />
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -1189,6 +1202,16 @@ labelClassName="hidden"
           </div>
         </div>
       )}
+
+      <ExportAfiliadosModal
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        authHeaders={authHeaders}
+        initialFilters={{
+          tipo: filterTipo as ExportTipoFilter,
+          search,
+        }}
+      />
     </div>
   )
 }

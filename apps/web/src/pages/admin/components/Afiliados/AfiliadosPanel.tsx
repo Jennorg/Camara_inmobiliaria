@@ -3,7 +3,9 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
-import { FileText, ExternalLink, Download, Award, GraduationCap } from 'lucide-react'
+import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown } from 'lucide-react'
+import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
+import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 
 function DocLink({ label, url, compact = false }: { label: string, url?: string | null, compact?: boolean }) {
   if (!url) return (
@@ -53,6 +55,7 @@ export default function AfiliadosPanel() {
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -127,9 +130,20 @@ export default function AfiliadosPanel() {
       {/* List */}
       <div className="flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0">
         <div className="p-4 border-b border-gray-100 space-y-3">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800">Afiliados (CIBIR)</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Gestión de candidatos, aprobaciones y estatus.</p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Afiliados (CIBIR)</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Gestión de candidatos, aprobaciones y estatus.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowExportModal(true)}
+              title="Exportar listado en PDF"
+              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+            >
+              <FileDown size={14} />
+              PDF
+            </button>
           </div>
           
           <div className="flex flex-col gap-2">
@@ -444,6 +458,16 @@ export default function AfiliadosPanel() {
           </div>
         )}
       </div>
+
+      <ExportAfiliadosModal
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        authHeaders={authHeaders}
+        initialFilters={{
+          estatus,
+          tipo: filterTipo as ExportTipoFilter,
+        }}
+      />
     </div>
   )
 }

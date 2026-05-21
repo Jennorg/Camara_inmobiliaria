@@ -190,7 +190,7 @@ const SettingsPanel = () => {
     { id: 'profesional', label: 'Perfil Profesional', icon: Briefcase },
     { id: 'social', label: 'Redes Sociales', icon: Globe },
     { id: 'empresa', label: 'Mi Corporativo', icon: Building, hide: !isCorp && !isAgente },
-    { id: 'membresia', label: 'Cuenta y Membresía', icon: Shield },
+    { id: 'membresia', label: 'Cuenta', icon: Shield },
   ];
 
   return (
@@ -327,7 +327,7 @@ const SettingsPanel = () => {
 
           {activeTab === 'membresia' && (
             <div className="space-y-6">
-              <HeaderSection title="Cuenta y Membresía" subtitle="Gestiona tu estatus y vinculaciones." />
+              <HeaderSection title="Cuenta" subtitle="Gestiona tu estatus y vinculaciones." />
               
               <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
                 <div className="flex items-center justify-between">

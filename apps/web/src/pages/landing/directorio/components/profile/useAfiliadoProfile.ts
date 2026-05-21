@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { API_URL } from '@/config/env';
-import { AfiliadoData } from '../components/AfiliadoCard';
+import { AfiliadoData } from '../AfiliadoCard';
 import logoCibir from '@/assets/Logo3.png';
 
 interface AfiliadoProfile extends AfiliadoData {

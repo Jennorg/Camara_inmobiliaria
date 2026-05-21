@@ -1,6 +1,6 @@
 import React from 'react';
 import { GraduationCap, Briefcase, User, Building2, Mail, Phone, Globe, MapPin } from 'lucide-react';
-import { AfiliadoData } from '../components/AfiliadoCard';
+import { AfiliadoData } from '../AfiliadoCard';
 import { InfoCard } from './InfoCard';
 import { formatRif } from '@/utils/formatters';
 

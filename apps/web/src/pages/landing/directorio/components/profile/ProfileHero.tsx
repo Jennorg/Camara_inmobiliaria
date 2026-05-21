@@ -6,7 +6,7 @@ import { ArrowLeft, Mail, Phone, MapPin, User,
   Link2, Briefcase, FileText, Building2 
 } from 'lucide-react';
 import { formatNombreCard, getInitials, formatRif } from '@/utils/formatters';
-import { AfiliadoData } from '../components/AfiliadoCard';
+import { AfiliadoData } from '../AfiliadoCard';
 import logoCibir from '@/assets/Logo3.png';
 import { UseAfiliadoProfileResult } from './useAfiliadoProfile';
 

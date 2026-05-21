@@ -1,7 +1,7 @@
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Mail, Linkedin, Instagram, Facebook } from 'lucide-react';
 import { formatNombreCard, getInitials, formatRif } from '@/utils/formatters';
-import { AfiliadoData } from '../components/AfiliadoCard';
+import { AfiliadoData } from '../AfiliadoCard';
 import logoCibir from '@/assets/Logo3.png';
 
 interface ProfileHeroViewProps {
