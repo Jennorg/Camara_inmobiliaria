@@ -44,7 +44,7 @@ type FiltroRol    = 'todos' | 'admin' | 'afiliado' | 'super_admin'
 type FiltroActivo = 'todos' | 'activo' | 'inactivo'
 
 export default function UsersPanel() {
-  const { token } = useAuth()
+  const { token, user, isSuperAdmin } = useAuth()
   const [users, setUsers]       = useState<SystemUser[]>([])
   const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -124,6 +124,30 @@ export default function UsersPanel() {
     load()
   }
 
+  const handleRoleChange = async (u: SystemUser, newRol: 'admin' | 'afiliado' | 'super_admin') => {
+    if (saving) return
+    setSaving(true)
+    setFeedback(null)
+    try {
+      const r = await fetch(`${API_URL}/api/users/${u.id}`, {
+        method: 'PATCH',
+        headers: authHeaders,
+        body: JSON.stringify({ rol: newRol }),
+      })
+      const d = await r.json()
+      if (d.success) {
+        setFeedback({ type: 'ok', msg: `Rol de ${u.email} actualizado correctamente` })
+        load()
+      } else {
+        setFeedback({ type: 'err', msg: d.message || 'Error al actualizar el rol' })
+      }
+    } catch (e) {
+      setFeedback({ type: 'err', msg: 'Error de conexión al actualizar el rol' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const [resettingUser, setResettingUser] = useState<SystemUser | null>(null)
   const [userToDelete, setUserToDelete]   = useState<SystemUser | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -188,7 +212,8 @@ export default function UsersPanel() {
     }`
 
   return (
-    <div className='p-6 max-w-5xl mx-auto space-y-6'>
+    <div className='h-full w-full overflow-y-auto'>
+      <div className='p-6 max-w-5xl mx-auto space-y-6'>
       {/* Header */}
       <div className='flex items-center justify-between'>
         <div>
@@ -496,7 +521,7 @@ export default function UsersPanel() {
       </div>
 
       {/* Table */}
-      <div className='bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden'>
+      <div className='bg-white border border-slate-100 rounded-2xl shadow-sm overflow-x-auto'>
         {loading ? (
           <div className='flex justify-center py-16'>
             <Loader2 size={24} className='animate-spin text-emerald-500' />
@@ -531,22 +556,50 @@ export default function UsersPanel() {
                     </p>
                   </td>
                   <td className='px-5 py-4'>
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
-                      u.rol === 'super_admin'
-                        ? 'bg-amber-50 text-amber-800 border-amber-200/80 shadow-sm shadow-amber-500/10'
-                        : u.rol === 'admin'
-                        ? 'bg-violet-50 text-violet-800 border-violet-200/80'
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
-                    }`}>
-                      {u.rol === 'super_admin' ? (
-                        <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-amber-600' />
-                      ) : u.rol === 'admin' ? (
-                        <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-violet-600' />
-                      ) : (
-                        <UserCircle2 size={14} strokeWidth={2} className='shrink-0 text-emerald-600' />
-                      )}
-                      {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : 'Afiliado'}
-                    </span>
+                    {isSuperAdmin && u.id !== user?.id ? (
+                      <div className='relative inline-flex items-center group/select'>
+                        <select
+                          value={u.rol}
+                          onChange={e => handleRoleChange(u, e.target.value as any)}
+                          disabled={saving}
+                          className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-all ${
+                            u.rol === 'super_admin'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200/80 focus:ring-amber-500/10 focus:border-amber-400'
+                              : u.rol === 'admin'
+                              ? 'bg-violet-50 text-violet-800 border-violet-200/80 focus:ring-violet-500/10 focus:border-violet-400'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200/80 focus:ring-emerald-500/10 focus:border-emerald-400'
+                          }`}
+                        >
+                          <option value='afiliado'>Afiliado</option>
+                          <option value='admin'>Admin</option>
+                          <option value='super_admin'>Super Admin</option>
+                        </select>
+                        <div className={`absolute right-2.5 pointer-events-none transition-colors ${
+                          u.rol === 'super_admin' ? 'text-amber-600' : u.rol === 'admin' ? 'text-violet-600' : 'text-emerald-600'
+                        }`}>
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                        u.rol === 'super_admin'
+                          ? 'bg-amber-50 text-amber-800 border-amber-200/80 shadow-sm shadow-amber-500/10'
+                          : u.rol === 'admin'
+                          ? 'bg-violet-50 text-violet-800 border-violet-200/80'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+                      }`}>
+                        {u.rol === 'super_admin' ? (
+                          <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-amber-600' />
+                        ) : u.rol === 'admin' ? (
+                          <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-violet-600' />
+                        ) : (
+                          <UserCircle2 size={14} strokeWidth={2} className='shrink-0 text-emerald-600' />
+                        )}
+                        {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : 'Afiliado'}
+                      </span>
+                    )}
                   </td>
                   <td className='px-5 py-4'>
                     <button
@@ -595,5 +648,6 @@ export default function UsersPanel() {
         )}
       </div>
     </div>
+  </div>
   )
 }
