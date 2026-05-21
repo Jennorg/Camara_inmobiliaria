@@ -689,11 +689,19 @@ async function run() {
 
   for (const conv of convenios) {
     try {
-      await db.execute({
-        sql: `INSERT INTO cms_convenios (nombre, descripcion, link_web, logo_url) VALUES (?, ?, ?, ?)`,
-        args: [conv.nombre, conv.descripcion, conv.link_web, (conv as any).logo_url || null]
+      const exists = await db.execute({
+        sql: `SELECT 1 FROM cms_convenios WHERE nombre = ? AND (eliminado_en IS NULL)`,
+        args: [conv.nombre]
       })
-      console.log(`  · Convenio ${conv.nombre} created.`)
+      if (exists.rows.length === 0) {
+        await db.execute({
+          sql: `INSERT INTO cms_convenios (nombre, descripcion, link_web, logo_url) VALUES (?, ?, ?, ?)`,
+          args: [conv.nombre, conv.descripcion, conv.link_web, (conv as any).logo_url || null]
+        })
+        console.log(`  · Convenio ${conv.nombre} created.`)
+      } else {
+        console.log(`  · Convenio ${conv.nombre} already exists.`)
+      }
     } catch (e) { }
   }
 
@@ -712,11 +720,19 @@ async function run() {
 
   for (const m of directiva) {
     try {
-      await db.execute({
-        sql: `INSERT INTO cms_directiva (nombre, cargo, foto_url, orden, activo) VALUES (?, ?, ?, ?, 1)`,
-        args: [m.nombre, m.cargo, m.foto_url, m.orden]
+      const exists = await db.execute({
+        sql: `SELECT 1 FROM cms_directiva WHERE nombre = ? AND cargo = ? AND (eliminado_en IS NULL)`,
+        args: [m.nombre, m.cargo]
       })
-      console.log(`  · Miembro Directiva ${m.nombre} created.`)
+      if (exists.rows.length === 0) {
+        await db.execute({
+          sql: `INSERT INTO cms_directiva (nombre, cargo, foto_url, orden, activo) VALUES (?, ?, ?, ?, 1)`,
+          args: [m.nombre, m.cargo, m.foto_url, m.orden]
+        })
+        console.log(`  · Miembro Directiva ${m.nombre} created.`)
+      } else {
+        console.log(`  · Miembro Directiva ${m.nombre} already exists.`)
+      }
     } catch (e) { }
   }
 
@@ -732,11 +748,19 @@ async function run() {
 
   for (const n of normativas) {
     try {
-      await db.execute({
-        sql: `INSERT INTO cms_normativas (titulo, categoria, url_archivo, orden, activo) VALUES (?, ?, ?, 0, 1)`,
-        args: [n.titulo, n.categoria, n.url]
+      const exists = await db.execute({
+        sql: `SELECT 1 FROM cms_normativas WHERE titulo = ? AND (eliminado_en IS NULL)`,
+        args: [n.titulo]
       })
-      console.log(`  · Normativa ${n.titulo} created.`)
+      if (exists.rows.length === 0) {
+        await db.execute({
+          sql: `INSERT INTO cms_normativas (titulo, categoria, url_archivo, orden, activo) VALUES (?, ?, ?, 0, 1)`,
+          args: [n.titulo, n.categoria, n.url]
+        })
+        console.log(`  · Normativa ${n.titulo} created.`)
+      } else {
+        console.log(`  · Normativa ${n.titulo} already exists.`)
+      }
     } catch (e) { }
   }
 

@@ -183,7 +183,7 @@ const NAV_MAIN: NavGroup[] = [
   { id: 'dashboard', label: 'Dashboard', icon: icons.dashboard },
   { id: 'cms', label: 'Contenido', icon: icons.cms, children: CMS_CHILDREN },
   { id: 'formacion', label: 'Formación', icon: icons.formacion },
-  { id: 'solicitudes_academicas', label: 'Solicitudes académicas', icon: icons.solicitudes },
+  { id: 'preinscripciones', label: 'Preinscripciones', icon: icons.solicitudes },
   { id: 'media', label: 'Medios', icon: icons.media },
   { id: 'afiliados', label: 'Afiliados', icon: icons.users },
   { id: 'estudiantes', label: 'Estudiantes', icon: icons.formacion },

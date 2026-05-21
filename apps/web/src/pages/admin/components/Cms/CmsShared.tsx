@@ -262,7 +262,7 @@ export function ListDetail<T extends { id?: string | number }>({
                   key={item.id}
                   onClick={() => setSelectedId(item.id ?? null)}
                   className={[
-                    'w-full text-left px-4 py-3 transition-all duration-150',
+                    'w-full text-left px-4 py-3 transition-all duration-150 group',
                     'hover:translate-x-0.5',
                     String(selectedId) === String(item.id)
                       ? 'bg-[#E9FAF4] border-l-2 border-[#00D084]'

@@ -340,6 +340,14 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
         >
           {saving ? 'Guardando cambios...' : 'Confirmar y Guardar'}
         </BtnPrimary>
+        {selectedId && selectedId !== 'new' && (
+          <BtnDanger
+            onClick={() => remove(selectedId)}
+            className="flex-1 !py-3.5 !rounded-xl !text-xs !font-black uppercase tracking-widest bg-red-50 text-red-500 hover:bg-red-100"
+          >
+            Eliminar Documento
+          </BtnDanger>
+        )}
         <BtnSecondary
           onClick={() => {
             setSelectedId(null)

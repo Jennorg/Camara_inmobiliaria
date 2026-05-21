@@ -83,7 +83,7 @@ const PANELS: Record<string, React.ReactNode> = {
   // Main CMS generic redirect
   cms: <CmsArticlesPanel externalTab="config" />, 
   formacion: <FormacionPanel />,
-  solicitudes_academicas: <PreinscripcionesPrincipalesPanel />,
+  preinscripciones: <PreinscripcionesPrincipalesPanel />,
   media: <Placeholder title='Media Library' icon={icons.media} />,
   afiliados: <AfiliadosPanel />,
   estudiantes: <EstudiantesRegularesPanel />,

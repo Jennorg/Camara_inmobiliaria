@@ -7,8 +7,8 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: 'Dashboard', subtitle: 'Resumen financiero y actividad reciente' },
   articles: { title: 'Artículos', subtitle: 'Gestionar el contenido del sitio' },
   formacion: { title: 'Formación', subtitle: 'Cursos, talleres y asignación de estudiantes' },
-  solicitudes_academicas: {
-    title: 'Solicitudes académicas',
+  preinscripciones: {
+    title: 'Preinscripciones',
     subtitle: 'Postulaciones, entrevistas y admisión a programas (PREANI, PEGI, PADI, CIBIR y afiliación)',
   },
   cms: { title: 'Contenido', subtitle: 'Todas las secciones de la Landing' },

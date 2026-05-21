@@ -22,7 +22,7 @@ function TickerBlock({
       {Array.from({ length: COPIES_PER_BLOCK }, (_, i) => (
         <span
           key={i}
-          className={`inline-flex shrink-0 items-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${className}`}
+          className={`inline-flex shrink-0 items-center px-12 sm:px-16 text-xs sm:text-sm font-semibold uppercase tracking-widest whitespace-nowrap ${className}`}
         >
           {TICKER_TEXT}
         </span>
@@ -40,7 +40,7 @@ export default function AffiliationTicker({ darkMode }: AffiliationTickerProps) 
     <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
       <Link
         to="/afiliate"
-        className={`group block w-full h-5 overflow-hidden border-t ${
+        className={`group flex items-center w-full h-10 sm:h-12 overflow-hidden border-t ${
           darkMode
             ? 'border-emerald-500/20 bg-emerald-950/60 hover:bg-emerald-900/50'
             : 'border-emerald-100 bg-emerald-50/90 hover:bg-emerald-100/90'

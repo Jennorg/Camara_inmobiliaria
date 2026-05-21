@@ -235,6 +235,14 @@ export const ConveniosPanel = () => {
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </BtnPrimary>
+          {selectedId && selectedId !== 'new' && (
+            <BtnDanger
+              onClick={() => remove(selectedId)}
+              className="!rounded-xl !py-3 flex-1 bg-red-50 text-red-500 hover:bg-red-100"
+            >
+              Eliminar Convenio
+            </BtnDanger>
+          )}
           <BtnSecondary
             onClick={() => { setSelectedId(null); setIsEditing(false) }}
             className="!rounded-xl !py-3 flex-1"

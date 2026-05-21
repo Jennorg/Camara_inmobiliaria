@@ -36,7 +36,7 @@ const Navbar = ({
           ? "bg-[#011a14]/95 border-white/10 text-white" 
           : "bg-white border-slate-100 text-emerald-950 shadow-sm"
       }`}>
-        <div className="flex items-center lg:px-2 py-2">
+        <div className="flex items-center lg:px-2 py-0">
           
           {/* 1. ZONA LOGO */}
           <div className="flex-1 flex justify-start pl-[5%]">
