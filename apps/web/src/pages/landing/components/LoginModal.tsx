@@ -71,7 +71,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                className='w-full px-0 py-3 border-b-2 border-slate-100 focus:border-emerald-500 transition-colors bg-transparent outline-none text-slate-800 placeholder-slate-300 font-medium'
+                className='w-full px-2 py-3 border-b-2 border-slate-100 focus:border-emerald-500 transition-colors bg-transparent outline-none text-slate-800 placeholder-slate-300 font-medium'
                 placeholder="Correo electrónico"
               />
             </div>

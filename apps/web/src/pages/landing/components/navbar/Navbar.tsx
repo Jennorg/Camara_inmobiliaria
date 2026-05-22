@@ -31,7 +31,7 @@ const Navbar = ({
 
   return (
     <>
-      <nav className={`sticky top-0 z-50 overflow-x-hidden transition-colors duration-300 border-b ${
+      <nav className={`sticky top-0 z-50 transition-colors duration-300 border-b ${
         darkMode 
           ? "bg-[#011a14]/95 border-white/10 text-white" 
           : "bg-white border-slate-100 text-emerald-950 shadow-sm"

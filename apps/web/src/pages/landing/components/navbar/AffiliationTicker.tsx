@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 
 const TICKER_TEXT =
-  '¿Eres agente inmobiliario? Afíliate a la Cámara Inmobiliaria de Bolívar'
+  '¿Eres agente inmobiliario? Afíliate a la Cámara Inmobiliaria del Estado Bolívar'
 
 /** Repeticiones por bloque: debe cubrir más que el ancho de la pantalla */
 const COPIES_PER_BLOCK = 12
@@ -37,7 +37,7 @@ export default function AffiliationTicker({ darkMode }: AffiliationTickerProps) 
     : 'text-emerald-700 group-hover:text-emerald-800'
 
   return (
-    <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
+    <div className="w-full">
       <Link
         to="/afiliate"
         className={`group flex items-center w-full h-10 sm:h-12 overflow-hidden border-t ${
