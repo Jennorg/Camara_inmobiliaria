@@ -206,7 +206,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           {/* Descripción contextual del tipo seleccionado */}
           <div className="text-[10px] font-medium px-3 py-2 rounded-lg transition-all text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20">
             {tipoAfiliado === 'Agente Corporativo'
-              ? 'Agente que opera bajo una empresa ya afiliada a la Cámara. Selecciona la empresa a la que perteneces.'
+              ? 'Agente que opera bajo una empresa ya afiliada a la Cámara'
               : tipoAfiliado === 'Corporativo'
               ? 'Registro de una nueva empresa o institución inmobiliaria que aún no está en la Cámara.'
               : 'Agente inmobiliario independiente que opera por cuenta propia.'}
