@@ -50,8 +50,6 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
   )
 }
 
-
-
 export default function AfiliadosPanel() {
   const { token } = useAuth()
   const authHeaders = useMemo(() => {
@@ -61,7 +59,7 @@ export default function AfiliadosPanel() {
   }, [token])
 
   const [estatus, setEstatus] = useState<'Todos' | EstatusAfiliado>('Todos')
-  const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo'>('Todos')
+  const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos')
   const [items, setItems] = useState<AfiliadoDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -188,7 +186,8 @@ export default function AfiliadosPanel() {
                 className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-bold text-slate-700 bg-slate-50"
               >
                 <option value="Todos">Todos los tipos</option>
-                <option value="Natural">Independientes</option>
+                <option value="Natural">Agentes Independientes</option>
+                <option value="Agente Corporativo">Agentes Corporativos</option>
                 <option value="Corporativo">Corporativos</option>
               </select>
               <button
@@ -221,8 +220,14 @@ export default function AfiliadosPanel() {
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-semibold text-slate-800">{a.nombre_completo}</span>
 
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' : 'text-blue-500'}`}>
-                      {a.tipo_afiliado === 'Corporativo' ? 'Corporativo' : 'Independiente'}
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${
+                      a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
+                      a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'text-amber-500' :
+                      'text-blue-500'
+                    }`}>
+                      {a.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
+                       a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'Agente Corporativo' :
+                       'Agente Independiente'}
                     </span>
                   </div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
@@ -260,7 +265,8 @@ export default function AfiliadosPanel() {
                       onChange={(e) => updateField('tipo_afiliado', e.target.value)}
                       className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-slate-100 text-slate-500 border-none focus:ring-0 cursor-pointer"
                     >
-                      <option value="Natural">Independiente</option>
+                      <option value="Natural">Agente Independiente</option>
+                      <option value="Agente Corporativo">Agente Corporativo</option>
                       <option value="Corporativo">Corporativo</option>
                     </select>
                   </div>
@@ -628,7 +634,7 @@ export default function AfiliadosPanel() {
                 </label>
               </div>
 
-              {['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) && (
+              {(['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) || (selected.tipo_afiliado === 'Agente Corporativo' && selected.estatus === '2_EXPEDIENTE')) && (
                 <div className="flex gap-2 pt-2 border-t border-slate-50">
                   <button
                     onClick={() => procesar(selected.id_afiliado, 'aprobar')}

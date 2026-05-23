@@ -189,8 +189,8 @@ export default function VerificarPreinscripcionProgramaPage() {
   const currentNivel = NIVELES.find(n => n.value === formData.nivelProfesional)
   const displayName = userData?.nombreCompleto
   const isReferencesIncomplete = isAfiliacion && (
-    !formData.url_referencia1 || !selectedAffiliate1 || 
-    !formData.url_referencia2 || !selectedAffiliate2 ||
+    (formData.url_referencia1 && !selectedAffiliate1) || 
+    (formData.url_referencia2 && !selectedAffiliate2) ||
     (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado)
   )
 
@@ -220,7 +220,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         return;
       }
       if (!formData.url_registro_mercantil) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga el Registro Mercantil de la Empresa.', icon: 'warning', confirmButtonColor: '#059669' });
+        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga el Acta Constitutiva de la Empresa.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
       if (!formData.url_titulo_representante) {
@@ -239,16 +239,18 @@ export default function VerificarPreinscripcionProgramaPage() {
     }
 
     if (isAfiliacion) {
-      if (!selectedAffiliate1 || !formData.url_referencia1) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, busca un afiliado activo válido y carga la primera carta de recomendación.', icon: 'warning', confirmButtonColor: '#059669' });
+      // Solo validar si se ha intentado llenar algo de la referencia 1
+      if ((formData.url_referencia1 || searchCedula1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
+        Swal.fire({ title: 'Referencia 1 Incompleta', text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
-      if (!selectedAffiliate2 || !formData.url_referencia2) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, busca un afiliado activo válido y carga la segunda carta de recomendación.', icon: 'warning', confirmButtonColor: '#059669' });
+      // Solo validar si se ha intentado llenar algo de la referencia 2
+      if ((formData.url_referencia2 || searchCedula2) && (!selectedAffiliate2 || !formData.url_referencia2)) {
+        Swal.fire({ title: 'Referencia 2 Incompleta', text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 2, o deja ambos campos vacíos.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
-      if (selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado) {
-        Swal.fire({ title: '¡Atención!', text: 'Las dos cartas de recomendación deben ser de afiliados activos diferentes.', icon: 'warning', confirmButtonColor: '#059669' });
+      if (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado) {
+        Swal.fire({ title: 'Referencias Duplicadas', text: 'Las dos cartas de recomendación deben ser de afiliados activos diferentes.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
     }
@@ -710,16 +712,15 @@ export default function VerificarPreinscripcionProgramaPage() {
                     <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                          Buscar Afiliado Recomendante 1 (Por Cédula) <span className="text-rose-500">*</span>
+                          Recomendante 1 (Opcional)
                         </label>
                         <div className="relative group">
                           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                           <input
                             type="text"
-                            required
                             value={searchCedula1}
                             onChange={(e) => handleSearchCedula1Change(e.target.value)}
-                            placeholder="Ej. 12.345.678"
+                            placeholder="Buscar por Cédula..."
                             className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
                           />
                         </div>
@@ -733,7 +734,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
                               <div className="truncate">
                                 <span className="text-[10px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
-                                <span className="truncate block mt-0.5">{selectedAffiliate1.nombre_completo} (Código: {selectedAffiliate1.codigo_cibir})</span>
+                                <span className="truncate block mt-0.5">{selectedAffiliate1.nombre_completo}</span>
                               </div>
                             </div>
                           ) : (
@@ -741,7 +742,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <AlertCircle size={14} className="text-rose-500 shrink-0" />
                               <div>
                                 <span className="text-[10px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
-                                <span className="block mt-0.5">No se encontró ningún afiliado activo con este número.</span>
+                                <span className="block mt-0.5">No se encontró el afiliado.</span>
                               </div>
                             </div>
                           )}
@@ -752,7 +753,6 @@ export default function VerificarPreinscripcionProgramaPage() {
                         label="Carta de Recomendación 1"
                         accept="image/*,.pdf"
                         folder="afiliados/referencias"
-                        required
                         onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia1: url }))}
                         onClear={() => setFormData(prev => ({ ...prev, url_referencia1: '' }))}
                       />
@@ -762,16 +762,15 @@ export default function VerificarPreinscripcionProgramaPage() {
                     <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                          Buscar Afiliado Recomendante 2 (Por Cédula) <span className="text-rose-500">*</span>
+                          Recomendante 2 (Opcional)
                         </label>
                         <div className="relative group">
                           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                           <input
                             type="text"
-                            required
                             value={searchCedula2}
                             onChange={(e) => handleSearchCedula2Change(e.target.value)}
-                            placeholder="Ej. 12.345.678"
+                            placeholder="Buscar por Cédula..."
                             className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
                           />
                         </div>
@@ -785,7 +784,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
                               <div className="truncate">
                                 <span className="text-[10px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
-                                <span className="truncate block mt-0.5">{selectedAffiliate2.nombre_completo} (Código: {selectedAffiliate2.codigo_cibir})</span>
+                                <span className="truncate block mt-0.5">{selectedAffiliate2.nombre_completo}</span>
                               </div>
                             </div>
                           ) : (
@@ -793,7 +792,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <AlertCircle size={14} className="text-rose-500 shrink-0" />
                               <div>
                                 <span className="text-[10px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
-                                <span className="block mt-0.5">No se encontró ningún afiliado activo con este número.</span>
+                                <span className="block mt-0.5">No se encontró el afiliado.</span>
                               </div>
                             </div>
                           )}
@@ -804,7 +803,6 @@ export default function VerificarPreinscripcionProgramaPage() {
                         label="Carta de Recomendación 2"
                         accept="image/*,.pdf"
                         folder="afiliados/referencias"
-                        required
                         onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia2: url }))}
                         onClear={() => setFormData(prev => ({ ...prev, url_referencia2: '' }))}
                       />
@@ -1207,7 +1205,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 <div className="space-y-6 pt-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Soportes de la Empresa</h3></div></div>
-                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">RIF y Registro Mercantil vigentes.</p>
+                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">RIF y Acta Constitutiva vigentes.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FileUpload
@@ -1219,7 +1217,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                       onClear={() => setFormData(prev => ({ ...prev, url_titulo: '' }))}
                     />
                     <FileUpload
-                      label="Registro Mercantil"
+                      label="Acta Constitutiva"
                       accept=".pdf"
                       folder="afiliados/empresas"
                       required

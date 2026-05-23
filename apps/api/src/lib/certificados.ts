@@ -65,10 +65,10 @@ export async function emitirComprobanteSiCompleto(
     const meta = await db.execute({
       sql: `
         SELECT
-          e.nombre_completo AS nombre,
-          e.email AS email,
+          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) AS nombre,
+          COALESCE(p.email, emp.email) AS email,
           COALESCE(
-            c.nombre,
+            c.titulo,
             CASE WHEN ic.programa_codigo IS NOT NULL AND TRIM(ic.programa_codigo) != ''
               THEN 'Programa ' || ic.programa_codigo
               ELSE NULL
@@ -77,6 +77,8 @@ export async function emitirComprobanteSiCompleto(
           ) AS titulo_formacion
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+        LEFT JOIN personas p ON e.id_persona = p.id
+        LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
         LEFT JOIN cursos c ON c.id_curso = ic.id_curso
         WHERE ic.id_inscripcion = ?
         LIMIT 1

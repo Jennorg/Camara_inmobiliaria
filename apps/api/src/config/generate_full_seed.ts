@@ -1,5 +1,5 @@
 
-import { db } from '../lib/db';
+import { db } from '../lib/db.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -23,8 +23,8 @@ async function generateFullSeed() {
       'invitaciones_corporativas'
     ];
 
-    let seedContent = "import { LibsqlClient } from '@libsql/client';\n\n";
-    seedContent += "export async function seedFull(db: LibsqlClient) {\n";
+    let seedContent = "import { Client } from '@libsql/client';\n\n";
+    seedContent += "export async function seedFull(db: Client) {\n";
     seedContent += "  console.log('Iniciando restauración completa de la base de datos...');\n\n";
 
     // Disable foreign key checks for the restoration

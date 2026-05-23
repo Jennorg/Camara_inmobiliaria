@@ -46,24 +46,29 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
           ic.tipo_inscripcion,
           ic.estatus AS inscripcion_estatus,
           ic.completado,
-          cu.nombre AS curso_nombre,
-          e.nombre_completo AS estudiante_nombre
+          cu.titulo AS curso_nombre,
+          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as estudiante_nombre
         FROM certificados c
         JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+        LEFT JOIN personas p ON e.id_persona = p.id
+        LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
         LEFT JOIN cursos cu ON cu.id_curso = ic.id_curso
         WHERE (
-          (? <> '' AND LOWER(TRIM(e.email)) = ?)
-          OR (? IS NOT NULL AND e.id_afiliado = ?)
+          (? <> '' AND (LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ?))
+          OR (? IS NOT NULL AND EXISTS (
+            SELECT 1 FROM afiliados af
+            WHERE af.id_afiliado = ? AND (af.id_persona = e.id_persona OR af.id_empresa = e.id_empresa)
+          ))
           OR (? IS NOT NULL AND EXISTS (
             SELECT 1 FROM afiliados af
             JOIN personas p_af ON af.id_persona = p_af.id
-            WHERE af.id_afiliado = ? AND LOWER(TRIM(p_af.email)) = LOWER(TRIM(e.email))
+            WHERE af.id_afiliado = ? AND LOWER(TRIM(p_af.email)) = LOWER(TRIM(p.email))
           ))
         )
         ORDER BY c.fecha_emision DESC
       `,
-      args: [userEmail, userEmail, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null],
+      args: [userEmail, userEmail, userEmail, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null],
     })
 
     res.json({ success: true, data: result.rows })
@@ -503,6 +508,12 @@ export const getAfiliados = async (req: Request, res: Response) => {
       args.push(tipo_afiliado as string);
     }
 
+    const idEmpresa = Number(req.query.id_empresa)
+    if (!Number.isNaN(idEmpresa) && idEmpresa > 0) {
+      sql += ' AND a.id_empresa = ?';
+      args.push(idEmpresa);
+    }
+
     sql += ' ORDER BY a.fecha_registro DESC';
 
     const result = await db.execute({ sql, args });
@@ -693,7 +704,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     // Retornamos hasta 1000 afiliados (o todos) para que fuse.js en el frontend haga la búsqueda fuzzy y filtrado local sin saturar DB
     const result = await db.execute({
       sql: `
-      SELECT a.id_afiliado, 
+      SELECT a.id_afiliado, a.id_empresa,
              CASE 
                WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
                ELSE p.nombres || ' ' || p.apellidos 
@@ -710,13 +721,13 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              json_extract(a.redes_sociales, '$.facebook') as facebook,
              json_extract(a.redes_sociales, '$.linkedin') as linkedin,
              json_extract(a.redes_sociales, '$.twitter') as twitter
-      FROM afiliados a 
+      FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-      WHERE a.estatus = 'Afiliado' AND a.activo = 1
-      ORDER BY CAST(a.codigo_cibir AS INTEGER) ASC
-    `,
-      args: []
+      WHERE (a.estatus = 'Afiliado' OR (a.tipo_afiliado = 'Corporativo' AND a.estatus NOT IN ('Rechazado', 'Cancelado')))
+        AND a.activo = 1
+      ORDER BY CASE WHEN a.estatus = 'Afiliado' THEN 0 ELSE 1 END ASC, CAST(a.codigo_cibir AS INTEGER) ASC
+      `,      args: []
     });
 
     console.log(`[DEBUG] buscarAfiliadosPublic: Encontrados ${result.rows.length} afiliados activos.`);
@@ -844,8 +855,8 @@ export const getSolicitudesCibir = async (req: Request, res: Response) => {
     // Nuevo flujo de 6 pasos: 1_PREINSCRIPCION … 6_INSCRIPCION → Afiliado / Moroso / Suspendido / Rechazado
     const countSql = `
       SELECT 
-        COUNT(*) as todos,
-        SUM(CASE WHEN estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION') THEN 1 ELSE 0 END) as pendiente,
+        SUM(CASE WHEN NOT (tipo_afiliado = 'Agente Corporativo' AND estatus = '1_PREINSCRIPCION') THEN 1 ELSE 0 END) as todos,
+        SUM(CASE WHEN estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION') AND NOT (tipo_afiliado = 'Agente Corporativo' AND estatus = '1_PREINSCRIPCION') THEN 1 ELSE 0 END) as pendiente,
         SUM(CASE WHEN estatus = 'Afiliado' THEN 1 ELSE 0 END) as aprobado,
         SUM(CASE WHEN estatus IN ('Suspendido', 'Rechazado', 'Moroso') THEN 1 ELSE 0 END) as rechazado
       FROM afiliados
@@ -865,15 +876,18 @@ export const getSolicitudesCibir = async (req: Request, res: Response) => {
     `;
     const args: any[] = [];
     const whereConditions: Record<string, string> = {
-      pendiente: `estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION')`,
-      aprobado: `estatus = 'Afiliado'`,
-      rechazado: `estatus IN ('Suspendido','Rechazado','Moroso')`,
+      todos: `NOT (a.tipo_afiliado = 'Agente Corporativo' AND a.estatus = '1_PREINSCRIPCION')`,
+      pendiente: `a.estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION') AND NOT (a.tipo_afiliado = 'Agente Corporativo' AND a.estatus = '1_PREINSCRIPCION')`,
+      aprobado: `a.estatus = 'Afiliado'`,
+      rechazado: `a.estatus IN ('Suspendido','Rechazado','Moroso')`,
     };
     if (tab in whereConditions) {
       sql += ` WHERE ${whereConditions[tab]}`;
+    } else {
+      sql += ` WHERE NOT (a.tipo_afiliado = 'Agente Corporativo' AND a.estatus = '1_PREINSCRIPCION')`;
     }
 
-    sql += ' ORDER BY fecha_registro DESC';
+    sql += ' ORDER BY a.fecha_registro DESC';
 
     const listResult = await db.execute({ sql, args });
 
@@ -1050,7 +1064,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     // 1. Obtener el registro actual para saber qué id_persona e id_empresa tiene
     const current = await db.execute({
       sql: `SELECT id_persona, id_empresa FROM afiliados WHERE id_afiliado = ?`,
-      args: [id]
+      args: [id as string]
     });
 
     if (current.rows.length === 0) {
@@ -1099,7 +1113,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       // Leer redes actuales
       const curr = await db.execute({
         sql: `SELECT redes_sociales FROM afiliados WHERE id_afiliado = ?`,
-        args: [id]
+        args: [id as string]
       });
       let currentRedes: Record<string, any> = {};
       try {
@@ -1312,35 +1326,58 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
     const result = await db.execute({
       sql: `SELECT 
               a.id_afiliado, 
-              p.nombres || ' ' || p.apellidos as nombre_completo, 
+              COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, 
               p.cedula, 
               p.email, 
               p.telefono, 
               a.estatus, 
               a.fecha_registro,
-              'Aprobado' as fase
+              CASE 
+                WHEN a.tipo_afiliado = 'Agente Corporativo' AND a.estatus = '1_PREINSCRIPCION' THEN 'Solicitud'
+                WHEN a.estatus = 'Afiliado' THEN 'Aprobado'
+                WHEN a.estatus = 'Rechazado' THEN 'Rechazado'
+                ELSE 'En Proceso'
+              END as fase
             FROM afiliados a
             JOIN personas p ON a.id_persona = p.id
-            WHERE a.id_empresa = ?
+            WHERE a.id_empresa = ? AND a.eliminado_en IS NULL AND a.activo = 1
+              AND a.tipo_afiliado = 'Agente Corporativo'
             
             UNION ALL
             
             SELECT 
               NULL as id_afiliado,
-              e.nombre_completo,
-              e.cedula_rif,
-              e.email,
-              e.telefono,
+              COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo,
+              p.cedula,
+              p.email,
+              p.telefono,
               ic.estatus,
               ic.creado_en as fecha_registro,
               'Solicitud' as fase
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
             WHERE ic.id_empresa = ? AND ic.programa_codigo = 'AFILIACION'
-              AND NOT EXISTS (SELECT 1 FROM afiliados a2 JOIN personas p2 ON a2.id_persona = p2.id WHERE p2.email = e.email)
+              AND NOT EXISTS (SELECT 1 FROM afiliados a2 JOIN personas p2 ON a2.id_persona = p2.id WHERE LOWER(TRIM(p2.email)) = LOWER(TRIM(p.email)))
+
+            UNION ALL
+            
+            SELECT 
+              NULL as id_afiliado,
+              COALESCE(vp.nombres, '') || ' ' || COALESCE(vp.apellidos, '') as nombre_completo,
+              vp.cedula,
+              vp.email,
+              vp.telefono,
+              'Pendiente' as estatus,
+              vp.creado_en as fecha_registro,
+              'Solicitud' as fase
+            FROM verificaciones_preinscripciones vp
+            WHERE vp.id_empresa = ? AND vp.programa_interes = 'AFILIACION'
+              AND NOT EXISTS (SELECT 1 FROM inscripciones_cursos ic2 JOIN estudiantes e2 ON ic2.id_estudiante = e2.id_estudiante LEFT JOIN personas p3 ON e2.id_persona = p3.id WHERE LOWER(TRIM(p3.email)) = LOWER(TRIM(vp.email)))
+              AND NOT EXISTS (SELECT 1 FROM afiliados a3 JOIN personas p4 ON a3.id_persona = p4.id WHERE LOWER(TRIM(p4.email)) = LOWER(TRIM(vp.email)))
             
             ORDER BY fecha_registro DESC`,
-      args: [id, id]
+      args: [id, id, id]
     })
     res.json({ success: true, data: result.rows })
   } catch (error) {
@@ -1539,7 +1576,7 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
     // Primero verificar si existe
     const check = await db.execute({
       sql: 'SELECT id_persona FROM afiliados WHERE id_afiliado = ?',
-      args: [id]
+      args: [id as string]
     });
 
     if (check.rows.length === 0) {
@@ -1552,7 +1589,7 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
     // pero si no, borramos personas también para no dejar huérfanos)
     await db.execute({
       sql: 'DELETE FROM afiliados WHERE id_afiliado = ?',
-      args: [id]
+      args: [id as string]
     });
 
     // Opcional: borrar de personas si no tiene otras relaciones (estudiante, etc.)
@@ -1613,7 +1650,7 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
               VALUES (?, ?, ?, ?) RETURNING id_empresa`,
         args: [empresa_razon_social || '', cedula, email, telefono || null]
       });
-      finalIdEmpresa = resultE.rows[0].id_empresa;
+      finalIdEmpresa = resultE.rows[0].id_empresa as number;
     }
 
     // 3. Insertar Afiliado
@@ -1655,7 +1692,7 @@ export const convertirAgenteANatural = async (req: Request, res: Response): Prom
     // Verificar que sea un Agente Corporativo
     const current = await db.execute({
       sql: 'SELECT tipo_afiliado FROM afiliados WHERE id_afiliado = ?',
-      args: [id]
+      args: [id as string]
     });
 
     if (current.rows.length === 0) {
@@ -1671,7 +1708,7 @@ export const convertirAgenteANatural = async (req: Request, res: Response): Prom
     // Realizar la conversión
     await db.execute({
       sql: "UPDATE afiliados SET tipo_afiliado = 'Natural', id_empresa = NULL WHERE id_afiliado = ?",
-      args: [id]
+      args: [id as string]
     });
 
     res.json({ success: true, message: 'Conversión a Afiliado Natural exitosa' });
@@ -1731,3 +1768,235 @@ export const establecerAccesoPanel = async (req: Request, res: Response): Promis
     res.status(500).json({ success: false, message: 'Error interno del servidor' })
   }
 }
+
+/**
+ * POST /api/afiliados/:id/afiliados-corp/:idAfiliado/aprobar
+ * Permite a la empresa (o admin) aprobar a un Agente Corporativo.
+ */
+export const aprobarAfiliadoCorporativo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idEmpresa = Number(req.params.id) // id_empresa de la URL
+    const idAfiliado = Number(req.params.idAfiliado)
+    const requesterId = req.user?.id_empresa
+    const requesterRole = req.user?.rol
+
+    // Validar permisos
+    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+      res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
+    }
+
+    // Verificar que el afiliado existe, pertenece a la empresa y está en estatus '1_PREINSCRIPCION'
+    const queryAf = await db.execute({
+      sql: `SELECT id_persona, id_empresa, tipo_afiliado, estatus FROM afiliados WHERE id_afiliado = ? AND eliminado_en IS NULL`,
+      args: [idAfiliado]
+    })
+
+    if (queryAf.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Afiliado no encontrado.' }); return
+    }
+
+    const af = queryAf.rows[0] as any
+    if (af.id_empresa !== idEmpresa) {
+      res.status(400).json({ success: false, message: 'El afiliado no pertenece a la empresa indicada.' }); return
+    }
+
+    if (af.tipo_afiliado !== 'Agente Corporativo') {
+      res.status(400).json({ success: false, message: 'El afiliado no es un Agente Corporativo.' }); return
+    }
+
+    if (af.estatus !== '1_PREINSCRIPCION') {
+      res.status(400).json({ success: false, message: `El afiliado no está pendiente de aprobación (estatus actual: ${af.estatus}).` }); return
+    }
+
+    const now = new Date().toISOString()
+
+    // 1. Actualizar estatus del afiliado a '2_EXPEDIENTE'
+    await db.execute({
+      sql: `UPDATE afiliados 
+            SET estatus = '2_EXPEDIENTE', actualizado_en = ?, fecha_ultimo_cambio_estatus = ?
+            WHERE id_afiliado = ?`,
+      args: [now, now, idAfiliado]
+    })
+
+    // 2. Buscar la inscripción al programa 'AFILIACION' de esta persona
+    // Primero, obtener su id_estudiante
+    const queryEst = await db.execute({
+      sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ? LIMIT 1`,
+      args: [af.id_persona]
+    })
+
+    if (queryEst.rows.length > 0) {
+      const idEstudiante = queryEst.rows[0].id_estudiante as number
+      // Actualizar la inscripción a 'Preinscrito' (para asegurarnos)
+      await db.execute({
+        sql: `UPDATE inscripciones_cursos 
+              SET estatus = 'Preinscrito', actualizado_en = ?
+              WHERE id_estudiante = ? AND programa_codigo = 'AFILIACION' AND id_curso IS NULL`,
+        args: [now, idEstudiante]
+      })
+    }
+
+    res.json({ success: true, message: 'Afiliado aprobado con éxito.' })
+  } catch (error) {
+    console.error('aprobarAfiliadoCorporativo:', error)
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' })
+  }
+}
+
+/**
+ * POST /api/afiliados/:id/afiliados-corp/:idAfiliado/rechazar
+ * Permite a la empresa (o admin) rechazar a un Agente Corporativo.
+ */
+export const rechazarAfiliadoCorporativo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idEmpresa = Number(req.params.id) // id_empresa de la URL
+    const idAfiliado = Number(req.params.idAfiliado)
+    const requesterId = req.user?.id_empresa
+    const requesterRole = req.user?.rol
+
+    // Validar permisos
+    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+      res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
+    }
+
+    // Verificar que el afiliado existe, pertenece a la empresa y está en estatus '1_PREINSCRIPCION'
+    const queryAf = await db.execute({
+      sql: `SELECT id_persona, id_empresa, tipo_afiliado, estatus FROM afiliados WHERE id_afiliado = ? AND eliminado_en IS NULL`,
+      args: [idAfiliado]
+    })
+
+    if (queryAf.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Afiliado no encontrado.' }); return
+    }
+
+    const af = queryAf.rows[0] as any
+    if (af.id_empresa !== idEmpresa) {
+      res.status(400).json({ success: false, message: 'El afiliado no pertenece a la empresa indicada.' }); return
+    }
+
+    if (af.tipo_afiliado !== 'Agente Corporativo') {
+      res.status(400).json({ success: false, message: 'El afiliado no es un Agente Corporativo.' }); return
+    }
+
+    if (af.estatus !== '1_PREINSCRIPCION') {
+      res.status(400).json({ success: false, message: `El afiliado no está pendiente de aprobación (estatus actual: ${af.estatus}).` }); return
+    }
+
+    const now = new Date().toISOString()
+
+    // 1. Actualizar estatus del afiliado a 'Rechazado' y poner activo = 0
+    await db.execute({
+      sql: `UPDATE afiliados 
+            SET estatus = 'Rechazado', activo = 0, actualizado_en = ?, fecha_ultimo_cambio_estatus = ?
+            WHERE id_afiliado = ?`,
+      args: [now, now, idAfiliado]
+    })
+
+    // 2. Buscar la inscripción al programa 'AFILIACION' de esta persona y marcarla como 'Rechazado'
+    const queryEst = await db.execute({
+      sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ? LIMIT 1`,
+      args: [af.id_persona]
+    })
+
+    if (queryEst.rows.length > 0) {
+      const idEstudiante = queryEst.rows[0].id_estudiante as number
+      await db.execute({
+        sql: `UPDATE inscripciones_cursos 
+              SET estatus = 'Rechazado', actualizado_en = ?
+              WHERE id_estudiante = ? AND programa_codigo = 'AFILIACION' AND id_curso IS NULL`,
+        args: [now, idEstudiante]
+      })
+    }
+
+    res.json({ success: true, message: 'Afiliado rechazado con éxito.' })
+  } catch (error) {
+    console.error('rechazarAfiliadoCorporativo:', error)
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' })
+  }
+}
+
+/**
+ * POST /api/afiliados/:id/afiliados-corp/crear-solicitud
+ * Permite a la empresa (o admin) crear directamente una solicitud (pendiente) para un Agente Corporativo.
+ */
+export const crearSolicitudAgenteCorporativo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idEmpresa = Number(req.params.id)
+    const requesterId = req.user?.id_empresa
+    const requesterRole = req.user?.rol
+
+    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+      res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
+    }
+
+    const { nombreCompleto, cedulaRif, email, telefono, nivelProfesional, esCorredorInmobiliario } = req.body
+
+    if (!nombreCompleto || !cedulaRif || !email) {
+      res.status(400).json({ success: false, message: 'Nombre, Cédula y Email son requeridos.' }); return
+    }
+
+    // Verificar si ya existe en personas
+    const existing = await db.execute({
+      sql: `SELECT id FROM personas WHERE email = ? OR cedula = ? LIMIT 1`,
+      args: [email, cedulaRif]
+    })
+    if (existing.rows.length > 0) {
+      res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o cédula.' }); return
+    }
+
+    const now = new Date().toISOString()
+
+    // 1. Crear Persona
+    const nameParts = nombreCompleto.trim().split(' ')
+    const mid = Math.ceil(nameParts.length / 2)
+    const nombres = nameParts.slice(0, mid).join(' ')
+    const apellidos = nameParts.length > 1 ? nameParts.slice(mid).join(' ') : ''
+
+    const resP = await db.execute({
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, creado_en, actualizado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id`,
+      args: [nombres, apellidos, cedulaRif, email, telefono || null, nivelProfesional || null, now, now]
+    })
+    const idPersona = Number(resP.rows[0].id)
+
+    // 2. Crear Estudiante
+    const resEst = await db.execute({
+      sql: `INSERT INTO estudiantes (id_persona, tipo, es_corredor_inmobiliario, programa_interes, creado_en, actualizado_en)
+            VALUES (?, 'Afiliado', ?, 'AFILIACION', ?, ?)
+            RETURNING id_estudiante`,
+      args: [idPersona, esCorredorInmobiliario ? 1 : 0, now, now]
+    })
+    const idEstudiante = Number(resEst.rows[0].id_estudiante)
+
+    // 3. Crear Inscripción
+    await db.execute({
+      sql: `INSERT INTO inscripciones_cursos (id_estudiante, programa_codigo, tipo_inscripcion, estatus, creado_en, actualizado_en, id_empresa)
+            VALUES (?, 'AFILIACION', 'programa', 'Preinscrito', ?, ?, ?)`,
+      args: [idEstudiante, now, now, idEmpresa]
+    })
+
+    // 4. Crear Afiliado en 1_PREINSCRIPCION
+    const resA = await db.execute({
+      sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, creado_en, actualizado_en)
+            VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)
+            RETURNING id_afiliado`,
+      args: [idPersona, idEmpresa, now, now]
+    })
+    const idAfiliado = Number(resA.rows[0].id_afiliado)
+
+    if (idAfiliado) {
+      await db.execute({
+        sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
+        args: [idAfiliado]
+      })
+    }
+
+    res.status(201).json({ success: true, message: 'Solicitud de agente creada con éxito.' })
+  } catch (error) {
+    console.error('crearSolicitudAgenteCorporativo:', error)
+    res.status(500).json({ success: false, message: 'Error interno al crear la solicitud.' })
+  }
+}
+
+

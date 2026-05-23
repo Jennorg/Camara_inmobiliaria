@@ -38,7 +38,7 @@ interface Invitacion {
 }
 
 interface AfiliadoMiembro {
-  id_afiliado: number;
+  id_afiliado: number | null;
   nombre_completo: string;
   nombres: string | null;
   apellidos: string | null;
@@ -47,6 +47,7 @@ interface AfiliadoMiembro {
   telefono: string;
   estatus: string;
   fecha_registro: string;
+  fase: 'Solicitud' | 'Aprobado' | 'En Proceso' | 'Rechazado';
 }
 
 const BOX_H = 'h-[58px]';
@@ -81,15 +82,38 @@ export default function WidgetGestionAfiliadosCorp() {
     esCorredorInmobiliario: '',
   });
 
+  const [empresaNombre, setEmpresaNombre] = useState('');
+
   const fetchData = async () => {
-    if (!user?.id_empresa || !token) return;
+    if (!token) return;
     setLoading(true);
     try {
+      let companyId = user?.id_empresa;
+
+      // Fallback: Si no está en el context, intentar obtenerlo del perfil de afiliado
+      if (!companyId && user?.id_afiliado) {
+        const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dataProfile = await resProfile.json();
+        if (dataProfile.success && dataProfile.data.id_empresa) {
+          companyId = dataProfile.data.id_empresa;
+          if (dataProfile.data.empresa_razon_social) setEmpresaNombre(dataProfile.data.empresa_razon_social);
+        }
+      } else if (companyId && user?.nombre_completo) {
+        setEmpresaNombre(user.nombre_completo);
+      }
+
+      if (!companyId) {
+        setLoading(false);
+        return;
+      }
+
       const [resInv, resMbr] = await Promise.all([
-        fetch(`${API_URL}/api/afiliados/${user.id_empresa}/invitaciones`, {
+        fetch(`${API_URL}/api/afiliados/${companyId}/invitaciones`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch(`${API_URL}/api/afiliados/${user.id_empresa}/afiliados-corp`, {
+        fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -109,14 +133,26 @@ export default function WidgetGestionAfiliadosCorp() {
 
   useEffect(() => {
     fetchData();
-  }, [user?.id_empresa, token]);
+  }, [user?.id_empresa, user?.id_afiliado, token]);
 
   const handleGenerarLink = async () => {
-    if (!user?.id_empresa || !token) return;
+    let companyId = user?.id_empresa;
+    if (!companyId && user?.id_afiliado && token) {
+      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const dataProfile = await resProfile.json();
+      if (dataProfile.success && dataProfile.data.id_empresa) {
+        companyId = dataProfile.data.id_empresa;
+      }
+    }
+    
+    if (!companyId || !token) return;
+
     setActionLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${user.id_empresa}/invitacion`, {
+      const res = await fetch(`${API_URL}/api/afiliados/${companyId}/invitacion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,11 +182,23 @@ export default function WidgetGestionAfiliadosCorp() {
 
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id_empresa || !token) return;
+    let companyId = user?.id_empresa;
+    if (!companyId && user?.id_afiliado && token) {
+      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const dataProfile = await resProfile.json();
+      if (dataProfile.success && dataProfile.data.id_empresa) {
+        companyId = dataProfile.data.id_empresa;
+      }
+    }
+
+    if (!companyId || !token) return;
+    
     setActionLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${user.id_empresa}/registrar-miembro`, {
+      const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/crear-solicitud`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,7 +228,7 @@ export default function WidgetGestionAfiliadosCorp() {
         });
         fetchData();
       } else {
-        setError(data.message || 'Error al registrar miembro.');
+        setError(data.message || 'Error al crear la solicitud.');
       }
     } catch (err) {
       setError('Error de conexión.');
@@ -189,7 +237,85 @@ export default function WidgetGestionAfiliadosCorp() {
     }
   };
 
+  const handleAprobarSolicitud = async (idAfiliado: number) => {
+    let companyId = user?.id_empresa;
+    if (!companyId && user?.id_afiliado && token) {
+      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const dataProfile = await resProfile.json();
+      if (dataProfile.success && dataProfile.data.id_empresa) {
+        companyId = dataProfile.data.id_empresa;
+      }
+    }
+
+    if (!companyId || !token) return;
+
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/${idAfiliado}/aprobar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+      } else {
+        setError(data.message || 'Error al aprobar la solicitud.');
+      }
+    } catch (err) {
+      setError('Error de conexión.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRechazarSolicitud = async (idAfiliado: number) => {
+    let companyId = user?.id_empresa;
+    if (!companyId && user?.id_afiliado && token) {
+      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const dataProfile = await resProfile.json();
+      if (dataProfile.success && dataProfile.data.id_empresa) {
+        companyId = dataProfile.data.id_empresa;
+      }
+    }
+
+    if (!companyId || !token) return;
+
+    setActionLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/${idAfiliado}/rechazar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+      } else {
+        setError(data.message || 'Error al rechazar la solicitud.');
+      }
+    } catch (err) {
+      setError('Error de conexión.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+
   const selectedNivel = NIVELES.find(n => n.value === modalForm.nivelProfesional);
+
+  const solicitudesPendientes = miembros.filter(m => m.fase === 'Solicitud');
+  const miembrosVinculados = miembros.filter(m => m.fase !== 'Solicitud');
 
   if (loading) {
     return (
@@ -201,9 +327,9 @@ export default function WidgetGestionAfiliadosCorp() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-2">
       {/* Header / Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
         <div>
           <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
             <Building2 className="text-emerald-600" size={24} />
@@ -219,7 +345,7 @@ export default function WidgetGestionAfiliadosCorp() {
             className={`flex items-center gap-2 px-6 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all active:scale-95 ${BOX_H}`}
           >
             <UserPlus size={14} className="text-emerald-500" />
-            Registrar Manualmente
+            Crear Solicitud
           </button>
           <button
             onClick={handleGenerarLink}
@@ -236,6 +362,69 @@ export default function WidgetGestionAfiliadosCorp() {
         <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-red-700 text-xs font-bold flex items-center gap-2">
           <AlertCircle size={14} />
           {error}
+        </div>
+      )}
+
+      {/* Solicitudes de Afiliación Pendientes */}
+      {solicitudesPendientes.length > 0 && (
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-emerald-50/10">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22] flex items-center gap-2">
+              <Users size={14} className="text-emerald-600" />
+              Solicitudes Pendientes de Aprobación
+            </h3>
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+              {solicitudesPendientes.length} por Revisar
+            </span>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {solicitudesPendientes.map((m) => (
+              <div key={m.id_afiliado || m.email} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs">
+                    {getInitials(m.nombres || m.nombre_completo, m.apellidos)}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
+                      {formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}
+                    </p>
+                    <p className="text-[10px] font-medium text-gray-500">{m.email} • {m.telefono}</p>
+                    <p className="text-[10px] text-gray-400 font-bold">
+                      C.I. / RIF: {m.cedula || '—'} • Envío: {new Date(m.fecha_registro).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {m.id_afiliado !== null ? (
+                    <>
+                      <button
+                        onClick={() => handleAprobarSolicitud(m.id_afiliado!)}
+                        disabled={actionLoading}
+                        className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                      >
+                        <Check size={12} strokeWidth={3} />
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={() => handleRechazarSolicitud(m.id_afiliado!)}
+                        disabled={actionLoading}
+                        className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                      >
+                        <X size={12} strokeWidth={3} />
+                        Rechazar
+                      </button>
+                    </>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-200">
+                      Pendiente Confirmar Correo
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -312,18 +501,18 @@ export default function WidgetGestionAfiliadosCorp() {
               Afiliados Vinculados
             </h3>
             <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest">
-              {miembros.length} Miembros
+              {miembrosVinculados.length} Miembros
             </span>
           </div>
 
           <div className="divide-y divide-gray-50 flex-1 overflow-y-auto max-h-[400px]">
-            {miembros.length === 0 ? (
+            {miembrosVinculados.length === 0 ? (
               <div className="p-12 text-center text-gray-400 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest">Sin miembros vinculados</p>
                 <p className="text-[10px] font-medium leading-relaxed">Los afiliados que se registren con tu link aparecerán aquí.</p>
               </div>
             ) : (
-              miembros.map((m) => (
+              miembrosVinculados.map((m) => (
                 <div key={m.id_afiliado} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black text-xs">
@@ -333,9 +522,14 @@ export default function WidgetGestionAfiliadosCorp() {
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}</p>
                       <p className="text-[10px] font-medium text-gray-500">{m.email}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${m.estatus === 'Afiliado' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                          }`}>
-                          {m.estatus === 'Afiliado' ? 'Activo' : m.estatus.replace(/_/g, ' ')}
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                          m.fase === 'Aprobado' ? 'bg-emerald-50 text-emerald-600' : 
+                          m.fase === 'Rechazado' ? 'bg-red-50 text-red-600' :
+                          'bg-amber-50 text-amber-600'
+                        }`}>
+                          {m.fase === 'Aprobado' ? 'Activo' : 
+                           m.fase === 'En Proceso' ? 'Esperando Admin' : 
+                           m.fase}
                         </span>
                         <span className="text-[9px] text-gray-400 font-medium">Registrado: {new Date(m.fecha_registro).toLocaleDateString()}</span>
                       </div>
@@ -358,9 +552,9 @@ export default function WidgetGestionAfiliadosCorp() {
               <div>
                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
                   <UserPlus className="text-emerald-600" size={24} />
-                  Registrar Nuevo Miembro
+                  Crear Solicitud de Agente
                 </h3>
-                <p className="text-xs font-medium text-gray-500 mt-1">Ingresa los datos para registrar un afiliado directamente.</p>
+                <p className="text-xs font-medium text-gray-500 mt-1">Ingresa los datos para crear una solicitud de agente corporativo.</p>
               </div>
               <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:shadow-md transition-all">
                 <X size={20} />
@@ -471,7 +665,7 @@ export default function WidgetGestionAfiliadosCorp() {
                 Cancelar
               </button>
               <button type="submit" form="direct-reg-form" disabled={actionLoading} className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
-                {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <><CheckCircle size={14} /> Confirmar Registro</>}
+                {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <><CheckCircle size={14} /> Crear Solicitud</>}
               </button>
             </div>
           </div>

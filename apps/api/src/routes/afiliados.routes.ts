@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, establecerAccesoPanel } from '../controllers/afiliados.controller.js';
-import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
+import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, establecerAccesoPanel, aprobarAfiliadoCorporativo, rechazarAfiliadoCorporativo, crearSolicitudAgenteCorporativo } from '../controllers/afiliados.controller.js';
+import { requireAuth, requireRole, enrichUser } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -14,13 +14,13 @@ router.post('/', requireAuth, requireRole('admin', 'super_admin'), createAfiliad
 router.get('/cibir/solicitudes', requireAuth, requireRole('admin', 'super_admin'), getSolicitudesCibir);
 
 // GET /api/afiliados/me/certificados — comprobantes digitales del usuario autenticado
-router.get('/me/certificados', requireAuth, getMisCertificados);
+router.get('/me/certificados', requireAuth, enrichUser, getMisCertificados);
 
 // GET /api/afiliados/me/cursos — cursos inscritos y progreso de módulos
-router.get('/me/cursos', requireAuth, getMisCursos);
+router.get('/me/cursos', requireAuth, enrichUser, getMisCursos);
 
 // GET /api/afiliados/:id — para el portal del afiliado (requiere auth)
-router.get('/:id', requireAuth, getAfiliadoById);
+router.get('/:id', requireAuth, enrichUser, getAfiliadoById);
 
 // POST /api/afiliados/registro
 router.post('/registro', registerAfiliado);
@@ -29,13 +29,13 @@ router.post('/registro', registerAfiliado);
 router.post('/registro/verificar', verificarEmail);
 
 // POST /api/afiliados/formalizar — Para que el afiliado pague su inscripción
-router.post('/formalizar', requireAuth, formalizarInscripcion);
+router.post('/formalizar', requireAuth, enrichUser, formalizarInscripcion);
 
 // PATCH /api/afiliados/:id/acceso-panel — Contraseña de acceso al panel (admin)
 router.patch('/:id/acceso-panel', requireAuth, requireRole('admin', 'super_admin'), establecerAccesoPanel);
 
 // PATCH /api/afiliados/:id — Actualización general del afiliado
-router.patch('/:id', requireAuth, updateAfiliado);
+router.patch('/:id', requireAuth, enrichUser, updateAfiliado);
 
 // DELETE /api/afiliados/:id
 router.delete('/:id', requireAuth, requireRole('admin', 'super_admin'), deleteAfiliado);
@@ -51,22 +51,31 @@ router.patch('/:id/rechazar', requireAuth, requireRole('admin', 'super_admin'), 
 
 // ── Invitaciones Corporativas ──────────────────────────────────────────────────
 // POST /api/afiliados/:id/invitacion — Genera link reutilizable (admin o afiliado corp)
-router.post('/:id/invitacion', requireAuth, generarInvitacionCorporativa);
+router.post('/:id/invitacion', requireAuth, enrichUser, generarInvitacionCorporativa);
 
 // GET /api/afiliados/:id/invitaciones — Lista links generados
-router.get('/:id/invitaciones', requireAuth, listarInvitacionesCorporativas);
+router.get('/:id/invitaciones', requireAuth, enrichUser, listarInvitacionesCorporativas);
 
 // DELETE /api/afiliados/:id/invitaciones/:tokenId — Revoca un link
 router.delete('/:id/invitaciones/:tokenId', requireAuth, requireRole('admin', 'super_admin'), revocarInvitacionCorporativa);
 
 // GET /api/afiliados/:id/afiliados-corp — Lista individuales vinculados a la empresa
-router.get('/:id/afiliados-corp', requireAuth, listarAfiliadosCorporativos);
+router.get('/:id/afiliados-corp', requireAuth, enrichUser, listarAfiliadosCorporativos);
 
 // POST /api/afiliados/:id/registrar-miembro — Registro directo por la empresa
-router.post('/:id/registrar-miembro', requireAuth, registrarMiembroDirecto);
+router.post('/:id/registrar-miembro', requireAuth, enrichUser, registrarMiembroDirecto);
 
 // POST /api/afiliados/:id/convertir-natural — Agente a Natural
-router.post('/:id/convertir-natural', requireAuth, convertirAgenteANatural);
+router.post('/:id/convertir-natural', requireAuth, enrichUser, convertirAgenteANatural);
+
+// POST /api/afiliados/:id/afiliados-corp/:idAfiliado/aprobar — Aprobar agente corporativo pendiente
+router.post('/:id/afiliados-corp/:idAfiliado/aprobar', requireAuth, enrichUser, aprobarAfiliadoCorporativo);
+
+// POST /api/afiliados/:id/afiliados-corp/:idAfiliado/rechazar — Rechazar agente corporativo pendiente
+router.post('/:id/afiliados-corp/:idAfiliado/rechazar', requireAuth, enrichUser, rechazarAfiliadoCorporativo);
+
+// POST /api/afiliados/:id/afiliados-corp/crear-solicitud — Crear solicitud (pendiente) de agente corporativo
+router.post('/:id/afiliados-corp/crear-solicitud', requireAuth, enrichUser, crearSolicitudAgenteCorporativo);
 
 export { router as afiliadosRoutes };
 

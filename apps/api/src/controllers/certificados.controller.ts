@@ -19,15 +19,17 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
           c.id_certificado,
           c.codigo_validacion,
           c.fecha_emision,
-          e.nombre_completo AS titular_nombre,
+          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as titular_nombre,
           ic.programa_codigo,
           ic.tipo_inscripcion,
           ic.estatus AS inscripcion_estatus,
           ic.completado,
-          cu.nombre AS curso_nombre
+          cu.titulo AS curso_nombre
         FROM certificados c
         JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+        LEFT JOIN personas p ON e.id_persona = p.id
+        LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
         LEFT JOIN cursos cu ON cu.id_curso = ic.id_curso
         WHERE UPPER(c.codigo_validacion) = UPPER(?)
         LIMIT 1

@@ -503,9 +503,9 @@ export const createNormativa = async (req: Request, res: Response) => {
             VALUES (?, ?, ?, ?, ?, ?) RETURNING *`,
       args: [
         t, 
-        descripcion || null, 
+        (descripcion as string | null) || null, 
         u, 
-        categoria || null, 
+        (categoria as string | null) || null, 
         Number(orden || 0), 
         activo === false ? 0 : 1
       ],
@@ -540,9 +540,9 @@ export const updateNormativa = async (req: Request, res: Response) => {
             WHERE id_normativa=? RETURNING *`,
       args: [
         t, 
-        descripcion || null, 
+        (descripcion as string | null) || null, 
         u, 
-        categoria || null, 
+        (categoria as string | null) || null, 
         Number(orden || 0), 
         activo === false ? 0 : 1,
         id

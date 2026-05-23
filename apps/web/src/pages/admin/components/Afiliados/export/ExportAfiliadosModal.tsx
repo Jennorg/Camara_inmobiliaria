@@ -64,7 +64,7 @@ export default function ExportAfiliadosModal({
   const fetchItems = useCallback(async (): Promise<AfiliadoDTO[]> => {
     const qs = new URLSearchParams()
     if (filters.estatus !== 'Todos') qs.set('estatus', filters.estatus)
-    if (filters.tipo !== 'Todos' && filters.tipo !== 'Agente') {
+    if (filters.tipo !== 'Todos') {
       qs.set('tipo_afiliado', filters.tipo)
     }
     const url = `${API_URL}/api/afiliados${qs.toString() ? `?${qs}` : ''}`
@@ -176,7 +176,7 @@ export default function ExportAfiliadosModal({
                 <option value="Todos">Todos</option>
                 <option value="Natural">Independientes</option>
                 <option value="Corporativo">Corporativos</option>
-                <option value="Agente">Agentes corporativos</option>
+                <option value="Agente Corporativo">Agentes corporativos</option>
               </select>
             </div>
 

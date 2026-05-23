@@ -329,6 +329,16 @@ const statements = [
     UNIQUE(id_curso, id_estudiante)
   )`,
 
+  `CREATE TABLE IF NOT EXISTS certificados (
+    id_certificado      INTEGER     PRIMARY KEY,
+    id_inscripcion      INTEGER     NOT NULL UNIQUE REFERENCES inscripciones_cursos(id_inscripcion) ON DELETE CASCADE,
+    codigo_validacion   TEXT        NOT NULL UNIQUE,
+    fecha_emision       TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    eliminado_en        TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_certificados_inscripcion ON certificados(id_inscripcion)`,
+  `CREATE INDEX IF NOT EXISTS idx_certificados_codigo ON certificados(codigo_validacion)`,
+
   `CREATE TABLE IF NOT EXISTS documentos_adjuntos (
     id_documento      INTEGER     PRIMARY KEY,
     entidad_tipo      TEXT        NOT NULL CHECK (entidad_tipo IN ('estudiante','afiliado','empresa','curso')),

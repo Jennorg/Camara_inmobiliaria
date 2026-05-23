@@ -6,6 +6,7 @@ export interface NavItem {
   icon: React.ElementType;
   label: string;
   isDivider?: boolean;
+  count?: number;
   children?: NavItem[];
 }
 
@@ -149,7 +150,14 @@ const SidebarContent = ({
               >
                 <item.icon size={20} className={activeTab === item.label ? '' : 'group-hover:scale-110 transition-transform'} />
                 <div className={`flex-1 flex items-center justify-between overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-full opacity-100 ml-3'}`}>
-                  <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
+                    {item.count !== undefined && item.count > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-white text-[9px] font-black leading-none">
+                        {item.count}
+                      </span>
+                    )}
+                  </div>
                   {hasChildren && (
                     <ChevronRight size={14} className={['transition-transform duration-200 opacity-40 flex-shrink-0', isExpanded ? 'rotate-90' : ''].join(' ')} />
                   )}

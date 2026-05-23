@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard } from '@/utils/formatters'
-import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search } from 'lucide-react'
+import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2 } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 const AFILIACION_STEPS_FLOW = [
@@ -39,6 +39,8 @@ type Row = {
   representante_telefono?: string | null
   tipo_estudiante?: string | null
   afiliado_estatus?: string
+  afiliado_tipo?: string | null
+  empresa_vinculada_nombre?: string | null
 }
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -405,7 +407,15 @@ export default function PreinscripcionesPrincipalesPanel({
                     {mapStatusUI(r.estatus)}
                   </span>
                 </div>
-                <span className="text-xs text-slate-400 truncate">{r.programa_codigo} • {r.estudiante_cedula || 'S/N'}</span>
+                <span className="text-xs text-slate-400 truncate">
+                  {r.programa_codigo === 'AFILIACION' && r.afiliado_tipo ? (
+                    r.afiliado_tipo === 'Corporativo' ? 'Corporativo' :
+                    r.afiliado_tipo === 'Agente Corporativo' || r.afiliado_tipo === 'Agente' 
+                      ? `Agente Corporativo${r.empresa_vinculada_nombre ? ` (${r.empresa_vinculada_nombre})` : ''}` :
+                    'Agente Independiente'
+                  ) : r.programa_codigo}
+                  {' • '}{r.estudiante_cedula || 'S/N'}
+                </span>
                 <span className="text-[10px] text-slate-300">{new Date(r.creado_en).toLocaleDateString('es-ES', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
               </button>
             ))
@@ -436,10 +446,22 @@ export default function PreinscripcionesPrincipalesPanel({
                 <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${getStatusStyles(selected.estatus)}`}>
                   {mapStatusUI(selected.estatus)} por: {selected.programa_codigo === 'AFILIACION' ? 'Afiliación' : selected.programa_codigo}
                 </span>
-                {(selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J')) && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                    JURÍDICO
+                {selected.programa_codigo === 'AFILIACION' && selected.afiliado_tipo ? (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    selected.afiliado_tipo === 'Corporativo' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                    selected.afiliado_tipo === 'Agente Corporativo' || selected.afiliado_tipo === 'Agente' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                    'bg-blue-50 text-blue-600 border border-blue-100'
+                  }`}>
+                    {selected.afiliado_tipo === 'Corporativo' ? 'CORPORATIVO' :
+                     selected.afiliado_tipo === 'Agente Corporativo' || selected.afiliado_tipo === 'Agente' ? 'AGENTE CORPORATIVO' :
+                     'AGENTE INDEPENDIENTE'}
                   </span>
+                ) : (
+                  (selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J')) && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                      JURÍDICO
+                    </span>
+                  )
                 )}
               </div>
             </div>
@@ -651,7 +673,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
                       <span className="text-sm text-slate-700 font-medium break-all">
-                        {selected.representante_telefono ? (selected.estudiante_telefono || 'No indicado') : 'No indicado'}
+                        {selected.estudiante_telefono || 'No indicado'}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 sm:col-span-2">
@@ -673,7 +695,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-0.5 sm:col-span-2">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nombre</span>
-                      <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_nombre}</span>
+                      <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_nombre || 'No indicado'}</span>
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
@@ -691,6 +713,22 @@ export default function PreinscripcionesPrincipalesPanel({
                     </div>
                   </div>
                 </div>
+
+                {/* Sección Empresa Vinculada (Solo para Agentes) */}
+                {(selected.afiliado_tipo === 'Agente Corporativo' || selected.afiliado_tipo === 'Agente') && selected.empresa_vinculada_nombre && (
+                  <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="w-4 h-4 text-emerald-600" />
+                      <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Empresa Vinculada</p>
+                    </div>
+                    <p className="text-sm text-emerald-900 font-black uppercase tracking-tight">
+                      {selected.empresa_vinculada_nombre}
+                    </p>
+                    <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
+                      Este agente pertenece a la nómina de esta empresa afiliada.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               /* Vista Normal (Persona Natural) */
@@ -734,7 +772,7 @@ export default function PreinscripcionesPrincipalesPanel({
                       curso_extra: 'Curso Extra',
                       comprobante: 'Comprobante',
                       titulo_representante: 'Título del Representante',
-                      registro_mercantil: 'Registro Mercantil',
+                      registro_mercantil: 'Acta Constitutiva',
                       referencia_afiliado_1: 'Referencia Afiliado 1',
                       referencia_afiliado_2: 'Referencia Afiliado 2',
                       diplomado: 'Diplomado',

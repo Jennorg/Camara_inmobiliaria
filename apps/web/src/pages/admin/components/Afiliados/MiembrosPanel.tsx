@@ -29,7 +29,7 @@ export default function MiembrosPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos')
+  const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos')
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('codigo_asc')
 
@@ -60,9 +60,13 @@ export default function MiembrosPanel() {
       const res = await fetch(`${API_URL}/api/afiliados`, { headers: authHeaders })
       const json = await res.json()
       if (json.success) {
-        setItems(json.data)
+        // Solo mostrar afiliados que han completado el proceso de afiliación
+        const approved = json.data.filter((a: AfiliadoDTO) =>
+          ['Afiliado', 'Moroso', 'Suspendido', 'Rechazado'].includes(a.estatus)
+        )
+        setItems(approved)
         // Guardar empresas (tipo Corporativo) para el selector de vinculación
-        setCompanies(json.data.filter((a: AfiliadoDTO) => a.tipo_afiliado === 'Corporativo'))
+        setCompanies(approved.filter((a: AfiliadoDTO) => a.tipo_afiliado === 'Corporativo'))
       }
     } catch (err) {
       setError('Error de conexión')
@@ -182,7 +186,7 @@ export default function MiembrosPanel() {
       const matchSearch = nombre.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
 
        let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
-       if (filterTipo === 'Agente') {
+       if (filterTipo === 'Agente Corporativo') {
          matchTipo = item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
        }
 
@@ -269,7 +273,7 @@ export default function MiembrosPanel() {
 
   const handleCreate = async () => {
     try {
-      const tipoFinal = isNewCorporativo ? 'Corporativo' : (newForm.id_empresa ? 'Agente' : 'Natural')
+      const tipoFinal = isNewCorporativo ? 'Corporativo' : (newForm.id_empresa ? 'Agente Corporativo' : 'Natural')
       const rifEmpresa = newForm.empresa_rif_numero?.trim()
       const payload = {
         ...newForm,
@@ -378,7 +382,7 @@ export default function MiembrosPanel() {
               <div className="flex items-center gap-2 overflow-hidden">
                 <Filter size={14} className="text-slate-400 shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-widest truncate">
-                  Filtro: {filterTipo === 'Todos' ? 'Todos' : filterTipo === 'Natural' ? 'Agentes Independientes' : filterTipo === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}
+                  Filtro: {filterTipo === 'Todos' ? 'Todos' : filterTipo === 'Natural' ? 'Agentes Independientes' : filterTipo === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Corporativos'}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -400,7 +404,7 @@ export default function MiembrosPanel() {
                       { id: 'Todos', label: 'Todos' },
                       { id: 'Natural', label: 'Agentes Independientes' },
                       { id: 'Corporativo', label: 'Corporativos' },
-                      { id: 'Agente', label: 'Agentes Corporativos' },
+                      { id: 'Agente Corporativo', label: 'Agentes Corporativos' },
                     ].map((f) => (
                       <button
                         key={f.id}
@@ -737,7 +741,7 @@ labelClassName="hidden"
                         >
                           <option value="Natural">Agente Independiente</option>
                           <option value="Corporativo">Corporativo</option>
-                          <option value="Agente">Agente Corporativo</option>
+                          <option value="Agente Corporativo">Agente Corporativo</option>
                         </select>
                       ) : (
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
@@ -750,7 +754,7 @@ labelClassName="hidden"
                       )}
                     </div>
 
-                    {(isEditing ? editForm.tipo_afiliado === 'Agente' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
+                    {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
                       <div className="pt-2 border-t border-gray-200 space-y-2">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
                         {isEditing ? (
@@ -1112,7 +1116,7 @@ labelClassName="hidden"
                         setNewForm({
                           ...newForm,
                           id_empresa: corpId,
-                          tipo_afiliado: corpId ? 'Agente' : 'Natural',
+                          tipo_afiliado: corpId ? 'Agente Corporativo' : 'Natural',
                         })
                       }}
                     >
@@ -1302,6 +1306,7 @@ labelClassName="hidden"
         initialFilters={{
           tipo: filterTipo as ExportTipoFilter,
           search,
+          estatus: 'Afiliado',
         }}
       />
     </div>

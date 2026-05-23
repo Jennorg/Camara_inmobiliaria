@@ -1,6 +1,6 @@
 import { AfiliadoDTO, EstatusAfiliado } from '@/types/afiliados'
 
-export type ExportTipoFilter = 'Todos' | 'Natural' | 'Corporativo' | 'Agente'
+export type ExportTipoFilter = 'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'
 export type ExportActivoFilter = 'todos' | 'activos' | 'inactivos'
 export type ExportEstatusFilter = 'Todos' | EstatusAfiliado
 
@@ -16,7 +16,7 @@ export function matchesTipoFilter(
   tipo: ExportTipoFilter
 ): boolean {
   if (tipo === 'Todos') return true
-  if (tipo === 'Agente') {
+  if (tipo === 'Agente Corporativo') {
     return item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
   }
   return item.tipo_afiliado === tipo

@@ -20,6 +20,7 @@ import {
   FileText,
   UserPlus,
   ClipboardList,
+  RefreshCw,
 } from 'lucide-react';
 import DashboardSidebar from '@/pages/landing/afiliado/components/DashboardSidebar';
 import DashboardHeader from '@/pages/landing/afiliado/components/DashboardHeader';
@@ -31,6 +32,7 @@ import WidgetFormalizarInscripcion from '@/pages/landing/afiliado/components/Wid
 import WidgetMisCertificados from '@/pages/landing/afiliado/components/WidgetMisCertificados';
 import WidgetSolicitudAfiliacion from '@/pages/landing/afiliado/components/WidgetSolicitudAfiliacion';
 import WidgetGestionAfiliadosCorp from '@/pages/landing/afiliado/components/WidgetGestionAfiliadosCorp';
+import AdminMisAgentesPanel from '@/pages/admin/components/Afiliados/AdminMisAgentesPanel';
 
 // Componentes Administrativos
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel';
@@ -111,7 +113,11 @@ const PanelPage = () => {
     inscripcion_pagada: number;
     tipo_afiliado?: string;
     razon_social?: string;
+    id_empresa?: number;
   } | null>(null);
+
+  const [agentesCorp, setAgentesCorp] = useState<any[]>([]);
+  const [loadingAgentes, setLoadingAgentes] = useState(false);
 
   const fetchAfiliado = () => {
     if (!user?.id_afiliado || !token) {
@@ -123,18 +129,38 @@ const PanelPage = () => {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(d => { if (d.success) setAfiliado(d.data) })
+      .then(d => { 
+        if (d.success) {
+          setAfiliado(d.data);
+          if (d.data.tipo_afiliado === 'Corporativo' && d.data.id_empresa) {
+            fetchAgentes(d.data.id_empresa);
+          }
+        }
+      })
       .catch(() => { })
       .finally(() => setLoadingAfiliado(false));
   };
 
+  const fetchAgentes = (idEmpresa: number) => {
+    setLoadingAgentes(true);
+    fetch(`${API_URL}/api/afiliados/${idEmpresa}/afiliados-corp`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => { if (d.success) setAgentesCorp(d.data); })
+      .catch(() => { })
+      .finally(() => setLoadingAgentes(false));
+  };
+
   useEffect(() => { fetchAfiliado(); }, [user?.id_afiliado, token]);
 
-  const displayName = afiliado ? formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos) : (user?.email?.split('@')[0] ?? 'Usuario');
-  const displayCode = afiliado?.codigo_cibir ?? (isAdmin ? 'Administrador' : '—');
-  const isActivo = afiliado?.estatus === 'CIBIR';
-  const isPaid = afiliado?.inscripcion_pagada === 1;
-  const isLimited = isActivo && !isPaid;
+  const solicitudesPendientesCount = agentesCorp.filter(a => a.fase === 'Solicitud').length;
+
+  const displayName = user?.nombre_completo || (user?.email?.split('@')[0] ?? 'Usuario');
+  const displayCode = user?.codigo_cibir ?? (isAdmin ? 'Administrador' : '—');
+  const isActivo = user?.estatus === 'CIBIR' || user?.estatus === 'Afiliado';
+  const isPaid = user?.id_afiliado ? (afiliado?.inscripcion_pagada === 1) : false; // Necesita fetch o estar en user
+  const isLimited = isActivo && (afiliado ? afiliado.inscripcion_pagada === 0 : false);
 
   // Construir nav items dinámicamente según roles
   const buildNavItems = () => {
@@ -155,9 +181,21 @@ const PanelPage = () => {
       ];
     }
     
-    // Si es corporativo, agregar pestaña de gestión
-    if (afiliado?.tipo_afiliado === 'Corporativo') {
-      baseItems.push({ icon: Users, label: 'Mis Agentes' });
+    // Si es corporativo, agregar pestaña de gestión (SIEMPRE VISIBLE)
+    if (user?.tipo_afiliado === 'Corporativo') {
+      baseItems.push({ 
+        icon: Users, 
+        label: 'Mis Agentes',
+        count: solicitudesPendientesCount > 0 ? solicitudesPendientesCount : undefined 
+      });
+    }
+
+    // Si es admin y no tiene tipo corporativo, también agregar la misma pestaña para gestionar agentes desde el panel administrativo
+    if (isAdmin && user?.tipo_afiliado !== 'Corporativo') {
+      baseItems.push({
+        icon: Users,
+        label: 'Mis Agentes'
+      });
     }
 
     // Item de Configuración para todos
@@ -205,6 +243,52 @@ const PanelPage = () => {
       // Afiliado standard
       return (
         <>
+          {user?.tipo_afiliado === 'Corporativo' && (
+            <div className="lg:col-span-3">
+              <div className={`rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl transition-all duration-700 ${
+                solicitudesPendientesCount > 0 
+                  ? 'bg-emerald-600 shadow-emerald-600/20 animate-in fade-in slide-in-from-top-4' 
+                  : 'bg-slate-800 shadow-slate-900/20'
+              }`}>
+                <div className="flex items-center gap-5 text-center md:text-left">
+                  <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 ${
+                    solicitudesPendientesCount > 0 ? 'bg-white/20 backdrop-blur-md' : 'bg-slate-700'
+                  }`}>
+                    <UserPlus size={32} className={solicitudesPendientesCount > 0 ? 'text-white' : 'text-slate-400'} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black uppercase tracking-tight">Gestión de Agentes</h3>
+                    <p className={`${solicitudesPendientesCount > 0 ? 'text-emerald-100' : 'text-slate-400'} font-medium text-sm`}>
+                      {solicitudesPendientesCount > 0 
+                        ? `Tienes ${solicitudesPendientesCount} ${solicitudesPendientesCount === 1 ? 'agente esperando' : 'agentes esperando'} tu confirmación.`
+                        : 'No tienes solicitudes pendientes por el momento.'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={fetchAfiliado}
+                    disabled={loadingAfiliado || loadingAgentes}
+                    className="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 border border-white/10"
+                    title="Actualizar datos"
+                  >
+                    <RefreshCw size={20} className={(loadingAfiliado || loadingAgentes) ? 'animate-spin' : ''} />
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('Mis Agentes')}
+                    className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap ${
+                      solicitudesPendientesCount > 0 
+                        ? 'bg-white text-emerald-700' 
+                        : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                    }`}
+                  >
+                    {solicitudesPendientesCount > 0 ? 'Gestionar Solicitudes' : 'Ver Mi Equipo'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div>
           <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div>
           <div className="lg:col-span-3"><WidgetMisCursos /></div>
@@ -224,7 +308,12 @@ const PanelPage = () => {
     }
     if (activeTab === 'Sistema de Denuncias') return <Section label="Sistema de Denuncias" />;
     if (activeTab === 'Solicitud de Afiliación') return <div className="col-span-1 lg:col-span-3"><WidgetSolicitudAfiliacion /></div>;
-    if (activeTab === 'Mis Agentes') return <div className="col-span-1 lg:col-span-3"><WidgetGestionAfiliadosCorp /></div>;
+    if (activeTab === 'Mis Agentes') {
+      if (isAdmin && user?.tipo_afiliado !== 'Corporativo') {
+        return <div className="col-span-1 lg:col-span-3"><AdminMisAgentesPanel /></div>;
+      }
+      return <div className="col-span-1 lg:col-span-3"><WidgetGestionAfiliadosCorp /></div>;
+    }
     if (activeTab === 'Configuración') return <SettingsPanel />;
 
     // 2. Sección Administrativa

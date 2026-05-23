@@ -18,6 +18,9 @@ export interface JwtPayload {
   id_estudiante?: number
   codigo_cibir?: string
   nombre_completo?: string
+  cedula?: string
+  telefono?: string
+  tipo_afiliado?: string
 }
 
 // Extend Express Request to include the decoded user

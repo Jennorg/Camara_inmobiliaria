@@ -75,7 +75,7 @@ export async function establecerAccesoPanelAfiliado(
     throw new Error('AFILIADO_NO_ENCONTRADO')
   }
 
-  const row = af.rows[0] as {
+  const row = af.rows[0] as unknown as {
     id_user: number | null
     id_persona: number | null
     id_empresa: number | null

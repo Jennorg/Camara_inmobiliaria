@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Building2, User, Mail, Briefcase, GraduationCap, School, Award, ChevronDown, Check, ArrowRight, Loader2, AlertCircle, Info, UserCheck } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Building2, User, Mail, Briefcase, Search, X, CheckCircle2, ArrowRight, Loader2, AlertCircle, Check } from 'lucide-react'
 import AffiliationForm from '@/components/forms/AffiliationForm'
 import { apiUrl } from '@/config/env'
 
@@ -9,12 +9,21 @@ interface Props {
   initialData?: any
 }
 
+interface EmpresaAfiliada {
+  id_afiliado: number
+  nombre_completo: string
+  empresa_razon_social?: string
+  empresa_rif_numero?: string
+  codigo_cibir?: string
+  tipo_afiliado: string
+  id_empresa?: number
+}
+
 const COUNTRIES = [
   { code: '+58', flag: '🇻🇪', label: 'Venezuela' },
   { code: '+1',  flag: '🇺🇸', label: 'USA' },
   { code: '+34', flag: '🇪🇸', label: 'España' },
   { code: '+57', flag: '🇨🇴', label: 'Colombia' },
-  { code: '+5 Panama', flag: '🇵🇦', label: 'Panamá' },
   { code: '+1',  flag: '🇵🇷', label: 'Puerto Rico' },
 ]
 
@@ -22,7 +31,6 @@ const BOX_H = "h-[58px]"
 
 export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, initialData }: Props) {
   const [formData, setFormData] = useState({
-    // Campos Natural
     nombres: initialData?.nombreCompleto?.split(' ')[0] || '',
     apellidos: initialData?.nombreCompleto?.split(' ').slice(1).join(' ') || '',
     cedulaPrefix: initialData?.cedulaRif?.includes('-') ? initialData.cedulaRif.split('-')[0] : 'V',
@@ -33,22 +41,64 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
     esCorredorInmobiliario: initialData?.esCorredorInmobiliario === true ? 'si' : initialData?.esCorredorInmobiliario === false ? 'no' : '',
     nivelProfesional: initialData?.nivelProfesional || '',
     profesion: initialData?.profesion || '',
-    // Campos exclusivos Corporativo
-    razonSocial: '',
-    rifPrefix: 'J',
-    rifNumber: '',
-    representanteNombres: '',
-    representanteApellidos: '',
-    cedulaRepresentante: '',
-    emailRepresentante: '',
-    emailEmpresa: '',
   })
-  const [tipoAfiliado, setTipoAfiliado] = useState<'Natural' | 'Corporativo'>('Natural')
+
+  const [tipoAfiliado, setTipoAfiliado] = useState<'Natural' | 'Agente Corporativo' | 'Corporativo'>('Natural')
+  const isAgenteCorporativo = programaCodigo === 'AFILIACION' && tipoAfiliado === 'Agente Corporativo'
   const isCorporativo = programaCodigo === 'AFILIACION' && tipoAfiliado === 'Corporativo'
+
+  // Búsqueda de empresa para Agente Corporativo
+  const [empresaQuery, setEmpresaQuery] = useState('')
+  const [empresaOptions, setEmpresaOptions] = useState<EmpresaAfiliada[]>([])
+  const [empresaSelected, setEmpresaSelected] = useState<EmpresaAfiliada | null>(null)
+  const [empresaLoading, setEmpresaLoading] = useState(false)
+  const [empresaOpen, setEmpresaOpen] = useState(false)
+  const empresaRef = useRef<HTMLDivElement>(null)
+
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [showCountryDropdown, setShowCountryDropdown] = useState(false)
+
+  // Cerrar dropdown empresa al hacer click fuera
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (empresaRef.current && !empresaRef.current.contains(e.target as Node)) {
+        setEmpresaOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Buscar empresas afiliadas
+  useEffect(() => {
+    if (!isAgenteCorporativo || empresaQuery.trim().length < 2) {
+      setEmpresaOptions([])
+      return
+    }
+    setEmpresaLoading(true)
+    const controller = new AbortController()
+    fetch(apiUrl(`/api/public/afiliados/buscar`), { signal: controller.signal })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          const q = empresaQuery.trim().toLowerCase()
+          const corporativas: EmpresaAfiliada[] = json.data
+            .filter((a: any) => a.tipo_afiliado === 'Corporativo')
+            .filter((a: any) => {
+              const nombre = (a.empresa_razon_social || a.nombre_completo || '').toLowerCase()
+              const rif = (a.empresa_rif_numero || '').toLowerCase()
+              return nombre.includes(q) || rif.includes(q)
+            })
+            .slice(0, 8)
+          setEmpresaOptions(corporativas)
+          setEmpresaOpen(corporativas.length > 0)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setEmpresaLoading(false))
+    return () => controller.abort()
+  }, [empresaQuery, isAgenteCorporativo])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -59,37 +109,30 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
     e.preventDefault()
     setErrorMsg('')
 
+    if (isAgenteCorporativo && !empresaSelected) {
+      setErrorMsg('Debes seleccionar la empresa a la que perteneces.')
+      return
+    }
+
     setLoading(true)
     try {
-      const body = isCorporativo
-        ? {
-            programaCodigo,
-            tipoAfiliado: 'Corporativo',
-            razonSocial: formData.razonSocial.trim(),
-            rif_tipo: formData.rifPrefix,
-            rif_numero: formData.rifNumber.replace(/\D/g, ''),
-            cedulaRif: `${formData.rifPrefix}-${formData.rifNumber.replace(/\D/g, '')}`,
-            email: formData.emailEmpresa,
-            telefono: `${formData.phonePrefix}${formData.telefono.replace(/\D/g, '')}`,
-            representanteLegal: `${formData.representanteNombres} ${formData.representanteApellidos}`.trim(),
-            representanteLegalNombres: formData.representanteNombres.trim(),
-            representanteLegalApellidos: formData.representanteApellidos.trim(),
-            cedulaRepresentante: formData.cedulaRepresentante.trim(),
-            emailRepresentante: formData.emailRepresentante.trim(),
-          }
-        : {
-            programaCodigo,
-            tipoAfiliado: 'Natural',
-            nombres: formData.nombres.trim(),
-            apellidos: formData.apellidos.trim(),
-            nombreCompleto: `${formData.nombres} ${formData.apellidos}`.trim(),
-            cedulaRif: `${formData.cedulaPrefix}-${formData.cedulaNumber.replace(/\D/g, '')}`,
-            email: formData.email,
-            telefono: `${formData.phonePrefix}${formData.telefono.replace(/\D/g, '')}`,
-            esCorredorInmobiliario: formData.esCorredorInmobiliario === 'si',
-            nivelProfesional: formData.nivelProfesional || null,
-            profesion: formData.profesion.trim() || null,
-          }
+      const body: Record<string, any> = {
+        programaCodigo,
+        tipoAfiliado: tipoAfiliado,
+        nombres: formData.nombres.trim(),
+        apellidos: formData.apellidos.trim(),
+        nombreCompleto: `${formData.nombres} ${formData.apellidos}`.trim(),
+        cedulaRif: `${formData.cedulaPrefix}-${formData.cedulaNumber.replace(/\D/g, '')}`,
+        email: formData.email,
+        telefono: `${formData.phonePrefix}${formData.telefono.replace(/\D/g, '')}`,
+        esCorredorInmobiliario: formData.esCorredorInmobiliario === 'si',
+        nivelProfesional: formData.nivelProfesional || null,
+        profesion: formData.profesion.trim() || null,
+      }
+
+      if (isAgenteCorporativo && empresaSelected) {
+        body.id_empresa = empresaSelected.id_empresa
+      }
 
       const res = await fetch(apiUrl('/api/public/preinscripciones'), {
         method: 'POST',
@@ -135,24 +178,38 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
       {/* Selector Tipo Afiliado */}
       {programaCodigo === 'AFILIACION' && (
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Tipo de Afiliación</label>
-          <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-xl border border-white/10 h-[52px]">
+          <label className="text-xs font-black uppercase tracking-widest ml-1 text-emerald-100/60">Tipo de Afiliación</label>
+          <div className="grid grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
             {([
-              { val: 'Natural', label: 'Agente Independiente', icon: User },
-              { val: 'Corporativo', label: 'Corporativo', icon: Building2 },
-            ] as const).map(({ val, label, icon: Icon }) => (
+              { val: 'Natural' as const, label: 'Agente Independiente', icon: User },
+              { val: 'Agente Corporativo' as const, label: 'Agente Corporativo', icon: Building2 },
+              { val: 'Corporativo' as const, label: 'Corporativo', icon: Building2 },
+            ]).map(({ val, label, icon: Icon }) => (
               <button
                 key={val}
                 type="button"
-                onClick={() => setTipoAfiliado(val)}
-                className={`h-full rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                  tipoAfiliado === val ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'
+                onClick={() => {
+                  setTipoAfiliado(val)
+                  setEmpresaSelected(null)
+                  setEmpresaQuery('')
+                }}
+                className={`min-h-[72px] px-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-2 text-center leading-tight ${
+                  tipoAfiliado === val ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Icon size={13} />
+                <Icon size={18} />
                 {label}
               </button>
             ))}
+          </div>
+
+          {/* Descripción contextual del tipo seleccionado */}
+          <div className="text-[10px] font-medium px-3 py-2 rounded-lg transition-all text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20">
+            {tipoAfiliado === 'Agente Corporativo'
+              ? 'Agente que opera bajo una empresa ya afiliada a la Cámara. Selecciona la empresa a la que perteneces.'
+              : tipoAfiliado === 'Corporativo'
+              ? 'Registro de una nueva empresa o institución inmobiliaria que aún no está en la Cámara.'
+              : 'Agente inmobiliario independiente que opera por cuenta propia.'}
           </div>
         </div>
       )}
@@ -164,6 +221,86 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
         />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Campo de búsqueda de empresa (solo Agente Corporativo) */}
+          {isAgenteCorporativo && (
+            <div className="space-y-2" ref={empresaRef}>
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">
+                Empresa a la que perteneces <span className="text-red-400">*</span>
+              </label>
+
+              {empresaSelected ? (
+                <div className="flex items-center gap-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl px-4 py-3">
+                  <CheckCircle2 size={18} className="text-emerald-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-white truncate">
+                      {empresaSelected.empresa_razon_social || empresaSelected.nombre_completo}
+                    </p>
+                    {empresaSelected.empresa_rif_numero && (
+                      <p className="text-[10px] text-emerald-300/70 font-bold">
+                        RIF: {empresaSelected.empresa_rif_numero} • CIBIR: {empresaSelected.codigo_cibir || '—'}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setEmpresaSelected(null); setEmpresaQuery('') }}
+                    className="text-white/40 hover:text-red-400 transition-colors flex-shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className={`relative flex border border-slate-200 rounded-xl overflow-visible focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10">
+                      {empresaLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                    </div>
+                    <input
+                      type="text"
+                      value={empresaQuery}
+                      onChange={e => setEmpresaQuery(e.target.value)}
+                      onFocus={() => empresaOptions.length > 0 && setEmpresaOpen(true)}
+                      placeholder="Busca por nombre o RIF de la empresa..."
+                      className="w-full pl-11 pr-5 h-full bg-white rounded-xl outline-none text-sm font-medium text-slate-800"
+                    />
+                  </div>
+
+                  {/* Dropdown resultados */}
+                  {empresaOpen && empresaOptions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-xl z-50 max-h-[220px] overflow-y-auto">
+                      {empresaOptions.map((emp) => (
+                        <button
+                          key={emp.id_afiliado}
+                          type="button"
+                          onClick={() => {
+                            setEmpresaSelected(emp)
+                            setEmpresaOpen(false)
+                            setEmpresaQuery('')
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors border-b border-slate-100 last:border-b-0"
+                        >
+                          <p className="text-sm font-black text-slate-800">
+                            {emp.empresa_razon_social || emp.nombre_completo}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-bold">
+                            {emp.empresa_rif_numero ? `RIF: ${emp.empresa_rif_numero} • ` : ''}
+                            CIBIR: {emp.codigo_cibir || '—'}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {empresaQuery.length >= 2 && !empresaLoading && empresaOptions.length === 0 && (
+                    <p className="text-[10px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-1 font-bold">
+                      No se encontraron empresas afiliadas. Solo puedes elegir este tipo si tu empresa ya está registrada en la Cámara.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -203,7 +340,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Teléfono</label>
               <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
-                <button type="button" onClick={() => setShowCountryDropdown(!showCountryDropdown)} className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center gap-2 text-sm font-black text-slate-700">
+                <button type="button" className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center gap-2 text-sm font-black text-slate-700">
                   <span>{COUNTRIES.find(c => c.code === formData.phonePrefix)?.flag}</span>
                   <span>{formData.phonePrefix}</span>
                 </button>
@@ -249,11 +386,11 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           </div>
 
         {/* Botón Submit */}
-        <button type="submit" disabled={loading} className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white hover:bg-[#022c22] disabled:opacity-50 font-black uppercase tracking-widest text-xs`}>
+        <button type="submit" disabled={loading || (isAgenteCorporativo && !empresaSelected)} className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white hover:bg-[#022c22] disabled:opacity-50 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs`}>
           {loading
             ? <Loader2 size={18} className="animate-spin" />
-            : isCorporativo
-              ? <><Building2 size={16} />Registrar Empresa<ArrowRight size={14} /></>
+            : isAgenteCorporativo
+              ? <><Building2 size={16} />Enviar Solicitud como Agente Corporativo<ArrowRight size={14} /></>
               : (ctaLabel ?? 'Enviar Solicitud')
           }
         </button>
