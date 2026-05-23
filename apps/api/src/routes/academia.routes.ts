@@ -15,6 +15,8 @@ import {
   adminCompletarCursoEstudiante,
   adminAprobarPreinscripcionDirecta,
   academiaAdminGuards,
+  adminCambiarEtapaInscripcion,
+  adminBuscarReferenciaAfiliado,
 } from '../controllers/academia.controller.js'
 
 const router = Router()
@@ -63,6 +65,12 @@ router.patch('/inscripciones/:id/rechazar', adminRechazarPreinscripcion)
 
 // PATCH /api/academia/inscripciones/:id/completar
 router.patch('/inscripciones/:id/completar', adminCompletarCursoEstudiante)
+
+// PATCH /api/academia/inscripciones/:id/cambiar-etapa
+router.patch('/inscripciones/:id/cambiar-etapa', adminCambiarEtapaInscripcion)
+
+// GET /api/academia/afiliados/referencia
+router.get('/afiliados/referencia', adminBuscarReferenciaAfiliado)
 
 export { router as academiaRoutes }
 

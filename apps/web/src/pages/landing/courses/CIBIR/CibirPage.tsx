@@ -235,7 +235,7 @@ export default function Cibir() {
                     <span className="text-emerald-500 font-bold">02.</span>
                     <span>
                       <strong>Requisitos:</strong> Consigna copia de CI y
-                      resumen curricular.
+                      síntesis curricular.
                     </span>
                   </li>
                   <li className="flex gap-3">

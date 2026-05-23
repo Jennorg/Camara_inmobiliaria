@@ -110,7 +110,7 @@ export const DataSections = ({
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
             {afiliado.cedula && (
-              <InfoCard icon={Globe} label="Cédula / ID" variant="compact">
+              <InfoCard icon={Globe} label="Cédula" variant="compact">
                 {afiliado.cedula}
               </InfoCard>
             )}

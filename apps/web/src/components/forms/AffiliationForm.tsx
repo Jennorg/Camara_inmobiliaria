@@ -72,6 +72,13 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error al registrar')
+      
+      const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development'
+      if (isDev && json.data?.token) {
+        window.location.href = `/cursos/verificar?token=${json.data.token}`
+        return
+      }
+
       setSubmitted(true)
       onSuccess?.()
     } catch (err: unknown) {

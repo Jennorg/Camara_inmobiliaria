@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, Loader2, ArrowRight, Home, GraduationCap, Briefcase, Award, School, ChevronDown, XCircle, FileText, AlertCircle, Calendar, ShieldCheck, Check } from 'lucide-react'
+import { CheckCircle2, Loader2, ArrowRight, Home, GraduationCap, Briefcase, Award, School, ChevronDown, XCircle, FileText, AlertCircle, Calendar, ShieldCheck, Check, Search, ClipboardList, Mail, CreditCard } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
@@ -12,6 +12,16 @@ const NIVELES = [
   { value: 'TSU', label: 'Técnico Superior (TSU)', icon: Briefcase },
   { value: 'Universitario', label: 'Universitario', icon: GraduationCap },
   { value: 'Postgrado', label: 'Postgrado', icon: Award },
+]
+
+const AFILIACION_STEPS = [
+  { id: '1_PREINSCRIPCION', label: 'Preinscripción', icon: ClipboardList },
+  { id: '2_EXPEDIENTE', label: 'Expediente', icon: Mail },
+  { id: '3_ENTREVISTA', label: 'Entrevista', icon: Calendar },
+  { id: '4_VERIFICACION', label: 'Verificación', icon: ShieldCheck },
+  { id: '5_CIBIR', label: 'CIBIR', icon: GraduationCap },
+  { id: '6_INSCRIPCION', label: 'Inscripción', icon: CreditCard },
+  { id: 'Afiliado', label: 'Afiliación', icon: Check },
 ]
 
 const INPUT_H = "h-[62px]" // Altura unificada
@@ -35,12 +45,94 @@ export default function VerificarPreinscripcionProgramaPage() {
     url_titulo_representante: '',
     especializaciones: [] as { nombre: string; url: string; fecha: string }[],
     cursos_extras: [] as { nombre: string; url: string; fecha: string }[],
+    diplomados: [] as { nombre: string; url: string; fecha: string }[],
+    otros_docs: [] as { nombre: string; url: string; fecha: string }[],
+    url_referencia1: '',
+    nombre_referencia1: '',
+    url_referencia2: '',
+    nombre_referencia2: '',
   })
   const [pendingCursoNombre, setPendingCursoNombre] = useState('')
   const [pendingCursoFecha, setPendingCursoFecha] = useState('')
   const [pendingEspecializacionNombre, setPendingEspecializacionNombre] = useState('')
   const [pendingEspecializacionFecha, setPendingEspecializacionFecha] = useState('')
+  const [pendingDiplomadoNombre, setPendingDiplomadoNombre] = useState('')
+  const [pendingDiplomadoFecha, setPendingDiplomadoFecha] = useState('')
+  const [pendingOtroNombre, setPendingOtroNombre] = useState('')
+  const [pendingOtroFecha, setPendingOtroFecha] = useState('')
   const [submitLoading, setSubmitLoading] = useState(false)
+
+  const [activeAffiliates, setActiveAffiliates] = useState<any[]>([])
+  const [affiliatesLoading, setAffiliatesLoading] = useState(false)
+  const [searchCedula1, setSearchCedula1] = useState('')
+  const [selectedAffiliate1, setSelectedAffiliate1] = useState<any | null>(null)
+  const [searchCedula2, setSearchCedula2] = useState('')
+  const [selectedAffiliate2, setSelectedAffiliate2] = useState<any | null>(null)
+
+  useEffect(() => {
+    if (userData?.programaCodigo === 'AFILIACION') {
+      setAffiliatesLoading(true)
+      fetch(`${API_URL}/api/public/afiliados/buscar`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.success) {
+            setActiveAffiliates(json.data)
+          }
+        })
+        .catch(err => console.error('Error fetching active affiliates:', err))
+        .finally(() => setAffiliatesLoading(false))
+    }
+  }, [userData])
+
+  const handleSearchCedula1Change = (val: string) => {
+    setSearchCedula1(val)
+    const cleanSearch = val.replace(/\D/g, '')
+    if (cleanSearch.length >= 5) {
+      const match = activeAffiliates.find(a => {
+        const cleanCed = (a.cedula || '').replace(/\D/g, '')
+        const cleanRif = (a.empresa_rif_numero || '').replace(/\D/g, '')
+        return cleanCed === cleanSearch || cleanRif === cleanSearch
+      })
+      if (match) {
+        setSelectedAffiliate1(match)
+        setFormData(prev => ({ 
+          ...prev, 
+          nombre_referencia1: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})` 
+        }))
+      } else {
+        setSelectedAffiliate1(null)
+        setFormData(prev => ({ ...prev, nombre_referencia1: '' }))
+      }
+    } else {
+      setSelectedAffiliate1(null)
+      setFormData(prev => ({ ...prev, nombre_referencia1: '' }))
+    }
+  }
+
+  const handleSearchCedula2Change = (val: string) => {
+    setSearchCedula2(val)
+    const cleanSearch = val.replace(/\D/g, '')
+    if (cleanSearch.length >= 5) {
+      const match = activeAffiliates.find(a => {
+        const cleanCed = (a.cedula || '').replace(/\D/g, '')
+        const cleanRif = (a.empresa_rif_numero || '').replace(/\D/g, '')
+        return cleanCed === cleanSearch || cleanRif === cleanSearch
+      })
+      if (match) {
+        setSelectedAffiliate2(match)
+        setFormData(prev => ({ 
+          ...prev, 
+          nombre_referencia2: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})` 
+        }))
+      } else {
+        setSelectedAffiliate2(null)
+        setFormData(prev => ({ ...prev, nombre_referencia2: '' }))
+      }
+    } else {
+      setSelectedAffiliate2(null)
+      setFormData(prev => ({ ...prev, nombre_referencia2: '' }))
+    }
+  }
 
   useEffect(() => {
     if (!token) {
@@ -69,6 +161,12 @@ export default function VerificarPreinscripcionProgramaPage() {
               url_titulo_representante: '',
               especializaciones: [],
               cursos_extras: [],
+              diplomados: [],
+              otros_docs: [],
+              url_referencia1: '',
+              nombre_referencia1: '',
+              url_referencia2: '',
+              nombre_referencia2: '',
             }))
             setStatus('form')
           }
@@ -90,6 +188,11 @@ export default function VerificarPreinscripcionProgramaPage() {
   const isPostgrado = formData.nivelProfesional === 'Postgrado'
   const currentNivel = NIVELES.find(n => n.value === formData.nivelProfesional)
   const displayName = userData?.nombreCompleto
+  const isReferencesIncomplete = isAfiliacion && (
+    !formData.url_referencia1 || !selectedAffiliate1 || 
+    !formData.url_referencia2 || !selectedAffiliate2 ||
+    (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado)
+  )
 
   const submitConfirmation = async (dataToSubmit: any) => {
     setSubmitLoading(true)
@@ -126,11 +229,26 @@ export default function VerificarPreinscripcionProgramaPage() {
       }
     } else {
       if (!formData.url_cv) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga tu Resumen Curricular.', icon: 'warning', confirmButtonColor: '#059669' });
+        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga tu Síntesis Curricular.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
       if (!formData.url_titulo) {
         Swal.fire({ title: '¡Atención!', text: 'Por favor, carga tu Título Académico.', icon: 'warning', confirmButtonColor: '#059669' });
+        return;
+      }
+    }
+
+    if (isAfiliacion) {
+      if (!selectedAffiliate1 || !formData.url_referencia1) {
+        Swal.fire({ title: '¡Atención!', text: 'Por favor, busca un afiliado activo válido y carga la primera carta de recomendación.', icon: 'warning', confirmButtonColor: '#059669' });
+        return;
+      }
+      if (!selectedAffiliate2 || !formData.url_referencia2) {
+        Swal.fire({ title: '¡Atención!', text: 'Por favor, busca un afiliado activo válido y carga la segunda carta de recomendación.', icon: 'warning', confirmButtonColor: '#059669' });
+        return;
+      }
+      if (selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado) {
+        Swal.fire({ title: '¡Atención!', text: 'Las dos cartas de recomendación deben ser de afiliados activos diferentes.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
     }
@@ -155,6 +273,12 @@ export default function VerificarPreinscripcionProgramaPage() {
       url_titulo_representante: formData.url_titulo_representante,
       especializaciones: JSON.stringify(formData.especializaciones),
       cursos_extras: JSON.stringify(formData.cursos_extras),
+      diplomados: JSON.stringify(formData.diplomados),
+      otros_docs: JSON.stringify(formData.otros_docs),
+      url_referencia1: formData.url_referencia1,
+      nombre_referencia1: formData.nombre_referencia1.trim(),
+      url_referencia2: formData.url_referencia2,
+      nombre_referencia2: formData.nombre_referencia2.trim(),
     });
   }
 
@@ -166,12 +290,68 @@ export default function VerificarPreinscripcionProgramaPage() {
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <section className="relative bg-[#022c22] pt-28 pb-16 overflow-hidden text-center">
-        <div className="relative z-10 max-w-4xl mx-auto px-6">
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white"><CheckCircle2 size={16} /></div><span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Paso 1</span></div>
-            <div className="w-12 h-px bg-emerald-500/30" />
-            <div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'success' ? 'bg-emerald-500' : 'bg-emerald-500/20 border border-emerald-500/40'}`}>{status === 'success' ? <CheckCircle2 size={16} className="text-white" /> : <span className="text-emerald-400 text-xs font-black">2</span>}</div><span className="text-[10px] font-black uppercase tracking-widest text-emerald-100/60">Paso 2</span></div>
-          </div>
+        <div className="relative z-10 max-w-5xl mx-auto px-6">
+          {isAfiliacion ? (
+            <div className="w-full max-w-5xl mx-auto mb-10 mt-2 px-2">
+              {/* Timeline Desktop/Mobile wrapping */}
+              <div className="flex flex-wrap md:flex-nowrap items-start justify-center md:justify-between relative pb-4 pt-2 gap-y-4 gap-x-3 md:gap-x-0">
+                {/* Connecting Line (Desktop only, behind items) */}
+                <div className="absolute top-[28px] left-[8%] right-[8%] h-0.5 bg-emerald-500/20 -z-0 hidden md:block" />
+                <div 
+                  className="absolute top-[28px] left-[8%] h-0.5 bg-emerald-400 -z-0 hidden md:block transition-all duration-1000"
+                  style={{ width: `${status === 'success' ? '33.33%' : '16.66%'}` }}
+                />
+
+                {AFILIACION_STEPS.map((step, idx) => {
+                  const isCompleted = idx < (status === 'success' ? 2 : 1)
+                  const isCurrent = idx === (status === 'success' ? 2 : 1)
+                  const StepIcon = step.icon
+
+                  return (
+                    <div key={step.id} className="flex flex-col items-center gap-2 relative z-10 flex-1 min-w-[75px] max-w-[120px] md:max-w-none text-center">
+                      <div 
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md ${
+                          isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' : 
+                          isCurrent ? 'bg-emerald-400 text-[#022c22] scale-110 font-bold' : 
+                          'bg-emerald-900/30 text-emerald-100/40 border border-emerald-500/30'
+                        }`}
+                      >
+                        {isCompleted ? <Check size={16} strokeWidth={3} /> : <StepIcon size={16} />}
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className={`text-[8px] font-black uppercase tracking-wider ${isCurrent ? 'text-emerald-300' : isCompleted ? 'text-emerald-400' : 'text-emerald-100/40'}`}>
+                          Paso {idx + 1}
+                        </p>
+                        <p className={`text-[10px] font-bold leading-tight truncate max-w-[95px] mx-auto ${isCurrent ? 'text-white' : 'text-emerald-100/60'}`}>
+                          {step.label}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
+                  <CheckCircle2 size={16} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                  Paso 1
+                </span>
+              </div>
+              <div className="w-12 h-px bg-emerald-500/30" />
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'success' ? 'bg-emerald-500' : 'bg-emerald-500/20 border border-emerald-500/40'}`}>
+                  {status === 'success' ? <CheckCircle2 size={16} className="text-white" /> : <span className="text-emerald-400 text-xs font-black">2</span>}
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'success' ? 'text-emerald-400' : 'text-emerald-100/60'}`}>
+                  Paso 2
+                </span>
+              </div>
+            </div>
+          )}
           <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-3">
             {status === 'success' ? '¡Todo Listo!' : (isAfiliacion ? 'Validación de Afiliado' : 'Completa tu Perfil')}
           </h1>
@@ -279,7 +459,6 @@ export default function VerificarPreinscripcionProgramaPage() {
                 </>
               )}
 
-
               <div className="space-y-8">
                 {isCorporativo ? (
                   <>
@@ -374,7 +553,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FileUpload
-                        label="Resumen Curricular (CV)"
+                        label="Síntesis Curricular (CV)"
                         accept=".pdf"
                         folder="cvs"
                         required
@@ -508,6 +687,269 @@ export default function VerificarPreinscripcionProgramaPage() {
                   </div>
                 </div>
               )}
+              
+              {/* SECCIÓN REFERENCIAS DE AFILIADOS */}
+              {isAfiliacion && (
+                <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className="w-1 h-6 rounded-full bg-emerald-600" />
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">
+                          Referencias de Afiliados Activos
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">
+                      Debes adjuntar dos cartas de recomendación moral emitidas por afiliados activos de la Cámara.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Referencia 1 */}
+                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                          Buscar Afiliado Recomendante 1 (Por Cédula) <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative group">
+                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                          <input
+                            type="text"
+                            required
+                            value={searchCedula1}
+                            onChange={(e) => handleSearchCedula1Change(e.target.value)}
+                            placeholder="Ej. 12.345.678"
+                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Display Selected Affiliate Status */}
+                      {searchCedula1.replace(/\D/g, '').length >= 5 && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                          {selectedAffiliate1 ? (
+                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] font-bold">
+                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                              <div className="truncate">
+                                <span className="text-[10px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
+                                <span className="truncate block mt-0.5">{selectedAffiliate1.nombre_completo} (Código: {selectedAffiliate1.codigo_cibir})</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-[11px] font-bold">
+                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                              <div>
+                                <span className="text-[10px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
+                                <span className="block mt-0.5">No se encontró ningún afiliado activo con este número.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <FileUpload
+                        label="Carta de Recomendación 1"
+                        accept="image/*,.pdf"
+                        folder="afiliados/referencias"
+                        required
+                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia1: url }))}
+                        onClear={() => setFormData(prev => ({ ...prev, url_referencia1: '' }))}
+                      />
+                    </div>
+
+                    {/* Referencia 2 */}
+                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                          Buscar Afiliado Recomendante 2 (Por Cédula) <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative group">
+                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                          <input
+                            type="text"
+                            required
+                            value={searchCedula2}
+                            onChange={(e) => handleSearchCedula2Change(e.target.value)}
+                            placeholder="Ej. 12.345.678"
+                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Display Selected Affiliate Status */}
+                      {searchCedula2.replace(/\D/g, '').length >= 5 && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                          {selectedAffiliate2 ? (
+                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] font-bold">
+                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                              <div className="truncate">
+                                <span className="text-[10px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
+                                <span className="truncate block mt-0.5">{selectedAffiliate2.nombre_completo} (Código: {selectedAffiliate2.codigo_cibir})</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-[11px] font-bold">
+                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                              <div>
+                                <span className="text-[10px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
+                                <span className="block mt-0.5">No se encontró ningún afiliado activo con este número.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <FileUpload
+                        label="Carta de Recomendación 2"
+                        accept="image/*,.pdf"
+                        folder="afiliados/referencias"
+                        required
+                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia2: url }))}
+                        onClear={() => setFormData(prev => ({ ...prev, url_referencia2: '' }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sección de Diplomados Realizados */}
+              <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-indigo-500" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Diplomados Realizados</h3></div></div>
+                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded-full">Opcional</span>
+                </div>
+
+                {/* Lista de diplomados cargados */}
+                {formData.diplomados.length > 0 && (
+                  <div className="space-y-2">
+                    {formData.diplomados.map((dip, idx) => (
+                      <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                          <FileText size={14} className="text-indigo-600" />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <input
+                            type="text"
+                            value={dip.nombre}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              diplomados: prev.diplomados.map((d, i) =>
+                                i === idx ? { ...d, nombre: e.target.value } : d
+                              )
+                            }))}
+                            placeholder="Nombre del diplomado..."
+                            className="w-full text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
+                          />
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar size={10} className="text-slate-400" />
+                              <input
+                                type="date"
+                                value={dip.fecha}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  diplomados: prev.diplomados.map((d, i) =>
+                                    i === idx ? { ...d, fecha: e.target.value } : d
+                                  )
+                                }))}
+                                className="text-[10px] font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                              />
+                            </div>
+                            <a href={dip.url} target="_blank" rel="noopener noreferrer"
+                              className="text-[9px] text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              Ver archivo
+                            </a>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, diplomados: prev.diplomados.filter((_, i) => i !== idx) }))}
+                          className="p-1.5 hover:bg-rose-50 text-slate-300 hover:text-rose-500 rounded-lg transition-colors shrink-0"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input nombre + Fecha + Uploader para nuevo diplomado */}
+                <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Diplomado</label>
+                      <input
+                        type="text"
+                        value={pendingDiplomadoNombre}
+                        onChange={(e) => setPendingDiplomadoNombre(e.target.value)}
+                        placeholder="Nombre del diplomado (ej: Diplomado en Avalúos)..."
+                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha del Certificado</label>
+                      <div className="relative">
+                        <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="date"
+                          value={pendingDiplomadoFecha}
+                          max={new Date().toISOString().split('T')[0]}
+                          min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
+                          onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
+                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 bg-white transition"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <FileUpload
+                    key={formData.diplomados.length}
+                    label="Cargar certificado del diplomado"
+                    accept="image/*,.pdf"
+                    folder="diplomados"
+                    onUploadSuccess={(url) => {
+                      if (!pendingDiplomadoFecha) {
+                        Swal.fire({
+                          title: '¡Atención!',
+                          text: 'Por favor, selecciona primero la fecha del certificado.',
+                          icon: 'warning',
+                          confirmButtonColor: '#059669',
+                        });
+                        return;
+                      }
+
+                      const courseDate = new Date(pendingDiplomadoFecha);
+                      const fiveYearsAgo = new Date();
+                      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+                      if (courseDate < fiveYearsAgo) {
+                        Swal.fire({
+                          title: 'Fecha no válida',
+                          text: 'Lo sentimos, el certificado no debe tener más de 5 años de antigüedad.',
+                          icon: 'error',
+                          confirmButtonColor: '#059669',
+                        });
+                        return;
+                      }
+
+                      setFormData(prev => ({
+                        ...prev,
+                        diplomados: [...prev.diplomados, {
+                          nombre: pendingDiplomadoNombre.trim() || `Diplomado #${prev.diplomados.length + 1}`,
+                          url,
+                          fecha: pendingDiplomadoFecha
+                        }]
+                      }))
+                      setPendingDiplomadoNombre('')
+                      setPendingDiplomadoFecha('')
+                    }}
+                    onClear={() => { }}
+                  />
+                </div>
+              </div>
 
               {/* Sección de Otros Cursos */}
               <div className="space-y-6 pt-4">
@@ -647,6 +1089,119 @@ export default function VerificarPreinscripcionProgramaPage() {
                 </div>
               </div>
 
+              {/* Sección de Otros Documentos */}
+              <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-slate-500" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Otros Documentos Relevantes</h3></div></div>
+                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Cualquier otra documentación que consideres relevante para tu aplicación</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded-full">Opcional</span>
+                </div>
+
+                {/* Lista de otros cargados */}
+                {formData.otros_docs.length > 0 && (
+                  <div className="space-y-2">
+                    {formData.otros_docs.map((doc, idx) => (
+                      <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                          <FileText size={14} className="text-slate-600" />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <input
+                            type="text"
+                            value={doc.nombre}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              otros_docs: prev.otros_docs.map((item, i) =>
+                                i === idx ? { ...item, nombre: e.target.value } : item
+                              )
+                            }))}
+                            placeholder="Nombre del documento..."
+                            className="w-full text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
+                          />
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar size={10} className="text-slate-400" />
+                              <input
+                                type="date"
+                                value={doc.fecha}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  otros_docs: prev.otros_docs.map((item, i) =>
+                                    i === idx ? { ...item, fecha: e.target.value } : item
+                                  )
+                                }))}
+                                className="text-[10px] font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                              />
+                            </div>
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                              className="text-[9px] text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              Ver archivo
+                            </a>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, otros_docs: prev.otros_docs.filter((_, i) => i !== idx) }))}
+                          className="p-1.5 hover:bg-rose-50 text-slate-300 hover:text-rose-500 rounded-lg transition-colors shrink-0"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input nombre + Fecha + Uploader para nuevo otro documento */}
+                <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Documento</label>
+                      <input
+                        type="text"
+                        value={pendingOtroNombre}
+                        onChange={(e) => setPendingOtroNombre(e.target.value)}
+                        placeholder="Nombre o descripción..."
+                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha del Documento</label>
+                      <div className="relative">
+                        <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="date"
+                          value={pendingOtroFecha}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setPendingOtroFecha(e.target.value)}
+                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 bg-white transition"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <FileUpload
+                    key={formData.otros_docs.length}
+                    label="Cargar otro documento"
+                    accept="image/*,.pdf"
+                    folder="otros_docs"
+                    onUploadSuccess={(url) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        otros_docs: [...prev.otros_docs, {
+                          nombre: pendingOtroNombre.trim() || `Documento #${prev.otros_docs.length + 1}`,
+                          url,
+                          fecha: pendingOtroFecha
+                        }]
+                      }))
+                      setPendingOtroNombre('')
+                      setPendingOtroFecha('')
+                    }}
+                    onClear={() => { }}
+                  />
+                </div>
+              </div>
+
               {/* SECCIÓN EMPRESA AL FINAL PARA CORPORATIVOS */}
               {isCorporativo && (
                 <div className="space-y-6 pt-4">
@@ -673,8 +1228,9 @@ export default function VerificarPreinscripcionProgramaPage() {
                     />
                   </div>
                 </div>
-              )}
-              <button type="submit" disabled={submitLoading || (isCorporativo ? (!formData.url_titulo || !formData.url_registro_mercantil || !formData.url_titulo_representante) : (!formData.url_cv || !formData.url_titulo)) || (formData.nivelProfesional === 'Postgrado' && formData.especializaciones.length === 0)} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-xs ${INPUT_H}`}>
+              )}              
+
+              <button type="submit" disabled={submitLoading || (isCorporativo ? (!formData.url_titulo || !formData.url_registro_mercantil || !formData.url_titulo_representante) : (!formData.url_cv || !formData.url_titulo)) || (formData.nivelProfesional === 'Postgrado' && formData.especializaciones.length === 0) || isReferencesIncomplete} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-xs ${INPUT_H}`}>
                 {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
               </button>
             </form>

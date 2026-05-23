@@ -2,6 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard } from '@/utils/formatters'
+import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search } from 'lucide-react'
+import Swal from 'sweetalert2'
+
+const AFILIACION_STEPS_FLOW = [
+  { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
+  { label: 'Expediente', desc: 'Carga y revisión de documentación', icon: FileText, labelShort: 'Exped.' },
+  { label: 'Entrevista', desc: 'Cita presencial con la junta directiva', icon: Calendar, labelShort: 'Entrev.' },
+  { label: 'Verificación', desc: 'Evaluación de perfil y referencias', icon: ShieldCheck, labelShort: 'Verif.' },
+  { label: 'CIBIR', desc: 'Acreditación o nivelación de conocimientos', icon: GraduationCap, labelShort: 'CIBIR' },
+  { label: 'Inscripción', desc: 'Aprobación final y pago de arancel', icon: CreditCard, labelShort: 'Inscr.' },
+  { label: 'Afiliación', desc: 'Miembro activo de la Cámara', icon: Check, labelShort: 'Afil.' }
+]
 
 
 
@@ -26,6 +38,7 @@ type Row = {
   representante_email?: string | null
   representante_telefono?: string | null
   tipo_estudiante?: string | null
+  afiliado_estatus?: string
 }
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -95,11 +108,15 @@ export default function PreinscripcionesPrincipalesPanel({
 
       const urlParams = new URLSearchParams(window.location.search)
       const idFromUrl = urlParams.get('id')
-      if (idFromUrl) {
-        const found = data.find(r => r.id_inscripcion === Number(idFromUrl))
+      const targetId = idFromUrl ? Number(idFromUrl) : (selected ? selected.id_inscripcion : null)
+      if (targetId) {
+        const found = data.find(r => r.id_inscripcion === targetId)
         if (found) {
           setSelected(found)
           fetchDocumentos(found.id_estudiante)
+        } else {
+          setSelected(null)
+          setDocumentos([])
         }
       } else {
         setSelected(null)
@@ -169,6 +186,93 @@ export default function PreinscripcionesPrincipalesPanel({
       await fetchData()
     } catch (e: any) {
       setError(e.message)
+    }
+  }
+
+  const handleVerReferencia = async (nombre: string) => {
+    try {
+      Swal.fire({
+        title: 'Buscando afiliado...',
+        text: `Consultando información de "${nombre}"`,
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading()
+        }
+      })
+
+      const res = await fetch(`${API_URL}/api/academia/afiliados/referencia?nombre=${encodeURIComponent(nombre)}`, {
+        headers: { ...authHeaders }
+      })
+      const json = await res.json()
+      
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error en la búsqueda')
+
+      if (!json.data) {
+        Swal.fire({
+          title: 'Afiliado no encontrado',
+          text: `No se encontró ningún miembro registrado con el nombre "${nombre}".`,
+          icon: 'warning',
+          confirmButtonColor: '#059669'
+        })
+        return
+      }
+
+      const af = json.data
+      Swal.fire({
+        title: 'Referencia Encontrada',
+        html: `
+          <div class="text-left text-sm text-slate-700 space-y-3">
+            <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+              <p class="text-[10px] font-black uppercase text-slate-400">Nombre Completo</p>
+              <p class="font-bold text-slate-800">${af.nombre_completo}</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p class="text-[10px] font-black uppercase text-slate-400">Cédula / RIF</p>
+                <p class="font-bold text-slate-800">${af.doc_identidad || 'No registrado'}</p>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p class="text-[10px] font-black uppercase text-slate-400">Código CIBIR</p>
+                <p class="font-bold text-slate-800">${af.codigo_cibir || 'Sin código'}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p class="text-[10px] font-black uppercase text-slate-400">Tipo de Afiliación</p>
+                <p class="font-bold text-slate-800">${af.tipo_afiliado}</p>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p class="text-[10px] font-black uppercase text-slate-400">Estatus</p>
+                <div>
+                  <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    ${af.estatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p class="text-[10px] font-black uppercase text-slate-400">Teléfono</p>
+                <p class="font-bold text-slate-800 break-all">${af.telefono || 'No registrado'}</p>
+              </div>
+              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p class="text-[10px] font-black uppercase text-slate-400">Email</p>
+                <p class="font-bold text-slate-800 break-all">${af.email || 'No registrado'}</p>
+              </div>
+            </div>
+          </div>
+        `,
+        icon: 'success',
+        confirmButtonColor: '#059669',
+        confirmButtonText: 'Entendido'
+      })
+    } catch (e: any) {
+      Swal.fire({
+        title: 'Error',
+        text: e.message || 'No se pudo obtener la información de la referencia',
+        icon: 'error',
+        confirmButtonColor: '#059669'
+      })
     }
   }
 
@@ -340,6 +444,185 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
             </div>
 
+            {selected.programa_codigo === 'AFILIACION' && (() => {
+              const getActiveIndex = (est: string, aEst?: string) => {
+                if (aEst) {
+                  switch (aEst) {
+                    case '1_PREINSCRIPCION': return 0;
+                    case '2_EXPEDIENTE': return 1;
+                    case '3_ENTREVISTA': return 2;
+                    case '4_VERIFICACION': return 3;
+                    case '5_CIBIR': return 4;
+                    case '6_INSCRIPCION': return 5;
+                    case 'Afiliado': return 6;
+                    default: break;
+                  }
+                }
+                switch (est) {
+                  case 'Preinscrito': return 1; // Expediente (document review phase)
+                  case 'Entrevista': return 2; // Entrevista
+                  case 'Inscrito': return 6; // Afiliado
+                  default: return 0;
+                }
+              }
+              const activeIndex = getActiveIndex(selected.estatus, selected.afiliado_estatus)
+              const handleStepClick = async (idx: number) => {
+                if (idx === activeIndex) return
+
+                const stepsNames = [
+                  'Preinscripción',
+                  'Expediente',
+                  'Entrevista',
+                  'Verificación',
+                  'CIBIR',
+                  'Inscripción',
+                  'Afiliación'
+                ]
+                
+                const implications = [
+                  'Revertirá al aspirante al estado de registro inicial de datos básicos.',
+                  'Colocará al aspirante en la etapa de carga y revisión de documentos adjuntos.',
+                  'Habilitará al aspirante para la etapa de entrevista con la junta directiva.',
+                  'Colocará al aspirante en la etapa de evaluación de su perfil y validación de referencias de afiliados activos.',
+                  'Habilitará al aspirante para la validación y acreditación del curso de formación CIBIR.',
+                  'Colocará al aspirante en la etapa de pago del arancel de inscripción y aprobación administrativa final.',
+                  'Convertirá de forma definitiva al aspirante en un miembro activo (Afiliado) con credenciales de acceso a la Cámara.'
+                ]
+
+                const displayName = selected.estudiante_nombre
+
+                // Detect skipping or returning
+                let warningHtml = ''
+                if (idx > activeIndex + 1) {
+                  const skipped = []
+                  for (let i = activeIndex + 1; i < idx; i++) {
+                    skipped.push(stepsNames[i])
+                  }
+                  warningHtml = `
+                    <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs text-left">
+                      <p class="font-bold text-amber-900 mb-1">⚠️ ADVERTENCIA: Estás saltando etapas intermedias:</p>
+                      <ul class="list-disc pl-4 font-semibold text-amber-800">
+                        ${skipped.map(s => `<li>${s}</li>`).join('')}
+                      </ul>
+                      <p class="mt-1 text-[10px] leading-tight text-amber-700">Al saltar estas fases, se omitirán las revisiones y requisitos asociados a ellas.</p>
+                    </div>
+                  `
+                } else if (idx < activeIndex) {
+                  warningHtml = `
+                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs text-left">
+                      <p class="font-bold text-blue-900 mb-1">ℹ️ NOTA: Estás retrocediendo en el proceso:</p>
+                      <p class="leading-tight text-[10px] text-blue-700">El proceso se devolverá a una etapa anterior. Se deberán procesar los requisitos de nuevo desde este punto.</p>
+                    </div>
+                  `
+                }
+
+                const result = await Swal.fire({
+                  title: '¿Cambiar etapa del trámite?',
+                  html: `
+                    <div class="text-slate-700 text-sm text-left">
+                      <p class="mb-2">¿Estás seguro de mover a <strong>${displayName}</strong> a la etapa de <strong>${stepsNames[idx]}</strong>?</p>
+                      <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 text-xs">
+                        <strong>Implicación de esta etapa:</strong> ${implications[idx]}
+                      </div>
+                      ${warningHtml}
+                    </div>
+                  `,
+                  icon: idx > activeIndex + 1 ? 'warning' : 'question',
+                  showCancelButton: true,
+                  confirmButtonColor: idx > activeIndex + 1 ? '#d97706' : '#059669',
+                  cancelButtonColor: '#cbd5e1',
+                  confirmButtonText: 'Sí, cambiar',
+                  cancelButtonText: 'Cancelar'
+                })
+
+                if (result.isConfirmed) {
+                  try {
+                    const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/cambiar-etapa`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', ...authHeaders },
+                      body: JSON.stringify({ etapa: idx })
+                    })
+                    const json = await res.json()
+                    if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la etapa')
+                    
+                    Swal.fire({
+                      title: '¡Actualizado!',
+                      text: `El trámite ahora está en la etapa de "${stepsNames[idx]}".`,
+                      icon: 'success',
+                      timer: 2000,
+                      showConfirmButton: false
+                    })
+                    await fetchData()
+                  } catch (e: any) {
+                    Swal.fire({
+                      title: 'Error',
+                      text: e.message || 'No se pudo cambiar la etapa',
+                      icon: 'error',
+                      confirmButtonColor: '#059669'
+                    })
+                  }
+                }
+              }
+              return (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-3 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Progreso del Trámite</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                      {activeIndex + 1} de 7 completado
+                    </span>
+                  </div>
+
+                  <div className="relative flex items-start justify-between px-2 pt-2 pb-8">
+                    {/* Connecting Line background */}
+                    <div className="absolute left-6 right-6 top-[24px] md:top-[28px] h-0.5 bg-slate-100 -z-0" />
+                    {/* Active progress line */}
+                    <div 
+                      className="absolute left-6 top-[24px] md:top-[28px] h-0.5 bg-emerald-500 -z-0 transition-all duration-500" 
+                      style={{ width: `calc(${(activeIndex / 6) * 100}% - ${activeIndex === 6 ? '12px' : '0px'})` }}
+                    />
+
+                    {AFILIACION_STEPS_FLOW.map((step, idx) => {
+                      const isCompleted = idx < activeIndex;
+                      const isCurrent = idx === activeIndex;
+                      const StepIcon = step.icon;
+                      return (
+                        <button 
+                          key={idx} 
+                          type="button"
+                          onClick={() => handleStepClick(idx)}
+                          className="flex flex-col items-center relative z-10 group cursor-pointer gap-2 focus:outline-none"
+                        >
+                          <div 
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                              isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100' :
+                              isCurrent ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 font-extrabold scale-110' :
+                              'bg-white text-slate-400 border-2 border-slate-200'
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <Check className="w-3.5 h-3.5 md:w-5 md:h-5" strokeWidth={3} />
+                            ) : (
+                              <StepIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                            )}
+                          </div>
+                          
+                          <span className={`text-[8px] md:text-[10px] font-black tracking-tighter uppercase ${
+                            isCurrent ? 'text-emerald-600 font-extrabold' : isCompleted ? 'text-slate-500' : 'text-slate-300'
+                          }`}>
+                            {step.labelShort}
+                          </span>
+                          
+                          <span className="absolute top-12 left-1/2 -translate-x-1/2 text-[9px] font-bold tracking-tight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white px-2 py-1 rounded shadow-md pointer-events-none z-50">
+                            {step.label}: {step.desc}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>                    
+                </div>
+              )
+            })()}
+
             {selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J') ? (
               <>
                 {/* Sección Empresa */}
@@ -452,23 +735,43 @@ export default function PreinscripcionesPrincipalesPanel({
                       comprobante: 'Comprobante',
                       titulo_representante: 'Título del Representante',
                       registro_mercantil: 'Registro Mercantil',
+                      referencia_afiliado_1: 'Referencia Afiliado 1',
+                      referencia_afiliado_2: 'Referencia Afiliado 2',
+                      diplomado: 'Diplomado',
+                      otro_documento: 'Otro Documento',
                     }
+                    const resolvedLabel = labelMap[doc.tipo_doc] || doc.tipo_doc.replace(/_/g, ' ')
                     return (
-                      <a
+                      <div
                         key={doc.id_documento}
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors bg-slate-50 text-slate-700 hover:bg-slate-100"
+                        className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
                       >
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M13.8 12H3" />
-                        </svg>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-bold truncate">{doc.nombre_archivo || labelMap[doc.tipo_doc] || doc.tipo_doc}</span>
-                          <span className="text-[9px] opacity-60 font-normal uppercase tracking-wider">{labelMap[doc.tipo_doc] || doc.tipo_doc}</span>
-                        </div>
-                      </a>
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 min-w-0 flex-grow hover:text-emerald-600"
+                        >
+                          <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M13.8 12H3" />
+                          </svg>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold truncate">{doc.nombre_archivo || resolvedLabel}</span>
+                            <span className="text-[9px] opacity-60 font-normal uppercase tracking-wider">{resolvedLabel}</span>
+                          </div>
+                        </a>
+
+                        {['referencia_afiliado_1', 'referencia_afiliado_2'].includes(doc.tipo_doc) && doc.nombre_archivo && (
+                          <button
+                            type="button"
+                            onClick={() => handleVerReferencia(doc.nombre_archivo!)}
+                            className="ml-2 shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+                          >
+                            <User size={12} />
+                            Ver Afiliado
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </div>

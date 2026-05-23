@@ -3,12 +3,23 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
-import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown } from 'lucide-react'
+import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
+import Swal from 'sweetalert2'
 
-function DocLink({ label, url, compact = false }: { label: string, url?: string | null, compact?: boolean }) {
+const AFILIACION_STEPS_FLOW = [
+  { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
+  { label: 'Expediente', desc: 'Carga y revisión de documentación', icon: FileText, labelShort: 'Exped.' },
+  { label: 'Entrevista', desc: 'Cita presencial con la junta directiva', icon: Calendar, labelShort: 'Entrev.' },
+  { label: 'Verificación', desc: 'Evaluación de perfil y referencias', icon: ShieldCheck, labelShort: 'Verif.' },
+  { label: 'CIBIR', desc: 'Acreditación o nivelación de conocimientos', icon: GraduationCap, labelShort: 'CIBIR' },
+  { label: 'Inscripción', desc: 'Aprobación final y pago de arancel', icon: CreditCard, labelShort: 'Inscr.' },
+  { label: 'Afiliación', desc: 'Miembro activo de la Cámara', icon: Check, labelShort: 'Afil.' }
+]
+
+function DocLink({ label, url, detail, compact = false }: { label: string, url?: string | null, detail?: string | null, compact?: boolean }) {
   if (!url) return (
     <div className={`flex items-center justify-between p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/30 ${compact ? 'py-2' : ''}`}>
       <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{label}</span>
@@ -29,7 +40,7 @@ function DocLink({ label, url, compact = false }: { label: string, url?: string 
         </div>
         <div className="flex flex-col min-w-0">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</span>
-          <span className="text-[10px] font-bold text-slate-600 truncate">Ver documento</span>
+          <span className="text-[10px] font-bold text-slate-600 truncate">{detail ? `Por: ${detail}` : 'Ver documento'}</span>
         </div>
       </div>
       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors">
@@ -275,6 +286,180 @@ export default function AfiliadosPanel() {
               </div>
             </div>
 
+            {(() => {
+              const getActiveIndex = (est: string) => {
+                switch (est) {
+                  case '1_PREINSCRIPCION': return 0;
+                  case '2_EXPEDIENTE':
+                  case 'Requiere Acción': return 1;
+                  case '3_ENTREVISTA': return 2;
+                  case '4_VERIFICACION': return 3;
+                  case '5_CIBIR': return 4;
+                  case '6_INSCRIPCION': return 5;
+                  case 'Afiliado': return 6;
+                  default: return 6;
+                }
+              }
+              const activeIndex = getActiveIndex(selected.estatus)
+
+              const handleStepClick = async (idx: number) => {
+                const statusValues: EstatusAfiliado[] = [
+                  '1_PREINSCRIPCION',
+                  '2_EXPEDIENTE',
+                  '3_ENTREVISTA',
+                  '4_VERIFICACION',
+                  '5_CIBIR',
+                  '6_INSCRIPCION',
+                  'Afiliado'
+                ]
+                const targetStatus = statusValues[idx]
+                if (targetStatus === selected.estatus) return
+
+                const stepsNames = ['Preinscripción', 'Expediente', 'Entrevista', 'Verificación', 'CIBIR', 'Inscripción', 'Afiliación']
+                const implications = [
+                  'Revertirá al aspirante al estado de registro inicial de datos básicos.',
+                  'Colocará al aspirante en la etapa de carga y revisión de documentos adjuntos.',
+                  'Habilitará al aspirante para la etapa de entrevista con la junta directiva.',
+                  'Colocará al aspirante en la etapa de evaluación de su perfil y validación de referencias de afiliados activos.',
+                  'Habilitará al aspirante para la validación y acreditación del curso de formación CIBIR.',
+                  'Colocará al aspirante en la etapa de pago del arancel de inscripción y aprobación administrativa final.',
+                  'Convertirá de forma definitiva al aspirante en un miembro activo (Afiliado) con credenciales de acceso a la Cámara.'
+                ]
+
+                const displayName = selected.tipo_afiliado === 'Corporativo' 
+                  ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo)) 
+                  : formatNombreCard(selected.nombre_completo)
+
+                // Detect skipping or returning
+                let warningHtml = ''
+                if (idx > activeIndex + 1) {
+                  const skipped = []
+                  for (let i = activeIndex + 1; i < idx; i++) {
+                    skipped.push(stepsNames[i])
+                  }
+                  warningHtml = `
+                    <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs text-left">
+                      <p class="font-bold text-amber-900 mb-1">⚠️ ADVERTENCIA: Estás saltando etapas intermedias:</p>
+                      <ul class="list-disc pl-4 font-semibold text-amber-800">
+                        ${skipped.map(s => `<li>${s}</li>`).join('')}
+                      </ul>
+                      <p class="mt-1 text-[10px] leading-tight text-amber-700">Al saltar estas fases, se omitirán las revisiones y requisitos asociados a ellas.</p>
+                    </div>
+                  `
+                } else if (idx < activeIndex) {
+                  warningHtml = `
+                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs text-left">
+                      <p class="font-bold text-blue-900 mb-1">ℹ️ NOTA: Estás retrocediendo en el proceso:</p>
+                      <p class="leading-tight text-[10px] text-blue-700">El proceso se devolverá a una etapa anterior. Se deberán procesar los requisitos de nuevo desde este punto.</p>
+                    </div>
+                  `
+                }
+
+                const result = await Swal.fire({
+                  title: '¿Cambiar etapa del proceso?',
+                  html: `
+                    <div class="text-slate-700 text-sm text-left">
+                      <p class="mb-2">¿Estás seguro de mover a <strong>${displayName}</strong> a la etapa de <strong>${stepsNames[idx]}</strong>?</p>
+                      <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 text-xs">
+                        <strong>Implicación de esta etapa:</strong> ${implications[idx]}
+                      </div>
+                      ${warningHtml}
+                    </div>
+                  `,
+                  icon: idx > activeIndex + 1 ? 'warning' : 'question',
+                  showCancelButton: true,
+                  confirmButtonColor: idx > activeIndex + 1 ? '#d97706' : '#059669',
+                  cancelButtonColor: '#cbd5e1',
+                  confirmButtonText: 'Sí, cambiar',
+                  cancelButtonText: 'Cancelar'
+                })
+
+                if (result.isConfirmed) {
+                  await updateField('estatus', targetStatus)
+                  Swal.fire({
+                    title: '¡Actualizado!',
+                    text: `El afiliado ahora está en la etapa de "${stepsNames[idx]}".`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                  })
+                }
+              }
+
+              return (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-3 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Progreso del Proceso</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                      {activeIndex + 1} de 7 completado
+                    </span>
+                  </div>
+
+                  <div className="relative flex items-start justify-between px-2 pt-2 pb-8">
+                    {/* Connecting Line background */}
+                    <div className="absolute left-6 right-6 top-[24px] md:top-[28px] h-0.5 bg-slate-100 -z-0" />
+                    {/* Active progress line */}
+                    <div 
+                      className="absolute left-6 top-[24px] md:top-[28px] h-0.5 bg-emerald-500 -z-0 transition-all duration-500" 
+                      style={{ width: `calc(${(activeIndex / 6) * 100}% - ${activeIndex === 6 ? '12px' : '0px'})` }}
+                    />
+
+                    {AFILIACION_STEPS_FLOW.map((step, idx) => {
+                      const isCompleted = idx < activeIndex;
+                      const isCurrent = idx === activeIndex;
+                      const StepIcon = step.icon;
+                      return (
+                        <button 
+                          key={idx} 
+                          type="button"
+                          onClick={() => handleStepClick(idx)}
+                          className="flex flex-col items-center relative z-10 group cursor-pointer gap-2 focus:outline-none"
+                        >
+                          <div 
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                              isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100' :
+                              isCurrent ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 font-extrabold scale-110' :
+                              'bg-white text-slate-400 border-2 border-slate-200'
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <Check className="w-3.5 h-3.5 md:w-5 md:h-5" strokeWidth={3} />
+                            ) : (
+                              <StepIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                            )}
+                          </div>
+                          
+                          <span className={`text-[8px] md:text-[10px] font-black tracking-tighter uppercase ${
+                            isCurrent ? 'text-emerald-600 font-extrabold' : isCompleted ? 'text-slate-500' : 'text-slate-300'
+                          }`}>
+                            {step.labelShort}
+                          </span>
+                          
+                          <span className="absolute top-12 left-1/2 -translate-x-1/2 text-[9px] font-bold tracking-tight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white px-2 py-1 rounded shadow-md pointer-events-none z-50">
+                            {step.label}: {step.desc}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 flex items-start gap-3 mt-1">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-sm">
+                      {activeIndex + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h5 className="text-xs font-bold text-slate-800">
+                        Etapa Actual: <span className="text-emerald-600">{AFILIACION_STEPS_FLOW[activeIndex]?.label}</span>
+                      </h5>
+                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                        {AFILIACION_STEPS_FLOW[activeIndex]?.desc}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
             <EstablecerAccesoAfiliado
               token={token}
               afiliado={selected}
@@ -385,6 +570,7 @@ export default function AfiliadosPanel() {
                       key={doc.id_documento} 
                       label={doc.tipo_doc.replace(/_/g, ' ')} 
                       url={doc.url} 
+                      detail={doc.nombre_archivo}
                       compact 
                     />
                   ))}

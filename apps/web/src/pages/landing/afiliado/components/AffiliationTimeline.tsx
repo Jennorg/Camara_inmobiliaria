@@ -72,8 +72,6 @@ const AffiliationTimeline = ({ currentStatus }: AffiliationTimelineProps) => {
             const isCurrent = idx === activeIndex;
             const Icon = step.icon;
 
-            if (idx > activeIndex + 1 && idx < STEPS.length - 1) return null; // Simplify view
-
             return (
               <div 
                 key={step.id} 
@@ -101,13 +99,6 @@ const AffiliationTimeline = ({ currentStatus }: AffiliationTimelineProps) => {
               </div>
             );
           })}
-          {activeIndex + 1 < STEPS.length - 1 && (
-             <div className="text-center py-2">
-                <div className="h-8 w-px bg-slate-100 mx-auto border-l border-dashed border-slate-300" />
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Pasos intermedios...</span>
-                <div className="h-8 w-px bg-slate-100 mx-auto border-l border-dashed border-slate-300" />
-             </div>
-          )}
         </div>
         
         {/* Info Box */}

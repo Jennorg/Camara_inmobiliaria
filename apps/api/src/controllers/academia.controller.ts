@@ -375,12 +375,14 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       emailRepresentante,
     })
 
-    await enviarCorreoConfirmacionPreinscripcionPrograma({
-      nombre: nombreCompleto,
-      emailOriginal: email,
-      programaCodigo,
-      token,
-    })
+    if (process.env.NODE_ENV !== 'development') {
+      await enviarCorreoConfirmacionPreinscripcionPrograma({
+        nombre: nombreCompleto,
+        emailOriginal: email,
+        programaCodigo,
+        token,
+      })
+    }
 
     res.status(201).json({
       success: true,
@@ -628,6 +630,12 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       if (typeof req.body?.url_titulo_representante === 'string' && req.body.url_titulo_representante) {
         docsToInsert.push({ tipo: 'titulo_representante', url: req.body.url_titulo_representante })
       }
+      if (typeof req.body?.url_referencia1 === 'string' && req.body.url_referencia1) {
+        docsToInsert.push({ tipo: 'referencia_afiliado_1', url: req.body.url_referencia1, nombre: req.body.nombre_referencia1 || '' })
+      }
+      if (typeof req.body?.url_referencia2 === 'string' && req.body.url_referencia2) {
+        docsToInsert.push({ tipo: 'referencia_afiliado_2', url: req.body.url_referencia2, nombre: req.body.nombre_referencia2 || '' })
+      }
 
       const especializacionesRaw = req.body?.especializaciones
       if (especializacionesRaw) {
@@ -647,12 +655,32 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
         } catch (e) { console.error('Error parsing cursos_extras:', e) }
       }
 
+      const diplomadosRaw = req.body?.diplomados
+      if (diplomadosRaw) {
+        try {
+          const list: { nombre?: string; url: string; fecha?: string }[] = JSON.parse(diplomadosRaw)
+          list.forEach(d => { if (d.url) docsToInsert.push({ tipo: 'diplomado', url: d.url, nombre: d.nombre, fecha: d.fecha }) })
+        } catch (e) { console.error('Error parsing diplomados:', e) }
+      }
+
+      const otrosDocsRaw = req.body?.otros_docs
+      if (otrosDocsRaw) {
+        try {
+          const list: { nombre?: string; url: string; fecha?: string }[] = JSON.parse(otrosDocsRaw)
+          list.forEach(o => { if (o.url) docsToInsert.push({ tipo: 'otro_documento', url: o.url, nombre: o.nombre, fecha: o.fecha }) })
+        } catch (e) { console.error('Error parsing otros_docs:', e) }
+      }
+
       if (docsToInsert.length > 0) {
-        const tipos = ['titulo', 'cv', 'especializacion', 'curso_extra', 'registro_mercantil', 'titulo_representante']
+        const tipos = [
+          'titulo', 'cv', 'especializacion', 'curso_extra', 'registro_mercantil', 
+          'titulo_representante', 'referencia_afiliado_1', 'referencia_afiliado_2',
+          'diplomado', 'otro_documento'
+        ]
         await db.execute({
           sql: `DELETE FROM documentos_adjuntos 
                 WHERE entidad_tipo = 'estudiante' AND entidad_id = ? 
-                AND tipo_doc IN (?, ?, ?, ?, ?, ?)`,
+                AND tipo_doc IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [id_estudiante, ...tipos]
         })
 
@@ -1291,13 +1319,15 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           p_rep.nombres || ' ' || p_rep.apellidos as representante_nombre,
           p_rep.cedula as representante_cedula,
           p_rep.email as representante_email,
-          p_rep.telefono as representante_telefono
+          p_rep.telefono as representante_telefono,
+          af.estatus as afiliado_estatus
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
         LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
         LEFT JOIN afiliados a_rep ON emp.id_representante_legal = a_rep.id_afiliado
         LEFT JOIN personas p_rep ON a_rep.id_persona = p_rep.id
+        LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
         WHERE ${whereParts.join(' AND ')}
         ORDER BY ic.fecha_inscripcion DESC
       `,
@@ -1991,3 +2021,283 @@ export const adminGetEstudianteDocumentos = async (req: Request, res: Response):
     res.status(500).json({ success: false, message: 'Error al obtener documentos' })
   }
 }
+
+export const adminCambiarEtapaInscripcion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const { etapa } = req.body // etapa: 0 | 1 | 2 | 3 | 4 | 5 | 6
+    if (!Number.isFinite(id) || etapa === undefined || etapa < 0 || etapa > 6) {
+      res.status(400).json({ success: false, message: 'Parámetros inválidos' })
+      return
+    }
+
+    const now = new Date().toISOString()
+
+    // 1. Obtener datos de la inscripción
+    const currentRes = await db.execute({
+      sql: `SELECT ic.*, 
+                   COALESCE(p.email, emp.email) as email,
+                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            WHERE ic.id_inscripcion = ?`,
+      args: [id]
+    })
+
+    if (currentRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada' })
+      return
+    }
+
+    const row = currentRes.rows[0] as any
+
+    // Map stage index to inscripciones_cursos.estatus
+    let targetInscripcionStatus = 'Preinscrito'
+    if (etapa === 2) {
+      targetInscripcionStatus = 'Entrevista'
+    } else if (etapa >= 3) {
+      targetInscripcionStatus = 'Inscrito'
+    }
+
+    // Actualizar inscripciones_cursos
+    await db.execute({
+      sql: `UPDATE inscripciones_cursos 
+            SET estatus=?, aprobado_por=?, actualizado_en=?
+            WHERE id_inscripcion=?`,
+      args: [targetInscripcionStatus, req.user?.id || null, now, id]
+    })
+
+    // 2. Si es programa de AFILIACION, actualizar/crear afiliado
+    if (row.programa_codigo === 'AFILIACION') {
+      const statusValues: string[] = [
+        '1_PREINSCRIPCION',
+        '2_EXPEDIENTE',
+        '3_ENTREVISTA',
+        '4_VERIFICACION',
+        '5_CIBIR',
+        '6_INSCRIPCION',
+        'Afiliado'
+      ]
+      const targetAfiliadoStatus = statusValues[etapa]
+
+      const estRes = await db.execute({
+        sql: `SELECT e.id_persona, e.id_empresa, a.id_persona as rep_id_persona
+              FROM estudiantes e
+              LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+              LEFT JOIN afiliados a ON emp.id_representante_legal = a.id_afiliado
+              WHERE e.id_estudiante = ?`,
+        args: [row.id_estudiante]
+      })
+      const est = estRes.rows[0] as any
+
+      if (est) {
+        const finalIdPersona = est.id_persona || est.rep_id_persona
+        if (finalIdPersona) {
+          // Obtener o generar un código cibir si pasa a "Afiliado"
+          let nextCode = null
+          if (targetAfiliadoStatus === 'Afiliado') {
+            const resultUltimoCode = await db.execute({
+              sql: `SELECT codigo_cibir FROM afiliados 
+                    WHERE codigo_cibir GLOB '[0-9]*' 
+                    ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
+              args: []
+            })
+            let correlativo = 1
+            if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo_cibir) {
+              const lastCode = parseInt(resultUltimoCode.rows[0].codigo_cibir as string, 10)
+              if (!isNaN(lastCode)) correlativo = lastCode + 1
+            }
+            nextCode = correlativo.toString()
+          }
+
+          await db.execute({
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir, actualizado_en, activo)
+                  VALUES (?, ?, CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END, ?, ?, ?, 1)
+                  ON CONFLICT(id_persona) DO UPDATE SET
+                    estatus = ?,
+                    codigo_cibir = COALESCE(afiliados.codigo_cibir, ?),
+                    actualizado_en = excluded.actualizado_en,
+                    activo = 1`,
+            args: [
+              finalIdPersona, 
+              est.id_empresa, 
+              est.id_empresa, 
+              targetAfiliadoStatus, 
+              nextCode, 
+              now, 
+              targetAfiliadoStatus, 
+              nextCode
+            ]
+          })
+        }
+      }
+    }
+
+    // 3. Crear acceso al portal si pasa a 'Inscrito' (etapa >= 3)
+    if (targetInscripcionStatus === 'Inscrito' && row.email) {
+      try {
+        const userRes = await db.execute({
+          sql: `SELECT reset_token_hash FROM users WHERE email = ?`,
+          args: [row.email]
+        })
+        const existingUser = userRes.rows[0] as any
+
+        if (!existingUser) {
+          const tokenToUse = randomUUID()
+          const expiracion = new Date()
+          expiracion.setHours(expiracion.getHours() + 48)
+          const placeholderPass = await bcrypt.hash(randomUUID(), 10)
+          const tokenHash = sha256(tokenToUse)
+
+          await db.execute({
+            sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
+                  VALUES (?, ?, '["estudiante"]', ?, ?)`,
+            args: [row.email, placeholderPass, tokenHash, expiracion.toISOString()]
+          })
+        }
+      } catch (err) {
+        console.error('Error preparando acceso etapa:', err)
+      }
+    }
+
+    res.json({ success: true, message: 'Etapa del trámite cambiada correctamente.' })
+  } catch (error) {
+    console.error('adminCambiarEtapaInscripcion:', error)
+    res.status(500).json({ success: false, message: 'Error al cambiar etapa de inscripción' })
+  }
+}
+
+export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { nombre } = req.query
+    if (typeof nombre !== 'string' || !nombre.trim()) {
+      res.status(400).json({ success: false, message: 'El parámetro nombre es requerido' })
+      return
+    }
+
+    const rawNombre = nombre.trim()
+
+    // 1. Intentar extraer cédula/RIF y nombre limpio
+    // Ej: "Piñango Inmobiliaria C.A. (C.I. / RIF: V87654321)"
+    let docMatch = rawNombre.match(/(?:C\.I\.\s*\/)?\s*(?:RIF|C\.I\.):\s*([A-Z0-9-]{5,15})/i)
+    if (!docMatch) {
+      // Intentar extraer cualquier código que parezca cédula/RIF
+      docMatch = rawNombre.match(/\b([VJEG]-[0-9]{5,10}-[0-9]|[VJEG][0-9]{5,10})\b/i)
+    }
+    if (!docMatch) {
+      // Intentar extraer sólo números de 6 a 10 dígitos
+      docMatch = rawNombre.match(/\b([0-9]{6,10})\b/)
+    }
+
+    const extractedDoc = docMatch ? docMatch[1].trim() : null
+
+    // Nombre limpio (quitando los paréntesis y el RIF)
+    let nombreLimpio = rawNombre
+    const parenIndex = rawNombre.indexOf('(')
+    if (parenIndex !== -1) {
+      nombreLimpio = rawNombre.substring(0, parenIndex).trim()
+    }
+
+    const nameSearch = `%${nombreLimpio}%`
+    const docSearchLike = extractedDoc ? `%${extractedDoc.replace(/[^a-zA-Z0-9]/g, '')}%` : ''
+
+    // Buscar en afiliados
+    let queryResult;
+    if (extractedDoc) {
+      queryResult = await db.execute({
+        sql: `
+          SELECT a.id_afiliado, 
+                 a.codigo_cibir, 
+                 a.tipo_afiliado, 
+                 a.estatus,
+                 (p.nombres || ' ' || p.apellidos) as nombre_persona,
+                 p.email as email_persona,
+                 p.telefono as telefono_persona,
+                 p.cedula as cedula_persona,
+                 e.razon_social as razon_social_empresa,
+                 e.email as email_empresa,
+                 e.telefono as telefono_empresa,
+                 e.rif_numero as rif_empresa
+          FROM afiliados a
+          JOIN personas p ON a.id_persona = p.id
+          LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+          WHERE (p.cedula = ?)
+             OR (e.rif_numero = ?)
+             OR (REPLACE(REPLACE(p.cedula, '-', ''), ' ', '') LIKE ?)
+             OR (REPLACE(REPLACE(e.rif_numero, '-', ''), ' ', '') LIKE ?)
+             OR (p.nombres || ' ' || p.apellidos LIKE ?)
+             OR (e.razon_social LIKE ?)
+          LIMIT 1
+        `,
+        args: [extractedDoc, extractedDoc, docSearchLike, docSearchLike, nameSearch, nameSearch]
+      })
+    } else {
+      queryResult = await db.execute({
+        sql: `
+          SELECT a.id_afiliado, 
+                 a.codigo_cibir, 
+                 a.tipo_afiliado, 
+                 a.estatus,
+                 (p.nombres || ' ' || p.apellidos) as nombre_persona,
+                 p.email as email_persona,
+                 p.telefono as telefono_persona,
+                 p.cedula as cedula_persona,
+                 e.razon_social as razon_social_empresa,
+                 e.email as email_empresa,
+                 e.telefono as telefono_empresa,
+                 e.rif_numero as rif_empresa
+          FROM afiliados a
+          JOIN personas p ON a.id_persona = p.id
+          LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+          WHERE (p.nombres || ' ' || p.apellidos LIKE ?)
+             OR (e.razon_social LIKE ?)
+          LIMIT 1
+        `,
+        args: [nameSearch, nameSearch]
+      })
+    }
+
+    if (queryResult.rows.length === 0) {
+      res.json({ success: true, data: null })
+      return
+    }
+
+    const row = queryResult.rows[0] as any
+    const nombreCompleto = row.tipo_afiliado === 'Corporativo' && row.razon_social_empresa
+      ? row.razon_social_empresa
+      : row.nombre_persona
+
+    const email = row.tipo_afiliado === 'Corporativo' && row.email_empresa
+      ? row.email_empresa
+      : row.email_persona
+
+    const telefono = row.tipo_afiliado === 'Corporativo' && row.telefono_empresa
+      ? row.telefono_empresa
+      : row.telefono_persona
+
+    const docIdentidad = row.tipo_afiliado === 'Corporativo'
+      ? row.rif_empresa
+      : row.cedula_persona
+
+    res.json({
+      success: true,
+      data: {
+        id_afiliado: row.id_afiliado,
+        codigo_cibir: row.codigo_cibir,
+        tipo_afiliado: row.tipo_afiliado,
+        estatus: row.estatus,
+        nombre_completo: nombreCompleto,
+        email: email,
+        telefono: telefono,
+        doc_identidad: docIdentidad
+      }
+    })
+  } catch (error) {
+    console.error('adminBuscarReferenciaAfiliado:', error)
+    res.status(500).json({ success: false, message: 'Error al buscar referencia de afiliado' })
+  }
+}
+
+
