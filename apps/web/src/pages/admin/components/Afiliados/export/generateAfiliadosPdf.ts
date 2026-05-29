@@ -48,6 +48,28 @@ export async function generateAfiliadosPdf({
   const columns = AFILIADOS_EXPORT_COLUMNS.filter((c) => columnIds.includes(c.id))
   if (columns.length === 0) return
 
+  // Excluir los que no tienen código asignado y ordenar por código de forma ascendente
+  const sortedRows = rows
+    .filter((row) => {
+      const code = row.codigo_cibir?.trim()
+      return code !== undefined && code !== null && code !== ''
+    })
+    .sort((a, b) => {
+      const codeA = a.codigo_cibir?.trim() || ''
+      const codeB = b.codigo_cibir?.trim() || ''
+      
+      const numA = Number(codeA)
+      const numB = Number(codeB)
+      
+      const isNumA = !Number.isNaN(numA) && codeA !== ''
+      const isNumB = !Number.isNaN(numB) && codeB !== ''
+      
+      if (isNumA && isNumB) {
+        return numA - numB
+      }
+      return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' })
+    })
+
   const landscape = columns.length > 4
   const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -64,17 +86,31 @@ export async function generateAfiliadosPdf({
 
   if (logoBase64) {
     doc.addImage(logoBase64, 'PNG', margin, y, 32, 32)
+    
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(15, 23, 42)
+    doc.text('Reporte de Afiliados', margin + 38, y + 12)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(100, 116, 139)
+    doc.text('Cámara Inmobiliaria de Bolívar', margin + 38, y + 18)
+    
+    y += 36
+  } else {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(15, 23, 42)
+    doc.text('Reporte de Afiliados', margin, y + 10)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(100, 116, 139)
+    doc.text('Cámara Inmobiliaria de Bolívar', margin, y + 16)
+    
+    y += 22
   }
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.setTextColor(15, 23, 42)
-  doc.text('Reporte de Afiliados', logoBase64 ? margin + 38 : margin, y + 10)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.setTextColor(100, 116, 139)
-  doc.text('Cámara Inmobiliaria de Bolívar', logoBase64 ? margin + 38 : margin, y + 16)
 
   const dateStr = generatedAt.toLocaleString('es-VE', {
     day: '2-digit',
@@ -84,15 +120,30 @@ export async function generateAfiliadosPdf({
     minute: '2-digit',
   })
   doc.setFontSize(8)
-  doc.text(`Generado: ${dateStr}`, pageWidth - margin, y + 8, { align: 'right' })
-  doc.text(`${rows.length} registro${rows.length === 1 ? '' : 's'}`, pageWidth - margin, y + 14, {
+  doc.text(`Generado: ${dateStr}`, pageWidth - margin, margin + 8, { align: 'right' })
+  doc.text(`${sortedRows.length} registro${sortedRows.length === 1 ? '' : 's'}`, pageWidth - margin, margin + 14, {
     align: 'right',
   })
 
-  y += 32
+  // Resumen de filtros
+  if (filterSummary && filterSummary.length > 0) {
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(51, 65, 85)
+    doc.text('Filtros aplicados:', margin, y)
+    
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 116, 139)
+    const filtersText = filterSummary.join(' | ')
+    const lines = doc.splitTextToSize(filtersText, pageWidth - (margin * 2))
+    doc.text(lines, margin, y + 4)
+    y += (lines.length * 3) + 6
+  } else {
+    y += 4
+  }
 
   const head = [columns.map((c) => c.label)]
-  const body = rows.map((row) => columns.map((col) => col.getValue(row)))
+  const body = sortedRows.map((row) => columns.map((col) => col.getValue(row)))
 
   autoTable(doc, {
     startY: y,
@@ -121,7 +172,7 @@ export async function generateAfiliadosPdf({
       doc.setFontSize(7)
       doc.setTextColor(148, 163, 184)
       doc.text(
-        `Página ${data.pageNumber} de ${pageCount} · Total: ${rows.length} afiliados`,
+        `Página ${data.pageNumber} de ${pageCount} · Total: ${sortedRows.length} afiliados`,
         pageWidth / 2,
         pageH - 8,
         { align: 'center' }

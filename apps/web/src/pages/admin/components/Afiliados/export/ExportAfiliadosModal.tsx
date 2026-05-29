@@ -42,6 +42,9 @@ export default function ExportAfiliadosModal({
     estatus: initialFilters?.estatus ?? 'Todos',
     activo: initialFilters?.activo ?? 'todos',
     search: initialFilters?.search ?? '',
+    desdeCodigo: '',
+    fechaDesde: '',
+    fechaHasta: '',
   })
   const [selectedColumns, setSelectedColumns] = useState<ExportColumnId[]>(DEFAULT_SELECTED_COLUMNS)
   const [previewItems, setPreviewItems] = useState<AfiliadoDTO[]>([])
@@ -56,6 +59,9 @@ export default function ExportAfiliadosModal({
       estatus: initialFilters?.estatus ?? 'Todos',
       activo: initialFilters?.activo ?? 'todos',
       search: initialFilters?.search ?? '',
+      desdeCodigo: '',
+      fechaDesde: '',
+      fechaHasta: '',
     })
     setSelectedColumns(DEFAULT_SELECTED_COLUMNS)
     setError('')
@@ -243,6 +249,44 @@ export default function ExportAfiliadosModal({
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs text-slate-700 bg-slate-50 outline-none focus:border-emerald-500"
               />
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Desde Código CIBIR
+              </label>
+              <input
+                type="number"
+                placeholder="Ej: 100"
+                value={filters.desdeCodigo}
+                onChange={(e) => setFilters((f) => ({ ...f, desdeCodigo: e.target.value }))}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs text-slate-700 bg-slate-50 outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Fecha Registro Desde
+                </label>
+                <input
+                  type="date"
+                  value={filters.fechaDesde}
+                  onChange={(e) => setFilters((f) => ({ ...f, fechaDesde: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs text-slate-700 bg-slate-50 outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Fecha Registro Hasta
+                </label>
+                <input
+                  type="date"
+                  value={filters.fechaHasta}
+                  onChange={(e) => setFilters((f) => ({ ...f, fechaHasta: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs text-slate-700 bg-slate-50 outline-none focus:border-emerald-500"
+                />
+              </div>
             </div>
 
             <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">
