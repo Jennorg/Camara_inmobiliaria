@@ -6,6 +6,27 @@ const resend = new Resend(env.RESEND_API_KEY);
 const FROM_NAME = 'Cámara Inmobiliaria de Bolívar';
 const DEFAULT_FROM = `${FROM_NAME} <${env.RESEND_FROM_EMAIL}>`;
 
+/**
+ * Wrapper para enviar correos con Resend.
+ * En desarrollo (development) solo loguea el envío para no gastar cuota.
+ */
+async function sendResendEmail(params: any) {
+  if (env.NODE_ENV === 'development') {
+    console.log('--- [MOCK EMAIL] ---')
+    console.log(`Para: ${params.to}`)
+    console.log(`Asunto: ${params.subject}`)
+    console.log('---------------------')
+    return { data: { id: 'mock-id' }, error: null }
+  }
+  
+  if (!env.RESEND_API_KEY || env.RESEND_API_KEY === 're_123') {
+    console.warn('[EMAIL] No hay una API KEY de Resend válida configurada.')
+    return { data: null, error: { message: 'Missing API Key' } }
+  }
+
+  return await resend.emails.send(params)
+}
+
 /** Template base profesional */
 const renderEmailTemplate = (content: string, title?: string) => `
   <!DOCTYPE html>
@@ -53,7 +74,7 @@ const renderEmailTemplate = (content: string, title?: string) => `
 /** Correo de verificación de dirección (registro CIBIR) */
 export const enviarCorreoVerificacion = async (nombre: string, emailOriginal: string, token: string) => {
   const enlaceVerificacion = `${env.APP_URL}/cibir/verificar?token=${token}`
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: 'Confirma tu registro en la Cámara Inmobiliaria (CIBIR)',
@@ -83,7 +104,7 @@ export const enviarCorreoInvitacionCorporativa = async (params: {
   const { nombre, emailOriginal, nombreEmpresa, token } = params
   const enlaceVerificacion = `${env.APP_URL}/cursos/verificar?token=${token}`
   
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: `Invitación de ${nombreEmpresa} — Cámara Inmobiliaria`,
@@ -120,7 +141,7 @@ export const enviarCorreoConfirmacionPreinscripcionPrograma = async (params: {
   const accion = esAfiliacion ? 'solicitar tu afiliación a la' : `preinscribirte al programa <strong>${programaCodigo}</strong> de la`
   const subject = esAfiliacion ? 'Confirma tu solicitud de afiliación' : `Confirma tu preinscripción — ${programaCodigo}`
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject,
@@ -145,7 +166,7 @@ export const enviarCorreoConfirmacionPreinscripcionPrograma = async (params: {
 /** Correo de bienvenida + enlace para establecer contraseña inicial (afiliado aprobado) */
 export const enviarCorreoAprobacion = async (nombre: string, emailOriginal: string, token: string) => {
   const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${token}`
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: '¡Felicidades! Tu solicitud ha sido aprobada',
@@ -169,7 +190,7 @@ export const enviarCorreoAprobacion = async (nombre: string, emailOriginal: stri
 /** Correo de reset de contraseña (admin) */
 export const enviarCorreoResetAdmin = async (nombre: string, emailOriginal: string, token: string) => {
   const enlace = `${env.APP_URL}/establecer-contrasena?token=${token}&modo=reset`
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: 'Restablecimiento de contraseña — Cámara Inmobiliaria',
@@ -190,7 +211,7 @@ export const enviarCorreoResetAdmin = async (nombre: string, emailOriginal: stri
 /** Olvidé mi contraseña */
 export const enviarCorreoOlvideContrasena = async (emailOriginal: string, token: string) => {
   const enlace = `${env.APP_URL}/establecer-contrasena?token=${token}&modo=reset`
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: 'Recupera tu contraseña — Cámara Inmobiliaria',
@@ -218,7 +239,7 @@ export const enviarCorreoComprobanteGraduacion = async (params: {
   const { nombre, emailEstudiante, tituloFormacion, codigoValidacion } = params
   const urlComprobante = `${env.APP_URL.replace(/\/$/, '')}/comprobante/${encodeURIComponent(codigoValidacion)}`
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailEstudiante,
     subject: `Tu comprobante de aprobación digital — ${tituloFormacion}`,
@@ -248,7 +269,7 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
   const { nombre, emailOriginal, programaCodigo, token } = params
   const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${token}`
   
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: `Continúa tu inscripción — ${programaCodigo}`,
@@ -281,7 +302,7 @@ export const enviarCorreoAprobacionEstudiante = async (params: {
   const { nombre, emailOriginal, programaCodigo, entrevistaFecha, entrevistaHora, entrevistaLugar, token } = params
   const enlaceSetup = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : null
   
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: `Cita de Entrevista — ${programaCodigo}`,
@@ -315,7 +336,7 @@ export const enviarCorreoResultadoEntrevista = async (params: {
   const enlacePortal = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
   const esAprobado = resultado === 'Aprobado' || resultado === 'Parcial'
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
     subject: esAprobado ? `¡Bienvenido al sistema! — ${programaCodigo}` : `Resultado de tu solicitud — ${programaCodigo}`,
@@ -342,6 +363,38 @@ export const enviarCorreoResultadoEntrevista = async (params: {
   return data
 }
 
+/** Correo de Onboarding Masivo para afiliados existentes */
+export const enviarCorreoOnboardingMasivo = async (nombre: string, emailOriginal: string, token: string) => {
+  const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${token}`
+  const { data, error } = await sendResendEmail({
+    from: DEFAULT_FROM,
+    to: emailOriginal,
+    subject: 'Bienvenido al nuevo Portal — Cámara Inmobiliaria de Bolívar',
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Nos complace darte la bienvenida al nuevo <strong>Portal Digital de la Cámara Inmobiliaria del Estado Bolívar</strong>.</p>
+      <p>Hemos modernizado nuestra plataforma para ofrecerte una mejor experiencia, acceso a tus certificados, gestión de pagos y mucho más.</p>
+      
+      <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
+        <p style="margin-top: 0; font-weight: 700; color: #065f46;">Activa tu cuenta ahora</p>
+        <p>Como ya eres parte de nuestra Cámara, solo necesitas establecer una contraseña para comenzar a usar el portal:</p>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${enlaceSetup}" class="btn">Activar mi Acceso</a>
+        </div>
+      </div>
+      
+      <p style="font-size: 14px; color: #6b7280;">
+        Este enlace es personal y seguro. Una vez que establezcas tu contraseña, podrás ingresar con tu correo: <strong>${emailOriginal}</strong>
+      </p>
+      
+      <div class="divider"></div>
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">Si tienes algún problema con el acceso, no dudes en contactarnos.</p>
+    `, 'Nuevo Portal')
+  })
+  if (error) { console.error('enviarCorreoOnboardingMasivo:', error); throw error }
+  return data
+}
+
 /** NOTIFICACIONES PARA EL ADMINISTRADOR */
 
 export const notificarAdminNuevaPreinscripcion = async (params: {
@@ -355,7 +408,7 @@ export const notificarAdminNuevaPreinscripcion = async (params: {
   const { idInscripcion, nombre, email, programaCodigo, cedulaRif, telefono } = params
   const enlaceGestion = `${env.APP_URL}/admin/formacion?id=${idInscripcion}&tab=preinscripciones`
 
-  await resend.emails.send({
+  await sendResendEmail({
     from: DEFAULT_FROM,
     to: env.ADMIN_EMAIL,
     subject: `NUEVA SOLICITUD: Preinscripción ${programaCodigo}`,
@@ -385,7 +438,7 @@ export const notificarAdminNuevaAfiliacion = async (params: {
   telefono: string
 }) => {
   const { nombre, email, cedulaRif, telefono } = params
-  await resend.emails.send({
+  await sendResendEmail({
     from: DEFAULT_FROM,
     to: env.ADMIN_EMAIL,
     subject: `NUEVA SOLICITUD: Afiliación (CIBIR)`,

@@ -403,14 +403,12 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       id_empresa: idEmpresaAgente,
     })
 
-    if (process.env.NODE_ENV !== 'development') {
-      await enviarCorreoConfirmacionPreinscripcionPrograma({
-        nombre: nombreCompleto,
-        emailOriginal: email,
-        programaCodigo,
-        token,
-      })
-    }
+    await enviarCorreoConfirmacionPreinscripcionPrograma({
+      nombre: nombreCompleto,
+      emailOriginal: email,
+      programaCodigo,
+      token,
+    })
 
     res.status(201).json({
       success: true,

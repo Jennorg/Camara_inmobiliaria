@@ -285,7 +285,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                           </p>
                           <p className="text-[10px] text-slate-500 font-bold">
                             {emp.empresa_rif_numero ? `RIF: ${emp.empresa_rif_numero} • ` : ''}
-                            CIBIR: {emp.codigo_cibir || '—'}
+                            Código: {emp.codigo_cibir || '—'}
                           </p>
                         </button>
                       ))}
@@ -349,7 +349,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">¿Eres corredor inmobiliario?</label>
+              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">¿Eres actualmente corredor inmobiliario?</label>
               <div className={`grid grid-cols-2 bg-white/5 rounded-xl border border-white/10 overflow-hidden ${BOX_H}`}>
                 {['si', 'no'].map(opt => (
                   <button key={opt} type="button" onClick={() => setFormData(prev => ({ ...prev, esCorredorInmobiliario: opt }))} className={`h-full text-[10px] font-black uppercase tracking-widest transition-all ${formData.esCorredorInmobiliario === opt ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>

@@ -168,9 +168,16 @@ const PanelPage = () => {
     
     // Base de navegación pública o afiliada
     if (user?.roles.includes('afiliado')) {
-      baseItems = isLimited
-        ? [{ icon: LayoutDashboard, label: 'Resumen / Inicio' }, { icon: FolderSearch, label: 'Mi Expediente' }]
-        : [...NAV_AFILIADO];
+      // Si es afiliado pero tiene restricción por falta de pago inicial
+      if (isLimited) {
+        baseItems = [
+          { icon: LayoutDashboard, label: 'Resumen / Inicio' }, 
+          { icon: FolderSearch, label: 'Mi Expediente' }
+        ];
+      } else {
+        // Acceso completo para Naturales y Corporativos
+        baseItems = [...NAV_AFILIADO];
+      }
     } else if (isEstudiante && user?.roles.length === 1) {
       // Exclusivo estudiante
       baseItems = [
@@ -226,73 +233,83 @@ const PanelPage = () => {
   const renderContent = () => {
     // 1. Sección de Afiliado
     if (activeTab === 'Resumen / Inicio') {
-      if (isAdmin) return <div className="col-span-1 lg:col-span-3 relative z-10"><CmsDashboard /></div>;
-      if (isLimited && user?.roles.includes('afiliado')) return <div className="col-span-1 lg:col-span-3"><WidgetFormalizarInscripcion onSuccess={fetchAfiliado} /></div>;
-      
-      // Si es solo estudiante
-      if (isEstudiante && !isAfiliado) {
-        return (
-          <>
-            <div className="lg:col-span-3"><WidgetSolicitudAfiliacion /></div>
-            <div className="lg:col-span-3"><WidgetMisCursos /></div>
-            <div className="lg:col-span-3"><WidgetAcademico /></div>
-          </>
-        )
-      }
-
-      // Afiliado standard
       return (
         <>
-          {user?.tipo_afiliado === 'Corporativo' && (
-            <div className="lg:col-span-3">
-              <div className={`rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl transition-all duration-700 ${
-                solicitudesPendientesCount > 0 
-                  ? 'bg-emerald-600 shadow-emerald-600/20 animate-in fade-in slide-in-from-top-4' 
-                  : 'bg-slate-800 shadow-slate-900/20'
-              }`}>
-                <div className="flex items-center gap-5 text-center md:text-left">
-                  <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 ${
-                    solicitudesPendientesCount > 0 ? 'bg-white/20 backdrop-blur-md' : 'bg-slate-700'
-                  }`}>
-                    <UserPlus size={32} className={solicitudesPendientesCount > 0 ? 'text-white' : 'text-slate-400'} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black uppercase tracking-tight">Gestión de Agentes</h3>
-                    <p className={`${solicitudesPendientesCount > 0 ? 'text-emerald-100' : 'text-slate-400'} font-medium text-sm`}>
-                      {solicitudesPendientesCount > 0 
-                        ? `Tienes ${solicitudesPendientesCount} ${solicitudesPendientesCount === 1 ? 'agente esperando' : 'agentes esperando'} tu confirmación.`
-                        : 'No tienes solicitudes pendientes por el momento.'
-                      }
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={fetchAfiliado}
-                    disabled={loadingAfiliado || loadingAgentes}
-                    className="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 border border-white/10"
-                    title="Actualizar datos"
-                  >
-                    <RefreshCw size={20} className={(loadingAfiliado || loadingAgentes) ? 'animate-spin' : ''} />
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('Mis Agentes')}
-                    className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap ${
-                      solicitudesPendientesCount > 0 
-                        ? 'bg-white text-emerald-700' 
-                        : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
-                    }`}
-                  >
-                    {solicitudesPendientesCount > 0 ? 'Gestionar Solicitudes' : 'Ver Mi Equipo'}
-                  </button>
-                </div>
-              </div>
+          {isAdmin && (
+            <div className="col-span-1 lg:col-span-3 relative z-10 mb-4 sm:mb-6">
+              <CmsDashboard />
             </div>
           )}
-          <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div>
-          <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div>
-          <div className="lg:col-span-3"><WidgetMisCursos /></div>
-          <div className="lg:col-span-3"><WidgetAcademico /></div>
+          
+          {isLimited && user?.roles.includes('afiliado') ? (
+            <div className="col-span-1 lg:col-span-3">
+              <WidgetFormalizarInscripcion onSuccess={fetchAfiliado} />
+            </div>
+          ) : (
+            user?.roles.includes('afiliado') && (
+              <>
+                {user?.tipo_afiliado === 'Corporativo' && (
+                  <div className="lg:col-span-3">
+                    <div className={`rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl transition-all duration-700 ${
+                      solicitudesPendientesCount > 0 
+                        ? 'bg-emerald-600 shadow-emerald-600/20 animate-in fade-in slide-in-from-top-4' 
+                        : 'bg-slate-800 shadow-slate-900/20'
+                    }`}>
+                      <div className="flex items-center gap-5 text-center md:text-left">
+                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 ${
+                          solicitudesPendientesCount > 0 ? 'bg-white/20 backdrop-blur-md' : 'bg-slate-700'
+                        }`}>
+                          <UserPlus size={32} className={solicitudesPendientesCount > 0 ? 'text-white' : 'text-slate-400'} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black uppercase tracking-tight">Gestión de Agentes</h3>
+                          <p className={`${solicitudesPendientesCount > 0 ? 'text-emerald-100' : 'text-slate-400'} font-medium text-sm`}>
+                            {solicitudesPendientesCount > 0 
+                              ? `Tienes ${solicitudesPendientesCount} ${solicitudesPendientesCount === 1 ? 'agente esperando' : 'agentes esperando'} tu confirmación.`
+                              : 'No tienes solicitudes pendientes por el momento.'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={fetchAfiliado}
+                          disabled={loadingAfiliado || loadingAgentes}
+                          className="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 border border-white/10"
+                          title="Actualizar datos"
+                        >
+                          <RefreshCw size={20} className={(loadingAfiliado || loadingAgentes) ? 'animate-spin' : ''} />
+                        </button>
+                        <button 
+                          onClick={() => setActiveTab('Mis Agentes')}
+                          className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap ${
+                            solicitudesPendientesCount > 0 
+                              ? 'bg-white text-emerald-700' 
+                              : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                          }`}
+                        >
+                          {solicitudesPendientesCount > 0 ? 'Gestionar Solicitudes' : 'Ver Mi Equipo'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div>
+                <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div>
+                <div className="lg:col-span-3"><WidgetMisCursos /></div>
+                <div className="lg:col-span-3"><WidgetAcademico /></div>
+              </>
+            )
+          )}
+
+          {/* Si es solo estudiante (y no admin ni afiliado) */}
+          {isEstudiante && !isAfiliado && !isAdmin && (
+            <>
+              <div className="lg:col-span-3"><WidgetSolicitudAfiliacion /></div>
+              <div className="lg:col-span-3"><WidgetMisCursos /></div>
+              <div className="lg:col-span-3"><WidgetAcademico /></div>
+            </>
+          )}
         </>
       );
     }

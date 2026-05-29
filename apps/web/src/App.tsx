@@ -28,6 +28,7 @@ import VerificarPreinscripcionProgramaPage from '@/pages/landing/courses/Verific
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
 import LobbyPage from '@/pages/lobby/LobbyPage'
 import ComprobantePublicoPage from '@/pages/comprobante/ComprobantePublicoPage'
+import CertificadoAfiliacionPage from '@/pages/comprobante/CertificadoAfiliacionPage'
 import MarcoLegalPage from '@/pages/landing/marco-legal/MarcoLegalPage'
 import RequisitosPage from '@/pages/landing/afiliado/RequisitosPage'
 import InvitacionCorporativaPage from '@/pages/landing/afiliado/InvitacionCorporativaPage'
@@ -70,6 +71,7 @@ export default function App() {
           <Route path='/afiliate'      element={<RequisitosPage />} />
           <Route path='/requisitos'    element={<Navigate to='/afiliate' replace />} />
           <Route path='/comprobante/:codigo' element={<ComprobantePublicoPage />} />
+          <Route path='/comprobante/afiliacion/:id' element={<CertificadoAfiliacionPage />} />
           <Route path='/establecer-contrasena' element={<SetupPasswordPage />} />
           <Route path='/afiliacion/invitacion/:token' element={<InvitacionCorporativaPage />} />
 

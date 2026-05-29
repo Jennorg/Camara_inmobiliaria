@@ -283,7 +283,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Corredor */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">¿Eres corredor inmobiliario?</label>
+                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">¿Eres actualmente corredor inmobiliario?</label>
                 <div className={`grid grid-cols-2 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden ${BOX_H}`}>
                   {['si', 'no'].map(opt => (
                     <button key={opt} type="button"
