@@ -1,6 +1,8 @@
 import React from 'react';
 import { Bell, HelpCircle, Menu, Search, User } from 'lucide-react';
 
+import NotificationCenter from '@/components/NotificationCenter';
+
 interface DashboardHeaderProps {
   onMenuOpen: () => void;
   userName?: string;
@@ -52,11 +54,8 @@ const DashboardHeader = ({
     {/* Right: Notifications + Profile */}
     <div className="flex items-center gap-4 flex-shrink-0">
       <div className="flex items-center gap-1 pr-4" style={{ borderRight: '1px solid var(--color-border)' }}>
-        <button className="relative p-2 rounded-full transition-colors">
-          <Bell size={20} style={{ color: 'var(--color-text-muted)' }} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 border-2 border-white rounded-full" style={{ backgroundColor: 'var(--color-danger)' }} />
-        </button>
-        <button className="p-2 rounded-full transition-colors">
+        <NotificationCenter />
+        <button className="p-2 rounded-full transition-colors hover:bg-slate-100">
           <HelpCircle size={20} style={{ color: 'var(--color-text-muted)' }} />
         </button>
       </div>

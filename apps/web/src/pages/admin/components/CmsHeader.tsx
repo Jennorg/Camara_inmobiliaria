@@ -1,4 +1,5 @@
 import React from 'react';
+import NotificationCenter from '@/components/NotificationCenter';
 
 interface CmsHeaderProps {
   title?: string;
@@ -67,6 +68,7 @@ const CmsHeader = ({
 
       {/* Right: search + action button */}
       <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+        <NotificationCenter />
 
         {/* Search */}
         <div className="relative flex-1 sm:w-[240px] sm:flex-none">
