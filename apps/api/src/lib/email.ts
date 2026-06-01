@@ -33,17 +33,26 @@ const renderEmailTemplate = (content: string, title?: string) => `
   <html>
     <head>
       <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f3f4f6; }
-        .container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
-        .card { background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px 10px; box-sizing: border-box; }
+        .card { background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); width: 100%; }
         .header { background-color: #065f46; padding: 40px 20px; text-align: center; }
         .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; text-transform: uppercase; }
-        .content { padding: 40px; }
+        .content { padding: 40px 20px; }
         .footer { padding: 32px 20px; text-align: center; color: #6b7280; font-size: 12px; }
-        .btn { background-color: #10b981; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: 700; display: inline-block; transition: background-color 0.2s; }
+        .btn { background-color: #10b981; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: 700; display: inline-block; transition: background-color 0.2s; max-width: 100%; box-sizing: border-box; }
         .divider { height: 1px; background-color: #f3f4f6; margin: 32px 0; }
         .badge { background-color: #ecfdf5; color: #065f46; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 16px; }
+        
+        @media only screen and (max-width: 480px) {
+          .container { padding: 10px !important; }
+          .content { padding: 30px 15px !important; }
+          .header { padding: 30px 15px !important; }
+          .header h1 { font-size: 20px !important; }
+          .btn { width: 100% !important; padding: 16px 10px !important; }
+        }
       </style>
     </head>
     <body>
@@ -60,7 +69,7 @@ const renderEmailTemplate = (content: string, title?: string) => `
         </div>
         <div class="footer">
           <p><strong>Cámara Inmobiliaria del Estado Bolívar</strong></p>
-          <p>Av. Las Américas, Edif. Cámara de Comercio, Puerto Ordaz.</p>
+          <p>Carrera Guri, Edif. Cámara de la Construcción, Alta Vista, Puerto Ordaz, Estado Bolívar.</p>
           <p>&copy; 2026 Todos los derechos reservados.</p>
           <div style="margin-top: 20px;">
             <a href="${env.APP_URL}" style="color: #065f46; text-decoration: none; font-weight: 600;">Visitar nuestro portal</a>
@@ -369,27 +378,28 @@ export const enviarCorreoOnboardingMasivo = async (nombre: string, emailOriginal
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
-    subject: 'Bienvenido al nuevo Portal — Cámara Inmobiliaria de Bolívar',
+    subject: 'Acceso a tu nuevo Portal — Cámara Inmobiliaria de Bolívar',
     html: renderEmailTemplate(`
-      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
-      <p>Nos complace darte la bienvenida al nuevo <strong>Portal Digital de la Cámara Inmobiliaria del Estado Bolívar</strong>.</p>
-      <p>Hemos modernizado nuestra plataforma para ofrecerte una mejor experiencia, acceso a tus certificados, gestión de pagos y mucho más.</p>
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Estimado(a), ${nombre}!</h2>
+      <p>En la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>, nos mantenemos en un proceso de mejora continua para ofrecerle las mejores herramientas y servicios que fortalezcan su ejercicio profesional.</p>
+      
+      <p>Como parte de esta evolución, nos complace informarle que ya tiene a su disposición nuestro nuevo <strong>Portal Digital</strong>. Dado que usted ya es un miembro activo y valorado de nuestra Cámara, hemos pre-configurado su cuenta para que pueda acceder de forma inmediata.</p>
       
       <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
-        <p style="margin-top: 0; font-weight: 700; color: #065f46;">Activa tu cuenta ahora</p>
-        <p>Como ya eres parte de nuestra Cámara, solo necesitas establecer una contraseña para comenzar a usar el portal:</p>
+        <p style="margin-top: 0; font-weight: 700; color: #065f46;">Activa tu acceso como Afiliado</p>
+        <p>Para comenzar a utilizar el sistema, gestionar sus certificados y acceder a contenido exclusivo, solo debe establecer su contraseña de seguridad haciendo clic en el siguiente botón:</p>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${enlaceSetup}" class="btn">Activar mi Acceso</a>
         </div>
       </div>
       
       <p style="font-size: 14px; color: #6b7280;">
-        Este enlace es personal y seguro. Una vez que establezcas tu contraseña, podrás ingresar con tu correo: <strong>${emailOriginal}</strong>
+        Su nombre de usuario será su correo electrónico: <strong>${emailOriginal}</strong>. Este enlace de activación es personal y garantiza la seguridad de su cuenta.
       </p>
       
       <div class="divider"></div>
-      <p style="font-size: 13px; color: #94a3b8; text-align: center;">Si tienes algún problema con el acceso, no dudes en contactarnos.</p>
-    `, 'Nuevo Portal')
+      <p style="font-size: 13px; color: #94a3b8; text-align: center;">Es un honor contar con su participación en esta nueva etapa tecnológica de nuestra institución.</p>
+    `, 'Mejora Continua')
   })
   if (error) { console.error('enviarCorreoOnboardingMasivo:', error); throw error }
   return data

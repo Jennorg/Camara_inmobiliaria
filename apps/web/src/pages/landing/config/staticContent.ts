@@ -81,7 +81,7 @@ export const STATIC = {
   footer: {
     descripcion: "Cámara Inmobiliaria del Estado Bolívar. Afiliada a la CIV.",
     direccion:
-      "Carrera Guri, Nro. 255-03 - 14, Alta Vista. Piso 1, Centro Comercial Ciudad Alta Vista II, Puerto Ordaz.",
+      "Carrera Guri, Edif. Cámara de la Construcción, Alta Vista, Puerto Ordaz, Estado Bolívar.",
     copyright:
       "© 2026 Cámara Inmobiliaria del Estado Bolívar. Todos los derechos reservados.",
   },
