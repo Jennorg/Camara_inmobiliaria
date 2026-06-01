@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { KeyRound, Loader2, Search, ShieldCheck } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, Loader2, Search, ShieldCheck } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import { AfiliadoDTO } from '@/types/afiliados'
 import { formatNombreCard } from '@/utils/formatters'
@@ -19,6 +19,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
   const [search, setSearch] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const [localMsg, setLocalMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
@@ -193,15 +194,25 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
             </div>
             <div className='space-y-1.5 sm:col-span-2'>
               <label className='block text-[10px] font-bold text-slate-400 uppercase'>Contraseña</label>
-              <input
-                type='text'
-                required
-                minLength={8}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className='w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-400'
-                placeholder='Mínimo 8 caracteres'
-              />
+              <div className="relative flex items-center">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className='w-full rounded-xl border border-slate-100 bg-slate-50 pl-3 pr-10 py-2.5 text-sm focus:outline-none focus:border-emerald-400'
+                  placeholder='Mínimo 8 caracteres'
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-slate-300 hover:text-emerald-500 focus:outline-none transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
           </div>
 

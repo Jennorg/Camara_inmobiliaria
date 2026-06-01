@@ -619,7 +619,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       res.clearCookie('auth_expediente', {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/'
       })
       res.status(200).json({
@@ -1009,7 +1009,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     res.clearCookie('auth_expediente', {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/'
     })
 
@@ -1408,7 +1408,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 24 horas
-      sameSite: 'lax',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/'
     })
 

@@ -128,7 +128,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/'
     });
@@ -167,7 +167,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
         res.cookie('refresh_token', refreshToken, {
           httpOnly: true,
           secure: env.NODE_ENV === 'production',
-          sameSite: 'lax',
+          sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
           path: '/'
         });
@@ -373,7 +373,7 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     res.clearCookie('refresh_token', {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/'
     });
     res.status(200).json({ success: true, message: 'Sesión cerrada' });
@@ -417,7 +417,7 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       res.clearCookie('refresh_token', {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/'
       });
       res.status(401).json({ success: false, message: 'Token de sesión expirado' });
@@ -455,7 +455,7 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     res.cookie('refresh_token', newRefreshToken, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/'
     });

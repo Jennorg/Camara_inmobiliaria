@@ -12,6 +12,8 @@ import {
   Search,
   ListFilter,
   Trash2,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 
 
@@ -52,6 +54,9 @@ export default function UsersPanel() {
   const [saving, setSaving]     = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
   const [resetMsg, setResetMsg] = useState<Record<number, string>>({})
+  
+  const [showFormPassword, setShowFormPassword] = useState(false)
+  const [showResetPassword, setShowResetPassword] = useState(false)
 
   // ── Filtros ────────────────────────────────────────────────────────────────
   const [search, setSearch]             = useState('')
@@ -291,13 +296,22 @@ export default function UsersPanel() {
               <div className="relative group">
                 <KeyRound size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
                 <input
-                  type='text' required
+                  type={showFormPassword ? 'text' : 'password'} 
+                  required
                   value={form.password}
                   onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                  className='w-full bg-slate-50 border border-slate-100 rounded-2xl pl-11 pr-4 py-3 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white transition-all placeholder:text-slate-300'
+                  className='w-full bg-slate-50 border border-slate-100 rounded-2xl pl-11 pr-10 py-3 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 focus:bg-white transition-all placeholder:text-slate-300'
                   placeholder='Mínimo 8 caracteres'
                   minLength={8}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowFormPassword(!showFormPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-emerald-500 transition-colors"
+                  tabIndex={-1}
+                >
+                  {showFormPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -358,15 +372,25 @@ export default function UsersPanel() {
             <div className='space-y-4'>
               <div>
                 <label className='block text-xs font-semibold text-slate-500 mb-1'>Nueva contraseña</label>
-                <input
-                  type='text'
-                  autoFocus
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  className='w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-amber-400'
-                  placeholder='Mínimo 8 caracteres'
-                  minLength={8}
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type={showResetPassword ? 'text' : 'password'}
+                    autoFocus
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className='w-full border border-slate-200 rounded-xl pl-4 pr-10 py-2 text-sm focus:outline-none focus:border-amber-400'
+                    placeholder='Mínimo 8 caracteres'
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    className="absolute right-3 text-slate-300 hover:text-amber-500 focus:outline-none transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               <p className='text-[10px] text-slate-400 leading-relaxed italic'>
                 El afiliado podrá iniciar sesión de inmediato con esta clave (se activa la cuenta).

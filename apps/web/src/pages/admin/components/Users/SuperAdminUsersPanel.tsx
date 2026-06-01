@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { Trash2, ShieldCheck, Loader2, KeyRound } from 'lucide-react'
+import { Trash2, ShieldCheck, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react'
 
 
 
@@ -22,6 +22,7 @@ const SuperAdminUsersPanel = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [newRol, setNewRol] = useState('admin')
   const [userToDelete, setUserToDelete] = useState<UserAdmin | null>(null)
   const [saving, setSaving] = useState(false)
@@ -257,14 +258,24 @@ const SuperAdminUsersPanel = () => {
                
                <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 ml-1">Contraseña</label>
-                  <input
-                    type="password"
-                    required
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-all placeholder:text-slate-400 text-slate-800"
-                    placeholder="Min. 6 caracteres"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-all placeholder:text-slate-400 text-slate-800"
+                      placeholder="Min. 6 caracteres"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 text-slate-300 hover:text-[#00D084] focus:outline-none transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                </div>
 
                <div>
