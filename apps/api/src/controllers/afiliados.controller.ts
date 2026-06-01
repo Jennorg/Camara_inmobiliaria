@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
+import { env } from '../config/env.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 
@@ -13,6 +14,7 @@ import {
   notificarAdminNuevaAfiliacion,
   enviarCorreoInvitacionCorporativa
 } from '../lib/email.js';
+import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
 import bcrypt from 'bcryptjs';
 import { NotificationService } from '../services/notification.service.js';
@@ -317,11 +319,16 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     // Por ahora, asumiremos que los campos extra se guardan si existen en req.body para el paso final.
 
     // 4. Enviar email con Resend
-    await enviarCorreoVerificacion(nombreCompleto, email, token);
+    if (env.NODE_ENV !== 'development') {
+      await enviarCorreoVerificacion(nombreCompleto, email, token);
+    }
 
     return res.status(201).json({
       success: true,
-      message: 'Te hemos enviado un correo de comprobación. Por favor revisa tu bandeja de entrada o SPAM.'
+      message: env.NODE_ENV === 'development'
+        ? 'Modo desarrollo: Redirigiendo automáticamente...'
+        : 'Te hemos enviado un correo de comprobación. Por favor revisa tu bandeja de entrada o SPAM.',
+      data: { token }
     });
 
   } catch (error) {
@@ -417,9 +424,10 @@ export const verificarEmail = async (req: Request, res: Response) => {
       const newAfiliado = insertAfiliado.rows[0] as any;
 
       if (newAfiliado?.id_afiliado) {
+        const nextCode = await obtenerSiguienteCodigoAfiliado();
         await db.execute({
-          sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
-          args: [newAfiliado.id_afiliado]
+          sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ?`,
+          args: [nextCode, newAfiliado.id_afiliado]
         });
       }
 
@@ -428,27 +436,6 @@ export const verificarEmail = async (req: Request, res: Response) => {
         sql: `DELETE FROM verificaciones_email WHERE token_verificacion = ?`,
         args: [token]
       });
-
-      // Notificar al admin
-      notificarAdminNuevaAfiliacion({
-        nombre: registro.nombre_completo as string,
-        email: registro.email as string,
-        cedulaRif: registro.cedula_rif as string,
-        telefono: registro.telefono as string
-      }).catch(e => console.error('Error notificando admin (afiliación):', e));
-
-      NotificationService.notifyAdmins({
-        title: `Nueva Solicitud de Afiliación`,
-        message: `El candidato ${registro.nombre_completo} (${registro.email}) ha completado el registro inicial (CIBIR).`,
-        type: 'AFILIACION_NUEVA',
-        priority: 'ALTA',
-        data: {
-          nombre: registro.nombre_completo as string,
-          email: registro.email as string,
-          cedulaRif: registro.cedula_rif as string,
-          telefono: registro.telefono as string
-        }
-      }).catch(e => console.error('Error enviando notificación In-App a admins (afiliación):', e));
 
       return res.status(201).json({
         success: true,
@@ -575,23 +562,8 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     }
 
     // 2. Generar el código de Afiliado (Secuencial Numérico)
-    // Buscamos el último código numérico asignado
-    const resultUltimoCode = await db.execute({
-      sql: `SELECT codigo FROM afiliados 
-            WHERE codigo GLOB '[0-9]*' 
-            ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
-      args: []
-    });
-
-    let correlativo = 1;
-    if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
-      const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10);
-      if (!isNaN(lastCode)) {
-        correlativo = lastCode + 1;
-      }
-    }
-
-    const codigoAfiliado = correlativo.toString();
+    // Buscamos el último código numérico asignado usando el helper
+    const codigoAfiliado = await obtenerSiguienteCodigoAfiliado();
 
     // 3. Actualizar a estatus Afiliado (aprobado final)
     const fechaCambio = new Date().toISOString();
@@ -1034,20 +1006,10 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
       });
       const current = currentRes.rows[0];
       if (!current || !current.codigo) {
-        // Generar nuevo código correlativo
-        const resultUltimoCode = await db.execute({
-          sql: `SELECT codigo FROM afiliados 
-                WHERE codigo GLOB '[0-9]*' 
-                ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
-          args: []
-        });
-        let correlativo = 1;
-        if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
-          const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10);
-          if (!isNaN(lastCode)) correlativo = lastCode + 1;
-        }
+        // Generar nuevo código correlativo usando el helper
+        const nextCode = await obtenerSiguienteCodigoAfiliado();
         setParts.push('codigo = ?');
-        args.splice(args.length - 1, 0, correlativo.toString()); // Insertar antes del ID
+        args.splice(args.length - 1, 0, nextCode); // Insertar antes del ID
       }
     }
 
@@ -2027,9 +1989,10 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
     const idAfiliado = Number(resA.rows[0].id_afiliado)
 
     if (idAfiliado) {
+      const nextCode = await obtenerSiguienteCodigoAfiliado();
       await db.execute({
-        sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
-        args: [idAfiliado]
+        sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ?`,
+        args: [nextCode, idAfiliado]
       })
     }
 

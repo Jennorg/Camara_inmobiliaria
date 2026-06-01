@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { randomUUID, createHash } from 'crypto'
 import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
+import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 import { emitirComprobanteSiCompleto } from '../lib/certificados.js'
@@ -431,16 +432,20 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       id_empresa: idEmpresaAgente,
     })
 
-    await enviarCorreoConfirmacionPreinscripcionPrograma({
-      nombre: nombreCompleto,
-      emailOriginal: email,
-      programaCodigo,
-      token,
-    })
+    if (env.NODE_ENV !== 'development') {
+      await enviarCorreoConfirmacionPreinscripcionPrograma({
+        nombre: nombreCompleto,
+        emailOriginal: email,
+        programaCodigo,
+        token,
+      })
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Te enviamos un correo para confirmar tu preinscripción. Revisa tu bandeja de entrada o SPAM.',
+      message: env.NODE_ENV === 'development' 
+        ? 'Modo desarrollo: Redirigiendo automáticamente...' 
+        : 'Te enviamos un correo para confirmar tu preinscripción. Revisa tu bandeja de entrada o SPAM.',
       data: { token }
     })
   } catch (error) {
@@ -838,11 +843,14 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           })
           const idAfiliado = resA.rows[0].id_afiliado as number
 
-          // Asignar código si no tiene
-          await db.execute({
-            sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo IS NULL`,
-            args: [idAfiliado]
-          })
+          // Asignar código si no tiene usando el helper
+          if (idAfiliado) {
+            const nextCode = await obtenerSiguienteCodigoAfiliado()
+            await db.execute({
+              sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ? AND codigo IS NULL`,
+              args: [nextCode, idAfiliado]
+            })
+          }
 
           // Vincular el id_representante_legal a la empresa
           await db.execute({
@@ -901,9 +909,10 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           const idAfiliadoAC = resA.rows[0].id_afiliado as number
 
           if (idAfiliadoAC) {
+            const nextCode = await obtenerSiguienteCodigoAfiliado()
             await db.execute({
-              sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo IS NULL`,
-              args: [idAfiliadoAC]
+              sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ? AND codigo IS NULL`,
+              args: [nextCode, idAfiliadoAC]
             })
           }
 
@@ -954,9 +963,10 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           const idAfiliado = resA.rows[0].id_afiliado as number
 
           if (idAfiliado) {
+            const nextCode = await obtenerSiguienteCodigoAfiliado()
             await db.execute({
-              sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo IS NULL`,
-              args: [idAfiliado]
+              sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ? AND codigo IS NULL`,
+              args: [nextCode, idAfiliado]
             })
           }
 
@@ -982,8 +992,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     }).catch(e => console.error('Error notificando admin (programa):', e))
 
     NotificationService.notifyAdmins({
-      title: `Nueva Preinscripción: ${programaCodigo}`,
-      message: `El aspirante ${nombreCompleto} (${email}) se ha preinscrito en ${programaCodigo}.`,
+      title: `Expediente Recibido: ${programaCodigo}`,
+      message: `El aspirante ${nombreCompleto} (${email}) ha enviado su expediente para ${programaCodigo}.`,
       type: 'PREINSCRIPCION',
       priority: 'NORMAL',
       data: {
@@ -1122,32 +1132,6 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
             RETURNING *`,
       args: [id_estudiante, idCurso, now, now],
     })
-
-    // Notificar al admin
-    notificarAdminNuevaPreinscripcion({
-      idInscripcion: Number(result.rows[0].id_inscripcion),
-      nombre: nombreCompleto,
-      email: email,
-      programaCodigo: curso.nombre || `Curso ${idCurso}`,
-      cedulaRif: cedulaRif,
-      telefono: telefono
-    }).catch(e => console.error('Error notificando admin (curso):', e))
-
-    NotificationService.notifyAdmins({
-      title: `Preinscripción a Curso: ${curso.nombre || `Curso ${idCurso}`}`,
-      message: `El estudiante ${nombreCompleto} (${email}) se ha preinscrito al curso ${curso.nombre || `Curso ${idCurso}`}.`,
-      type: 'CURSO_PREINSCRIPCION',
-      priority: 'NORMAL',
-      data: {
-        idInscripcion: Number(result.rows[0].id_inscripcion),
-        idCurso: idCurso,
-        nombre: nombreCompleto,
-        email: email,
-        programaCodigo: curso.nombre || `Curso ${idCurso}`,
-        cedulaRif: cedulaRif,
-        telefono: telefono
-      }
-    }).catch(e => console.error('Error enviando notificación In-App a admins (curso):', e))
 
     res.status(201).json({
       success: true,
@@ -1405,14 +1389,12 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
     }
 
     const registro = ver.rows[0] as any
-    // El token no expira por tiempo; expira una vez enviado el formulario (al eliminarse de la BD)
-    /*
+    // El token expira por tiempo (24h)
     const exp = new Date(String(registro.fecha_expiracion))
     if (exp < new Date()) {
-      res.status(400).json({ success: false, message: 'El token ha expirado' })
+      res.status(400).json({ success: false, message: 'El enlace de preinscripción ha expirado. Por favor, realiza la preinscripción nuevamente.' })
       return
     }
-    */
 
     const nombreCompleto = (
       registro.razon_social ||
@@ -1728,6 +1710,119 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
 }
 
 /**
+ * Promueve un estudiante aprobado al rol/estatus de Afiliado/Corporativo.
+ * Vincula las relaciones de id_user, genera código correlativo, y actualiza roles en users.
+ */
+async function promocionarYVincularAfiliado(
+  idEstudiante: number,
+  email: string,
+  now: string
+): Promise<number | null> {
+  // 1. Obtener datos del estudiante y el representante legal si aplica
+  const estRes = await db.execute({
+    sql: `SELECT e.id_persona, e.id_empresa, a.id_persona as rep_id_persona
+          FROM estudiantes e
+          LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+          LEFT JOIN afiliados a ON emp.id_representante_legal = a.id_afiliado
+          WHERE e.id_estudiante = ?`,
+    args: [idEstudiante]
+  })
+  if (estRes.rows.length === 0) return null
+  const est = estRes.rows[0] as any
+
+  const finalIdPersona = est.id_persona || est.rep_id_persona
+  if (!finalIdPersona) {
+    console.error(`[promocionarYVincularAfiliado] No se encontró id_persona ni rep_id_persona para id_estudiante=${idEstudiante}`)
+    return null
+  }
+
+  // 2. Obtener el usuario por email
+  const userRes = await db.execute({
+    sql: `SELECT id, roles FROM users WHERE email = ?`,
+    args: [email]
+  })
+  if (userRes.rows.length === 0) {
+    console.error(`[promocionarYVincularAfiliado] No se encontró usuario para email=${email}`)
+    return null
+  }
+  const user = userRes.rows[0] as any
+  const userId = user.id
+
+  // 3. Generar el código correlativo de Afiliado usando el helper
+  const nextCode = await obtenerSiguienteCodigoAfiliado()
+
+  // 4. Insertar/Actualizar afiliado en estatus 'Afiliado'
+  const resIns = await db.execute({
+    sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, fecha_afiliacion, actualizado_en, activo, id_user)
+          VALUES (?, ?, COALESCE(
+            (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
+            CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
+          ), 'Afiliado', ?, ?, ?, 1, ?)
+          ON CONFLICT(id_persona) DO UPDATE SET
+            estatus = 'Afiliado',
+            codigo = COALESCE(afiliados.codigo, ?),
+            fecha_afiliacion = COALESCE(afiliados.fecha_afiliacion, ?),
+            actualizado_en = excluded.actualizado_en,
+            activo = 1,
+            id_user = COALESCE(afiliados.id_user, ?)
+          RETURNING id_afiliado`,
+    args: [
+      finalIdPersona,
+      est.id_empresa,
+      finalIdPersona,
+      est.id_empresa,
+      nextCode,
+      now,
+      now,
+      userId,
+      nextCode,
+      now,
+      userId
+    ]
+  })
+
+  const insertedAfiliadoId = resIns.rows[0]?.id_afiliado as number || null
+
+  // 5. Vincular estudiante
+  await db.execute({
+    sql: `UPDATE estudiantes 
+          SET id_user = ?, 
+              tipo = ?, 
+              actualizado_en = ? 
+          WHERE id_estudiante = ?`,
+    args: [
+      userId,
+      est.id_empresa ? 'Corporativo' : 'Afiliado',
+      now,
+      idEstudiante
+    ]
+  })
+
+  // 6. Asignar rol 'afiliado' en users
+  let roles: string[] = []
+  if (typeof user.roles === 'string' && user.roles.startsWith('[')) {
+    try {
+      roles = JSON.parse(user.roles)
+    } catch {
+      roles = [user.roles]
+    }
+  } else if (typeof user.roles === 'string') {
+    roles = [user.roles]
+  }
+
+  if (!roles.includes('afiliado')) {
+    roles.push('afiliado')
+  }
+
+  await db.execute({
+    sql: `UPDATE users SET roles = ?, actualizado_en = ? WHERE id = ?`,
+    args: [JSON.stringify(roles), now, userId]
+  })
+
+  return insertedAfiliadoId
+}
+
+/**
  * PATCH /api/academia/inscripciones/:id/finalizar-entrevista
  * Procesa el resultado final de la entrevista (Aprobado, Parcial, Rechazado).
  */
@@ -1796,62 +1891,54 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       args: [req.user?.id || null, now, id]
     })
 
-    let insertedAfiliadoId: number | null = null;
+    let insertedAfiliadoId: number | null = null
+    let tokenToUse = randomUUID()
+    let shouldSendToken = false
+
+    // Crear/Verificar Acceso
+    try {
+      const userRes = await db.execute({
+        sql: `SELECT id, reset_token_hash, activo FROM users WHERE email = ?`,
+        args: [row.email]
+      })
+      const existingUser = userRes.rows[0] as any
+
+      if (!existingUser) {
+        shouldSendToken = true
+        const expiracion = new Date()
+        expiracion.setHours(expiracion.getHours() + 48)
+        const placeholderPass = await bcrypt.hash(randomUUID(), 10)
+        const tokenHash = sha256(tokenToUse)
+
+        const defaultRoles = row.programa_codigo === 'AFILIACION' ? '["estudiante", "afiliado"]' : '["estudiante"]'
+
+        await db.execute({
+          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
+                VALUES (?, ?, ?, ?, ?)`,
+          args: [row.email, placeholderPass, defaultRoles, tokenHash, expiracion.toISOString()]
+        })
+      } else if (existingUser.reset_token_hash) {
+        // Si el usuario existe pero tiene un token pendiente (no ha establecido contraseña)
+        shouldSendToken = true
+        const expiracion = new Date()
+        expiracion.setHours(expiracion.getHours() + 48)
+        const tokenHash = sha256(tokenToUse)
+
+        await db.execute({
+          sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
+          args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+        })
+      }
+    } catch (err) {
+      console.error('Error preparando acceso:', err)
+    }
+
     // --- PUENTE HACIA AFILIADOS (Si es AFILIACION) ---
     if (row.programa_codigo === 'AFILIACION') {
       try {
-        // 1. Generar el código de Afiliado (Secuencial Numérico)
-        const resultUltimoCode = await db.execute({
-          sql: `SELECT codigo FROM afiliados 
-                WHERE codigo GLOB '[0-9]*' 
-                ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
-          args: []
-        });
-
-        let correlativo = 1;
-        if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
-          const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10);
-          if (!isNaN(lastCode)) correlativo = lastCode + 1;
-        }
-        const nextCode = correlativo.toString();
-
-        // 2. Actualizar el estatus en la tabla afiliados
-        // Buscamos el afiliado vinculado a este estudiante
-        const estRes = await db.execute({
-          sql: `SELECT e.id_persona, e.id_empresa, a.id_persona as rep_id_persona
-                FROM estudiantes e
-                LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
-                LEFT JOIN afiliados a ON emp.id_representante_legal = a.id_afiliado
-                WHERE e.id_estudiante = ?`,
-          args: [row.id_estudiante]
-        })
-        const est = estRes.rows[0] as any
-
-        if (est) {
-          const finalIdPersona = est.id_persona || est.rep_id_persona
-
-          if (!finalIdPersona) {
-            throw new Error(`No se encontró id_persona ni rep_id_persona para el estudiante ${row.id_estudiante}`)
-          }
-
-          const resIns = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, actualizado_en, activo)
-                  VALUES (?, ?, COALESCE(
-                    (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
-                    CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
-                  ), 'Afiliado', ?, ?, 1)
-                  ON CONFLICT(id_persona) DO UPDATE SET
-                    estatus = 'Afiliado',
-                    codigo = COALESCE(afiliados.codigo, excluded.codigo),
-                    actualizado_en = excluded.actualizado_en,
-                    activo = 1
-                  RETURNING id_afiliado`,
-            args: [finalIdPersona, est.id_empresa, finalIdPersona, est.id_empresa, nextCode, now]
-          })
-          insertedAfiliadoId = resIns.rows[0].id_afiliado as number
-        }
+        insertedAfiliadoId = await promocionarYVincularAfiliado(row.id_estudiante, row.email, now)
       } catch (err) {
-        console.error('Error al mapear entrevista aprobada a afiliado:', err);
+        console.error('Error al mapear entrevista aprobada a afiliado:', err)
       }
     }
     // --------------------------------------------------
@@ -1883,40 +1970,17 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       }
     }
 
-    // Crear/Verificar Acceso
+    // Correo de bienvenida definitivo
     try {
-      const userRes = await db.execute({
-        sql: `SELECT reset_token_hash, activo FROM users WHERE email = ?`,
-        args: [row.email]
-      })
-      const existingUser = userRes.rows[0] as any
-
-      let tokenToUse = randomUUID() // siempre generamos token nuevo
-
-      if (!existingUser) {
-        tokenToUse = randomUUID()
-        const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
-        const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-        const tokenHash = sha256(tokenToUse)
-
-        await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, '["estudiante"]', ?, ?)`,
-          args: [row.email, placeholderPass, tokenHash, expiracion.toISOString()]
-        })
-      }
-
-      // Correo de bienvenida definitivo
       await enviarCorreoResultadoEntrevista({
         nombre: row.nombre_completo,
         emailOriginal: row.email,
         resultado: resultado as 'Aprobado' | 'Parcial' | 'Rechazado',
         programaCodigo: row.programa_codigo || 'Curso',
-        token: tokenToUse || undefined
+        token: shouldSendToken ? tokenToUse : undefined
       })
     } catch (err) {
-      console.error('Error preparando acceso:', err)
+      console.error('Error enviando correo de bienvenida:', err)
     }
 
     res.json({ success: true, message: `Inscripción finalizada como ${resultado}.` })
@@ -1974,28 +2038,53 @@ export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Respo
       args: [req.user?.id || null, now, id]
     })
 
+    let tokenToUse = randomUUID()
+    let shouldSendToken = false
+
+    // Crear/Verificar Acceso
+    try {
+      const userRes = await db.execute({
+        sql: `SELECT id, reset_token_hash FROM users WHERE email = ?`,
+        args: [row.email]
+      })
+      const existingUser = userRes.rows[0] as any
+
+      if (!existingUser) {
+        shouldSendToken = true
+        const expiracion = new Date()
+        expiracion.setHours(expiracion.getHours() + 48)
+        const placeholderPass = await bcrypt.hash(randomUUID(), 10)
+        const tokenHash = sha256(tokenToUse)
+
+        const defaultRoles = row.programa_codigo === 'AFILIACION' ? '["estudiante", "afiliado"]' : '["estudiante"]'
+
+        await db.execute({
+          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
+                VALUES (?, ?, ?, ?, ?)`,
+          args: [row.email, placeholderPass, defaultRoles, tokenHash, expiracion.toISOString()]
+        })
+      } else if (existingUser.reset_token_hash) {
+        // Si el usuario existe pero tiene un token pendiente (no ha establecido contraseña)
+        shouldSendToken = true
+        const expiracion = new Date()
+        expiracion.setHours(expiracion.getHours() + 48)
+        const tokenHash = sha256(tokenToUse)
+
+        await db.execute({
+          sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
+          args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+        })
+      }
+    } catch (err) {
+      console.error('Error preparando acceso directo:', err)
+    }
+
     // --- PUENTE HACIA AFILIADOS (Si es AFILIACION) ---
     if (row.programa_codigo === 'AFILIACION') {
       try {
-        const estRes = await db.execute({
-          sql: `SELECT id_persona, id_empresa FROM estudiantes WHERE id_estudiante = ?`,
-          args: [row.id_estudiante]
-        })
-        const est = estRes.rows[0] as any
-
-        if (est) {
-          await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en, activo)
-                  VALUES (?, ?, CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END, '2_EXPEDIENTE', ?, 1)
-                  ON CONFLICT(id_persona) DO UPDATE SET
-                    estatus = '2_EXPEDIENTE',
-                    actualizado_en = excluded.actualizado_en,
-                    activo = 1`,
-            args: [est.id_persona, est.id_empresa, est.id_empresa, now]
-          })
-        }
+        await promocionarYVincularAfiliado(row.id_estudiante, row.email, now)
       } catch (err) {
-        console.error('Error al mapear preinscripción a afiliado:', err);
+        console.error('Error al mapear preinscripción a afiliado:', err)
       }
     }
     // --------------------------------------------------
@@ -2008,38 +2097,16 @@ export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Respo
       })
     }
 
-    // Crear/Verificar Acceso
+    // Enviar correo de bienvenida con acceso a password
     try {
-      const userRes = await db.execute({
-        sql: `SELECT reset_token_hash FROM users WHERE email = ?`,
-        args: [row.email]
-      })
-      const existingUser = userRes.rows[0] as any
-
-      let tokenToUse = randomUUID() // siempre nuevo para aprobación directa
-
-      if (!existingUser) {
-        const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
-        const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-        const tokenHash = sha256(tokenToUse)
-
-        await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, '["estudiante"]', ?, ?)`,
-          args: [row.email, placeholderPass, tokenHash, expiracion.toISOString()]
-        })
-      }
-
-      // Enviar correo de bienvenida con acceso a password
       await enviarCorreoSetPasswordEstudiante({
         nombre: row.nombre_completo,
         emailOriginal: row.email,
         programaCodigo: row.programa_codigo || 'Curso',
-        token: tokenToUse || randomUUID() // fallback
+        token: shouldSendToken ? tokenToUse : undefined
       })
     } catch (err) {
-      console.error('Error preparando acceso directo:', err)
+      console.error('Error enviando correo de acceso directo:', err)
     }
 
     res.json({ success: true, message: 'Inscripción aprobada correctamente.' })
@@ -2095,6 +2162,147 @@ export const adminRechazarPreinscripcion = async (req: Request, res: Response): 
     res.status(500).json({ success: false, message: 'Error al rechazar preinscripción' })
   }
 }
+
+/**
+ * DELETE /api/academia/inscripciones/:id
+ * Elimina por completo una solicitud de inscripción y limpia datos relacionados si es la única del estudiante.
+ */
+export const adminDeleteInscripcion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, message: 'ID de inscripción inválido' })
+      return
+    }
+
+    // 1. Obtener la inscripción y sus relaciones
+    const insRes = await db.execute({
+      sql: `SELECT ic.*, e.id_persona, e.id_empresa, 
+                   p.email as persona_email, emp.email as empresa_email
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            WHERE ic.id_inscripcion = ?`,
+      args: [id]
+    })
+
+    if (insRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada' })
+      return
+    }
+
+    const ins = insRes.rows[0] as any
+    const idEstudiante = ins.id_estudiante
+    const idPersona = ins.id_persona
+    const idEmpresa = ins.id_empresa
+    const email = ins.persona_email || ins.empresa_email
+
+    // 2. Verificar cuántas inscripciones tiene este estudiante
+    const otherInsRes = await db.execute({
+      sql: `SELECT COUNT(*) as count FROM inscripciones_cursos WHERE id_estudiante = ? AND id_inscripcion != ?`,
+      args: [idEstudiante, id]
+    })
+    const hasOtherInscriptions = Number(otherInsRes.rows[0]?.count ?? 0) > 0
+
+    // 3. Borrar la inscripción actual
+    await db.execute({
+      sql: `DELETE FROM inscripciones_cursos WHERE id_inscripcion = ?`,
+      args: [id]
+    })
+
+    // Si es el único registro de este estudiante, podemos hacer una limpieza profunda
+    if (!hasOtherInscriptions) {
+      // a. Borrar documentos adjuntos
+      await db.execute({
+        sql: `DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?`,
+        args: [idEstudiante]
+      })
+
+      // b. Borrar afiliados asociados a esta persona o empresa
+      if (idPersona) {
+        await db.execute({
+          sql: `DELETE FROM afiliados WHERE id_persona = ?`,
+          args: [idPersona]
+        })
+      }
+      if (idEmpresa) {
+        await db.execute({
+          sql: `DELETE FROM afiliados WHERE id_empresa = ?`,
+          args: [idEmpresa]
+        })
+      }
+
+      // c. Borrar estudiante
+      await db.execute({
+        sql: `DELETE FROM estudiantes WHERE id_estudiante = ?`,
+        args: [idEstudiante]
+      })
+
+      // d. Si hay email, buscar y borrar el usuario
+      if (email) {
+        // Verificar si el usuario está asociado a alguna otra persona o empresa
+        const otherUserUsage = await db.execute({
+          sql: `SELECT 
+                  (SELECT COUNT(*) FROM personas WHERE email = ?) +
+                  (SELECT COUNT(*) FROM empresas WHERE email = ?) +
+                  (SELECT COUNT(*) FROM estudiantes WHERE id_user = (SELECT id FROM users WHERE email = ?)) as count`,
+          args: [email, email, email]
+        })
+        const isUserUsedElsewhere = Number(otherUserUsage.rows[0]?.count ?? 0) > 0
+
+        if (!isUserUsedElsewhere) {
+          await db.execute({
+            sql: `DELETE FROM users WHERE email = ?`,
+            args: [email]
+          })
+        }
+      }
+
+      // e. Borrar persona (si no está asociada a ningún otro registro)
+      if (idPersona) {
+        const otherPersonaUsage = await db.execute({
+          sql: `SELECT 
+                  (SELECT COUNT(*) FROM afiliados WHERE id_persona = ?) +
+                  (SELECT COUNT(*) FROM estudiantes WHERE id_persona = ?) as count`,
+          args: [idPersona, idPersona]
+        })
+        const isPersonaUsedElsewhere = Number(otherPersonaUsage.rows[0]?.count ?? 0) > 0
+
+        if (!isPersonaUsedElsewhere) {
+          await db.execute({
+            sql: `DELETE FROM personas WHERE id = ?`,
+            args: [idPersona]
+          })
+        }
+      }
+
+      // f. Borrar empresa (si no está asociada a ningún otro registro)
+      if (idEmpresa) {
+        const otherEmpresaUsage = await db.execute({
+          sql: `SELECT 
+                  (SELECT COUNT(*) FROM afiliados WHERE id_empresa = ?) +
+                  (SELECT COUNT(*) FROM estudiantes WHERE id_empresa = ?) as count`,
+          args: [idEmpresa, idEmpresa]
+        })
+        const isEmpresaUsedElsewhere = Number(otherEmpresaUsage.rows[0]?.count ?? 0) > 0
+
+        if (!isEmpresaUsedElsewhere) {
+          await db.execute({
+            sql: `DELETE FROM empresas WHERE id_empresa = ?`,
+            args: [idEmpresa]
+          })
+        }
+      }
+    }
+
+    res.json({ success: true, message: 'Solicitud e inscripción borradas completamente.' })
+  } catch (error) {
+    console.error('adminDeleteInscripcion:', error)
+    res.status(500).json({ success: false, message: 'Error al borrar la solicitud de inscripción' })
+  }
+}
+
 
 /**
  * PATCH /api/academia/inscripciones/:id/completar
@@ -2296,19 +2504,19 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
       args: [targetInscripcionStatus, req.user?.id || null, now, id]
     })
 
-    // 2. Si es programa de AFILIACION, actualizar/crear afiliado
-    if (row.programa_codigo === 'AFILIACION') {
-      const statusValues: string[] = [
-        '1_PREINSCRIPCION',
-        '2_EXPEDIENTE',
-        '3_ENTREVISTA',
-        '4_VERIFICACION',
-        '5_CIBIR',
-        '6_INSCRIPCION',
-        'Afiliado'
-      ]
-      const targetAfiliadoStatus = statusValues[etapa]
+    const statusValues: string[] = [
+      '1_PREINSCRIPCION',
+      '2_EXPEDIENTE',
+      '3_ENTREVISTA',
+      '4_VERIFICACION',
+      '5_CIBIR',
+      '6_INSCRIPCION',
+      'Afiliado'
+    ]
+    const targetAfiliadoStatus = statusValues[etapa]
 
+    // 2. Si es programa de AFILIACION, actualizar/crear afiliado (para etapas previas a 'Afiliado')
+    if (row.programa_codigo === 'AFILIACION' && targetAfiliadoStatus !== 'Afiliado') {
       const estRes = await db.execute({
         sql: `SELECT e.id_persona, e.id_empresa, a.id_persona as rep_id_persona
               FROM estudiantes e
@@ -2322,35 +2530,14 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
       if (est) {
         const finalIdPersona = est.id_persona || est.rep_id_persona
         if (finalIdPersona) {
-          // Obtener o generar un código cibir si pasa a "Afiliado"
-          let nextCode = null
-          if (targetAfiliadoStatus === 'Afiliado') {
-            const resultUltimoCode = await db.execute({
-              sql: `SELECT codigo FROM afiliados 
-                    WHERE codigo GLOB '[0-9]*' 
-                    ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
-              args: []
-            })
-            let correlativo = 1
-            if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
-              const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10)
-              if (!isNaN(lastCode)) correlativo = lastCode + 1
-            }
-            nextCode = correlativo.toString()
-          }
-
-          const fechaAfiliacion = targetAfiliadoStatus === 'Afiliado' ? now : null
-
           await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, fecha_afiliacion, actualizado_en, activo)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en, activo)
                   VALUES (?, ?, COALESCE(
                     (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
                     CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
-                  ), ?, ?, ?, ?, 1)
+                  ), ?, ?, 1)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     estatus = ?,
-                    codigo = COALESCE(afiliados.codigo, ?),
-                    fecha_afiliacion = CASE WHEN excluded.estatus = 'Afiliado' THEN COALESCE(afiliados.fecha_afiliacion, ?) ELSE afiliados.fecha_afiliacion END,
                     actualizado_en = excluded.actualizado_en,
                     activo = 1`,
             args: [
@@ -2359,12 +2546,8 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
               finalIdPersona,
               est.id_empresa,
               targetAfiliadoStatus,
-              nextCode,
-              fechaAfiliacion,
               now,
-              targetAfiliadoStatus,
-              nextCode,
-              fechaAfiliacion
+              targetAfiliadoStatus
             ]
           })
         }
@@ -2375,26 +2558,69 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     if (targetInscripcionStatus === 'Inscrito' && row.email) {
       try {
         const userRes = await db.execute({
-          sql: `SELECT reset_token_hash FROM users WHERE email = ?`,
+          sql: `SELECT id, reset_token_hash FROM users WHERE email = ?`,
           args: [row.email]
         })
         const existingUser = userRes.rows[0] as any
 
+        let tokenToUse: string | undefined = undefined
+        let shouldSendToken = false
+
         if (!existingUser) {
-          const tokenToUse = randomUUID()
+          shouldSendToken = true
+          tokenToUse = randomUUID()
           const expiracion = new Date()
           expiracion.setHours(expiracion.getHours() + 48)
           const placeholderPass = await bcrypt.hash(randomUUID(), 10)
           const tokenHash = sha256(tokenToUse)
 
+          const defaultRoles = (row.programa_codigo === 'AFILIACION' && targetAfiliadoStatus === 'Afiliado') ? '["estudiante", "afiliado"]' : '["estudiante"]'
+
           await db.execute({
             sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                  VALUES (?, ?, '["estudiante"]', ?, ?)`,
-            args: [row.email, placeholderPass, tokenHash, expiracion.toISOString()]
+                  VALUES (?, ?, ?, ?, ?)`,
+            args: [row.email, placeholderPass, defaultRoles, tokenHash, expiracion.toISOString()]
           })
+        } else if (existingUser.reset_token_hash && (etapa === 5 || etapa === 6)) {
+          // El usuario ya existe pero tiene un token pendiente (no ha establecido contraseña)
+          // Solo actualizamos y enviamos token si estamos en etapa de aprobación (Inscripción/Afiliación)
+          shouldSendToken = true
+          tokenToUse = randomUUID()
+          const expiracion = new Date()
+          expiracion.setHours(expiracion.getHours() + 48)
+          const tokenHash = sha256(tokenToUse)
+
+          await db.execute({
+            sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
+            args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+          })
+        }
+
+        // Si se cambia a la etapa 5 (Inscripción) o 6 (Afiliación), notificar por correo
+        if (etapa === 5 || etapa === 6) {
+          try {
+            await enviarCorreoResultadoEntrevista({
+              nombre: row.nombre_completo,
+              emailOriginal: row.email,
+              resultado: 'Aprobado',
+              programaCodigo: row.programa_codigo || 'Curso',
+              token: shouldSendToken ? tokenToUse : undefined
+            })
+          } catch (mailErr) {
+            console.error('Error enviando correo de aprobación en cambio de etapa:', mailErr)
+          }
         }
       } catch (err) {
         console.error('Error preparando acceso etapa:', err)
+      }
+    }
+
+    // 4. Si es programa de AFILIACION y pasa a la etapa 'Afiliado', promocionar y vincular
+    if (row.programa_codigo === 'AFILIACION' && targetAfiliadoStatus === 'Afiliado' && row.email) {
+      try {
+        await promocionarYVincularAfiliado(row.id_estudiante, row.email, now)
+      } catch (err) {
+        console.error('Error al promocionar afiliado en cambio de etapa:', err)
       }
     }
 
