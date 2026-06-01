@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import React, { useEffect, useState, useRef } from 'react'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircle2, Loader2, ArrowRight, Home, GraduationCap, Briefcase, Award, School, ChevronDown, XCircle, FileText, AlertCircle, Calendar, ShieldCheck, Check, Search, ClipboardList, Mail, CreditCard } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import { useExpedienteProgress } from '@/hooks/useExpedienteProgress'
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
   { value: 'TSU', label: 'Técnico Superior (TSU)', icon: Briefcase },
-  { value: 'Universitario', label: 'Universitario', icon: GraduationCap },
+  { value: 'Nivel Profesional', label: 'Nivel Profesional', icon: GraduationCap },
   { value: 'Postgrado', label: 'Postgrado', icon: Award },
 ]
 
@@ -28,7 +29,9 @@ const INPUT_H = "h-[62px]" // Altura unificada
 
 export default function VerificarPreinscripcionProgramaPage() {
   const [searchParams] = useSearchParams()
-  const token = searchParams.get('token')
+  const tokenFromUrl = searchParams.get('token')
+  const [verifiedToken, setVerifiedToken] = useState<string>('')
+  const navigate = useNavigate()
   const [status, setStatus] = useState<'loading' | 'verifying' | 'form' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('Verificando tu enlace...')
   const [userData, setUserData] = useState<any>(null)
@@ -37,12 +40,17 @@ export default function VerificarPreinscripcionProgramaPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    nivelProfesional: '' as 'Bachiller' | 'TSU' | 'Universitario' | 'Postgrado' | '',
+    nivelProfesional: '' as 'Bachiller' | 'TSU' | 'Nivel Profesional' | 'Postgrado' | '',
     profesion: '',
+    ano_inicio_servicio: '',
     url_titulo: '',
+    name_titulo: '',
     url_cv: '',
+    name_cv: '',
     url_registro_mercantil: '',
+    name_registro_mercantil: '',
     url_titulo_representante: '',
+    name_titulo_representante: '',
     especializaciones: [] as { nombre: string; url: string; fecha: string }[],
     cursos_extras: [] as { nombre: string; url: string; fecha: string }[],
     diplomados: [] as { nombre: string; url: string; fecha: string }[],
@@ -60,7 +68,12 @@ export default function VerificarPreinscripcionProgramaPage() {
   const [pendingDiplomadoFecha, setPendingDiplomadoFecha] = useState('')
   const [pendingOtroNombre, setPendingOtroNombre] = useState('')
   const [pendingOtroFecha, setPendingOtroFecha] = useState('')
-  const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitLoading, setSubmitLoading] = useState(false);
+
+  // ── Persistencia de progreso ─────────────────────────────────────────────
+  const { saveProgress, loadProgress, clearProgress } = useExpedienteProgress(verifiedToken)
+  // Ref para el debounce del guardado automático
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [activeAffiliates, setActiveAffiliates] = useState<any[]>([])
   const [affiliatesLoading, setAffiliatesLoading] = useState(false)
@@ -95,9 +108,9 @@ export default function VerificarPreinscripcionProgramaPage() {
       })
       if (match) {
         setSelectedAffiliate1(match)
-        setFormData(prev => ({ 
-          ...prev, 
-          nombre_referencia1: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})` 
+        setFormData(prev => ({
+          ...prev,
+          nombre_referencia1: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})`
         }))
       } else {
         setSelectedAffiliate1(null)
@@ -120,9 +133,9 @@ export default function VerificarPreinscripcionProgramaPage() {
       })
       if (match) {
         setSelectedAffiliate2(match)
-        setFormData(prev => ({ 
-          ...prev, 
-          nombre_referencia2: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})` 
+        setFormData(prev => ({
+          ...prev,
+          nombre_referencia2: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})`
         }))
       } else {
         setSelectedAffiliate2(null)
@@ -135,44 +148,86 @@ export default function VerificarPreinscripcionProgramaPage() {
   }
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error')
-      setMessage('No se encontró el token de verificación en la URL.')
-      return
-    }
     const verificarToken = async () => {
+      const tokenParaValidar = tokenFromUrl || 'session'
       try {
-        const res = await fetch(`${API_URL}/api/public/preinscripciones/token/${token}`)
+        const res = await fetch(`${API_URL}/api/public/preinscripciones/token/${tokenParaValidar}`, {
+          credentials: 'include'
+        })
         const json = await res.json()
         if (res.ok && json.success) {
           setUserData(json.data)
-          
+          const tok = json.data.token as string
+          setVerifiedToken(tok)
+
+          if (tokenFromUrl) {
+            navigate('/cursos/verificar', { replace: true })
+          }
+
           // Si es uno de los 4 grandes cursos, saltamos el formulario y confirmamos automáticamente
           if (['PADI', 'PEGI', 'PREANI', 'CIBIR'].includes(json.data.programaCodigo)) {
-            submitConfirmation({ token })
+            submitConfirmation({ token: tok })
           } else {
-            setFormData(prev => ({
-              ...prev,
-              nivelProfesional: (json.data.nivelProfesional as any) || '',
-              profesion: json.data.profesion || '',
-              url_titulo: '',
-              url_cv: '',
-              url_registro_mercantil: '',
-              url_titulo_representante: '',
-              especializaciones: [],
-              cursos_extras: [],
-              diplomados: [],
-              otros_docs: [],
-              url_referencia1: '',
-              nombre_referencia1: '',
-              url_referencia2: '',
-              nombre_referencia2: '',
-            }))
+            // Intentar restaurar progreso guardado directamente desde localStorage
+            // (no podemos llamar a hooks dentro de un async, leemos con la misma lógica del hook)
+            const storageKey = `expediente_progress_${tok.slice(0, 12).replace(/[^a-zA-Z0-9_-]/g, '_')}`
+            let saved: any = null
+            try {
+              const raw = localStorage.getItem(storageKey)
+              if (raw) {
+                const parsed = JSON.parse(raw)
+                if (parsed._version === 1) saved = parsed
+              }
+            } catch { /* ignorar */ }
+
+            if (saved) {
+              setFormData({
+                nivelProfesional: (saved.nivelProfesional as any) || '',
+                profesion: saved.profesion || '',
+                ano_inicio_servicio: saved.ano_inicio_servicio || '',
+                url_cv: saved.url_cv || '',
+                name_cv: saved.name_cv || '',
+                url_titulo: saved.url_titulo || '',
+                name_titulo: saved.name_titulo || '',
+                url_registro_mercantil: saved.url_registro_mercantil || '',
+                name_registro_mercantil: saved.name_registro_mercantil || '',
+                url_titulo_representante: saved.url_titulo_representante || '',
+                name_titulo_representante: saved.name_titulo_representante || '',
+                especializaciones: saved.especializaciones || [],
+                cursos_extras: saved.cursos_extras || [],
+                diplomados: saved.diplomados || [],
+                otros_docs: saved.otros_docs || [],
+                url_referencia1: saved.url_referencia1 || '',
+                nombre_referencia1: saved.nombre_referencia1 || '',
+                url_referencia2: saved.url_referencia2 || '',
+                nombre_referencia2: saved.nombre_referencia2 || '',
+              })
+            } else {
+              // Sin progreso guardado — inicializar con datos del servidor
+              setFormData(prev => ({
+                ...prev,
+                nivelProfesional: (json.data.nivelProfesional as any) || '',
+                profesion: json.data.profesion || '',
+                ano_inicio_servicio: json.data.ano_inicio_servicio !== undefined ? String(json.data.ano_inicio_servicio) : '',
+                url_titulo: '',
+                url_cv: '',
+                url_registro_mercantil: '',
+                url_titulo_representante: '',
+                especializaciones: [],
+                cursos_extras: [],
+                diplomados: [],
+                otros_docs: [],
+                url_referencia1: '',
+                nombre_referencia1: '',
+                url_referencia2: '',
+                nombre_referencia2: '',
+              }))
+            }
             setStatus('form')
           }
         } else {
           setStatus('error')
-          setMessage(json.message || 'Token inválido.')
+          setMessage(json.message || 'Token inválido o sesión expirada.')
         }
       } catch {
         setStatus('error')
@@ -181,16 +236,57 @@ export default function VerificarPreinscripcionProgramaPage() {
     }
     verificarToken()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [tokenFromUrl])
+
+  // ── Auto-guardado de progreso con debounce de 600ms ──────────────────────
+  useEffect(() => {
+    if (status !== 'form' || !verifiedToken) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveProgress({
+        nivelProfesional: formData.nivelProfesional,
+        profesion: formData.profesion,
+        ano_inicio_servicio: formData.ano_inicio_servicio,
+        url_cv: formData.url_cv,
+        name_cv: formData.name_cv,
+        url_titulo: formData.url_titulo,
+        name_titulo: formData.name_titulo,
+        url_registro_mercantil: formData.url_registro_mercantil,
+        name_registro_mercantil: formData.name_registro_mercantil,
+        url_titulo_representante: formData.url_titulo_representante,
+        name_titulo_representante: formData.name_titulo_representante,
+        especializaciones: formData.especializaciones,
+        cursos_extras: formData.cursos_extras,
+        diplomados: formData.diplomados,
+        otros_docs: formData.otros_docs,
+        url_referencia1: formData.url_referencia1,
+        nombre_referencia1: formData.nombre_referencia1,
+        url_referencia2: formData.url_referencia2,
+        nombre_referencia2: formData.nombre_referencia2,
+      })
+    }, 600)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, status, verifiedToken])
 
   const isAfiliacion = userData?.programaCodigo === 'AFILIACION'
+  const isMainProgram = !userData || ['AFILIACION', 'PADI', 'PEGI', 'PREANI', 'CIBIR'].includes(userData.programaCodigo)
   const isCorporativo = isAfiliacion && userData?.tipoAfiliado === 'Corporativo'
   const isPostgrado = formData.nivelProfesional === 'Postgrado'
   const currentNivel = NIVELES.find(n => n.value === formData.nivelProfesional)
   const displayName = userData?.nombreCompleto
-  const isReferencesIncomplete = isAfiliacion && (
-    (formData.url_referencia1 && !selectedAffiliate1) || 
-    (formData.url_referencia2 && !selectedAffiliate2) ||
+  const currentYear = new Date().getFullYear()
+  const anosServicio = formData.ano_inicio_servicio ? (currentYear - parseInt(formData.ano_inicio_servicio, 10)) : 0
+  const tieneDiplomadoRequerido = formData.diplomados.some(d => 
+    ['FIPPI', 'PREANI', 'PREANI'].includes(d.nombre.toUpperCase())
+  )
+  const showReferencesSection = isAfiliacion && (anosServicio > 5 || tieneDiplomadoRequerido)
+
+  const isReferencesIncomplete = showReferencesSection && (
+    (formData.url_referencia1 && !formData.nombre_referencia1 && !selectedAffiliate1) ||
+    (formData.url_referencia2 && !formData.nombre_referencia2 && !selectedAffiliate2) ||
     (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado)
   )
 
@@ -202,9 +298,13 @@ export default function VerificarPreinscripcionProgramaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSubmit),
+        credentials: 'include'
       })
       const json = await res.json()
-      if (res.ok && json.success) setStatus('success')
+      if (res.ok && json.success) {
+        clearProgress()  // Limpiar progreso guardado al enviar exitosamente
+        setStatus('success')
+      }
       else { setStatus('error'); setMessage(json.message); }
     } catch { setStatus('error'); setMessage('Error de conexión.'); }
     finally { setSubmitLoading(false); }
@@ -212,7 +312,19 @@ export default function VerificarPreinscripcionProgramaPage() {
 
   const handleConfirmar = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!token) return
+    if (!verifiedToken) return
+
+    if (!formData.url_cv) {
+      Swal.fire({
+        title: '¡Atención!',
+        text: isCorporativo
+          ? 'Por favor, carga la Síntesis Curricular del Representante Legal.'
+          : 'Por favor, carga tu Síntesis Curricular.',
+        icon: 'warning',
+        confirmButtonColor: '#059669',
+      });
+      return;
+    }
 
     if (isCorporativo) {
       if (!formData.url_titulo) {
@@ -228,17 +340,13 @@ export default function VerificarPreinscripcionProgramaPage() {
         return;
       }
     } else {
-      if (!formData.url_cv) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga tu Síntesis Curricular.', icon: 'warning', confirmButtonColor: '#059669' });
-        return;
-      }
       if (!formData.url_titulo) {
         Swal.fire({ title: '¡Atención!', text: 'Por favor, carga tu Título Académico.', icon: 'warning', confirmButtonColor: '#059669' });
         return;
       }
     }
 
-    if (isAfiliacion) {
+    if (showReferencesSection) {
       // Solo validar si se ha intentado llenar algo de la referencia 1
       if ((formData.url_referencia1 || searchCedula1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
         Swal.fire({ title: 'Referencia 1 Incompleta', text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.', icon: 'warning', confirmButtonColor: '#059669' });
@@ -266,9 +374,10 @@ export default function VerificarPreinscripcionProgramaPage() {
     }
 
     submitConfirmation({
-      token,
+      token: verifiedToken,
       nivelProfesional: formData.nivelProfesional,
       profesion: formData.profesion.trim(),
+      ano_inicio_servicio: formData.ano_inicio_servicio ? parseInt(formData.ano_inicio_servicio, 10) : null,
       url_titulo: formData.url_titulo,
       url_cv: formData.url_cv,
       url_registro_mercantil: formData.url_registro_mercantil,
@@ -291,15 +400,17 @@ export default function VerificarPreinscripcionProgramaPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
-      <section className="relative bg-[#022c22] pt-28 pb-16 overflow-hidden text-center">
-        <div className="relative z-10 max-w-5xl mx-auto px-6">
-          {isAfiliacion ? (
+      
+      {status !== 'error' && (
+        <section className="relative bg-[#022c22] pt-28 pb-16 overflow-hidden text-center animate-in fade-in duration-500">
+          <div className="relative z-10 max-w-5xl mx-auto px-6">
+          {isMainProgram ? (
             <div className="w-full max-w-5xl mx-auto mb-10 mt-2 px-2">
               {/* Timeline Desktop/Mobile wrapping */}
               <div className="flex flex-wrap md:flex-nowrap items-start justify-center md:justify-between relative pb-4 pt-2 gap-y-4 gap-x-3 md:gap-x-0">
                 {/* Connecting Line (Desktop only, behind items) */}
                 <div className="absolute top-[28px] left-[8%] right-[8%] h-0.5 bg-emerald-500/20 -z-0 hidden md:block" />
-                <div 
+                <div
                   className="absolute top-[28px] left-[8%] h-0.5 bg-emerald-400 -z-0 hidden md:block transition-all duration-1000"
                   style={{ width: `${status === 'success' ? '33.33%' : '16.66%'}` }}
                 />
@@ -311,12 +422,11 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                   return (
                     <div key={step.id} className="flex flex-col items-center gap-2 relative z-10 flex-1 min-w-[75px] max-w-[120px] md:max-w-none text-center">
-                      <div 
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md ${
-                          isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' : 
-                          isCurrent ? 'bg-emerald-400 text-[#022c22] scale-110 font-bold' : 
-                          'bg-emerald-900/30 text-emerald-100/40 border border-emerald-500/30'
-                        }`}
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md ${isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' :
+                          isCurrent ? 'bg-emerald-400 text-[#022c22] scale-110 font-bold' :
+                            'bg-emerald-900/30 text-emerald-100/40 border border-emerald-500/30'
+                          }`}
                       >
                         {isCompleted ? <Check size={16} strokeWidth={3} /> : <StepIcon size={16} />}
                       </div>
@@ -354,37 +464,84 @@ export default function VerificarPreinscripcionProgramaPage() {
               </div>
             </div>
           )}
-          <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-3">
-            {status === 'success' ? '¡Todo Listo!' : (isAfiliacion ? 'Validación de Afiliado' : 'Completa tu Perfil')}
-          </h1>
-          <p className="text-white/90 text-sm max-w-lg mx-auto">
-            {status === 'form' && userData
-              ? <>Hola <span className="text-white font-bold">{displayName || 'aspirante'}</span>, falta poco para finalizar tu <span className="text-emerald-400 font-bold">{isAfiliacion ? 'solicitud de afiliación' : `inscripción al programa ${programaLabel}`}</span>.</>
-              : message
-            }
-          </p>
+          
+          {status !== 'loading' && status !== 'verifying' && (
+            <>
+              <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-3">
+                {status === 'success' ? '¡Todo Listo!' : (isAfiliacion ? 'Validación de Afiliado' : 'Completa tu Perfil')}
+              </h1>
+              <p className="text-white/90 text-sm max-w-lg mx-auto">
+                {status === 'form' && userData
+                  ? <>Hola <span className="text-white font-bold">{displayName || 'aspirante'}</span>, falta poco para finalizar tu <span className="text-emerald-400 font-bold">{isAfiliacion ? 'solicitud de afiliación' : `inscripción al programa ${programaLabel}`}</span>.</>
+                  : message
+                }
+              </p>
+            </>
+          )}
+
+          {status === 'loading' && (
+            <div className="flex flex-col items-center justify-center py-4 space-y-4">
+              <Loader2 size={32} className="animate-spin text-emerald-400" />
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-white uppercase tracking-tight">Verificando enlace</h2>
+                <p className="text-emerald-100/60 text-xs font-bold uppercase tracking-wider">Cargando tu información...</p>
+              </div>
+            </div>
+          )}
+
+          {status === 'verifying' && (
+            <div className="flex flex-col items-center justify-center py-4 space-y-4">
+              <Loader2 size={32} className="animate-spin text-emerald-400" />
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-white uppercase tracking-tight">Procesando Solicitud</h2>
+                <p className="text-emerald-100/60 text-xs font-bold uppercase tracking-wider">Generando tu expediente digital...</p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
+      )}
 
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-6 py-12">
           {status === 'form' && userData && (
             <form onSubmit={handleConfirmar} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-              <div className="space-y-2">
-                <h2 className="text-xl font-black text-[#022c22] uppercase tracking-tight">Carga de Documentación</h2>
-                <p className="text-slate-500 text-xs leading-relaxed">
+              <div className="space-y-3">
+                <h2 className="text-2xl md:text-3xl font-black text-[#022c22] uppercase tracking-tight">Carga de Documentación</h2>
+                <p className="text-slate-600 text-sm md:text-base leading-relaxed">
                   Para finalizar tu proceso, por favor verifica tu nivel académico y adjunta los archivos solicitados.
                 </p>
               </div>
 
+              {/* Síntesis Curricular (CV) */}
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Síntesis Curricular (CV)</h3></div></div>
+                  <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
+                    Carga {isCorporativo ? 'la síntesis curricular del Representante Legal' : 'tu currículum'} en formato PDF para iniciar la revisión de tu expediente.
+                  </p>
+                </div>
+                <FileUpload
+                  label={isCorporativo ? "Cargar Síntesis Curricular del Representante Legal" : "Cargar Síntesis Curricular (CV)"}
+                  accept=".pdf"
+                  folder="cvs"
+                  required
+                  initialUrl={formData.url_cv || undefined}
+                  initialFileName={formData.name_cv || undefined}
+                  onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, url_cv: url, name_cv: fileName || '' }))}
+                  onClear={() => setFormData(prev => ({ ...prev, url_cv: '', name_cv: '' }))}
+                />
+              </div>
+
               {!isCorporativo && (
                 <>
+
                   {/* Selector de Nivel Académico */}
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-blue-600" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Nivel Académico Alcanzado</h3></div></div>
-                      <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Confirma tu grado de instrucción actual.</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Nivel Académico Alcanzado</h3></div></div>
+                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Confirma tu grado de instrucción actual.</p>
                     </div>
 
                     <div className="relative">
@@ -399,10 +556,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                                 <currentNivel.icon size={18} />
                               </div>
-                              <span className="text-sm font-bold text-slate-700">{currentNivel.label}</span>
+                              <span className="text-base font-bold text-slate-700">{currentNivel.label}</span>
                             </>
                           ) : (
-                            <span className="text-sm font-bold text-slate-400 italic">Selecciona tu nivel académico...</span>
+                            <span className="text-base font-bold text-slate-400 italic">Selecciona tu nivel académico...</span>
                           )}
                         </div>
                         <ChevronDown size={20} className={`text-slate-400 transition-transform duration-300 ${showNivelDropdown ? 'rotate-180' : ''}`} />
@@ -425,8 +582,8 @@ export default function VerificarPreinscripcionProgramaPage() {
                                   <nivel.icon size={20} />
                                 </div>
                                 <div className="flex flex-col items-start">
-                                  <span className="text-sm font-bold">{nivel.label}</span>
-                                  {formData.nivelProfesional === nivel.value && <span className="text-[10px] opacity-80 font-black uppercase tracking-widest">Seleccionado</span>}
+                                  <span className="text-base font-bold">{nivel.label}</span>
+                                  {formData.nivelProfesional === nivel.value && <span className="text-xs opacity-80 font-black uppercase tracking-widest">Seleccionado</span>}
                                 </div>
                               </button>
                             ))}
@@ -439,9 +596,9 @@ export default function VerificarPreinscripcionProgramaPage() {
                   {/* Área de Especialización */}
                   {formData.nivelProfesional && formData.nivelProfesional !== 'Bachiller' && (
                     <div className="space-y-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-blue-400" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Área de Especialización</h3></div></div>
-                        <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Indica el área de especialización de tu título.</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-400" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Área de Especialización</h3></div></div>
+                        <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Indica el área de especialización de tu título.</p>
                       </div>
                       <div className="relative group">
                         <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
@@ -453,11 +610,34 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={formData.profesion}
                           onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                           placeholder="Ej. Derecho, Ingeniería, Administración..."
-                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-sm font-bold text-slate-700 ${INPUT_H}`}
+                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
                         />
                       </div>
                     </div>
                   )}
+
+                  {/* Año de Inicio como Asesor */}
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Año de Inicio como Asesor</h3></div></div>
+                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Indica el año en el que comenzaste a ejercer como asesor o corredor inmobiliario.</p>
+                    </div>
+                    <div className="relative group">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <Briefcase size={18} />
+                      </div>
+                      <input
+                        type="number"
+                        min="1950"
+                        max={new Date().getFullYear()}
+                        required
+                        value={formData.ano_inicio_servicio}
+                        onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
+                        placeholder="Ej. 2015"
+                        className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                      />
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -466,15 +646,15 @@ export default function VerificarPreinscripcionProgramaPage() {
                   <>
                     {/* SECCIÓN REPRESENTANTE */}
                     <div className="space-y-6">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-blue-600" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Representante Legal</h3></div></div>
-                        <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Información profesional y soportes de identidad.</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Representante Legal</h3></div></div>
+                        <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Información profesional y soportes de identidad.</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Selector de Nivel Académico (Inyectado aquí para Corporativos) */}
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nivel Académico</label>
+                        <div className="space-y-1.5">
+                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Nivel Académico</label>
                           <div className="relative">
                             <button
                               type="button"
@@ -485,10 +665,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 {currentNivel ? (
                                   <>
                                     <currentNivel.icon size={14} className="text-blue-600" />
-                                    <span className="text-xs font-bold text-slate-700">{currentNivel.label}</span>
+                                    <span className="text-sm font-bold text-slate-700">{currentNivel.label}</span>
                                   </>
                                 ) : (
-                                  <span className="text-xs font-bold text-slate-400 italic">Nivel...</span>
+                                  <span className="text-sm font-bold text-slate-400 italic">Nivel...</span>
                                 )}
                               </div>
                               <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${showNivelDropdown ? 'rotate-180' : ''}`} />
@@ -507,7 +687,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                       className={`flex items-center gap-3 p-2 rounded-lg transition-all ${formData.nivelProfesional === nivel.value ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
                                     >
                                       <nivel.icon size={14} />
-                                      <span className="text-[11px] font-bold">{nivel.label}</span>
+                                      <span className="text-xs font-bold">{nivel.label}</span>
                                     </button>
                                   ))}
                                 </div>
@@ -518,8 +698,8 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                         {/* Área de Especialización (Inyectado aquí para Corporativos) */}
                         {formData.nivelProfesional && formData.nivelProfesional !== 'Bachiller' && (
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Área de Especialización</label>
+                          <div className="space-y-1.5">
+                            <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Área de Especialización</label>
                             <div className="relative group">
                               <Briefcase size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                               <input
@@ -528,7 +708,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 value={formData.profesion}
                                 onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                                 placeholder="Ej. Derecho, Ingeniería, Administración..."
-                                className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 transition-all text-xs font-bold text-slate-700 h-[50px]"
+                                className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
                               />
                             </div>
                           </div>
@@ -539,8 +719,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                             label="Título del Representante"
                             accept="image/*,.pdf"
                             folder="afiliados/representantes"
-                            onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_titulo_representante: url }))}
-                            onClear={() => setFormData(prev => ({ ...prev, url_titulo_representante: '' }))}
+                            initialUrl={formData.url_titulo_representante || undefined}
+                            initialFileName={formData.name_titulo_representante || undefined}
+                            onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, url_titulo_representante: url, name_titulo_representante: fileName || '' }))}
+                            onClear={() => setFormData(prev => ({ ...prev, url_titulo_representante: '', name_titulo_representante: '' }))}
                           />
                         </div>
                       </div>
@@ -549,27 +731,23 @@ export default function VerificarPreinscripcionProgramaPage() {
                   </>
                 ) : (
                   <div className="space-y-6">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Documentación Obligatoria</h3></div></div>
-                      <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Estos documentos son indispensables para validar tu perfil.</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Título Académico</h3></div></div>
+                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Carga el soporte de tu grado académico seleccionado.</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FileUpload
-                        label="Síntesis Curricular (CV)"
-                        accept=".pdf"
-                        folder="cvs"
-                        required
-                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_cv: url }))}
-                        onClear={() => setFormData(prev => ({ ...prev, url_cv: '' }))}
-                      />
-                      <FileUpload
-                        label="Título Académico"
-                        accept="image/*,.pdf"
-                        folder="titulos"
-                        required
-                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_titulo: url }))}
-                        onClear={() => setFormData(prev => ({ ...prev, url_titulo: '' }))}
-                      />
+                      <div className="md:col-span-2">
+                        <FileUpload
+                          label="Título Académico"
+                          accept="image/*,.pdf"
+                          folder="titulos"
+                          required
+                          initialUrl={formData.url_titulo || undefined}
+                          initialFileName={formData.name_titulo || undefined}
+                          onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, url_titulo: url, name_titulo: fileName || '' }))}
+                          onClear={() => setFormData(prev => ({ ...prev, url_titulo: '', name_titulo: '' }))}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -579,9 +757,9 @@ export default function VerificarPreinscripcionProgramaPage() {
               {isPostgrado && (
                 <div className="space-y-6 pt-4">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-blue-600" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Postgrados</h3></div></div>
-                      <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Si posees estudios adicionales de postgrado, puedes registrarlos aquí.</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Postgrados</h3></div></div>
+                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Si posees estudios adicionales de postgrado, puedes registrarlos aquí.</p>
                     </div>
 
                   </div>
@@ -605,7 +783,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                   )
                                 }))}
                                 placeholder="Título obtenido..."
-                                className="w-full text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
+                                className="w-full text-sm font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
                               />
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1.5">
@@ -619,11 +797,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                                         i === idx ? { ...item, fecha: e.target.value } : item
                                       )
                                     }))}
-                                    className="text-[10px] font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                    className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
                                   />
                                 </div>
                                 <a href={esp.url} target="_blank" rel="noopener noreferrer"
-                                  className="text-[9px] text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                                  className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
                                   Ver archivo
                                 </a>
                               </div>
@@ -643,25 +821,25 @@ export default function VerificarPreinscripcionProgramaPage() {
                     {/* Input nombre + Fecha + Uploader para nueva especialización */}
                     <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Postgrado</label>
+                        <div className="space-y-1.5">
+                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Nombre del Postgrado</label>
                           <input
                             type="text"
                             value={pendingEspecializacionNombre}
                             onChange={(e) => setPendingEspecializacionNombre(e.target.value)}
                             placeholder="Especialidad (ej: Maestría en Finanzas)..."
-                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha de Finalización</label>
+                        <div className="space-y-1.5">
+                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Finalización</label>
                           <div className="relative">
                             <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                               type="date"
                               value={pendingEspecializacionFecha}
                               onChange={(e) => setPendingEspecializacionFecha(e.target.value)}
-                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 bg-white transition"
+                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 bg-white transition"
                             />
                           </div>
                         </div>
@@ -689,136 +867,25 @@ export default function VerificarPreinscripcionProgramaPage() {
                   </div>
                 </div>
               )}
-              
-              {/* SECCIÓN REFERENCIAS DE AFILIADOS */}
-              {isAfiliacion && (
-                <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className="w-1 h-6 rounded-full bg-emerald-600" />
-                      <div>
-                        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">
-                          Referencias de Afiliados Activos
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">
-                      Debes adjuntar dos cartas de recomendación moral emitidas por afiliados activos de la Cámara.
-                    </p>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Referencia 1 */}
-                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                          Recomendante 1 (Opcional)
-                        </label>
-                        <div className="relative group">
-                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                          <input
-                            type="text"
-                            value={searchCedula1}
-                            onChange={(e) => handleSearchCedula1Change(e.target.value)}
-                            placeholder="Buscar por Cédula..."
-                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
-                          />
-                        </div>
-                      </div>
 
-                      {/* Display Selected Affiliate Status */}
-                      {searchCedula1.replace(/\D/g, '').length >= 5 && (
-                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                          {selectedAffiliate1 ? (
-                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] font-bold">
-                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
-                              <div className="truncate">
-                                <span className="text-[10px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
-                                <span className="truncate block mt-0.5">{selectedAffiliate1.nombre_completo}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-[11px] font-bold">
-                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
-                              <div>
-                                <span className="text-[10px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
-                                <span className="block mt-0.5">No se encontró el afiliado.</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <FileUpload
-                        label="Carta de Recomendación 1"
-                        accept="image/*,.pdf"
-                        folder="afiliados/referencias"
-                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia1: url }))}
-                        onClear={() => setFormData(prev => ({ ...prev, url_referencia1: '' }))}
-                      />
-                    </div>
-
-                    {/* Referencia 2 */}
-                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                          Recomendante 2 (Opcional)
-                        </label>
-                        <div className="relative group">
-                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                          <input
-                            type="text"
-                            value={searchCedula2}
-                            onChange={(e) => handleSearchCedula2Change(e.target.value)}
-                            placeholder="Buscar por Cédula..."
-                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Display Selected Affiliate Status */}
-                      {searchCedula2.replace(/\D/g, '').length >= 5 && (
-                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                          {selectedAffiliate2 ? (
-                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] font-bold">
-                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
-                              <div className="truncate">
-                                <span className="text-[10px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
-                                <span className="truncate block mt-0.5">{selectedAffiliate2.nombre_completo}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-[11px] font-bold">
-                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
-                              <div>
-                                <span className="text-[10px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
-                                <span className="block mt-0.5">No se encontró el afiliado.</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <FileUpload
-                        label="Carta de Recomendación 2"
-                        accept="image/*,.pdf"
-                        folder="afiliados/referencias"
-                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia2: url }))}
-                        onClear={() => setFormData(prev => ({ ...prev, url_referencia2: '' }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Sección de Diplomados Realizados */}
               <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-indigo-500" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Diplomados Realizados</h3></div></div>
-                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-indigo-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
+                    <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded-full">Opcional</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-full">Opcional</span>
+                </div>
+
+                {/* Banner informativo de FIPPI/PREANI */}
+                <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex gap-3 text-indigo-900 text-sm leading-relaxed">
+                  <AlertCircle className="text-indigo-500 shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <span className="font-bold text-indigo-950">Información importante:</span> Solo se permite cargar los certificados correspondientes a los diplomados <span className="font-black">FIPPI</span> y/o <span className="font-black">PREANI</span>. Puede cargar un máximo de 2 certificados en total (uno de cada tipo).
+                  </div>
                 </div>
 
                 {/* Lista de diplomados cargados */}
@@ -830,18 +897,9 @@ export default function VerificarPreinscripcionProgramaPage() {
                           <FileText size={14} className="text-indigo-600" />
                         </div>
                         <div className="flex-1 min-w-0 space-y-1">
-                          <input
-                            type="text"
-                            value={dip.nombre}
-                            onChange={(e) => setFormData(prev => ({
-                              ...prev,
-                              diplomados: prev.diplomados.map((d, i) =>
-                                i === idx ? { ...d, nombre: e.target.value } : d
-                              )
-                            }))}
-                            placeholder="Nombre del diplomado..."
-                            className="w-full text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
-                          />
+                          <div className="text-sm font-bold text-slate-700 select-none">
+                            {dip.nombre}
+                          </div>
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1.5">
                               <Calendar size={10} className="text-slate-400" />
@@ -854,11 +912,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                                     i === idx ? { ...d, fecha: e.target.value } : d
                                   )
                                 }))}
-                                className="text-[10px] font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
                               />
                             </div>
                             <a href={dip.url} target="_blank" rel="noopener noreferrer"
-                              className="text-[9px] text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
                               Ver archivo
                             </a>
                           </div>
@@ -875,88 +933,120 @@ export default function VerificarPreinscripcionProgramaPage() {
                   </div>
                 )}
 
-                {/* Input nombre + Fecha + Uploader para nuevo diplomado */}
-                <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Diplomado</label>
-                      <input
-                        type="text"
-                        value={pendingDiplomadoNombre}
-                        onChange={(e) => setPendingDiplomadoNombre(e.target.value)}
-                        placeholder="Nombre del diplomado (ej: Diplomado en Avalúos)..."
-                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha del Certificado</label>
-                      <div className="relative">
-                        <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="date"
-                          value={pendingDiplomadoFecha}
-                          max={new Date().toISOString().split('T')[0]}
-                          min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
-                          onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
-                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 bg-white transition"
-                        />
+                {/* Input selector + Fecha + Uploader para nuevo diplomado */}
+                {formData.diplomados.length < 2 ? (
+                  <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 animate-in fade-in duration-300">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Seleccionar Diplomado</label>
+                        <select
+                          value={pendingDiplomadoNombre}
+                          onChange={(e) => setPendingDiplomadoNombre(e.target.value)}
+                          className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 bg-white transition cursor-pointer"
+                        >
+                          <option value="">-- Seleccione --</option>
+                          <option value="FIPPI">FIPPI</option>
+                          <option value="PREANI">PREANI</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
+                        <div className="relative">
+                          <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="date"
+                            value={pendingDiplomadoFecha}
+                            max={new Date().toISOString().split('T')[0]}
+                            min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
+                            onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
+                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 bg-white transition"
+                          />
+                        </div>
                       </div>
                     </div>
+                    <FileUpload
+                      key={formData.diplomados.length}
+                      label="Cargar certificado del diplomado"
+                      accept="image/*,.pdf"
+                      folder="diplomados"
+                      onUploadSuccess={(url) => {
+                        if (!pendingDiplomadoNombre) {
+                          Swal.fire({
+                            title: '¡Atención!',
+                            text: 'Por favor, selecciona primero el nombre del diplomado (FIPPI o PREANI).',
+                            icon: 'warning',
+                            confirmButtonColor: '#059669',
+                          });
+                          return;
+                        }
+
+                        if (!pendingDiplomadoFecha) {
+                          Swal.fire({
+                            title: '¡Atención!',
+                            text: 'Por favor, selecciona primero la fecha del certificado.',
+                            icon: 'warning',
+                            confirmButtonColor: '#059669',
+                          });
+                          return;
+                        }
+
+                        // Validar duplicados
+                        const yaExiste = formData.diplomados.some(
+                          d => d.nombre.toUpperCase() === pendingDiplomadoNombre.toUpperCase()
+                        );
+                        if (yaExiste) {
+                          Swal.fire({
+                            title: 'Diplomado ya cargado',
+                            text: `Ya has subido un certificado para el diplomado ${pendingDiplomadoNombre}. Solo se permite un certificado de cada tipo.`,
+                            icon: 'error',
+                            confirmButtonColor: '#059669',
+                          });
+                          return;
+                        }
+
+                        const courseDate = new Date(pendingDiplomadoFecha);
+                        const fiveYearsAgo = new Date();
+                        fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+                        if (courseDate < fiveYearsAgo) {
+                          Swal.fire({
+                            title: 'Fecha no válida',
+                            text: 'Lo sentimos, el certificado no debe tener más de 5 años de antigüedad.',
+                            icon: 'error',
+                            confirmButtonColor: '#059669',
+                          });
+                          return;
+                        }
+
+                        setFormData(prev => ({
+                          ...prev,
+                          diplomados: [...prev.diplomados, {
+                            nombre: pendingDiplomadoNombre,
+                            url,
+                            fecha: pendingDiplomadoFecha
+                          }]
+                        }));
+                        setPendingDiplomadoNombre('');
+                        setPendingDiplomadoFecha('');
+                      }}
+                      onClear={() => { }}
+                    />
                   </div>
-                  <FileUpload
-                    key={formData.diplomados.length}
-                    label="Cargar certificado del diplomado"
-                    accept="image/*,.pdf"
-                    folder="diplomados"
-                    onUploadSuccess={(url) => {
-                      if (!pendingDiplomadoFecha) {
-                        Swal.fire({
-                          title: '¡Atención!',
-                          text: 'Por favor, selecciona primero la fecha del certificado.',
-                          icon: 'warning',
-                          confirmButtonColor: '#059669',
-                        });
-                        return;
-                      }
-
-                      const courseDate = new Date(pendingDiplomadoFecha);
-                      const fiveYearsAgo = new Date();
-                      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-
-                      if (courseDate < fiveYearsAgo) {
-                        Swal.fire({
-                          title: 'Fecha no válida',
-                          text: 'Lo sentimos, el certificado no debe tener más de 5 años de antigüedad.',
-                          icon: 'error',
-                          confirmButtonColor: '#059669',
-                        });
-                        return;
-                      }
-
-                      setFormData(prev => ({
-                        ...prev,
-                        diplomados: [...prev.diplomados, {
-                          nombre: pendingDiplomadoNombre.trim() || `Diplomado #${prev.diplomados.length + 1}`,
-                          url,
-                          fecha: pendingDiplomadoFecha
-                        }]
-                      }))
-                      setPendingDiplomadoNombre('')
-                      setPendingDiplomadoFecha('')
-                    }}
-                    onClear={() => { }}
-                  />
-                </div>
+                ) : (
+                  <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 text-center text-xs font-bold text-emerald-800 animate-in fade-in duration-300">
+                    ¡Límite máximo alcanzado! Has cargado los certificados correspondientes a FIPPI y PREANI.
+                  </div>
+                )}
               </div>
 
               {/* Sección de Otros Cursos */}
               <div className="space-y-6 pt-4">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-amber-500" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Otros Cursos Realizados</h3></div></div>
-                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Certificados de cursos, talleres o seminarios relevantes de los últimos 5 años</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-amber-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Otros Cursos Realizados</h3></div></div>
+                    <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Certificados de cursos, talleres o seminarios relevantes de los últimos 5 años</p>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded-full">Opcional</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-full">Opcional</span>
                 </div>
 
                 {/* Lista de cursos cargados */}
@@ -974,11 +1064,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
                               cursos_extras: prev.cursos_extras.map((c, i) =>
-                                i === idx ? { ...c, nombre: e.target.value } : c
+                                i === idx ? { ...c, fontName: e.target.value } : c
                               )
                             }))}
                             placeholder="Nombre del curso..."
-                            className="w-full text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
+                            className="w-full text-sm font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
                           />
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1.5">
@@ -992,11 +1082,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                                     i === idx ? { ...c, fecha: e.target.value } : c
                                   )
                                 }))}
-                                className="text-[10px] font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
                               />
                             </div>
                             <a href={curso.url} target="_blank" rel="noopener noreferrer"
-                              className="text-[9px] text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
                               Ver archivo
                             </a>
                           </div>
@@ -1016,18 +1106,18 @@ export default function VerificarPreinscripcionProgramaPage() {
                 {/* Input nombre + Fecha + Uploader para nuevo curso */}
                 <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Curso</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Nombre del Curso</label>
                       <input
                         type="text"
                         value={pendingCursoNombre}
                         onChange={(e) => setPendingCursoNombre(e.target.value)}
                         placeholder="Nombre del curso (ej: Valuación Inmobiliaria UCAB)..."
-                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha del Certificado</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
                       <div className="relative">
                         <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -1036,7 +1126,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           max={new Date().toISOString().split('T')[0]}
                           min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
                           onChange={(e) => setPendingCursoFecha(e.target.value)}
-                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-blue-400 bg-white transition"
+                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-blue-400 bg-white transition"
                         />
                       </div>
                     </div>
@@ -1090,11 +1180,11 @@ export default function VerificarPreinscripcionProgramaPage() {
               {/* Sección de Otros Documentos */}
               <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-slate-500" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Otros Documentos Relevantes</h3></div></div>
-                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">Cualquier otra documentación que consideres relevante para tu aplicación</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-slate-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Otros Documentos Relevantes</h3></div></div>
+                    <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Cualquier otra documentación que consideres relevante para tu aplicación</p>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded-full">Opcional</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-full">Opcional</span>
                 </div>
 
                 {/* Lista de otros cargados */}
@@ -1116,7 +1206,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               )
                             }))}
                             placeholder="Nombre del documento..."
-                            className="w-full text-xs font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
+                            className="w-full text-sm font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
                           />
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1.5">
@@ -1130,11 +1220,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                                     i === idx ? { ...item, fecha: e.target.value } : item
                                   )
                                 }))}
-                                className="text-[10px] font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
                               />
                             </div>
                             <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                              className="text-[9px] text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
                               Ver archivo
                             </a>
                           </div>
@@ -1154,18 +1244,18 @@ export default function VerificarPreinscripcionProgramaPage() {
                 {/* Input nombre + Fecha + Uploader para nuevo otro documento */}
                 <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre del Documento</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Nombre del Documento</label>
                       <input
                         type="text"
                         value={pendingOtroNombre}
                         onChange={(e) => setPendingOtroNombre(e.target.value)}
                         placeholder="Nombre o descripción..."
-                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha del Documento</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Documento</label>
                       <div className="relative">
                         <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -1173,7 +1263,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={pendingOtroFecha}
                           max={new Date().toISOString().split('T')[0]}
                           onChange={(e) => setPendingOtroFecha(e.target.value)}
-                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 bg-white transition"
+                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 bg-white transition"
                         />
                       </div>
                     </div>
@@ -1203,9 +1293,9 @@ export default function VerificarPreinscripcionProgramaPage() {
               {/* SECCIÓN EMPRESA AL FINAL PARA CORPORATIVOS */}
               {isCorporativo && (
                 <div className="space-y-6 pt-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-1"><div className="w-1 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22]">Soportes de la Empresa</h3></div></div>
-                    <p className="text-[10px] text-slate-400 font-medium ml-4 italic">RIF y Acta Constitutiva vigentes.</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Soportes de la Empresa</h3></div></div>
+                    <p className="text-sm text-slate-600 font-medium ml-4.5 italic">RIF y Acta Constitutiva vigentes.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FileUpload
@@ -1213,6 +1303,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                       accept="image/*,.pdf"
                       folder="afiliados/empresas"
                       required
+                      initialUrl={formData.url_titulo || undefined}
                       onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_titulo: url }))}
                       onClear={() => setFormData(prev => ({ ...prev, url_titulo: '' }))}
                     />
@@ -1221,26 +1312,153 @@ export default function VerificarPreinscripcionProgramaPage() {
                       accept=".pdf"
                       folder="afiliados/empresas"
                       required
+                      initialUrl={formData.url_registro_mercantil || undefined}
                       onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_registro_mercantil: url }))}
                       onClear={() => setFormData(prev => ({ ...prev, url_registro_mercantil: '' }))}
                     />
                   </div>
                 </div>
-              )}              
+              )}
 
-              <button type="submit" disabled={submitLoading || (isCorporativo ? (!formData.url_titulo || !formData.url_registro_mercantil || !formData.url_titulo_representante) : (!formData.url_cv || !formData.url_titulo)) || (formData.nivelProfesional === 'Postgrado' && formData.especializaciones.length === 0) || isReferencesIncomplete} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-xs ${INPUT_H}`}>
+              {/* SECCIÓN REFERENCIAS DE AFILIADOS AL FINAL */}
+              {showReferencesSection && (
+                <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
+                      <div>
+                        <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
+                          Referencias de Afiliados Activos
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
+                      Debes adjuntar dos cartas de recomendación moral emitidas por afiliados activos de la Cámara.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Referencia 1 */}
+                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
+                      <div className="space-y-1.5">
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">
+                          Recomendante 1 (Opcional)
+                        </label>
+                        <div className="relative group">
+                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                          <input
+                            type="text"
+                            value={searchCedula1}
+                            onChange={(e) => handleSearchCedula1Change(e.target.value)}
+                            placeholder="Buscar por Cédula..."
+                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Display Selected Affiliate Status */}
+                      {searchCedula1.replace(/\D/g, '').length >= 5 && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                          {selectedAffiliate1 ? (
+                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold">
+                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                              <div className="truncate">
+                                <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
+                                <span className="truncate block mt-0.5">{selectedAffiliate1.nombre_completo}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-xs font-bold">
+                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                              <div>
+                                <span className="text-[11px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
+                                <span className="block mt-0.5">No se encontró el afiliado.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <FileUpload
+                        label="Referencia de afiliado 1"
+                        accept="image/*,.pdf"
+                        folder="afiliados/referencias"
+                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia1: url }))}
+                        onClear={() => setFormData(prev => ({ ...prev, url_referencia1: '' }))}
+                      />
+                    </div>
+
+                    {/* Referencia 2 */}
+                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
+                      <div className="space-y-1.5">
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">
+                          Recomendante 2 (Opcional)
+                        </label>
+                        <div className="relative group">
+                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                          <input
+                            type="text"
+                            value={searchCedula2}
+                            onChange={(e) => handleSearchCedula2Change(e.target.value)}
+                            placeholder="Buscar por Cédula..."
+                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Display Selected Affiliate Status */}
+                      {searchCedula2.replace(/\D/g, '').length >= 5 && (
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                          {selectedAffiliate2 ? (
+                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold">
+                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                              <div className="truncate">
+                                <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
+                                <span className="truncate block mt-0.5">{selectedAffiliate2.nombre_completo}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-xs font-bold">
+                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                              <div>
+                                <span className="text-[11px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
+                                <span className="block mt-0.5">No se encontró el afiliado.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <FileUpload
+                        label="Referencia de afiliado 2"
+                        accept="image/*,.pdf"
+                        folder="afiliados/referencias"
+                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia2: url }))}
+                        onClear={() => setFormData(prev => ({ ...prev, url_referencia2: '' }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" disabled={submitLoading || !formData.url_cv || (isCorporativo ? (!formData.url_titulo || !formData.url_registro_mercantil || !formData.url_titulo_representante) : !formData.url_titulo) || (formData.nivelProfesional === 'Postgrado' && formData.especializaciones.length === 0) || isReferencesIncomplete} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
                 {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
               </button>
             </form>
           )}
 
-          {status === 'verifying' && (
-            <div className="flex flex-col items-center py-16 text-center space-y-8 animate-in fade-in duration-500">
-              <Loader2 size={48} className="animate-spin text-emerald-600" />
-              <div className="space-y-2">
-                <h2 className="text-xl font-black text-[#022c22] uppercase tracking-tight">Procesando Solicitud</h2>
-                <p className="text-slate-500 text-xs leading-relaxed">Por favor espera un momento mientras cargamos tus datos y generamos tu expediente...</p>
+          {status === 'error' && (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-8 animate-in fade-in zoom-in-95 duration-500 min-h-[50vh]">
+              <div className="w-20 h-20 rounded-[2rem] flex items-center justify-center bg-rose-50 text-rose-500 shadow-xl shadow-rose-500/10">
+                <XCircle size={44} strokeWidth={1.5} />
               </div>
+              <div className="space-y-3 max-w-md">
+                <h2 className="text-2xl font-black text-rose-950 uppercase tracking-tight">Error de Verificación</h2>
+                <p className="text-slate-600 text-sm leading-relaxed">{message}</p>
+              </div>
+              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all ${INPUT_H}`}>
+                <Home size={16} /> Volver al Inicio
+              </Link>
             </div>
           )}
 
@@ -1251,14 +1469,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                 <h2 className="text-3xl font-black text-[#022c22] uppercase tracking-tighter">
                   {isAfiliacion ? 'Solicitud Enviada' : '¡Preinscripción Exitosa!'}
                 </h2>
-                <p className="text-slate-500 max-w-md mx-auto leading-relaxed">
+                <p className="text-slate-600 text-sm md:text-base max-w-md mx-auto leading-relaxed">
                   {isAfiliacion
                     ? 'Tus documentos han sido cargados correctamente. La Cámara revisará tu perfil y se pondrá en contacto contigo para los siguientes pasos de tu afiliación.'
                     : 'Hemos recibido tus documentos. Te enviaremos un correo con los detalles de la entrevista y el proceso de admisión al programa.'
                   }
                 </p>
               </div>
-              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-[10px] shadow-lg hover:-translate-y-1 transition-all ${INPUT_H}`}><Home size={16} />Volver al Inicio</Link>
+              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all ${INPUT_H}`}><Home size={16} />Volver al Inicio</Link>
             </div>
           )}
         </div>

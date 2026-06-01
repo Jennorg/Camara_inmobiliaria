@@ -6,9 +6,13 @@ interface FileUploadProps {
   label: string;
   accept?: string;
   folder?: string;
-  onUploadSuccess: (url: string) => void;
+  onUploadSuccess: (url: string, fileName?: string) => void;
   onClear: () => void;
   required?: boolean;
+  /** URL de un archivo ya subido previamente (p.ej. restaurado de localStorage). */
+  initialUrl?: string;
+  /** Nombre original del archivo cuando se restaura del progreso guardado. */
+  initialFileName?: string;
 }
 
 export default function FileUpload({ 
@@ -17,14 +21,21 @@ export default function FileUpload({
   folder = "registros", 
   onUploadSuccess, 
   onClear,
-  required = false
-}: FileUploadProps) {
+  required = false,
+  initialUrl,
+  initialFileName,}: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  // Si se provee una URL inicial (restaurada desde progreso guardado), partimos de ese estado
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(initialUrl ?? null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Nombre original del archivo restaurado (si existe)
+  const [restoredFileName, setRestoredFileName] = useState<string | null>(initialFileName ?? null);
+
+
+  // No longer needed: filename extraction was handled via stored name
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
     let selectedFile: File | undefined;
@@ -82,7 +93,8 @@ export default function FileUpload({
 
       // 3. Success
       setUploadedUrl(publicUrl);
-      onUploadSuccess(publicUrl);
+      setRestoredFileName(selectedFile.name);
+      onUploadSuccess(publicUrl, selectedFile.name);
     } catch (err: any) {
       console.error('FileUpload error:', err);
       setError(err.message || 'Error al subir el archivo');
@@ -111,6 +123,7 @@ export default function FileUpload({
     e.stopPropagation();
     setFile(null);
     setUploadedUrl(null);
+    setRestoredFileName(null);
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
     onClear();
@@ -120,11 +133,11 @@ export default function FileUpload({
 
   return (
     <div className="space-y-2.5">
-      <label className="text-[10px] font-black uppercase tracking-[0.15em] ml-1 text-slate-500 flex justify-between items-center">
+      <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex justify-between items-center">
         <span>{label} {required && <span className="text-rose-500">*</span>}</span>
         {uploadedUrl && (
-          <span className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full text-[9px] border border-emerald-100">
-            <CheckCircle2 size={10} /> CARGADO
+          <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100">
+            <CheckCircle2 size={12} /> CARGADO
           </span>
         )}
       </label>
@@ -152,10 +165,10 @@ export default function FileUpload({
               <FileUp size={24} />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">
+              <p className="text-base font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">
                 {isDragging ? 'Suelta el archivo aquí' : 'Haz clic o arrastra un archivo'}
               </p>
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-normal">
                 Soporta PDF, JPG, PNG (Máx 5MB)
               </p>
             </div>
@@ -176,10 +189,10 @@ export default function FileUpload({
             
             <div className="flex flex-col flex-1 min-w-0">
               <span className="text-sm font-bold text-slate-800 truncate">
-                {file?.name || 'Archivo cargado'}
+                {file?.name || restoredFileName || (uploadedUrl ? uploadedUrl.split('/').pop()?.split('?')[0] || 'Archivo cargado' : 'Archivo cargado')}
               </span>
               <div className="flex items-center gap-3 mt-0.5">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${uploading ? 'text-emerald-500 animate-pulse' : 'text-emerald-600'}`}>
+                <span className={`text-xs font-black uppercase tracking-widest ${uploading ? 'text-emerald-500 animate-pulse' : 'text-emerald-600'}`}>
                   {uploading ? 'Subiendo...' : 'Listo para procesar'}
                 </span>
                 {uploadedUrl && !uploading && (
@@ -188,7 +201,7 @@ export default function FileUpload({
                     target="_blank" 
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] text-blue-600 hover:text-blue-700 font-bold underline uppercase tracking-widest"
+                    className="text-xs text-blue-600 hover:text-blue-700 font-bold underline uppercase tracking-widest"
                   >
                     Ver archivo
                   </a>
@@ -225,8 +238,8 @@ export default function FileUpload({
 
       {error && (
         <div className="flex items-center gap-1.5 text-rose-500 px-1 animate-in slide-in-from-top-1">
-          <AlertCircle size={12} />
-          <span className="text-[10px] font-bold uppercase tracking-tight">{error}</span>
+          <AlertCircle size={14} />
+          <span className="text-xs font-bold uppercase tracking-tight">{error}</span>
         </div>
       )}
     </div>
