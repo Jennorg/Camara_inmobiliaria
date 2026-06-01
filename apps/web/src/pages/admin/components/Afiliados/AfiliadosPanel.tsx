@@ -113,7 +113,7 @@ export default function AfiliadosPanel() {
       })
       if (res.ok) {
         await loadDetail(selected.id_afiliado)
-        if (['estatus', 'nombre_completo', 'codigo_cibir', 'tipo_afiliado'].includes(field)) await load()
+        if (['estatus', 'nombre_completo', 'codigo', 'tipo_afiliado'].includes(field)) await load()
       }
     } catch (err) { console.error(err) }
   }
@@ -236,7 +236,7 @@ export default function AfiliadosPanel() {
                 </div>
                 <span className="text-xs text-slate-400 truncate">{a.email}</span>
                 <span className="text-[10px] text-slate-300">
-                  #{a.id_afiliado} · {a.codigo_cibir || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
+                  #{a.id_afiliado} · {a.codigo || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
                 </span>
               </button>
             ))
@@ -283,9 +283,9 @@ export default function AfiliadosPanel() {
                   <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">
                     {selected.estatus.replace(/_/g, ' ')}
                   </span>
-                  {selected.codigo_cibir && (
+                  {selected.codigo && (
                     <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700">
-                      {selected.codigo_cibir}
+                      {selected.codigo}
                     </span>
                   )}
                 </div>

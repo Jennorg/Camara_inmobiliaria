@@ -78,7 +78,7 @@ const DirectorioPage = () => {
   }, []);
 
   const fuse = useMemo(() => new Fuse(afiliados, {
-    keys: ['nombre_completo', 'codigo_cibir', 'cedula', 'empresa_rif_numero'],
+    keys: ['nombre_completo', 'codigo', 'cedula', 'empresa_rif_numero'],
     threshold: 0.25, // Un poco más estricto para evitar ruido en códigos numéricos
     ignoreLocation: true,
     minMatchCharLength: 1
@@ -100,10 +100,10 @@ const DirectorioPage = () => {
       });
     }
 
-    // Ordenar por código (codigo_cibir) de forma numérica. Items sin código van al final.
+    // Ordenar por código (codigo) de forma numérica. Items sin código van al final.
     return [...base].sort((a, b) => {
-      const codeA = a.codigo_cibir ? parseInt(a.codigo_cibir, 10) : Infinity;
-      const codeB = b.codigo_cibir ? parseInt(b.codigo_cibir, 10) : Infinity;
+      const codeA = a.codigo ? parseInt(a.codigo, 10) : Infinity;
+      const codeB = b.codigo ? parseInt(b.codigo, 10) : Infinity;
       if (isNaN(codeA) && isNaN(codeB)) return 0;
       if (isNaN(codeA)) return 1;
       if (isNaN(codeB)) return -1;

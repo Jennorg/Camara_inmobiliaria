@@ -51,12 +51,12 @@ export async function generateAfiliadosPdf({
   // Excluir los que no tienen código asignado y ordenar por código de forma ascendente
   const sortedRows = rows
     .filter((row) => {
-      const code = row.codigo_cibir?.trim()
+      const code = row.codigo?.trim()
       return code !== undefined && code !== null && code !== ''
     })
     .sort((a, b) => {
-      const codeA = a.codigo_cibir?.trim() || ''
-      const codeB = b.codigo_cibir?.trim() || ''
+      const codeA = a.codigo?.trim() || ''
+      const codeB = b.codigo?.trim() || ''
       
       const numA = Number(codeA)
       const numB = Number(codeB)

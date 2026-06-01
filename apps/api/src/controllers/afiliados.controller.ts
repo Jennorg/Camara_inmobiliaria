@@ -15,6 +15,7 @@ import {
 } from '../lib/email.js';
 import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
 import bcrypt from 'bcryptjs';
+import { NotificationService } from '../services/notification.service.js';
 
 /**
  * GET /api/afiliados/:id
@@ -47,7 +48,7 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
           ic.estatus AS inscripcion_estatus,
           ic.completado,
           cu.titulo AS curso_nombre,
-          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as estudiante_nombre
+          COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as estudiante_nombre
         FROM certificados c
         JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
@@ -193,8 +194,8 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    json_extract(e.redes_sociales, '$.linkedin') as empresa_linkedin,
                    json_extract(e.redes_sociales, '$.twitter') as empresa_twitter,
                    CASE 
-                     WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
-                     ELSE p.nombres || ' ' || p.apellidos 
+                     WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
+                     ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
                    END as nombre_completo
             FROM afiliados a
             JOIN personas p ON a.id_persona = p.id
@@ -417,7 +418,7 @@ export const verificarEmail = async (req: Request, res: Response) => {
 
       if (newAfiliado?.id_afiliado) {
         await db.execute({
-          sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
+          sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
           args: [newAfiliado.id_afiliado]
         });
       }
@@ -435,6 +436,19 @@ export const verificarEmail = async (req: Request, res: Response) => {
         cedulaRif: registro.cedula_rif as string,
         telefono: registro.telefono as string
       }).catch(e => console.error('Error notificando admin (afiliación):', e));
+
+      NotificationService.notifyAdmins({
+        title: `Nueva Solicitud de Afiliación`,
+        message: `El candidato ${registro.nombre_completo} (${registro.email}) ha completado el registro inicial (CIBIR).`,
+        type: 'AFILIACION_NUEVA',
+        priority: 'ALTA',
+        data: {
+          nombre: registro.nombre_completo as string,
+          email: registro.email as string,
+          cedulaRif: registro.cedula_rif as string,
+          telefono: registro.telefono as string
+        }
+      }).catch(e => console.error('Error enviando notificación In-App a admins (afiliación):', e));
 
       return res.status(201).json({
         success: true,
@@ -462,7 +476,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
     const { estatus, tipo_afiliado } = req.query;
 
     let sql = `
-      SELECT a.*, 
+      SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
              p.nombres, p.apellidos, 
              p.cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico, p.foto_url,
              e.razon_social as empresa_razon_social, 
@@ -477,8 +491,8 @@ export const getAfiliados = async (req: Request, res: Response) => {
              COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
              COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
              CASE 
-               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
-               ELSE p.nombres || ' ' || p.apellidos 
+               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''))
+               ELSE NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')
              END as nombre_completo
       FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
@@ -493,7 +507,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
       ) e_redes ON a.id_empresa = e_redes.id_empresa
       WHERE a.eliminado_en IS NULL
         AND p.eliminado_en IS NULL
-        AND (e.eliminado_en IS NULL OR e.eliminado_en IS NULL)  -- empresas puede no existir
+        AND e.eliminado_en IS NULL
     `;
 
     const args: any[] = [];
@@ -537,7 +551,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
 
     // 1. Verificar si existe y si su estatus es Preinscrito
     const resultAfiliado = await db.execute({
-      sql: `SELECT a.*, p.nombres || ' ' || p.apellidos as nombre_completo, p.email as email 
+      sql: `SELECT a.*, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, p.email as email 
             FROM afiliados a 
             JOIN personas p ON a.id_persona = p.id 
             WHERE a.id_afiliado = ?`,
@@ -563,15 +577,15 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     // 2. Generar el código de Afiliado (Secuencial Numérico)
     // Buscamos el último código numérico asignado
     const resultUltimoCode = await db.execute({
-      sql: `SELECT codigo_cibir FROM afiliados 
-            WHERE codigo_cibir GLOB '[0-9]*' 
-            ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
+      sql: `SELECT codigo FROM afiliados 
+            WHERE codigo GLOB '[0-9]*' 
+            ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
       args: []
     });
 
     let correlativo = 1;
-    if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo_cibir) {
-      const lastCode = parseInt(resultUltimoCode.rows[0].codigo_cibir as string, 10);
+    if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
+      const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10);
       if (!isNaN(lastCode)) {
         correlativo = lastCode + 1;
       }
@@ -584,9 +598,14 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
 
     const updateResult = await db.execute({
       sql: `UPDATE afiliados 
-            SET estatus = 'Afiliado', inscripcion_pagada = 1, codigo_cibir = ?, fecha_ultimo_cambio_estatus = ?, actualizado_en = ?
+            SET estatus = 'Afiliado', 
+                inscripcion_pagada = 1, 
+                codigo = ?, 
+                fecha_ultimo_cambio_estatus = ?, 
+                fecha_afiliacion = COALESCE(fecha_afiliacion, ?),
+                actualizado_en = ?
             WHERE id_afiliado = ? RETURNING *`,
-      args: [codigoAfiliado, fechaCambio, fechaCambio, id]
+      args: [codigoAfiliado, fechaCambio, fechaCambio, fechaCambio, id]
     });
 
     const afiliadoActualizado = updateResult.rows[0];
@@ -706,11 +725,11 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       sql: `
       SELECT a.id_afiliado, a.id_empresa,
              CASE 
-               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
-               ELSE p.nombres || ' ' || p.apellidos 
+               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''))
+               ELSE NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') 
              END as nombre_completo, 
-             p.nombres || ' ' || p.apellidos as representante_nombre,
-             p.nombres, p.apellidos, a.codigo_cibir, p.foto_url,
+             NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') as representante_nombre,
+             p.nombres, p.apellidos, a.codigo, p.foto_url, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
              p.cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
              a.tipo_afiliado,
              e.razon_social as empresa_razon_social,
@@ -726,7 +745,10 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
       WHERE (a.estatus = 'Afiliado' OR (a.tipo_afiliado = 'Corporativo' AND a.estatus NOT IN ('Rechazado', 'Cancelado')))
         AND a.activo = 1
-      ORDER BY CASE WHEN a.estatus = 'Afiliado' THEN 0 ELSE 1 END ASC, CAST(a.codigo_cibir AS INTEGER) ASC
+        AND a.eliminado_en IS NULL
+        AND p.eliminado_en IS NULL
+        AND e.eliminado_en IS NULL
+      ORDER BY CASE WHEN a.estatus = 'Afiliado' THEN 0 ELSE 1 END ASC, CAST(a.codigo AS INTEGER) ASC
       `,      args: []
     });
 
@@ -765,10 +787,10 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     const { id } = req.params;
     const result = await db.execute({
       sql: `
-        SELECT a.*, 
+        SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
                CASE 
-                 WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos)
-                 ELSE p.nombres || ' ' || p.apellidos 
+                 WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
+                 ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
                END as nombre_completo, 
                p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
                p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
@@ -821,7 +843,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     if (row.tipo_afiliado === 'Corporativo') {
       const assocResult = await db.execute({
         sql: `
-          SELECT a.id_afiliado, p.nombres || ' ' || p.apellidos as nombre_completo, a.codigo_cibir, p.cedula, a.tipo_afiliado, p.foto_url
+          SELECT a.id_afiliado, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, a.codigo, p.cedula, a.tipo_afiliado, p.foto_url
           FROM afiliados a
           JOIN personas p ON a.id_persona = p.id
           WHERE a.id_empresa = ? AND a.estatus = 'Afiliado' AND a.activo = 1
@@ -867,8 +889,8 @@ export const getSolicitudesCibir = async (req: Request, res: Response) => {
     let sql = `
       SELECT a.*, 
              p.nombres, p.apellidos, 
-             p.nombres || ' ' || p.apellidos as nombre_completo, 
-             p.cedula, p.email, p.telefono,
+             COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, 
+             p.cedula, p.email, p.telefono, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
              e.razon_social as empresa_razon_social
       FROM afiliados a 
       JOIN personas p ON a.id_persona = p.id
@@ -935,6 +957,22 @@ export const formalizarInscripcion = async (req: Request, res: Response) => {
       args: [requesterId]
     });
 
+    const userDisplayName = req.user!.nombre_completo || req.user!.email || 'Afiliado';
+    NotificationService.notifyAdmins({
+      title: `Pago de Inscripción Registrado`,
+      message: `El afiliado ${userDisplayName} ha registrado un pago de ${monto} en ${banco} (Ref: ${referencia}).`,
+      type: 'PAGO_REGISTRADO',
+      priority: 'ALTA',
+      data: {
+        id_afiliado: requesterId,
+        nombre: userDisplayName,
+        email: req.user!.email,
+        banco,
+        referencia,
+        monto
+      }
+    }).catch(e => console.error('Error enviando notificación In-App a admins (pago):', e));
+
     return res.status(200).json({
       success: true,
       message: 'Inscripción formalizada exitosamente. El portal ha sido desbloqueado.'
@@ -985,27 +1023,30 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
 
     args.push(Number(id));
 
-    // Si el estatus cambia a 'Afiliado', nos aseguramos de que tenga un código de afiliado
+    // Si el estatus cambia a 'Afiliado', nos aseguramos de que tenga un código de afiliado y fecha de afiliación
     if (estatus === 'Afiliado') {
+      setParts.push('fecha_afiliacion = COALESCE(fecha_afiliacion, ?)');
+      args.splice(args.length - 1, 0, new Date().toISOString());
+
       const currentRes = await db.execute({
-        sql: 'SELECT codigo_cibir FROM afiliados WHERE id_afiliado = ?',
+        sql: 'SELECT codigo FROM afiliados WHERE id_afiliado = ?',
         args: [Number(id)]
       });
       const current = currentRes.rows[0];
-      if (!current || !current.codigo_cibir) {
+      if (!current || !current.codigo) {
         // Generar nuevo código correlativo
         const resultUltimoCode = await db.execute({
-          sql: `SELECT codigo_cibir FROM afiliados 
-                WHERE codigo_cibir GLOB '[0-9]*' 
-                ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
+          sql: `SELECT codigo FROM afiliados 
+                WHERE codigo GLOB '[0-9]*' 
+                ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
           args: []
         });
         let correlativo = 1;
-        if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo_cibir) {
-          const lastCode = parseInt(resultUltimoCode.rows[0].codigo_cibir as string, 10);
+        if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
+          const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10);
           if (!isNaN(lastCode)) correlativo = lastCode + 1;
         }
-        setParts.push('codigo_cibir = ?');
+        setParts.push('codigo = ?');
         args.splice(args.length - 1, 0, correlativo.toString()); // Insertar antes del ID
       }
     }
@@ -1041,10 +1082,10 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     // Campos permitidos por entidad
     const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
-    const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo_cibir', 'id_empresa', 'activo'];
+    const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo', 'id_empresa', 'activo'];
     const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
-      'codigo_cibir', 'id_empresa', 'notas', 'activo', 'redes_sociales'
+      'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio'
     ];
     const empresaFieldsMap: Record<string, string> = {
       empresa_razon_social: 'razon_social',
@@ -1517,7 +1558,7 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
     const nivelProfesional = typeof req.body?.nivelProfesional === 'string' ? req.body.nivelProfesional.trim() : null
     const esCorredorInmobiliario = req.body?.esCorredorInmobiliario === true || req.body?.esCorredorInmobiliario === 'si' ? 1 : 0
 
-    const NIVELES_VALIDOS = new Set(['Bachiller', 'TSU', 'Universitario', 'Postgrado'])
+    const NIVELES_VALIDOS = new Set(['Bachiller', 'TSU', 'Nivel Profesional', 'Postgrado'])
     if (!nombreCompleto || !email || !cedulaRif) {
       res.status(400).json({ success: false, message: 'Nombre completo, cédula y email son obligatorios.' }); return
     }
@@ -1611,7 +1652,7 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     const {
       nombres, apellidos, empresa_razon_social,
       cedula, email, tipo_afiliado, estatus,
-      telefono, direccion, codigo_cibir,
+      telefono, direccion, codigo,
       id_empresa, instagram, facebook, linkedin
     } = req.body;
 
@@ -1657,9 +1698,9 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     const redes_sociales = JSON.stringify({ instagram, facebook, linkedin });
     const resultA = await db.execute({
       sql: `INSERT INTO afiliados (
-        id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir, redes_sociales, activo
+        id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, activo
       ) VALUES (?, ?, ?, ?, ?, ?, 1) RETURNING *`,
-      args: [idPersona, finalIdEmpresa, tipoFinal, estatus || 'Afiliado', codigo_cibir || null, redes_sociales]
+      args: [idPersona, finalIdEmpresa, tipoFinal, estatus || 'Afiliado', codigo || null, redes_sociales]
     });
 
     res.status(201).json({
@@ -1987,7 +2028,7 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
 
     if (idAfiliado) {
       await db.execute({
-        sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
+        sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ?`,
         args: [idAfiliado]
       })
     }

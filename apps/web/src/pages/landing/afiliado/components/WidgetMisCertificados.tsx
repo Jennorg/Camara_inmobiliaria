@@ -103,7 +103,7 @@ const WidgetMisCertificados: React.FC = () => {
                   <ShieldCheck size={11} /> Miembro Activo
                 </span>
                 <span className="text-slate-400 text-xs font-bold font-mono">
-                  CIBIR ID: #{afiliadoData?.codigo_cibir || user?.id_afiliado}
+                  ID de Afiliado: #{afiliadoData?.codigo || user?.id_afiliado}
                 </span>
               </div>
               <h4 className="font-extrabold text-base text-emerald-950">

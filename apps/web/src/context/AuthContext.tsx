@@ -2,6 +2,84 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
 
+// ── Interceptor de Fetch Global (Manejo de Access + Refresh Tokens) ────────────
+
+let activeAccessToken: string | null = null;
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+const originalFetch = window.fetch;
+
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
+  
+  // Solo interceptar peticiones a nuestra API
+  const isApiCall = url.startsWith(API_URL) || url.startsWith('/api');
+  
+  let headers = new Headers(init?.headers);
+  if (isApiCall && activeAccessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${activeAccessToken}`);
+  }
+  
+  let newInit: RequestInit = { ...init, headers };
+  if (isApiCall) {
+    newInit.credentials = 'include'; // Permitir envío de cookies HttpOnly
+  }
+  
+  let response = await originalFetch(input, newInit);
+  
+  const isAuthEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/refresh') || url.includes('/api/auth/logout');
+  if (isApiCall && response.status === 401 && !isAuthEndpoint) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshRes = await originalFetch(`${API_URL}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        const refreshData = await refreshRes.json();
+        
+        if (refreshRes.ok && refreshData.success && refreshData.token) {
+          activeAccessToken = refreshData.token;
+          isRefreshing = false;
+          onRefreshed(refreshData.token);
+          
+          window.dispatchEvent(new CustomEvent('ciebo_auth_refresh', { 
+            detail: { token: refreshData.token, user: refreshData.user } 
+          }));
+        } else {
+          isRefreshing = false;
+          activeAccessToken = null;
+          window.dispatchEvent(new CustomEvent('ciebo_auth_expired'));
+          return response;
+        }
+      } catch (err) {
+        isRefreshing = false;
+        return response;
+      }
+    }
+    
+    // Encolar peticiones mientras se refresca el token
+    return new Promise((resolveRequest) => {
+      subscribeTokenRefresh((newToken) => {
+        headers.set('Authorization', `Bearer ${newToken}`);
+        resolveRequest(originalFetch(input, { ...init, headers, credentials: 'include' }));
+      });
+    });
+  }
+  
+  return response;
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante'
@@ -20,7 +98,7 @@ export interface AuthUser {
   
   // Datos de perfil
   nombre_completo?: string
-  codigo_cibir?: string
+  codigo?: string | null
   cedula?: string
   tipo_afiliado?: string
   telefono?: string
@@ -75,9 +153,39 @@ function normalizeUser(rawUser: any): AuthUser {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]         = useState<AuthUser | null>(null)
-  const [token, setToken]       = useState<string | null>(null)
+  const [token, setTokenState]  = useState<string | null>(null)
   const [isLoading, setLoading] = useState(true)
   const navigate                = useNavigate()
+
+  // Sincronizar el token con el interceptor global
+  const setToken = useCallback((t: string | null) => {
+    activeAccessToken = t;
+    setTokenState(t);
+  }, []);
+
+  // Listen to custom auth events from global fetch interceptor
+  useEffect(() => {
+    const handleRefresh = (e: Event) => {
+      const { token: newToken, user: newUser } = (e as CustomEvent).detail
+      setToken(newToken)
+      setUser(normalizeUser(newUser))
+    };
+    
+    const handleExpired = () => {
+      localStorage.removeItem(TOKEN_KEY)
+      setToken(null)
+      setUser(null)
+      navigate('/')
+    };
+    
+    window.addEventListener('ciebo_auth_refresh', handleRefresh)
+    window.addEventListener('ciebo_auth_expired', handleExpired)
+    
+    return () => {
+      window.removeEventListener('ciebo_auth_refresh', handleRefresh)
+      window.removeEventListener('ciebo_auth_expired', handleExpired)
+    };
+  }, [navigate, setToken])
 
   // Restore session on mount
   useEffect(() => {
@@ -92,23 +200,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const storedToken = urlToken || localStorage.getItem(TOKEN_KEY)
-    if (!storedToken) { setLoading(false); return }
 
-    fetch(`${API_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${storedToken}` },
+    // Intentamos recuperar sesión con el endpoint /refresh
+    fetch(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include'
     })
       .then(r => r.json())
       .then(data => {
-        if (data.success && data.user) {
-          setToken(storedToken)
+        if (data.success && data.token && data.user) {
+          setToken(data.token)
           setUser(normalizeUser(data.user))
+          setLoading(false)
         } else {
-          localStorage.removeItem(TOKEN_KEY)
+          // Si falla, intentamos usar el token legacy de localStorage (si existe)
+          if (storedToken) {
+            fetch(`${API_URL}/api/auth/me`, {
+              headers: { Authorization: `Bearer ${storedToken}` },
+              credentials: 'include'
+            })
+              .then(r => r.json())
+              .then(meData => {
+                if (meData.success && meData.user) {
+                  setToken(storedToken)
+                  setUser(normalizeUser(meData.user))
+                } else {
+                  localStorage.removeItem(TOKEN_KEY)
+                }
+              })
+              .catch(() => localStorage.removeItem(TOKEN_KEY))
+              .finally(() => setLoading(false))
+          } else {
+            setLoading(false)
+          }
         }
       })
-      .catch(() => localStorage.removeItem(TOKEN_KEY))
-      .finally(() => setLoading(false))
-  }, [])
+      .catch(() => {
+        setLoading(false)
+      })
+  }, [setToken])
 
   // Login function
   const login = useCallback(async (email: string, password: string) => {
@@ -126,9 +256,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const newUser = normalizeUser(data.user)
 
-    localStorage.setItem(TOKEN_KEY, data.token)
     setToken(data.token)
     setUser(newUser)
+    
+    // Remover token legacy si iniciamos sesión con cookie
+    localStorage.removeItem(TOKEN_KEY)
 
     // Selector general si tiene múltiples roles al panel unificado
     if (newUser.roles.length > 1) {
@@ -148,16 +280,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     navigate('/panel')
-  }, [navigate])
+  }, [navigate, setToken])
 
   // Logout function
   const logout = useCallback(() => {
+    fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    }).catch(err => console.error('Error logging out on backend:', err))
+
     localStorage.removeItem(TOKEN_KEY)
     setToken(null)
     setUser(null)
 
     navigate('/')
-  }, [navigate])
+  }, [navigate, setToken])
 
   const refreshUser = useCallback(async () => {
     if (!token) return

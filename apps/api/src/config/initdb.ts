@@ -44,7 +44,7 @@ const statements = [
     fecha_nacimiento    TEXT,
     profesion           TEXT,
     direccion           TEXT,
-    nivel_academico     TEXT        CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Universitario','Postgrado')),
+    nivel_academico     TEXT        CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Nivel Profesional','Postgrado')),
     foto_url            TEXT,
     creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en      TEXT,
@@ -88,7 +88,7 @@ const statements = [
     id_afiliado                 INTEGER     PRIMARY KEY,
     id_user                     INTEGER     UNIQUE REFERENCES users(id) ON DELETE SET NULL,
     id_persona                  INTEGER     UNIQUE NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
-    codigo_cibir                TEXT        UNIQUE,
+    codigo                TEXT        UNIQUE,
     tipo_afiliado               TEXT        NOT NULL DEFAULT 'Natural'
                                             CHECK (tipo_afiliado IN ('Natural','Corporativo','Agente Corporativo')),
     notas                       TEXT,
@@ -103,6 +103,8 @@ const statements = [
     id_empresa                  INTEGER     REFERENCES empresas(id_empresa) ON DELETE SET NULL,
     fecha_registro              TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     fecha_ultimo_cambio_estatus TEXT,
+    fecha_afiliacion            TEXT,
+    ano_inicio_servicio         INTEGER,
     actualizado_en              TEXT,
     eliminado_en                TEXT,
     redes_sociales              TEXT        DEFAULT '{}',
@@ -220,8 +222,9 @@ const statements = [
     apellidos                 TEXT,
     cedula                    TEXT,
     telefono                  TEXT,
-    nivel_academico           TEXT CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Universitario','Postgrado')),
+    nivel_academico           TEXT CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Nivel Profesional','Postgrado')),
     profesion                 TEXT,
+    ano_inicio_servicio       INTEGER,
     tipo_afiliado             TEXT CHECK (tipo_afiliado IN ('Natural','Corporativo','Agente Corporativo')),
     id_empresa                INTEGER REFERENCES empresas(id_empresa) ON DELETE SET NULL,
     razon_social              TEXT,
@@ -499,7 +502,39 @@ const statements = [
     actualizado_en    TEXT        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     eliminado_en      TEXT
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_cms_paginas_activas ON cms_paginas(eliminado_en) WHERE eliminado_en IS NULL`
+  `CREATE INDEX IF NOT EXISTS idx_cms_paginas_activas ON cms_paginas(eliminado_en) WHERE eliminado_en IS NULL`,
+
+  // ===========================================================
+  // NOTIFICACIONES
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS notificaciones (
+    id                  INTEGER     PRIMARY KEY,
+    id_user             INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tipo                TEXT        NOT NULL DEFAULT 'SISTEMA',
+    prioridad           TEXT        NOT NULL DEFAULT 'NORMAL' CHECK (prioridad IN ('BAJA','NORMAL','ALTA','URGENTE')),
+    titulo              TEXT        NOT NULL,
+    mensaje             TEXT        NOT NULL,
+    data_json           TEXT        DEFAULT '{}',
+    leido               INTEGER     NOT NULL DEFAULT 0 CHECK (leido IN (0,1)),
+    enviado_email       INTEGER     NOT NULL DEFAULT 0 CHECK (enviado_email IN (0,1)),
+    creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    leido_en            TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_notificaciones_user ON notificaciones(id_user)`,
+  `CREATE INDEX IF NOT EXISTS idx_notificaciones_leido ON notificaciones(id_user, leido)`,
+
+  // ===========================================================
+  // REFRESH TOKENS (SESIONES DESLIZANTES)
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS user_refresh_tokens (
+    id                  INTEGER     PRIMARY KEY,
+    id_user             INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash          TEXT        UNIQUE NOT NULL,
+    expira_en           TEXT        NOT NULL,
+    creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_user_refresh_tokens_hash ON user_refresh_tokens(token_hash)`,
+  `CREATE INDEX IF NOT EXISTS idx_user_refresh_tokens_user ON user_refresh_tokens(id_user)`
 ]
 
 async function run() {
@@ -548,6 +583,27 @@ async function run() {
   try {
     await db.execute(`ALTER TABLE personas ADD COLUMN foto_url TEXT`)
     console.log('  · Migration: personas.foto_url')
+  } catch {
+    // columna ya existe
+  }
+
+  try {
+    await db.execute(`ALTER TABLE afiliados ADD COLUMN ano_inicio_servicio INTEGER`)
+    console.log('  · Migration: afiliados.ano_inicio_servicio')
+  } catch {
+    // columna ya existe
+  }
+
+  try {
+    await db.execute(`ALTER TABLE verificaciones_preinscripciones ADD COLUMN ano_inicio_servicio INTEGER`)
+    console.log('  · Migration: verificaciones_preinscripciones.ano_inicio_servicio')
+  } catch {
+    // columna ya existe
+  }
+
+  try {
+    await db.execute(`ALTER TABLE afiliados ADD COLUMN fecha_afiliacion TEXT`)
+    console.log('  · Migration: afiliados.fecha_afiliacion')
   } catch {
     // columna ya existe
   }
@@ -621,7 +677,7 @@ async function run() {
     const empresaId = Number(empRes.lastInsertRowid)
 
     const afilCorp = await db.execute({
-      sql: `INSERT INTO afiliados (id_user, id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir) VALUES (?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO afiliados (id_user, id_persona, id_empresa, tipo_afiliado, estatus, codigo) VALUES (?, ?, ?, ?, ?, ?)`,
       args: [userIdCorp, personaIdCorp, empresaId, 'Corporativo', 'Afiliado', 'CORP-001']
     })
     const idAfiliadoOwner = Number(afilCorp.lastInsertRowid)
@@ -648,7 +704,7 @@ async function run() {
     const personaIdNat = Number(persNat.lastInsertRowid)
 
     await db.execute({
-      sql: `INSERT INTO afiliados (id_user, id_persona, tipo_afiliado, estatus, codigo_cibir) VALUES (?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO afiliados (id_user, id_persona, tipo_afiliado, estatus, codigo) VALUES (?, ?, ?, ?, ?)`,
       args: [userIdNat, personaIdNat, 'Natural', 'Afiliado', 'NAT-001']
     })
     console.log(`  · Natural user ${natEmail} created.`)
@@ -668,7 +724,7 @@ async function run() {
     const personaIdAge = Number(persAge.lastInsertRowid)
 
     await db.execute({
-      sql: `INSERT INTO afiliados (id_user, id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir) VALUES (?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO afiliados (id_user, id_persona, id_empresa, tipo_afiliado, estatus, codigo) VALUES (?, ?, ?, ?, ?, ?)`,
       args: [userIdAge, personaIdAge, empresaId, 'Agente Corporativo', 'Afiliado', 'AGE-001']
     })
     console.log(`  · Agent user ${ageEmail} linked to company.`)

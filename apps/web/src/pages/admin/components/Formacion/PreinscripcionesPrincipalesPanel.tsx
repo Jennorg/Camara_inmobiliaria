@@ -41,6 +41,9 @@ type Row = {
   afiliado_estatus?: string
   afiliado_tipo?: string | null
   empresa_vinculada_nombre?: string | null
+  estudiante_es_corredor_inmobiliario?: number | boolean | null
+  ano_inicio_servicio?: number | null
+  apto_convalidacion?: number
 }
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -53,6 +56,7 @@ export default function PreinscripcionesPrincipalesPanel({
   type UiEstatus = 'Todos' | 'Pendiente' | 'Entrevista' | 'Aprobado' | 'Rechazado'
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
   const [search, setSearch] = useState('')
+  const [filtroConvalidacion, setFiltroConvalidacion] = useState<'todos' | 'apto' | 'no_apto'>('todos')
   const [rows, setRows] = useState<Row[]>([])
   const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, Entrevista: 0, Aprobado: 0, Rechazado: 0 })
   const [loading, setLoading] = useState(true)
@@ -60,6 +64,7 @@ export default function PreinscripcionesPrincipalesPanel({
   const [selected, setSelected] = useState<Row | null>(null)
   const [documentos, setDocumentos] = useState<{ id_documento: number; tipo_doc: string; url: string; nombre_archivo: string | null }[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
+  const [toggleLoading, setToggleLoading] = useState(false)
 
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
@@ -191,6 +196,41 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  const handleToggleCorredor = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selected) return
+    const newStatus = e.target.checked
+    setToggleLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/toggle-corredor`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ esCorredor: newStatus }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo actualizar')
+      
+      // Update local state
+      setRows(prev => prev.map(r => r.id_inscripcion === selected.id_inscripcion ? { ...r, estudiante_es_corredor_inmobiliario: newStatus } : r))
+      setSelected(prev => prev ? { ...prev, estudiante_es_corredor_inmobiliario: newStatus } : null)
+      
+      Swal.fire({
+        title: '¡Actualizado!',
+        text: 'El estado de corredor inmobiliario ha sido actualizado.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      })
+    } catch (err: any) {
+      Swal.fire({
+        title: 'Error',
+        text: err.message || 'No se pudo actualizar el estado',
+        icon: 'error'
+      })
+    } finally {
+      setToggleLoading(false)
+    }
+  }
+
   const handleVerReferencia = async (nombre: string) => {
     try {
       Swal.fire({
@@ -233,9 +273,9 @@ export default function PreinscripcionesPrincipalesPanel({
                 <p class="text-[10px] font-black uppercase text-slate-400">Cédula / RIF</p>
                 <p class="font-bold text-slate-800">${af.doc_identidad || 'No registrado'}</p>
               </div>
-              <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
-                <p class="text-[10px] font-black uppercase text-slate-400">Código CIBIR</p>
-                <p class="font-bold text-slate-800">${af.codigo_cibir || 'Sin código'}</p>
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
+                <p className="text-[10px] font-black uppercase text-slate-400">Código de Afiliado</p>
+                <p className="font-bold text-slate-800">${af.codigo || 'Sin código'}</p>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -308,14 +348,21 @@ export default function PreinscripcionesPrincipalesPanel({
   }
 
   const filteredRows = useMemo(() => {
-    if (!search) return rows
+    let result = rows
+    if (filtroConvalidacion === 'apto') {
+      result = result.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_convalidacion)
+    } else if (filtroConvalidacion === 'no_apto') {
+      result = result.filter(r => r.programa_codigo !== 'AFILIACION' || !r.apto_convalidacion)
+    }
+
+    if (!search) return result
     const q = search.toLowerCase()
-    return rows.filter(r =>
+    return result.filter(r =>
       r.estudiante_nombre?.toLowerCase().includes(q) ||
       r.estudiante_email?.toLowerCase().includes(q) ||
       r.estudiante_cedula?.toLowerCase().includes(q)
     )
-  }, [rows, search])
+  }, [rows, search, filtroConvalidacion])
 
   const mapStatusUI = (s: Estatus) => {
     if (s === 'Preinscrito') return 'Pendiente'
@@ -352,7 +399,7 @@ export default function PreinscripcionesPrincipalesPanel({
             <select
               value={programa}
               onChange={(e) => setPrograma(e.target.value as any)}
-              className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 outline-none focus:border-[#00D084] transition-all"
+              className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 outline-none focus:border-[#00D084] transition-all flex-1"
             >
               <option value="Todos">Todos los Programas</option>
               <option value="AFILIACION">AFILIACION</option>
@@ -360,6 +407,16 @@ export default function PreinscripcionesPrincipalesPanel({
               <option value="PADI">PADI</option>
               <option value="PEGI">PEGI</option>
               <option value="PREANI">PREANI</option>
+            </select>
+
+            <select
+              value={filtroConvalidacion}
+              onChange={(e) => setFiltroConvalidacion(e.target.value as any)}
+              className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 outline-none focus:border-[#00D084] transition-all flex-1"
+            >
+              <option value="todos">Todos (Convalidación)</option>
+              <option value="apto">Apto para convalidación</option>
+              <option value="no_apto">No apto para convalidación</option>
             </select>
           </div>
 
@@ -416,6 +473,11 @@ export default function PreinscripcionesPrincipalesPanel({
                   ) : r.programa_codigo}
                   {' • '}{r.estudiante_cedula || 'S/N'}
                 </span>
+                {r.programa_codigo === 'AFILIACION' && !!r.apto_convalidacion && (
+                  <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100 mt-0.5 self-start">
+                    Apto para convalidación
+                  </span>
+                )}
                 <span className="text-[10px] text-slate-300">{new Date(r.creado_en).toLocaleDateString('es-ES', { month: 'short', day: '2-digit', year: 'numeric' })}</span>
               </button>
             ))
@@ -441,6 +503,11 @@ export default function PreinscripcionesPrincipalesPanel({
                 <h3 className="text-sm font-bold text-slate-900 leading-tight">{selected.estudiante_nombre}</h3>
 
                 <p className="text-xs text-slate-400 mt-0.5 truncate">{selected.estudiante_cedula || 'Sin documento'}</p>
+                {selected.programa_codigo === 'AFILIACION' && !!selected.apto_convalidacion && (
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100 mt-1">
+                    Apto para convalidación
+                  </span>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1">
                 <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${getStatusStyles(selected.estatus)}`}>
@@ -645,6 +712,42 @@ export default function PreinscripcionesPrincipalesPanel({
               )
             })()}
 
+            {selected.programa_codigo === 'AFILIACION' && !!selected.apto_convalidacion && (() => {
+              const currentYear = new Date().getFullYear();
+              const anosServicio = selected.ano_inicio_servicio ? (currentYear - selected.ano_inicio_servicio) : 0;
+              const has8Years = anosServicio > 8;
+              const qualifyingDocs = documentos.filter(d => d.tipo_doc === 'diplomado' && d.nombre_archivo && ['FIPPI', 'FIPI', 'PREANI'].includes(d.nombre_archivo.toUpperCase().trim()));
+              
+              return (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-3 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-indigo-600" />
+                    <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Apto para Convalidación CIBIR</p>
+                  </div>
+                  <p className="text-xs text-indigo-700 font-medium leading-relaxed">
+                    El aspirante cumple con los requisitos reglamentarios para la acreditación directa o nivelación especial del programa de formación:
+                  </p>
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    {has8Years && (
+                      <div className="flex items-start gap-1.5 text-[11px] text-indigo-900 font-semibold">
+                        <span className="text-emerald-500">✓</span>
+                        <span>Tiene {anosServicio} años de servicio (inició en {selected.ano_inicio_servicio}), superando el mínimo requerido de 8 años.</span>
+                      </div>
+                    )}
+                    {qualifyingDocs.length > 0 && (
+                      <div className="flex items-start gap-1.5 text-[11px] text-indigo-900 font-semibold">
+                        <span className="text-emerald-500">✓</span>
+                        <span>
+                          Adjuntó soporte de diplomado:{" "}
+                          <span className="underline">{qualifyingDocs.map(d => d.nombre_archivo || d.tipo_doc).join(", ")}</span>.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J') ? (
               <>
                 {/* Sección Empresa */}
@@ -748,6 +851,28 @@ export default function PreinscripcionesPrincipalesPanel({
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
                   <span className="text-sm text-slate-700 font-medium break-all">{new Date(selected.creado_en).toLocaleString('es-ES')}</span>
+                </div>
+                {selected.ano_inicio_servicio !== undefined && selected.ano_inicio_servicio !== null && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Año Inicio de Servicio</span>
+                    <span className="text-sm text-slate-700 font-medium break-all">{selected.ano_inicio_servicio}</span>
+                  </div>
+                )}
+                <div className="sm:col-span-2 flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl mt-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-bold text-slate-800">¿Es Corredor Inmobiliario?</span>
+                    <span className="text-[10px] text-slate-400">Confirmar si el aspirante ya cuenta con acreditación en el sector</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={!!selected.estudiante_es_corredor_inmobiliario} 
+                      onChange={handleToggleCorredor}
+                      disabled={toggleLoading}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
                 </div>
               </div>
             )}

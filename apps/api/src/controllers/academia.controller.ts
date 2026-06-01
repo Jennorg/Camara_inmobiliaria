@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { randomUUID, createHash } from 'crypto'
 import { db } from '../lib/db.js'
+import { env } from '../config/env.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 import { emitirComprobanteSiCompleto } from '../lib/certificados.js'
@@ -13,9 +14,23 @@ import {
 } from '../lib/email.js'
 import bcrypt from 'bcryptjs'
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
+import { NotificationService } from '../services/notification.service.js'
+
+function getCookie(req: Request, name: string): string | undefined {
+  const raw = req.headers.cookie
+  if (!raw) return undefined
+  const cookies = raw.split(';').map(c => c.trim())
+  for (const cookie of cookies) {
+    const [key, ...valParts] = cookie.split('=')
+    if (key === name) {
+      return decodeURIComponent(valParts.join('='))
+    }
+  }
+  return undefined
+}
 
 const MAIN_PROGRAM_CODES = new Set(['PADI', 'PEGI', 'PREANI', 'CIBIR', 'AFILIACION'])
-const PROFESSIONAL_LEVELS = new Set(['Bachiller', 'TSU', 'Universitario', 'Postgrado'])
+const PROFESSIONAL_LEVELS = new Set(['Bachiller', 'TSU', 'Nivel Profesional', 'Postgrado'])
 
 function normalizeProgramaCodigo(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -23,10 +38,10 @@ function normalizeProgramaCodigo(value: unknown): string | null {
   return MAIN_PROGRAM_CODES.has(code) ? code : null
 }
 
-function normalizeNivelProfesional(value: unknown): 'Bachiller' | 'TSU' | 'Universitario' | 'Postgrado' | null {
+function normalizeNivelProfesional(value: unknown): 'Bachiller' | 'TSU' | 'Nivel Profesional' | 'Postgrado' | null {
   if (typeof value !== 'string') return null
   const cleaned = value.trim()
-  return PROFESSIONAL_LEVELS.has(cleaned) ? (cleaned as 'Bachiller' | 'TSU' | 'Universitario' | 'Postgrado') : null
+  return PROFESSIONAL_LEVELS.has(cleaned) ? (cleaned as 'Bachiller' | 'TSU' | 'Nivel Profesional' | 'Postgrado') : null
 }
 
 function normalizeEsCorredorInmobiliario(value: unknown): boolean | null {
@@ -52,11 +67,12 @@ async function upsertEstudianteByEmail(params: {
   cedulaRif?: string | null
   telefono?: string | null
   tipo?: string | null
-  nivelProfesional?: 'Bachiller' | 'TSU' | 'Universitario' | 'Postgrado' | null
+  nivelProfesional?: 'Bachiller' | 'TSU' | 'Nivel Profesional' | 'Postgrado' | null
   profesion?: string | null
   esCorredorInmobiliario?: boolean | null
+  anoInicioServicio?: number | null
 }): Promise<{ id_estudiante: number }> {
-  const { nombres, apellidos, razonSocial, cedulaRif, email, telefono, tipo, nivelProfesional, profesion, esCorredorInmobiliario } = params
+  const { nombres, apellidos, razonSocial, cedulaRif, email, telefono, tipo, nivelProfesional, profesion, esCorredorInmobiliario, anoInicioServicio } = params
 
   // 1. Buscar si es Empresa o Persona
   let idPersona: number | null = null
@@ -83,7 +99,7 @@ async function upsertEstudianteByEmail(params: {
     })
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number
-      // Actualizar nivel y profesion si se proveen
+      // Actualizar nivel, profesion si se proveen
       if (nivelProfesional || profesion) {
         await db.execute({
           sql: `UPDATE personas SET 
@@ -93,12 +109,24 @@ async function upsertEstudianteByEmail(params: {
           args: [nivelProfesional || null, profesion || null, idPersona]
         })
       }
+      if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
+        await db.execute({
+          sql: `UPDATE afiliados SET ano_inicio_servicio = COALESCE(?, ano_inicio_servicio) WHERE id_persona = ?`,
+          args: [anoInicioServicio, idPersona]
+        })
+      }
     } else {
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
+      if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
+        await db.execute({
+          sql: `UPDATE afiliados SET ano_inicio_servicio = COALESCE(?, ano_inicio_servicio) WHERE id_persona = ?`,
+          args: [anoInicioServicio, idPersona]
+        })
+      }
     }
   }
 
@@ -336,7 +364,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
     const tipoAfiliado = programaCodigo === 'AFILIACION'
       ? (['Juridico', 'Corporativo'].includes(rawTipoAfiliado) ? 'Corporativo'
         : rawTipoAfiliado === 'Agente Corporativo' ? 'Agente Corporativo'
-        : 'Natural')
+          : 'Natural')
       : null
     const isCorporativo = tipoAfiliado === 'Corporativo'
     const isAgenteCorporativo = tipoAfiliado === 'Agente Corporativo'
@@ -427,9 +455,12 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
  */
 export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: Response): Promise<void> => {
   try {
-    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : ''
+    let token = typeof req.body?.token === 'string' ? req.body.token.trim() : ''
     if (!token) {
-      res.status(400).json({ success: false, message: 'Token es requerido' })
+      token = getCookie(req, 'auth_expediente') ?? ''
+    }
+    if (!token) {
+      res.status(400).json({ success: false, message: 'Token es requerido o sesión expirada' })
       return
     }
 
@@ -443,6 +474,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     }
 
     const registro = ver.rows[0] as any
+    // El token no expira por tiempo; expira una vez enviado el formulario (al eliminarse de la BD)
+    /*
     const exp = new Date(String(registro.fecha_expiracion))
     if (exp < new Date()) {
       await db.execute({
@@ -452,6 +485,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       res.status(400).json({ success: false, message: 'El token ha expirado. Debes solicitar una nueva preinscripción.' })
       return
     }
+    */
 
     const programaCodigo = normalizeProgramaCodigo(registro.programa_interes)
     const email = String(registro.email ?? '').trim().toLowerCase()
@@ -488,6 +522,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     const finalCedula = cedulaRif
     const finalTipo = isAfiliacion ? (isCorporativo ? 'Corporativo' : 'Afiliado') : 'Regular'
 
+    const anoInicioServicio = req.body?.ano_inicio_servicio !== undefined ? Number(req.body.ano_inicio_servicio) : null
+
     const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto: finalNombre,
       nombres: isCorporativo ? null : registro.nombres,
@@ -500,6 +536,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       nivelProfesional: req.body?.nivelProfesional ? normalizeNivelProfesional(req.body.nivelProfesional) : nivelProfesional,
       profesion: typeof req.body?.profesion === 'string' ? req.body.profesion.trim() : (registro.profesion || null),
       esCorredorInmobiliario: req.body?.esCorredorInmobiliario !== undefined ? normalizeEsCorredorInmobiliario(req.body.esCorredorInmobiliario) : esCorredorInmobiliario,
+      anoInicioServicio
     })
 
     // Nota: para Agente Corporativo, la vinculación a la empresa se hace en la tabla
@@ -574,6 +611,12 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
         sql: `DELETE FROM verificaciones_preinscripciones WHERE token_verificacion = ?`,
         args: [token],
       })
+      res.clearCookie('auth_expediente', {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/'
+      })
       res.status(200).json({
         success: true,
         message: 'Tu preinscripción ya había sido confirmada previamente.',
@@ -623,9 +666,9 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                 RETURNING id`,
           args: [email, placeholderPass, resetTokenHash, expiracion.toISOString()]
         })
-        
+
         const newUserId = userRes.rows[0].id;
-        
+
         // Update estudiante with the new user id
         await db.execute({
           sql: `UPDATE estudiantes SET id_user = ? WHERE id_estudiante = ? AND id_user IS NULL`,
@@ -704,7 +747,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
       if (docsToInsert.length > 0) {
         const tipos = [
-          'titulo', 'cv', 'especializacion', 'curso_extra', 'registro_mercantil', 
+          'titulo', 'cv', 'especializacion', 'curso_extra', 'registro_mercantil',
           'titulo_representante', 'referencia_afiliado_1', 'referencia_afiliado_2',
           'diplomado', 'otro_documento'
         ]
@@ -797,7 +840,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // Asignar código si no tiene
           await db.execute({
-            sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo_cibir IS NULL`,
+            sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo IS NULL`,
             args: [idAfiliado]
           })
 
@@ -844,21 +887,22 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 2. Upsert Afiliado con tipo 'Agente Corporativo' y la empresa vinculada
           const resA = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en)
-                  VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, actualizado_en)
+                  VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = COALESCE(excluded.id_empresa, afiliados.id_empresa),
                     tipo_afiliado = 'Agente Corporativo',
                     estatus = CASE WHEN afiliados.estatus = 'Requiere Acción' THEN afiliados.estatus ELSE '1_PREINSCRIPCION' END,
+                    ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
                     actualizado_en = excluded.actualizado_en
                   RETURNING id_afiliado`,
-            args: [idPersonaAC, empresaId, now]
+            args: [idPersonaAC, empresaId, anoInicioServicio, now]
           })
           const idAfiliadoAC = resA.rows[0].id_afiliado as number
 
           if (idAfiliadoAC) {
             await db.execute({
-              sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo_cibir IS NULL`,
+              sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo IS NULL`,
               args: [idAfiliadoAC]
             })
           }
@@ -897,20 +941,21 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 2. Upsert Afiliado
           const resA = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en)
-                  VALUES (?, NULL, 'Natural', '2_EXPEDIENTE', ?)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, actualizado_en)
+                  VALUES (?, NULL, 'Natural', '2_EXPEDIENTE', ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = NULL,
                     estatus = CASE WHEN afiliados.estatus = '1_PREINSCRIPCION' THEN '2_EXPEDIENTE' ELSE afiliados.estatus END,
+                    ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
                     actualizado_en = excluded.actualizado_en
                   RETURNING id_afiliado`,
-            args: [idPersona, now]
+            args: [idPersona, anoInicioServicio, now]
           })
           const idAfiliado = resA.rows[0].id_afiliado as number
 
           if (idAfiliado) {
             await db.execute({
-              sql: `UPDATE afiliados SET codigo_cibir = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo_cibir IS NULL`,
+              sql: `UPDATE afiliados SET codigo = CAST(id_afiliado AS TEXT) WHERE id_afiliado = ? AND codigo IS NULL`,
               args: [idAfiliado]
             })
           }
@@ -935,6 +980,28 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       cedulaRif: cedulaRif,
       telefono: telefono
     }).catch(e => console.error('Error notificando admin (programa):', e))
+
+    NotificationService.notifyAdmins({
+      title: `Nueva Preinscripción: ${programaCodigo}`,
+      message: `El aspirante ${nombreCompleto} (${email}) se ha preinscrito en ${programaCodigo}.`,
+      type: 'PREINSCRIPCION',
+      priority: 'NORMAL',
+      data: {
+        idInscripcion: Number(result.rows[0].id_inscripcion),
+        nombre: nombreCompleto,
+        email: email,
+        programaCodigo: programaCodigo,
+        cedulaRif: cedulaRif,
+        telefono: telefono
+      }
+    }).catch(e => console.error('Error enviando notificación In-App a admins (programa):', e))
+
+    res.clearCookie('auth_expediente', {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    })
 
     res.status(201).json({
       success: true,
@@ -1065,6 +1132,22 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       cedulaRif: cedulaRif,
       telefono: telefono
     }).catch(e => console.error('Error notificando admin (curso):', e))
+
+    NotificationService.notifyAdmins({
+      title: `Preinscripción a Curso: ${curso.nombre || `Curso ${idCurso}`}`,
+      message: `El estudiante ${nombreCompleto} (${email}) se ha preinscrito al curso ${curso.nombre || `Curso ${idCurso}`}.`,
+      type: 'CURSO_PREINSCRIPCION',
+      priority: 'NORMAL',
+      data: {
+        idInscripcion: Number(result.rows[0].id_inscripcion),
+        idCurso: idCurso,
+        nombre: nombreCompleto,
+        email: email,
+        programaCodigo: curso.nombre || `Curso ${idCurso}`,
+        cedulaRif: cedulaRif,
+        telefono: telefono
+      }
+    }).catch(e => console.error('Error enviando notificación In-App a admins (curso):', e))
 
     res.status(201).json({
       success: true,
@@ -1302,7 +1385,16 @@ export const adminDeleteCurso = async (req: Request, res: Response): Promise<voi
  */
 export const publicGetVerificacionPreinscripcionByToken = async (req: Request, res: Response): Promise<void> => {
   try {
-    const token = String(req.params.token ?? '')
+    let token = String(req.params.token ?? '')
+    if (token === 'session') {
+      token = getCookie(req, 'auth_expediente') ?? ''
+    }
+
+    if (!token) {
+      res.status(400).json({ success: false, message: 'Token no especificado o sesión expirada' })
+      return
+    }
+
     const ver = await db.execute({
       sql: `SELECT * FROM verificaciones_preinscripciones WHERE token_verificacion = ? LIMIT 1`,
       args: [token],
@@ -1313,11 +1405,14 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
     }
 
     const registro = ver.rows[0] as any
+    // El token no expira por tiempo; expira una vez enviado el formulario (al eliminarse de la BD)
+    /*
     const exp = new Date(String(registro.fecha_expiracion))
     if (exp < new Date()) {
       res.status(400).json({ success: false, message: 'El token ha expirado' })
       return
     }
+    */
 
     const nombreCompleto = (
       registro.razon_social ||
@@ -1326,9 +1421,19 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
       'Aspirante'
     ).trim()
 
+    // Establecer o renovar la cookie por 24 horas (1 día)
+    res.cookie('auth_expediente', token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      sameSite: 'lax',
+      path: '/'
+    })
+
     res.json({
       success: true,
       data: {
+        token,
         nombreCompleto,
         email: registro.email,
         programaCodigo: registro.programa_interes,
@@ -1338,6 +1443,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
         telefono: registro.telefono,
         nivelProfesional: registro.nivel_academico,
         esCorredorInmobiliario: registro.es_corredor_inmobiliario,
+        ano_inicio_servicio: registro.ano_inicio_servicio,
         url_titulo: registro.url_titulo,
         url_cv: registro.url_cv,
         url_especializaciones: registro.url_especializaciones,
@@ -1411,20 +1517,33 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
         SELECT
           ic.*,
           e.id_estudiante,
-          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as estudiante_nombre,
+          COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as estudiante_nombre,
           COALESCE(p.email, emp.email) as estudiante_email,
           COALESCE(p.telefono, emp.telefono) as estudiante_telefono,
           COALESCE(p.cedula, 'J-' || REPLACE(emp.rif_numero, 'J-', '')) as estudiante_cedula,
           p.nivel_academico as estudiante_nivel_profesional,
           e.es_corredor_inmobiliario as estudiante_es_corredor_inmobiliario,
           e.tipo as tipo_estudiante,
-          p_rep.nombres || ' ' || p_rep.apellidos as representante_nombre,
+          COALESCE(p_rep.nombres, '') || ' ' || COALESCE(p_rep.apellidos, '') as representante_nombre,
           p_rep.cedula as representante_cedula,
           p_rep.email as representante_email,
           p_rep.telefono as representante_telefono,
           af.estatus as afiliado_estatus,
           af.tipo_afiliado as afiliado_tipo,
-          emp_vinc.razon_social as empresa_vinculada_nombre
+          emp_vinc.razon_social as empresa_vinculada_nombre,
+          af.ano_inicio_servicio as ano_inicio_servicio,
+          CASE WHEN (
+            ic.programa_codigo = 'AFILIACION' AND (
+              (af.ano_inicio_servicio IS NOT NULL AND (CAST(strftime('%Y', 'now') AS INTEGER) - af.ano_inicio_servicio) > 8)
+              OR EXISTS (
+                SELECT 1 FROM documentos_adjuntos da 
+                WHERE da.entidad_tipo = 'estudiante' 
+                  AND da.entidad_id = e.id_estudiante 
+                  AND da.tipo_doc = 'diplomado' 
+                  AND (UPPER(da.nombre_archivo) LIKE '%FIPPI%' OR UPPER(da.nombre_archivo) LIKE '%FIPI%' OR UPPER(da.nombre_archivo) LIKE '%PREANI%')
+              )
+            )
+          ) THEN 1 ELSE 0 END as apto_convalidacion
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
@@ -1470,7 +1589,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
       return
     }
     if (!nivelProfesional) {
-      res.status(400).json({ success: false, message: 'nivelProfesional inválido. Use Bachiller/Universitario/Postgrado.' })
+      res.status(400).json({ success: false, message: 'nivelProfesional inválido. Use Bachiller/Nivel Profesional/Postgrado.' })
       return
     }
     if (esCorredorInmobiliario === null) {
@@ -1576,7 +1695,7 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
     try {
       const estRes = await db.execute({
         sql: `SELECT 
-                COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo,
+                COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as nombre_completo,
                 COALESCE(p.email, emp.email) as email
               FROM estudiantes e 
               LEFT JOIN personas p ON e.id_persona = p.id
@@ -1683,15 +1802,15 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       try {
         // 1. Generar el código de Afiliado (Secuencial Numérico)
         const resultUltimoCode = await db.execute({
-          sql: `SELECT codigo_cibir FROM afiliados 
-                WHERE codigo_cibir GLOB '[0-9]*' 
-                ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
+          sql: `SELECT codigo FROM afiliados 
+                WHERE codigo GLOB '[0-9]*' 
+                ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
           args: []
         });
 
         let correlativo = 1;
-        if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo_cibir) {
-          const lastCode = parseInt(resultUltimoCode.rows[0].codigo_cibir as string, 10);
+        if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
+          const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10);
           if (!isNaN(lastCode)) correlativo = lastCode + 1;
         }
         const nextCode = correlativo.toString();
@@ -1707,23 +1826,23 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
           args: [row.id_estudiante]
         })
         const est = estRes.rows[0] as any
- 
+
         if (est) {
           const finalIdPersona = est.id_persona || est.rep_id_persona
- 
+
           if (!finalIdPersona) {
             throw new Error(`No se encontró id_persona ni rep_id_persona para el estudiante ${row.id_estudiante}`)
           }
- 
+
           const resIns = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir, actualizado_en, activo)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, actualizado_en, activo)
                   VALUES (?, ?, COALESCE(
                     (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
                     CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
                   ), 'Afiliado', ?, ?, 1)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     estatus = 'Afiliado',
-                    codigo_cibir = COALESCE(afiliados.codigo_cibir, excluded.codigo_cibir),
+                    codigo = COALESCE(afiliados.codigo, excluded.codigo),
                     actualizado_en = excluded.actualizado_en,
                     activo = 1
                   RETURNING id_afiliado`,
@@ -1748,7 +1867,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     // Registrar módulos CIEBO
     if (resultado === 'Aprobado' || (resultado === 'Parcial' && Array.isArray(modulosConvalidados))) {
       const modulos = resultado === 'Aprobado' ? [1, 2, 3, 4, 5] : modulosConvalidados
- 
+
       const targetAfiliadoId = row.id_afiliado || insertedAfiliadoId
       if (targetAfiliadoId) {
         for (const num of modulos) {
@@ -2027,7 +2146,7 @@ export const adminListEstudiantes = async (req: Request, res: Response): Promise
           e.id_persona, 
           e.id_empresa, 
           COALESCE(p.cedula, emp.rif_numero) as cedula, 
-          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo, 
+          COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as nombre_completo, 
           COALESCE(p.email, emp.email) as email, 
           COALESCE(p.telefono, emp.telefono) as telefono, 
           e.tipo, 
@@ -2065,7 +2184,7 @@ export const adminGetEstudiante = async (req: Request, res: Response): Promise<v
     const est = await db.execute({
       sql: `SELECT e.*, 
                    COALESCE(p.cedula, emp.rif_numero) as cedula, 
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo, 
+                   COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as nombre_completo, 
                    COALESCE(p.email, emp.email) as email, 
                    COALESCE(p.telefono, emp.telefono) as telefono
             FROM estudiantes e 
@@ -2207,40 +2326,45 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
           let nextCode = null
           if (targetAfiliadoStatus === 'Afiliado') {
             const resultUltimoCode = await db.execute({
-              sql: `SELECT codigo_cibir FROM afiliados 
-                    WHERE codigo_cibir GLOB '[0-9]*' 
-                    ORDER BY CAST(codigo_cibir AS INTEGER) DESC LIMIT 1`,
+              sql: `SELECT codigo FROM afiliados 
+                    WHERE codigo GLOB '[0-9]*' 
+                    ORDER BY CAST(codigo AS INTEGER) DESC LIMIT 1`,
               args: []
             })
             let correlativo = 1
-            if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo_cibir) {
-              const lastCode = parseInt(resultUltimoCode.rows[0].codigo_cibir as string, 10)
+            if (resultUltimoCode.rows.length > 0 && resultUltimoCode.rows[0].codigo) {
+              const lastCode = parseInt(resultUltimoCode.rows[0].codigo as string, 10)
               if (!isNaN(lastCode)) correlativo = lastCode + 1
             }
             nextCode = correlativo.toString()
           }
 
+          const fechaAfiliacion = targetAfiliadoStatus === 'Afiliado' ? now : null
+
           await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo_cibir, actualizado_en, activo)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, fecha_afiliacion, actualizado_en, activo)
                   VALUES (?, ?, COALESCE(
                     (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
                     CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
-                  ), ?, ?, ?, 1)
+                  ), ?, ?, ?, ?, 1)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     estatus = ?,
-                    codigo_cibir = COALESCE(afiliados.codigo_cibir, ?),
+                    codigo = COALESCE(afiliados.codigo, ?),
+                    fecha_afiliacion = CASE WHEN excluded.estatus = 'Afiliado' THEN COALESCE(afiliados.fecha_afiliacion, ?) ELSE afiliados.fecha_afiliacion END,
                     actualizado_en = excluded.actualizado_en,
                     activo = 1`,
             args: [
-              finalIdPersona, 
+              finalIdPersona,
               est.id_empresa,
               finalIdPersona,
-              est.id_empresa, 
-              targetAfiliadoStatus, 
-              nextCode, 
-              now, 
-              targetAfiliadoStatus, 
-              nextCode
+              est.id_empresa,
+              targetAfiliadoStatus,
+              nextCode,
+              fechaAfiliacion,
+              now,
+              targetAfiliadoStatus,
+              nextCode,
+              fechaAfiliacion
             ]
           })
         }
@@ -2321,10 +2445,10 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
       queryResult = await db.execute({
         sql: `
           SELECT a.id_afiliado, 
-                 a.codigo_cibir, 
+                 a.codigo, 
                  a.tipo_afiliado, 
                  a.estatus,
-                 (p.nombres || ' ' || p.apellidos) as nombre_persona,
+                 (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')) as nombre_persona,
                  p.email as email_persona,
                  p.telefono as telefono_persona,
                  p.cedula as cedula_persona,
@@ -2339,7 +2463,7 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
              OR (e.rif_numero = ?)
              OR (REPLACE(REPLACE(p.cedula, '-', ''), ' ', '') LIKE ?)
              OR (REPLACE(REPLACE(e.rif_numero, '-', ''), ' ', '') LIKE ?)
-             OR (p.nombres || ' ' || p.apellidos LIKE ?)
+             OR (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') LIKE ?)
              OR (e.razon_social LIKE ?)
           LIMIT 1
         `,
@@ -2349,10 +2473,10 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
       queryResult = await db.execute({
         sql: `
           SELECT a.id_afiliado, 
-                 a.codigo_cibir, 
+                 a.codigo, 
                  a.tipo_afiliado, 
                  a.estatus,
-                 (p.nombres || ' ' || p.apellidos) as nombre_persona,
+                 (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')) as nombre_persona,
                  p.email as email_persona,
                  p.telefono as telefono_persona,
                  p.cedula as cedula_persona,
@@ -2363,7 +2487,7 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
           FROM afiliados a
           JOIN personas p ON a.id_persona = p.id
           LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-          WHERE (p.nombres || ' ' || p.apellidos LIKE ?)
+          WHERE (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') LIKE ?)
              OR (e.razon_social LIKE ?)
           LIMIT 1
         `,
@@ -2397,7 +2521,7 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
       success: true,
       data: {
         id_afiliado: row.id_afiliado,
-        codigo_cibir: row.codigo_cibir,
+        codigo: row.codigo,
         tipo_afiliado: row.tipo_afiliado,
         estatus: row.estatus,
         nombre_completo: nombreCompleto,
@@ -2411,5 +2535,37 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
     res.status(500).json({ success: false, message: 'Error al buscar referencia de afiliado' })
   }
 }
+
+export const adminToggleCorredorStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const { esCorredor } = req.body
+    if (!Number.isFinite(id) || esCorredor === undefined) {
+      res.status(400).json({ success: false, message: 'Parámetros inválidos' })
+      return
+    }
+
+    const ins = await db.execute({
+      sql: `SELECT id_estudiante FROM inscripciones_cursos WHERE id_inscripcion = ?`,
+      args: [id]
+    })
+    if (ins.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada' })
+      return
+    }
+    const idEstudiante = ins.rows[0].id_estudiante as number
+
+    await db.execute({
+      sql: `UPDATE estudiantes SET es_corredor_inmobiliario = ? WHERE id_estudiante = ?`,
+      args: [esCorredor ? 1 : 0, idEstudiante]
+    })
+
+    res.json({ success: true, message: 'Estado de corredor inmobiliario actualizado' })
+  } catch (error) {
+    console.error('adminToggleCorredorStatus:', error)
+    res.status(500).json({ success: false, message: 'Error al actualizar estado de corredor' })
+  }
+}
+
 
 

@@ -108,7 +108,7 @@ const PanelPage = () => {
     nombre_completo: string;
     nombres: string | null;
     apellidos: string | null;
-    codigo_cibir: string | null;
+    codigo: string | null;
     estatus: string;
     inscripcion_pagada: number;
     tipo_afiliado?: string;
@@ -157,7 +157,7 @@ const PanelPage = () => {
   const solicitudesPendientesCount = agentesCorp.filter(a => a.fase === 'Solicitud').length;
 
   const displayName = user?.nombre_completo || (user?.email?.split('@')[0] ?? 'Usuario');
-  const displayCode = user?.codigo_cibir ?? (isAdmin ? 'Administrador' : '—');
+  const displayCode = user?.codigo ?? (isAdmin ? 'Administrador' : '—');
   const isActivo = user?.estatus === 'CIBIR' || user?.estatus === 'Afiliado';
   const isPaid = user?.id_afiliado ? (afiliado?.inscripcion_pagada === 1) : false; // Necesita fetch o estar en user
   const isLimited = isActivo && (afiliado ? afiliado.inscripcion_pagada === 0 : false);

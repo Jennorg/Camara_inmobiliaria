@@ -2,7 +2,7 @@ import { AfiliadoDTO, EstatusAfiliado } from '@/types/afiliados'
 import { formatRif } from '@/utils/formatters'
 
 export type ExportColumnId =
-  | 'codigo_cibir'
+  | 'codigo'
   | 'nombre_completo'
   | 'tipo_afiliado'
   | 'cedula'
@@ -55,10 +55,10 @@ function getIdentificacion(a: AfiliadoDTO): string {
 
 export const AFILIADOS_EXPORT_COLUMNS: ExportColumnDef[] = [
   {
-    id: 'codigo_cibir',
-    label: 'Código CIBIR',
+    id: 'codigo',
+    label: 'Código de Afiliado',
     defaultSelected: true,
-    getValue: (a) => a.codigo_cibir || '—',
+    getValue: (a) => a.codigo || '—',
   },
   {
     id: 'nombre_completo',

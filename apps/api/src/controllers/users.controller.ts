@@ -24,7 +24,8 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
     const result = await db.execute({
       sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
                    a.id_afiliado,
-                   COALESCE(e.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo, a.codigo_cibir, a.estatus as estatus_afiliado
+                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as nombre_completo, 
+                   a.codigo, a.estatus as estatus_afiliado
             FROM users u
             LEFT JOIN afiliados a ON u.id = a.id_user
             LEFT JOIN personas p ON a.id_persona = p.id

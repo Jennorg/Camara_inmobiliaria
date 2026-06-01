@@ -22,6 +22,8 @@ export interface Persona {
   direccion?: string | null;
   nivel_academico?: string | null;
   profesion?: string | null;
+  anos_servicio?: number | null;
+  ano_inicio_servicio?: number | null;
   creado_en?: string;
   actualizado_en?: string | null;
   eliminado_en?: string | null;
@@ -51,7 +53,7 @@ export interface Afiliado {
   id_persona: number;
   id_empresa?: number | null;
   id_user?: number | null;
-  codigo_cibir?: string | null;
+  codigo?: string | null;
   tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
   cibir_convalidado: number;
@@ -60,6 +62,9 @@ export interface Afiliado {
   redes_sociales?: Record<string, any> | null;
   fecha_registro: string;
   fecha_ultimo_cambio_estatus?: string | null;
+  fecha_afiliacion?: string | null;
+  anos_servicio?: number | null;
+  ano_inicio_servicio?: number | null;
   activo: number;
   actualizado_en?: string | null;
   eliminado_en?: string | null;
@@ -75,7 +80,7 @@ export interface AfiliadoDTO {
   id_persona: number;
   id_empresa: number | null;
   id_user: number | null;
-  codigo_cibir: string | null;
+  codigo: string | null;
   tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
   cibir_convalidado: number;
@@ -96,6 +101,8 @@ export interface AfiliadoDTO {
   direccion: string | null;
   nivel_academico: string | null;
   profesion: string | null;
+  anos_servicio: number | null;
+  ano_inicio_servicio: number | null;
 
   // ── empresas (si id_empresa no es null) ──
   empresa_razon_social: string | null;
@@ -115,6 +122,7 @@ export interface AfiliadoDTO {
   cedula_personal?: string; // Para compatibilidad con lógica de representantes
   foto_url?: string;
   fecha_inicio_servicio?: string;
+  fecha_afiliacion?: string | null;
   razon_social?: string;
   direccion_publica?: string | null;
   descripcion?: string | null;

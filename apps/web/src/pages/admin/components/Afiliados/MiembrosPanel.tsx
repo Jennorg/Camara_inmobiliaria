@@ -195,8 +195,8 @@ export default function MiembrosPanel() {
 
     result.sort((a, b) => {
       if (sortState.startsWith('codigo')) {
-        const codA = parseInt(a.codigo_cibir || '0', 10) || 0;
-        const codB = parseInt(b.codigo_cibir || '0', 10) || 0;
+        const codA = parseInt(a.codigo || '0', 10) || 0;
+        const codB = parseInt(b.codigo || '0', 10) || 0;
         return sortState === 'codigo_asc' ? codA - codB : codB - codA;
       } else {
         const nomA = (a.nombre_completo || '').toLowerCase();
@@ -310,10 +310,10 @@ export default function MiembrosPanel() {
 
   const ACADEMIC_OPTIONS = [
     { value: 'Bachiller', label: 'Bachiller' },
-    { value: 'TSU', label: 'Técnico Superior (TSU)' },
-    { value: 'Universitario', label: 'Universitario' },
+    { value: 'TSU', label: 'TSU' },
+    { value: 'Nivel Profesional', label: 'Nivel Profesional' },
     { value: 'Postgrado', label: 'Postgrado' },
-  ]
+    ];
 
   return (
     <div className="flex h-full w-full bg-white overflow-hidden">
@@ -628,10 +628,10 @@ export default function MiembrosPanel() {
 
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-1">
                     <DataField
-                      label="Código CIBIR"
-                      value={selected.codigo_cibir || 'Sin Código'}
+                      label="Código de Afiliado"
+                      value={selected.codigo || 'Sin Código'}
                       isEditing={isEditing}
-                      fieldName="codigo_cibir"
+                      fieldName="codigo"
                       form={editForm}
                       setForm={setEditForm}
                       className="!bg-transparent !p-0 !border-none !text-slate-400 !font-bold !text-sm !uppercase !tracking-widest"
@@ -687,7 +687,7 @@ labelClassName="hidden"
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <DataField label="Nombres" value={selected.nombres} isEditing={isEditing} fieldName="nombres" form={editForm} setForm={setEditForm} />
                     <DataField label="Apellidos" value={selected.apellidos} isEditing={isEditing} fieldName="apellidos" form={editForm} setForm={setEditForm} />
-                    <DataField label="Código CIBIR" value={selected.codigo_cibir || 'No asignado'} isEditing={isEditing} fieldName="codigo_cibir" form={editForm} setForm={setEditForm} />
+                    <DataField label="Código de Afiliado" value={selected.codigo || 'No asignado'} isEditing={isEditing} fieldName="codigo" form={editForm} setForm={setEditForm} />
                     <DataField label="Correo Electrónico" value={selected.email} isEditing={isEditing} fieldName="email" form={editForm} setForm={setEditForm} />
                     <DataField label="Teléfono" value={selected.telefono || 'Sin teléfono'} isEditing={isEditing} fieldName="telefono" form={editForm} setForm={setEditForm} />
                     <DataField label="Dirección" value={selected.direccion || 'Sin dirección'} isEditing={isEditing} fieldName="direccion" form={editForm} setForm={setEditForm} />
@@ -1151,10 +1151,10 @@ labelClassName="hidden"
 
               <FormSection
                 icon={<BadgeCheck size={16} />}
-                title="Afiliación CIBIR"
+                title="Código de Afiliado"
                 subtitle="Identificación gremial"
               >
-                <DataInput label="Código CIBIR (opcional)" placeholder="359" value={newForm.codigo_cibir || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo_cibir: v })} />
+                <DataInput label="Código de Afiliado (opcional)" placeholder="359" value={newForm.codigo || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo: v })} />
               </FormSection>
 
               <FormSection

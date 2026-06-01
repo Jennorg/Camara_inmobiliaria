@@ -251,9 +251,9 @@ const SettingsPanel = () => {
                     onChange={handleInputChange}
                     className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   >
-                    <option value="">Seleccionar...</option>
+                    <option value="Bachiller">Bachiller</option>
                     <option value="TSU">TSU</option>
-                    <option value="Universitario">Universitario</option>
+                    <option value="Nivel Profesional">Nivel Profesional</option>
                     <option value="Postgrado">Postgrado</option>
                     <option value="Doctorado">Doctorado</option>
                   </select>
@@ -341,8 +341,8 @@ const SettingsPanel = () => {
                 </div>
                 <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Código CIBIR</p>
-                    <p className="font-bold text-gray-900">{user?.codigo_cibir || 'En trámite'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Código de Afiliado</p>
+                    <p className="font-bold text-gray-900">{user?.codigo || 'En trámite'}</p>
                   </div>
                 </div>
               </div>

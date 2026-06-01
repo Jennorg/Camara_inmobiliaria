@@ -106,7 +106,7 @@ export const REQUISITOS: ChamberPageData = {
       body: 'Debes consignar los siguientes documentos digitalizados y en físico:',
       list: [
         'Copia de Cédula de Identidad y RIF (actualizado).',
-        'Fondo Negro de Título Universitario.',
+        'Fondo Negro de Título de Nivel Profesional.',
         'Constancia de aprobación del curso CIBIR/PREANI.',
         'Dos (2) cartas de recomendación moral por afiliados activos.',
         'Pago de los aranceles correspondientes de la inscripción.'

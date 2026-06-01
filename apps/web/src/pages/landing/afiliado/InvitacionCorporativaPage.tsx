@@ -12,7 +12,7 @@ import Footer from '@/pages/landing/components/Footer'
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
   { value: 'TSU', label: 'Técnico Superior (TSU)', icon: Briefcase },
-  { value: 'Universitario', label: 'Universitario', icon: GraduationCap },
+  { value: 'Nivel Profesional', label: 'Nivel Profesional', icon: GraduationCap },
   { value: 'Postgrado', label: 'Postgrado', icon: Award },
 ]
 
@@ -112,7 +112,7 @@ export default function InvitacionCorporativaPage() {
         <div className="max-w-2xl mx-auto px-6">
           <div className="inline-flex items-center gap-2 mb-6 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <Building2 size={14} className="text-emerald-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Invitación Corporativa</span>
+            <span className="text-xs font-black uppercase tracking-widest text-emerald-400">Invitación Corporativa</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter mb-3">
             {status === 'success' ? '¡Registro Completado!' : empresa ? `Únete a ${empresa.nombreEmpresa}` : 'Invitación de Afiliación'}
@@ -175,7 +175,7 @@ export default function InvitacionCorporativaPage() {
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Empresa invitante</p>
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-600">Empresa invitante</p>
                 <p className="text-sm font-black text-[#022c22]">{empresa.nombreEmpresa}</p>
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function InvitacionCorporativaPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Nombres */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nombres</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Nombres</label>
                 <div className="relative">
                   <User size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input required type="text" value={form.nombres} onChange={e => setForm(p => ({ ...p, nombres: e.target.value }))}
@@ -193,7 +193,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Apellidos */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Apellidos</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Apellidos</label>
                 <div className="relative">
                   <User size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input required type="text" value={form.apellidos} onChange={e => setForm(p => ({ ...p, apellidos: e.target.value }))}
@@ -203,7 +203,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Cédula */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Cédula de Identidad</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Cédula de Identidad</label>
                 <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                   <select value={form.cedulaPrefix} onChange={e => setForm(p => ({ ...p, cedulaPrefix: e.target.value }))}
                     className="bg-slate-50 border-r border-slate-200 px-4 h-full text-sm font-black text-slate-700 outline-none">
@@ -216,7 +216,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Email */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Correo Electrónico</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Correo Electrónico</label>
                 <div className="relative">
                   <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input required type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
@@ -226,7 +226,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Teléfono */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Teléfono</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Teléfono</label>
                 <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                   <span className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center text-sm font-black text-slate-700">🇻🇪 +58</span>
                   <input type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))}
@@ -236,7 +236,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Profesión */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Profesión</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Profesión</label>
                 <div className="relative">
                   <Briefcase size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input required type="text" value={form.profesion} onChange={e => setForm(p => ({ ...p, profesion: e.target.value }))}
@@ -246,7 +246,7 @@ export default function InvitacionCorporativaPage() {
 
               {/* Nivel Profesional */}
               <div className="space-y-2 relative">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nivel Profesional</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Nivel Profesional</label>
                 <button type="button" onClick={() => setShowNivelDropdown(!showNivelDropdown)}
                   className={`w-full px-4 ${BOX_H} bg-white rounded-xl border transition-all flex items-center justify-between group shadow-sm ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-400'}`}>
                   <div className="flex items-center gap-3">
@@ -283,12 +283,12 @@ export default function InvitacionCorporativaPage() {
 
               {/* Corredor */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">¿Eres actualmente corredor inmobiliario?</label>
+                <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">¿Eres actualmente corredor inmobiliario?</label>
                 <div className={`grid grid-cols-2 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden ${BOX_H}`}>
                   {['si', 'no'].map(opt => (
                     <button key={opt} type="button"
                       onClick={() => setForm(p => ({ ...p, esCorredorInmobiliario: opt }))}
-                      className={`h-full text-[10px] font-black uppercase tracking-widest transition-all ${form.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
+                      className={`h-full text-xs font-black uppercase tracking-widest transition-all ${form.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
                       {opt === 'si' ? 'Sí, lo soy' : 'No'}
                     </button>
                   ))}

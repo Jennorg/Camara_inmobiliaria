@@ -16,7 +16,7 @@ export interface JwtPayload {
   id_empresa?: number
   id_afiliado?: number
   id_estudiante?: number
-  codigo_cibir?: string
+  codigo?: string
   nombre_completo?: string
   cedula?: string
   telefono?: string
@@ -68,8 +68,8 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
 
     // 1. Intentar buscar en afiliados
     const resultAfiliado = await db.execute({
-      sql: `SELECT a.id_afiliado, a.id_persona, a.id_empresa, a.codigo_cibir, a.tipo_afiliado,
-                   p.nombres || ' ' || p.apellidos as persona_nombre,
+      sql: `SELECT a.id_afiliado, a.id_persona, a.id_empresa, a.codigo, a.tipo_afiliado,
+                   COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
                    p.cedula, p.telefono,
                    e.razon_social as empresa_nombre
             FROM afiliados a
@@ -84,7 +84,7 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
       user.id_afiliado = afi.id_afiliado as number
       user.id_persona = afi.id_persona as number
       user.id_empresa = afi.id_empresa as number
-      user.codigo_cibir = afi.codigo_cibir as string
+      user.codigo = afi.codigo as string
       user.cedula = afi.cedula as string
       user.telefono = afi.telefono as string
       user.tipo_afiliado = afi.tipo_afiliado as string
@@ -95,7 +95,7 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
     // 2. Si no es afiliado, tal vez es estudiante sin ser afiliado
     const resultEstudiante = await db.execute({
       sql: `SELECT e.id_estudiante, e.id_persona, e.id_empresa,
-                   p.nombres || ' ' || p.apellidos as persona_nombre,
+                   COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
                    p.cedula, p.telefono,
                    emp.razon_social as empresa_nombre
             FROM estudiantes e
@@ -118,7 +118,7 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
 
     // 3. Fallbacks
     const resultPersona = await db.execute({
-      sql: `SELECT id, nombres || ' ' || apellidos as nombre_completo FROM personas WHERE email = ?`,
+      sql: `SELECT id, COALESCE(nombres, '') || ' ' || COALESCE(apellidos, '') as nombre_completo FROM personas WHERE email = ?`,
       args: [user.email]
     })
     

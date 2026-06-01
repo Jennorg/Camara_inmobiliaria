@@ -30,7 +30,7 @@ export const DataSections = ({
             <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center">
               <Building2 size={14} className="text-emerald-500" />
             </div>
-            <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">Información de la Empresa</h3>
+            <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Información de la Empresa</h3>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
@@ -39,9 +39,9 @@ export const DataSections = ({
                 {formatRif(afiliado.empresa_rif_tipo || 'J', afiliado.empresa_rif_numero)}
               </InfoCard>
             )}
-            <InfoCard icon={User} label="Código de Afiliado" variant="compact">
-              {afiliado.codigo_cibir || 'En proceso'}
-            </InfoCard>
+              <InfoCard icon={User} label="Código de Afiliado" variant="compact">
+                {afiliado.codigo || 'En proceso'}
+              </InfoCard>
             {(afiliado.empresa_email || (isCorporativo && afiliado.email)) && (
               <InfoCard icon={Mail} label="Correo" variant="compact">
                 <a href={`mailto:${afiliado.empresa_email || afiliado.email}`} className="hover:underline">
@@ -70,7 +70,7 @@ export const DataSections = ({
 
           {isCorporativo && !isRepMode && (afiliado.email || afiliado.telefono || afiliado.cedula) && (
             <div className="mt-8 pt-6 border-t border-slate-100 dark:border-emerald-500/10">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Representante Legal</p>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Representante Legal</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                 {afiliado.cedula && (
                   <InfoCard icon={Globe} label="Cédula" variant="compact">
@@ -103,7 +103,7 @@ export const DataSections = ({
             <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center">
               <User size={14} className="text-emerald-500" />
             </div>
-            <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest">
+            <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">
               {isRepMode ? 'Datos del Representante' : 'Datos del Afiliado'}
             </h3>
           </div>
@@ -116,7 +116,7 @@ export const DataSections = ({
             )}
             {!isCorporativo && (
               <InfoCard icon={User} label="Código" variant="compact">
-                {afiliado.codigo_cibir || 'En proceso'}
+                {afiliado.codigo || 'En proceso'}
               </InfoCard>
             )}
             {afiliado.email && (

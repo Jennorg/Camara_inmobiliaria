@@ -176,7 +176,7 @@ export default function AsignarEstudiantePanel() {
                   Selecciona…
                 </option>
                 <option value="Bachiller">Bachiller</option>
-                <option value="Universitario">Universitario</option>
+                <option value="Nivel Profesional">Nivel Profesional</option>
                 <option value="Postgrado">Postgrado</option>
               </select>
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">▼</span>

@@ -51,8 +51,8 @@ function CardImage({
     <div className="relative mb-2.5 w-full -mx-4 -mt-4 pt-2">
       <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500 to-teal-300 rounded-[1rem] blur-lg opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
       <div
-        className={`relative w-full h-36 rounded-[1rem] overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center mt-1.5 ${
-          isLogo ? 'bg-white p-4' : 'bg-[#022c22]'
+        className={`relative w-full h-48 rounded-[1rem] overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center mt-1.5 ${
+          isLogo ? 'bg-white p-6' : 'bg-[#022c22]'
         }`}
       >
         {url ? (
@@ -62,8 +62,15 @@ function CardImage({
             className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
           />
         ) : (
-          <span className="text-white font-black text-xl uppercase tracking-tighter">{initials}</span>
+          <span className="text-white font-black text-2xl uppercase tracking-tighter">{initials}</span>
         )}
+
+        {/* Banner de Código (Dentro de la imagen, al fondo) */}
+        <div className="absolute bottom-0 left-0 right-0 bg-[#022c22]/60 backdrop-blur-sm py-2 border-t border-white/10 z-10 text-center">
+          <span className="text-xs font-black text-emerald-400 tracking-[0.2em] uppercase">
+            CÓDIGO: {afiliado.codigo || '---'}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -87,12 +94,12 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
       >
         <CardImage afiliado={afiliado} isCorpView={isCorpView} size="mini" />
         <div className="text-center">
-          <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-[10px] md:text-xs leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors uppercase truncate max-w-[100px]">
+          <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-xs md:text-sm leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors uppercase truncate max-w-[120px]">
             {isCorpView 
               ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
               : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
           </h3>
-          <p className="text-[8px] text-slate-500 dark:text-emerald-100/50 font-medium uppercase truncate max-w-[100px]">
+          <p className="text-[10px] text-slate-500 dark:text-emerald-100/50 font-medium uppercase truncate max-w-[120px]">
             {isCorpView ? 'Corporativo' : afiliado.profesion || 'Agente'}
           </p>
         </div>
@@ -122,58 +129,54 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
       <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-500/5 rounded-full group-hover:scale-150 transition-transform duration-700" />
       
       <div className="relative flex flex-col items-center text-center">
-        {/* Badge de tipo y estatus */}
-        <div className="w-full flex justify-between items-center mb-3">
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-[#022c22] rounded-full border border-slate-200/50 dark:border-emerald-500/10">
+        {/* Badge de tipo y estatus (Sobre la foto) */}
+        <div className="absolute top-4 left-0 right-0 px-2 flex justify-between items-center z-20">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-white/90 dark:bg-[#022c22]/90 backdrop-blur-md rounded-full border border-white/20 shadow-lg">
               {isCorpView ? (
                 <>
-                  <Building2 size={9} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[7.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Corporativo</span>
+                  <Building2 size={10} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90">Corporativo</span>
                 </>
               ) : (afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente' || forceRepMode) ? (
                 <>
-                  <Briefcase size={9} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[7.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">
-                    {forceRepMode ? 'Representante Legal' : 'Agente Corporativo'}
+                  <Briefcase size={10} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90">
+                    {forceRepMode ? 'Representante' : 'Agente Corporativo'}
                   </span>
                 </>
               ) : (
                 <>
-                  <User size={9} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[7.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/70">Agente Independiente</span>
+                  <User size={10} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90">Agente Independiente</span>
                 </>
               )}
             </div>
-            <span className="text-[8px] font-black uppercase tracking-[0.1em] px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-emerald-500 text-white rounded-full shadow-lg">
               Activo
             </span>
         </div>
-        
         <CardImage afiliado={afiliado} isCorpView={isCorpView} />
-        
+        </div>
+
         {/* Información del Miembro */}
-        <div className="space-y-0.5 mb-3 w-full">
-          <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-sm md:text-base leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors uppercase truncate">
+        <div className="space-y-1 mb-4 w-full text-center px-2">
+          <h3 className="font-bold text-slate-800 dark:text-emerald-50 text-base md:text-lg leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors uppercase truncate">
             {isCorpView 
               ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
               : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
           </h3>
           
           {isCorpView && (
-            <p className="text-[9px] text-slate-500 dark:text-emerald-100/40 font-medium truncate">
+            <p className="text-sm text-slate-500 dark:text-emerald-100/60 font-medium truncate">
               Representante: {afiliado.nombres ? `${afiliado.nombres} ${afiliado.apellidos}` : afiliado.nombre_completo}
             </p>
           )}
 
           {(afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente' || forceRepMode) && afiliado.empresa_razon_social && (
-            <p className="text-[9px] text-slate-500 dark:text-emerald-100/40 font-medium truncate">
+            <p className="text-sm text-slate-500 dark:text-emerald-100/60 font-medium truncate">
               Parte de: {afiliado.empresa_razon_social}
             </p>
           )}
-
-          <div className="inline-flex items-center gap-1.5 text-[8px] font-bold text-slate-500 dark:text-emerald-100/50 tracking-widest uppercase bg-slate-50 dark:bg-[#022c22] px-2 py-0.5 rounded-full border border-slate-100 dark:border-emerald-500/5 mt-0.5">
-            Código: {afiliado.codigo_cibir || 'En proceso'}
-          </div>
         </div>
         
         {/* Acciones de Contacto */}
@@ -243,7 +246,6 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
             )}
           </div>
         )}
-      </div>
     </Link>
   );
 };

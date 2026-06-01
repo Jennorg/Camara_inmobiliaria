@@ -14,7 +14,7 @@ interface EmpresaAfiliada {
   nombre_completo: string
   empresa_razon_social?: string
   empresa_rif_numero?: string
-  codigo_cibir?: string
+  codigo?: string
   tipo_afiliado: string
   id_empresa?: number
 }
@@ -238,7 +238,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                     </p>
                     {empresaSelected.empresa_rif_numero && (
                       <p className="text-[10px] text-emerald-300/70 font-bold">
-                        RIF: {empresaSelected.empresa_rif_numero} • CIBIR: {empresaSelected.codigo_cibir || '—'}
+                        RIF: {empresaSelected.empresa_rif_numero} • CÓDIGO: {empresaSelected.codigo || '—'}
                       </p>
                     )}
                   </div>
@@ -285,7 +285,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                           </p>
                           <p className="text-[10px] text-slate-500 font-bold">
                             {emp.empresa_rif_numero ? `RIF: ${emp.empresa_rif_numero} • ` : ''}
-                            Código: {emp.codigo_cibir || '—'}
+                            Código: {emp.codigo || '—'}
                           </p>
                         </button>
                       ))}
@@ -368,7 +368,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                       <option value="">Selecciona tu nivel</option>
                       <option value="Bachiller">Bachiller</option>
                       <option value="TSU">TSU</option>
-                      <option value="Universitario">Universitario</option>
+                      <option value="Nivel Profesional">Nivel Profesional</option>
                       <option value="Postgrado">Postgrado</option>
                     </select>
                   </div>

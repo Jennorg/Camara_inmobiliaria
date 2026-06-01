@@ -12,7 +12,7 @@ interface AfiliadoData {
   nombres: string | null
   apellidos: string | null
   cedula: string | null
-  codigo_cibir: string | null
+  codigo: string | null;
   tipo_afiliado: string
   estatus: string
   empresa_rif_tipo?: string | null
@@ -308,7 +308,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
                 <span className="text-[10px] font-black text-emerald-950 uppercase tracking-widest font-sans">
                   Francisco Piñango
                 </span>
-                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5">
                   Presidente de la Junta Directiva
                 </span>
               </div>
@@ -319,7 +319,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
                   Código de Afiliado
                 </span>
                 <span className="text-xl font-bold font-mono text-emerald-950 border border-slate-200 bg-white px-6 py-2 rounded-xl shadow-md">
-                  {data.codigo_cibir || data.id_afiliado}
+                  {data.codigo || data.id_afiliado}
                 </span>
               </div>
             </div>

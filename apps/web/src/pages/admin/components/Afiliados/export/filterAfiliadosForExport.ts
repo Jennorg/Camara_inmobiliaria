@@ -39,8 +39,8 @@ export function filterAfiliadosForExport(
     if (filters.activo === 'inactivos' && item.activo) return false
 
     // Filtro por Código CIBIR desde
-    if (!isNaN(desdeCodigo) && item.codigo_cibir) {
-      const codigoItem = parseInt(item.codigo_cibir)
+    if (!isNaN(desdeCodigo) && item.codigo) {
+      const codigoItem = parseInt(item.codigo)
       if (!isNaN(codigoItem) && codigoItem < desdeCodigo) return false
     }
 
@@ -69,7 +69,7 @@ export function filterAfiliadosForExport(
       const cedula = (item.cedula || '').toLowerCase()
       const rif = (item.empresa_rif_numero || '').toLowerCase()
       const email = (item.email || '').toLowerCase()
-      const codigo = (item.codigo_cibir || '').toLowerCase()
+      const codigo = (item.codigo || '').toLowerCase()
       const match =
         nombre.includes(s) ||
         cedula.includes(s) ||

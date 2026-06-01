@@ -52,7 +52,7 @@ const AfiliadoPage = () => {
   }, [user?.id_afiliado, token]);
 
   const displayName = afiliado ? formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos) : (user?.email?.split('@')[0] ?? 'Afiliado');
-  const displayCode = afiliado?.codigo_cibir ?? '—';
+  const displayCode = afiliado?.codigo ?? '—';
   const isActivo = afiliado?.estatus === 'Afiliado';
   const isPaid = afiliado?.inscripcion_pagada === 1;
   const isLimited = isActivo && !isPaid;
