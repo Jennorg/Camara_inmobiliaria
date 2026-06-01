@@ -10,6 +10,40 @@ import { enrichUserPayload } from '../middlewares/auth.middleware.js'
 /** Hashea un token en crudo con SHA-256 (para almacenar en reset_token_hash). */
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 
+import { randomBytes } from 'crypto'
+
+async function createRefreshTokenSession(userId: number): Promise<{ token: string; expira: string }> {
+  // Pruner de tokens expirados
+  await db.execute({
+    sql: `DELETE FROM user_refresh_tokens WHERE id_user = ? AND expira_en < ?`,
+    args: [userId, new Date().toISOString()]
+  });
+
+  const token = randomBytes(32).toString('hex');
+  const expira = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 dias
+  const tokenHash = sha256(token);
+  
+  await db.execute({
+    sql: `INSERT INTO user_refresh_tokens (id_user, token_hash, expira_en) VALUES (?, ?, ?)`,
+    args: [userId, tokenHash, expira]
+  });
+  
+  return { token, expira };
+}
+
+function getCookie(req: Request, name: string): string | undefined {
+  const raw = req.headers.cookie;
+  if (!raw) return undefined;
+  const cookies = raw.split(';').map(c => c.trim());
+  for (const cookie of cookies) {
+    const [key, ...valParts] = cookie.split('=');
+    if (key === name) {
+      return decodeURIComponent(valParts.join('='));
+    }
+  }
+  return undefined;
+}
+
 /**
  * Parsea el campo `roles` de la DB (puede venir como JSON string o como string simple).
  */
@@ -84,8 +118,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const token = jwt.sign(payload, env.JWT_SECRET, {
-      expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+      expiresIn: '30m',
     })
+
+    // Generar Refresh Token y guardar en la base de datos
+    const { token: refreshToken } = await createRefreshTokenSession(user.id as number);
+
+    // Set Refresh Token HttpOnly cookie
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/'
+    });
 
     // Enriquecer el usuario para retornarlo en la respuesta del login
     const enrichedUser = await enrichUserPayload({ ...payload })
@@ -111,6 +157,23 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     if (!req.user) {
       res.status(404).json({ success: false, message: 'Usuario no encontrado' })
       return
+    }
+
+    // Migración transparente si no tiene cookie pero viene con token válido
+    const hasRefreshToken = getCookie(req, 'refresh_token');
+    if (!hasRefreshToken && req.user) {
+      try {
+        const { token: refreshToken } = await createRefreshTokenSession(req.user.id);
+        res.cookie('refresh_token', refreshToken, {
+          httpOnly: true,
+          secure: env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          path: '/'
+        });
+      } catch (err) {
+        console.error('Error generando cookie de refresh en getMe:', err);
+      }
     }
 
     res.status(200).json({ success: true, user: req.user })
@@ -294,10 +357,137 @@ export const setupInitialPassword = async (req: Request, res: Response): Promise
   }
 }
 
-/**
- * POST /api/auth/logout
- * No-op — el cliente elimina el token de localStorage.
- */
-export const logout = (_req: Request, res: Response): void => {
-  res.status(200).json({ success: true, message: 'Sesión cerrada' })
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const refreshToken = getCookie(req, 'refresh_token');
+    if (refreshToken) {
+      const tokenHash = sha256(refreshToken);
+      await db.execute({
+        sql: `DELETE FROM user_refresh_tokens WHERE token_hash = ?`,
+        args: [tokenHash]
+      });
+    }
+  } catch (err) {
+    console.error('Error invalidando refresh token en logout:', err);
+  } finally {
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/'
+    });
+    res.status(200).json({ success: true, message: 'Sesión cerrada' });
+  }
 }
+
+/**
+ * POST /api/auth/refresh
+ * Recibe el refresh token por cookie, lo valida, rota el refresh token y devuelve un nuevo access token.
+ */
+export const refresh = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const refreshToken = getCookie(req, 'refresh_token');
+    
+    if (!refreshToken) {
+      res.status(401).json({ success: false, message: 'Refresh token requerido' });
+      return;
+    }
+    
+    const tokenHash = sha256(refreshToken);
+    
+    // Buscar el token en la base de datos
+    const resultToken = await db.execute({
+      sql: `SELECT id_user, expira_en FROM user_refresh_tokens WHERE token_hash = ?`,
+      args: [tokenHash]
+    });
+    
+    if (resultToken.rows.length === 0) {
+      res.status(401).json({ success: false, message: 'Token inválido o expirado' });
+      return;
+    }
+    
+    const session = resultToken.rows[0] as any;
+    
+    // Verificar si el token ha expirado
+    if (new Date(session.expira_en) < new Date()) {
+      await db.execute({
+        sql: `DELETE FROM user_refresh_tokens WHERE token_hash = ?`,
+        args: [tokenHash]
+      });
+      res.clearCookie('refresh_token', {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/'
+      });
+      res.status(401).json({ success: false, message: 'Token de sesión expirado' });
+      return;
+    }
+    
+    // Buscar al usuario asociado
+    const resultUser = await db.execute({
+      sql: `SELECT id, email, roles, activo FROM users WHERE id = ?`,
+      args: [session.id_user]
+    });
+    
+    const user = resultUser.rows[0];
+    
+    if (!user) {
+      res.status(401).json({ success: false, message: 'Usuario no encontrado' });
+      return;
+    }
+    
+    if (!user.activo) {
+      res.status(403).json({ success: false, message: 'Cuenta desactivada. Contacta al administrador.' });
+      return;
+    }
+    
+    // Eliminar el refresh token viejo (Rotación de Refresh Tokens)
+    await db.execute({
+      sql: `DELETE FROM user_refresh_tokens WHERE token_hash = ?`,
+      args: [tokenHash]
+    });
+    
+    // Crear una nueva sesión y refresh token
+    const { token: newRefreshToken } = await createRefreshTokenSession(user.id as number);
+    
+    // Establecer la nueva cookie
+    res.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/'
+    });
+    
+    // Generar nuevo Access Token (30 minutos)
+    const roles = parseRoles(user.roles);
+    const rolPrimary: UserRole = roles.includes('super_admin')
+      ? 'super_admin'
+      : roles.includes('admin')
+        ? 'admin'
+        : 'afiliado';
+        
+    const payload: JwtPayload = {
+      id: user.id as number,
+      email: user.email as string,
+      rol: rolPrimary,
+      roles
+    };
+    
+    const newAccessToken = jwt.sign(payload, env.JWT_SECRET, {
+      expiresIn: '30m'
+    });
+    
+    const enrichedUser = await enrichUserPayload({ ...payload });
+    
+    res.status(200).json({
+      success: true,
+      token: newAccessToken,
+      user: enrichedUser
+    });
+  } catch (error) {
+    console.error('Error en refresh:', error);
+    res.status(500).json({ success: false, message: 'Error al refrescar sesión' });
+  }
+};

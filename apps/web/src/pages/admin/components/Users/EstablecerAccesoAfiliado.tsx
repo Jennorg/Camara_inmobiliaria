@@ -60,7 +60,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
         const nombre = formatNombreCard(a.nombre_completo).toLowerCase()
         return (
           nombre.includes(q) ||
-          (a.codigo_cibir?.toLowerCase().includes(q) ?? false) ||
+          (a.codigo?.toLowerCase().includes(q) ?? false) ||
           (a.email?.toLowerCase().includes(q) ?? false) ||
           String(a.id_afiliado).includes(q)
         )
@@ -137,7 +137,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
               type='text'
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder='Nombre, código CIBIR o email...'
+              placeholder='Nombre, código de afiliado o email...'
               className='w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-emerald-400'
             />
           </div>
@@ -155,9 +155,9 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
               <option value=''>Selecciona un afiliado...</option>
               {filteredPick.map(a => (
                 <option key={a.id_afiliado} value={a.id_afiliado}>
-                  {formatNombreCard(a.nombre_completo)}
-                  {a.codigo_cibir ? ` · ${a.codigo_cibir}` : ''}
-                  {a.id_user ? ' · con cuenta' : ' · sin cuenta'}
+                  {a.nombre_completo ? formatNombreCard(a.nombre_completo) : 'Sin nombre'}
+                  {a.codigo ? ` · ${a.codigo}` : ''}
+                  {a.id_user ? ' · cuenta activa' : ' · sin cuenta'}
                 </option>
               ))}
             </select>

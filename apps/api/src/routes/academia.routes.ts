@@ -17,6 +17,7 @@ import {
   academiaAdminGuards,
   adminCambiarEtapaInscripcion,
   adminBuscarReferenciaAfiliado,
+  adminToggleCorredorStatus,
 } from '../controllers/academia.controller.js'
 
 const router = Router()
@@ -71,6 +72,9 @@ router.patch('/inscripciones/:id/cambiar-etapa', adminCambiarEtapaInscripcion)
 
 // GET /api/academia/afiliados/referencia
 router.get('/afiliados/referencia', adminBuscarReferenciaAfiliado)
+
+// PATCH /api/academia/inscripciones/:id/toggle-corredor
+router.patch('/inscripciones/:id/toggle-corredor', adminToggleCorredorStatus)
 
 export { router as academiaRoutes }
 

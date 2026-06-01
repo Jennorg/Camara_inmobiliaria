@@ -29,7 +29,7 @@ interface SystemUser {
   creado_en: string
   id_afiliado: number | null
   nombre_completo: string | null
-  codigo_cibir: string | null
+  codigo: string | null
 }
 
 interface CreateForm {
@@ -82,7 +82,7 @@ export default function UsersPanel() {
         const hayMatch =
           u.email.toLowerCase().includes(q) ||
           (u.nombre_completo?.toLowerCase().includes(q) ?? false) ||
-          (u.codigo_cibir?.toLowerCase().includes(q) ?? false)
+          (u.codigo?.toLowerCase().includes(q) ?? false)
         if (!hayMatch) return false
       }
       return true
@@ -544,12 +544,23 @@ export default function UsersPanel() {
                 <tr key={u.id} className='hover:bg-slate-50 transition'>
                   <td className='px-5 py-4'>
                     <p className='font-semibold text-slate-700'>{u.email}</p>
-                    {u.nombre_completo && (
-                      <p className='text-xs text-slate-500 mt-0.5 truncate max-w-[220px]'>
-                        {u.nombre_completo}
-                        {u.codigo_cibir ? ` · ${u.codigo_cibir}` : ''}
-                      </p>
-                    )}
+                    <div className='flex items-center gap-1 mt-0.5'>
+                      {u.nombre_completo ? (
+                        <p className='text-xs text-slate-500 truncate max-w-[180px]'>
+                          {u.nombre_completo}
+                        </p>
+                      ) : (
+                        <span className='text-[10px] font-bold text-slate-300 uppercase tracking-tighter'>Sin nombre</span>
+                      )}
+                      {u.codigo && (
+                        <>
+                          <span className='text-slate-300'>·</span>
+                          <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                            {u.codigo}
+                          </span>
+                        </>
+                      )}
+                    </div>
                     <p className='text-[10px] text-slate-400 mt-0.5'>
                       {new Date(u.creado_en).toLocaleDateString('es-VE')}
                       {u.id_afiliado ? ` · Afiliado #${u.id_afiliado}` : ''}
