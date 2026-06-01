@@ -92,6 +92,11 @@ export default function InvitacionCorporativaPage() {
       })
       const json = await res.json()
       if (res.ok && json.success) {
+        const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development'
+        if (isDev && json.data?.token) {
+          window.location.href = `/cursos/verificar?token=${json.data.token}`
+          return
+        }
         setStatus('success')
       } else {
         setErrorMsg(json.message || 'Error al registrar.')

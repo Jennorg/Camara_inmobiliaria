@@ -18,6 +18,7 @@ import {
   adminCambiarEtapaInscripcion,
   adminBuscarReferenciaAfiliado,
   adminToggleCorredorStatus,
+  adminDeleteInscripcion,
 } from '../controllers/academia.controller.js'
 
 const router = Router()
@@ -63,6 +64,9 @@ router.patch('/inscripciones/:id/aprobar', adminAgendarEntrevista)
 
 // PATCH /api/academia/inscripciones/:id/rechazar
 router.patch('/inscripciones/:id/rechazar', adminRechazarPreinscripcion)
+
+// DELETE /api/academia/inscripciones/:id
+router.delete('/inscripciones/:id', adminDeleteInscripcion)
 
 // PATCH /api/academia/inscripciones/:id/completar
 router.patch('/inscripciones/:id/completar', adminCompletarCursoEstudiante)

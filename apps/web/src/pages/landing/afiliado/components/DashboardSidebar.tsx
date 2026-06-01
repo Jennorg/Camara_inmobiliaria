@@ -217,7 +217,7 @@ const DashboardSidebar = ({
   onMobileClose,
   onLogout,
 }: DashboardSidebarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <>
@@ -243,29 +243,21 @@ const DashboardSidebar = ({
 
       {/* Desktop sidebar */}
       <aside
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={[
-          'relative hidden md:flex flex-col h-screen sticky top-0 shadow-2xl transition-all duration-300 ease-in-out flex-shrink-0',
-          isCollapsed ? 'w-20' : 'w-72',
+          'relative hidden md:flex flex-col h-screen sticky top-0 shadow-2xl transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
+          isHovered ? 'w-72' : 'w-20',
         ].join(' ')}
         style={{ backgroundColor: 'var(--color-primary)' }}
       >
-        <SidebarContent navItems={navItems} activeTab={activeTab} onTabChange={onTabChange} isCollapsed={isCollapsed} onLogout={onLogout} />
-
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute right-2 top-20 z-10 flex items-center justify-center w-6 h-6 rounded-full border border-white/20 text-white/60 shadow-md transition-all duration-150 hover:text-white"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-accent)';
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-accent)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-primary)';
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.2)';
-          }}
-        >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+        <SidebarContent
+          navItems={navItems}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          isCollapsed={!isHovered}
+          onLogout={onLogout}
+        />
       </aside>
     </>
   );

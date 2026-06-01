@@ -84,7 +84,7 @@ const WidgetMisCertificados: React.FC = () => {
     }
   }
 
-  const isAfiliadoActivo = afiliadoData?.estatus === 'Afiliado'
+  const isAfiliadoActivo = !!user?.id_afiliado || user?.roles?.includes('afiliado') || afiliadoData?.estatus === 'Afiliado'
   const urlAfiliacion = user?.id_afiliado ? `${origin}/comprobante/afiliacion/${user.id_afiliado}` : ''
 
   return (

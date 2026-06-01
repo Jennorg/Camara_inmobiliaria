@@ -347,6 +347,49 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  const eliminarSolicitud = async (id: number) => {
+    if (!selected) return
+
+    const result = await Swal.fire({
+      title: '¿Eliminar solicitud por completo?',
+      text: 'Esta acción borrará de forma permanente el expediente del aspirante, su usuario y todos sus datos relacionados de la base de datos. Esta acción es irreversible.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#cbd5e1',
+      confirmButtonText: 'Sí, borrar todo',
+      cancelButtonText: 'Cancelar'
+    })
+
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}`, {
+          method: 'DELETE',
+          headers: { ...authHeaders },
+        })
+        const json = await res.json()
+        if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo eliminar la solicitud')
+        
+        Swal.fire({
+          title: '¡Eliminada!',
+          text: 'La solicitud ha sido eliminada por completo del sistema.',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        })
+        setSelected(null)
+        await fetchData()
+      } catch (e: any) {
+        Swal.fire({
+          title: 'Error',
+          text: e.message || 'No se pudo eliminar la solicitud',
+          icon: 'error',
+          confirmButtonColor: '#059669'
+        })
+      }
+    }
+  }
+
   const filteredRows = useMemo(() => {
     let result = rows
     if (filtroConvalidacion === 'apto') {
@@ -995,6 +1038,21 @@ export default function PreinscripcionesPrincipalesPanel({
               )}
               </div>
             )}
+
+            {/* Danger Zone: Eliminar Solicitud */}
+            <div className="bg-red-50/50 rounded-2xl p-4 border border-red-100 flex flex-col gap-2.5 mt-3">
+              <span className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] ml-1">Zona de Peligro</span>
+              <p className="text-[10px] text-red-700/80 font-medium leading-relaxed -mt-1">
+                Esta acción eliminará de forma irreversible la preinscripción, su expediente y todos los registros asociados en el sistema.
+              </p>
+              <button
+                type="button"
+                onClick={() => eliminarSolicitud(selected.id_inscripcion)}
+                className="w-full py-2.5 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold transition-colors uppercase tracking-wider"
+              >
+                Eliminar Solicitud por Completo
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-300">

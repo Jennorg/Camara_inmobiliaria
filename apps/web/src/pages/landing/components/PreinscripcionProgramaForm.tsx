@@ -143,8 +143,13 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
       if (!res.ok || !json.success) throw new Error(json.message || 'Error al registrar')
       
       const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development'
-      if (isDev && programaCodigo === 'AFILIACION' && json.data?.token) {
-        window.location.href = `/cursos/verificar?token=${json.data.token}`
+      if (isDev && json.data?.token) {
+        // Redirigir según el flujo correspondiente
+        const redirectUrl = programaCodigo === 'AFILIACION' 
+          ? `/cursos/verificar?token=${json.data.token}`
+          : `/cursos/verificar?token=${json.data.token}` // Ambos usan el mismo verificador ahora
+        
+        window.location.href = redirectUrl
         return
       }
 

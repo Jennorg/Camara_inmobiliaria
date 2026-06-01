@@ -60,7 +60,7 @@ export default function App() {
           <Route path='/direccion'     element={<DireccionPage />} />
           <Route path='/proposito'     element={<PropositoPage />} />
           <Route path='/cibir'         element={<CibirPage />} />
-          <Route path='/cibir/verificar' element={<VerificarEmailPage />} />
+          <Route path='/cibir/verificar' element={<PreservingQueryNavigate to='/cursos/verificar' />} />
           <Route path='/cursos/verificar' element={<VerificarPreinscripcionProgramaPage />} />
           <Route path='/formacion/verificar' element={<PreservingQueryNavigate to='/cursos/verificar' />} />
           <Route path='/marco-legal/:category' element={<MarcoLegalPage />} />

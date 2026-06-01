@@ -137,6 +137,11 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
       .then(res => res.json())
       .then(json => {
         if (json.success) {
+          const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
+          if (isDev && json.data?.token) {
+            window.location.href = `/cursos/verificar?token=${json.data.token}`;
+            return;
+          }
           Swal.fire('¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success');
         } else {
           Swal.fire('Atención', json.message || 'Hubo un error al procesar tu solicitud.', 'warning');

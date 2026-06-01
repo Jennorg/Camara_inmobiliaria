@@ -73,10 +73,11 @@ const PreinscripcionForm = () => {
     const phone = `${formData.phonePrefix}${phoneNum}`;
 
     try {
-      const response = await fetch(apiUrl('/api/afiliados/registro'), {
+      const response = await fetch(apiUrl('/api/public/preinscripciones'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          programaCodigo: 'CIBIR',
           nombreCompleto: nombreTrim,
           cedulaRif,
           email: formData.email,
@@ -86,6 +87,13 @@ const PreinscripcionForm = () => {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Error al conectar');
+      
+      const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development'
+      if (isDev && data.data?.token) {
+        window.location.href = `/cursos/verificar?token=${data.data.token}`
+        return
+      }
+
       setSubmitted(true);
     } catch (error: any) {
       setErrorMsg(error.message || 'Ocurrió un error inesperado.');
@@ -247,7 +255,7 @@ const PreinscripcionForm = () => {
         disabled={loading}
         className="w-full font-black py-5 rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs shadow-xl bg-emerald-600 text-white shadow-emerald-600/30 hover:bg-[#022c22]"
       >
-        {loading ? <Loader2 size={18} className="animate-spin" /> : 'Solicitar Afiliación'}
+        {loading ? <Loader2 size={18} className="animate-spin" /> : 'Solicitar Preinscripción'}
       </button>
 
       {errorMsg && (

@@ -164,9 +164,9 @@ interface NavGroup {
 
 const CMS_CHILDREN: NavItem[] = [
   { id: 'cms_noticias', label: 'Noticias', icon: icons.news },
-  { 
-    id: 'cms_normativas', 
-    label: 'Marco Legal', 
+  {
+    id: 'cms_normativas',
+    label: 'Marco Legal',
     icon: icons.fileDoc,
     children: [
       { id: 'cms_leyes', label: 'Leyes y Decretos', icon: icons.fileDoc },
@@ -350,7 +350,7 @@ const SidebarContent = ({
                     const subChildIds = child.children?.map(sc => sc.id) || []
                     const isSubActive = activeId === child.id || subChildIds.includes(activeId)
                     const isExpanded = expandedIds.includes(child.id)
-                    
+
                     return (
                       <React.Fragment key={child.id}>
                         <button
@@ -374,7 +374,7 @@ const SidebarContent = ({
                             </span>
                           )}
                         </button>
-                        
+
                         {hasSubChildren && isExpanded && (
                           <div className="ml-4 pl-3 border-l border-emerald-100 flex flex-col gap-0.5 mb-1 mt-0.5">
                             {child.children?.map(sc => (
@@ -383,8 +383,8 @@ const SidebarContent = ({
                                 onClick={() => onNav(sc.id)}
                                 className={[
                                   'py-1 px-2 text-[10px] font-medium transition-all rounded-lg text-left',
-                                  activeId === sc.id 
-                                    ? 'text-emerald-600 bg-emerald-50' 
+                                  activeId === sc.id
+                                    ? 'text-emerald-600 bg-emerald-50'
                                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 ].join(' ')}
                               >
