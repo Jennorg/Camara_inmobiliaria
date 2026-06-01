@@ -70,6 +70,7 @@ export default function App() {
           <Route path='/miembros/:id'  element={<AfiliadoProfilePage />} />
           <Route path='/afiliate'      element={<RequisitosPage />} />
           <Route path='/requisitos'    element={<Navigate to='/afiliate' replace />} />
+          <Route path='/beneficios'    element={<Navigate to='/#afiliados' replace />} />
           <Route path='/comprobante/:codigo' element={<ComprobantePublicoPage />} />
           <Route path='/comprobante/afiliacion/:id' element={<CertificadoAfiliacionPage />} />
           <Route path='/establecer-contrasena' element={<SetupPasswordPage />} />

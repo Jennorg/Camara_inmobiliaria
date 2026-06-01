@@ -187,14 +187,14 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    e.website as empresa_website,
                    e.email as empresa_email,
                    e.telefono as empresa_telefono,
-                   json_extract(a.redes_sociales, '$.instagram') as instagram,
-                   json_extract(a.redes_sociales, '$.facebook') as facebook,
-                   json_extract(a.redes_sociales, '$.linkedin') as linkedin,
-                   json_extract(a.redes_sociales, '$.twitter') as twitter,
-                   json_extract(e.redes_sociales, '$.instagram') as empresa_instagram,
-                   json_extract(e.redes_sociales, '$.facebook') as empresa_facebook,
-                   json_extract(e.redes_sociales, '$.linkedin') as empresa_linkedin,
-                   json_extract(e.redes_sociales, '$.twitter') as empresa_twitter,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END as instagram,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END as facebook,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END as twitter,
+                   CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.instagram') ELSE NULL END as empresa_instagram,
+                   CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.facebook') ELSE NULL END as empresa_facebook,
+                   CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.linkedin') ELSE NULL END as empresa_linkedin,
+                   CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.twitter') ELSE NULL END as empresa_twitter,
                    CASE 
                      WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
                      ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
@@ -473,10 +473,10 @@ export const getAfiliados = async (req: Request, res: Response) => {
              e.website as empresa_website,
              e.email as empresa_email,
              e.telefono as empresa_telefono,
-             COALESCE(e_redes.instagram, json_extract(a.redes_sociales, '$.instagram')) as instagram,
-             COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
-             COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
-             COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
+             COALESCE(e_redes.instagram, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END) as instagram,
+             COALESCE(e_redes.facebook, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END) as facebook,
+             COALESCE(e_redes.linkedin, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END) as linkedin,
+             COALESCE(e_redes.twitter, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END) as twitter,
              CASE 
                WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''))
                ELSE NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')
@@ -486,10 +486,10 @@ export const getAfiliados = async (req: Request, res: Response) => {
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
       LEFT JOIN (
         SELECT id_empresa, 
-               json_extract(redes_sociales, '$.instagram') as instagram,
-               json_extract(redes_sociales, '$.facebook') as facebook,
-               json_extract(redes_sociales, '$.linkedin') as linkedin,
-               json_extract(redes_sociales, '$.twitter') as twitter
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.instagram') ELSE NULL END as instagram,
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.facebook') ELSE NULL END as facebook,
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.twitter') ELSE NULL END as twitter
         FROM empresas
       ) e_redes ON a.id_empresa = e_redes.id_empresa
       WHERE a.eliminado_en IS NULL
@@ -708,10 +708,10 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              e.logo_url as empresa_logo_url, e.website as empresa_website,
              p.email as email,
              e.email as empresa_email,
-             json_extract(a.redes_sociales, '$.instagram') as instagram,
-             json_extract(a.redes_sociales, '$.facebook') as facebook,
-             json_extract(a.redes_sociales, '$.linkedin') as linkedin,
-             json_extract(a.redes_sociales, '$.twitter') as twitter
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END as instagram,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END as facebook,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END as twitter
       FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -773,20 +773,20 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                e.website as empresa_website,
                e.email as empresa_email,
                e.telefono as empresa_telefono,
-               COALESCE(e_redes.instagram, json_extract(a.redes_sociales, '$.instagram')) as instagram,
-               COALESCE(e_redes.facebook, json_extract(a.redes_sociales, '$.facebook')) as facebook,
-               COALESCE(e_redes.linkedin, json_extract(a.redes_sociales, '$.linkedin')) as linkedin,
-               COALESCE(e_redes.twitter, json_extract(a.redes_sociales, '$.twitter')) as twitter,
+               COALESCE(e_redes.instagram, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END) as instagram,
+               COALESCE(e_redes.facebook, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END) as facebook,
+               COALESCE(e_redes.linkedin, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END) as linkedin,
+               COALESCE(e_redes.twitter, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END) as twitter,
                e.banner_url as empresa_banner_url
         FROM afiliados a
         JOIN personas p ON a.id_persona = p.id
         LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
         LEFT JOIN (
           SELECT id_empresa, 
-                 json_extract(redes_sociales, '$.instagram') as instagram,
-                 json_extract(redes_sociales, '$.facebook') as facebook,
-                 json_extract(redes_sociales, '$.linkedin') as linkedin,
-                 json_extract(redes_sociales, '$.twitter') as twitter
+                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.instagram') ELSE NULL END as instagram,
+                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.facebook') ELSE NULL END as facebook,
+                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
+                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.twitter') ELSE NULL END as twitter
           FROM empresas
         ) e_redes ON a.id_empresa = e_redes.id_empresa
         WHERE a.id_afiliado = ? AND a.estatus = 'Afiliado' AND a.activo = 1
