@@ -264,10 +264,10 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
   nombre: string
   emailOriginal: string
   programaCodigo: string
-  token: string
+  token?: string
 }) => {
   const { nombre, emailOriginal, programaCodigo, token } = params
-  const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${token}`
+  const enlaceSetup = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
   
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
@@ -275,15 +275,15 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
     subject: `Continúa tu inscripción — ${programaCodigo}`,
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
-      <p>Tu correo ha sido verificado con éxito para el programa <strong>${programaCodigo}</strong>.</p>
+      <p>Tu preinscrpción ha sido aprobada con éxito para el programa <strong>${programaCodigo}</strong>.</p>
       <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
-        <p style="margin-top: 0; font-weight: 700; color: #065f46;">Siguiente Paso: Crea tu contraseña</p>
-        <p>Para acceder a tu panel de formación y completar tu registro, por favor establece tu contraseña segura:</p>
+        <p style="margin-top: 0; font-weight: 700; color: #065f46;">${token ? 'Siguiente Paso: Crea tu contraseña' : 'Acceso al Portal'}</p>
+        <p>${token ? 'Para acceder a tu panel de formación y completar tu registro, por favor establece tu contraseña segura:' : 'Ya puedes ingresar a tu panel personal para gestionar tu formación:'}</p>
         <div style="text-align: center; margin-top: 24px;">
-          <a href="${enlaceSetup}" class="btn">Establecer mi Contraseña</a>
+          <a href="${enlaceSetup}" class="btn">${token ? 'Establecer mi Contraseña' : 'Ir a mi Panel'}</a>
         </div>
       </div>
-      <p style="font-size: 13px; color: #6b7280;">Una vez creada, podrás entrar al sistema. Un administrador se pondrá en contacto contigo para los siguientes pasos.</p>
+      <p style="font-size: 13px; color: #6b7280;">${token ? 'Una vez creada, podrás entrar al sistema.' : 'Ingresa con tu correo electrónico y contraseña registrada.'} Un administrador se pondrá en contacto contigo para los siguientes pasos.</p>
     `, 'Formación')
   })
   if (error) { console.error('enviarCorreoSetPasswordEstudiante:', error); throw error }
