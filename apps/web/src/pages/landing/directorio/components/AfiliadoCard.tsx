@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Instagram, Linkedin, Facebook, Building2, User, Briefcase, Music2 } from 'lucide-react';
+import { Mail, Instagram, Linkedin, Facebook, Building2, User, Briefcase, Music2, Globe } from 'lucide-react';
 import { formatNombreCard, getInitials } from '@/utils/formatters';
 import { Link } from 'react-router-dom';
 
@@ -10,6 +10,12 @@ export type AfiliadoData = AfiliadoDTO;
 const XIcon = ({ size = 12 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+  </svg>
+);
+
+const TikTokIcon = ({ size = 12 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.14-.1-.27-.2-.4-.31v4.99c0 .24-.01.48-.03.71-.11 2.53-1.44 4.81-3.66 6.03-2.12 1.19-4.81 1.25-6.99.14-2.16-1.07-3.66-3.23-3.92-5.63-.33-2.43.74-4.99 2.82-6.28 1.34-.84 2.97-1.18 4.54-.93V11.1c-1-.22-2.11-.08-3 .42-.9.5-1.52 1.45-1.58 2.47-.07 1.16.51 2.33 1.51 2.89 1 .58 2.34.5 3.24-.22.6-.48.92-1.22.92-1.99V0z"/>
   </svg>
 );
 
@@ -186,7 +192,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
         </div>
         
         {/* Acciones de Contacto */}
-        {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok) && (
+        {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok || afiliado.website || (isCorpView && afiliado.empresa_website)) && (
           <div className="flex gap-2 items-center justify-center pt-3 border-t border-slate-100 dark:border-emerald-50/10 w-full">
             {(isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) && (
               <a 
@@ -214,7 +220,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
             )}
             {afiliado.instagram && (
               <a 
-                href={afiliado.instagram.startsWith('http') ? afiliado.instagram : `https://instagram.com/${afiliado.instagram.replace('@','')}`}
+                href={afiliado.instagram}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -226,7 +232,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
             )}
             {afiliado.facebook && (
               <a 
-                href={afiliado.facebook.startsWith('http') ? afiliado.facebook : `https://facebook.com/${afiliado.facebook}`}
+                href={afiliado.facebook}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -238,7 +244,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
             )}
             {afiliado.twitter && (
               <a 
-                href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@','')}`}
+                href={afiliado.twitter}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -250,14 +256,26 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
             )}
             {afiliado.tiktok && (
               <a 
-                href={afiliado.tiktok.startsWith('http') ? afiliado.tiktok : `https://tiktok.com/@${afiliado.tiktok.replace('@','')}`}
+                href={afiliado.tiktok}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-all duration-300"
                 title="TikTok"
               >
-                <Music2 size={12} />
+                <TikTokIcon size={12} />
+              </a>
+            )}
+            {(afiliado.website || (isCorpView && afiliado.empresa_website)) && (
+              <a 
+                href={isCorpView ? (afiliado.empresa_website || afiliado.website) : afiliado.website}
+                onClick={(e) => e.stopPropagation()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-all duration-300"
+                title="Sitio Web"
+              >
+                <Globe size={12} />
               </a>
             )}
             {phoneNumber && (

@@ -83,7 +83,7 @@ export default function PadiPage() {
           <div className="flex flex-col lg:flex-row items-center gap-12 mb-20 bg-slate-50 p-8 lg:p-16 rounded-[3rem] border border-emerald-50">
             <div className="w-full lg:w-1/3 flex justify-center">
               <img
-                src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"
+                src="/assets/padi_catalog.png"
                 alt="Logo PADI"
                 className="w-64 h-auto drop-shadow-2xl"
               />

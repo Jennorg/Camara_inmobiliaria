@@ -72,8 +72,10 @@ async function upsertEstudianteByEmail(params: {
   profesion?: string | null
   esCorredorInmobiliario?: boolean | null
   anoInicioServicio?: number | null
+  website?: string | null
+  descripcion?: string | null
 }): Promise<{ id_estudiante: number }> {
-  const { nombres, apellidos, razonSocial, cedulaRif, email, telefono, tipo, nivelProfesional, profesion, esCorredorInmobiliario, anoInicioServicio } = params
+  const { nombres, apellidos, razonSocial, cedulaRif, email, telefono, tipo, nivelProfesional, profesion, esCorredorInmobiliario, anoInicioServicio, website, descripcion } = params
 
   // 1. Buscar si es Empresa o Persona
   let idPersona: number | null = null
@@ -100,14 +102,16 @@ async function upsertEstudianteByEmail(params: {
     })
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number
-      // Actualizar nivel, profesion si se proveen
-      if (nivelProfesional || profesion) {
+      // Actualizar nivel, profesion, website, descripcion si se proveen
+      if (nivelProfesional || profesion || website || descripcion) {
         await db.execute({
           sql: `UPDATE personas SET 
                   nivel_academico = COALESCE(?, nivel_academico),
-                  profesion = COALESCE(?, profesion)
+                  profesion = COALESCE(?, profesion),
+                  website = COALESCE(?, website),
+                  descripcion = COALESCE(?, descripcion)
                 WHERE id = ?`,
-          args: [nivelProfesional || null, profesion || null, idPersona]
+          args: [nivelProfesional || null, profesion || null, website || null, descripcion || null, idPersona]
         })
       }
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -118,8 +122,8 @@ async function upsertEstudianteByEmail(params: {
       }
     } else {
       const insP = await db.execute({
-        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null]
+        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion, website, descripcion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null, website || null, descripcion || null]
       })
       idPersona = insP.rows[0].id as number
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -528,6 +532,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     const finalTipo = isAfiliacion ? (isCorporativo ? 'Corporativo' : 'Afiliado') : 'Regular'
 
     const anoInicioServicio = req.body?.ano_inicio_servicio !== undefined ? Number(req.body.ano_inicio_servicio) : null
+    const website = typeof req.body?.website === 'string' ? req.body.website.trim() : null
+    const descripcion = typeof req.body?.descripcion === 'string' ? req.body.descripcion.trim() : null
 
     const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto: finalNombre,
@@ -541,7 +547,9 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       nivelProfesional: req.body?.nivelProfesional ? normalizeNivelProfesional(req.body.nivelProfesional) : nivelProfesional,
       profesion: typeof req.body?.profesion === 'string' ? req.body.profesion.trim() : (registro.profesion || null),
       esCorredorInmobiliario: req.body?.esCorredorInmobiliario !== undefined ? normalizeEsCorredorInmobiliario(req.body.esCorredorInmobiliario) : esCorredorInmobiliario,
-      anoInicioServicio
+      anoInicioServicio,
+      website,
+      descripcion
     })
 
     // Nota: para Agente Corporativo, la vinculación a la empresa se hace en la tabla

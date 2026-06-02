@@ -192,10 +192,13 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END as facebook,
                    CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
                    CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END as twitter,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.tiktok') ELSE NULL END as tiktok,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.website') ELSE NULL END as website,
                    CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.instagram') ELSE NULL END as empresa_instagram,
                    CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.facebook') ELSE NULL END as empresa_facebook,
                    CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.linkedin') ELSE NULL END as empresa_linkedin,
                    CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.twitter') ELSE NULL END as empresa_twitter,
+                   CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.tiktok') ELSE NULL END as empresa_tiktok,
                    CASE 
                      WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
                      ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
@@ -1044,11 +1047,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     // Campos permitidos por entidad
-    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
+    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url', 'website', 'descripcion'];
     const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo', 'id_empresa', 'activo'];
     const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
-      'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio'
+      'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio', 'descripcion'
     ];
     const estudianteFields = ['es_corredor_inmobiliario'];
     const empresaFieldsMap: Record<string, string> = {
@@ -1077,6 +1080,16 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
     const { id_persona: idPersona, id_empresa: idEmpresa } = current.rows[0] as any;
 
+    if (fields.cedula) {
+      const cedulaCheck = await db.execute({
+        sql: `SELECT id FROM personas WHERE cedula = ? AND id <> ?`,
+        args: [fields.cedula, idPersona]
+      });
+      if (cedulaCheck.rows.length > 0) {
+        return res.status(400).json({ success: false, message: 'La cédula ingresada ya está registrada por otro usuario.' });
+      }
+    }
+
     // 2. Preparar actualizaciones
     const pUpdates: string[] = [];
     const pArgs: any[] = [];
@@ -1087,7 +1100,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const stUpdates: string[] = [];
     const stArgs: any[] = [];
 
-    const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok'];
+    const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok', 'website'];
 
     Object.keys(fields).forEach(key => {
       if (personaFields.includes(key)) {
@@ -1165,7 +1178,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       }
     }
 
-    if (pUpdates.length === 0 && aUpdates.length === 0 && eUpdates.length === 0 && stUpdates.length === 0) {
+    const hasDocs = fields.documentos && Array.isArray(fields.documentos);
+
+    if (pUpdates.length === 0 && aUpdates.length === 0 && eUpdates.length === 0 && stUpdates.length === 0 && !hasDocs) {
       return res.status(400).json({ success: false, message: 'Nada que actualizar' });
     }
 
@@ -1217,6 +1232,46 @@ export const updateAfiliado = async (req: Request, res: Response) => {
           sql: `UPDATE estudiantes SET ${stUpdates.join(', ')} WHERE id_estudiante = ?`,
           args: stArgs
         });
+      }
+    }
+
+    if (hasDocs) {
+      const stCheck = await db.execute({
+        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ?`,
+        args: [idPersona]
+      });
+      const idEstudiante = stCheck.rows[0]?.id_estudiante || null;
+
+      for (const doc of fields.documentos) {
+        const { tipo_doc, url, nombre_archivo } = doc;
+        if (!tipo_doc) continue;
+
+        // Determine which entity to link the document to:
+        let entidadTipo = 'afiliado';
+        let entidadId = Number(id);
+
+        if (['registro_mercantil', 'rif_empresa'].includes(tipo_doc) && idEmpresa) {
+          entidadTipo = 'empresa';
+          entidadId = Number(idEmpresa);
+        } else if (['titulo', 'cv'].includes(tipo_doc) && idEstudiante) {
+          entidadTipo = 'estudiante';
+          entidadId = Number(idEstudiante);
+        }
+
+        // Delete previous document of the same type for this entity
+        await db.execute({
+          sql: `DELETE FROM documentos_adjuntos WHERE entidad_tipo = ? AND entidad_id = ? AND tipo_doc = ?`,
+          args: [entidadTipo, entidadId, tipo_doc]
+        });
+
+        // Insert new one if URL is provided
+        if (url) {
+          await db.execute({
+            sql: `INSERT INTO documentos_adjuntos (entidad_tipo, entidad_id, tipo_doc, url, nombre_archivo)
+                  VALUES (?, ?, ?, ?, ?)`,
+            args: [entidadTipo, entidadId, tipo_doc, url, nombre_archivo || null]
+          });
+        }
       }
     }
 

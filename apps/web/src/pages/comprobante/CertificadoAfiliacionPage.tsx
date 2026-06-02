@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Printer, ArrowLeft, Loader2, Award } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
@@ -26,6 +26,26 @@ const CertificadoAfiliacionPage: React.FC = () => {
   const [data, setData] = useState<AfiliadoData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [width, setWidth] = useState(1000)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+
+  const trackerRef = useCallback((node: HTMLDivElement | null) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect()
+      resizeObserverRef.current = null
+    }
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setWidth(entry.contentRect.width)
+        }
+      })
+      observer.observe(node)
+      resizeObserverRef.current = observer
+    }
+  }, [])
+
+  const scale = Math.min(1, width / 1000)
 
   useEffect(() => {
     if (!id) {
@@ -177,10 +197,20 @@ const CertificadoAfiliacionPage: React.FC = () => {
         )}
 
         {!loading && data && (
-          <div
-            id="certificate-print-area"
-            className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between p-12 select-none"
-          >
+          <div className="w-full relative">
+            <div ref={trackerRef} className="absolute inset-x-0 top-0 h-0 pointer-events-none" />
+            <div
+              className="w-full flex justify-center items-start overflow-hidden print:!h-auto print:!overflow-visible"
+              style={{ height: scale < 1 ? `${707 * scale}px` : 'auto' }}
+            >
+              <div
+                id="certificate-print-area"
+                className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between p-12 select-none print:!transform-none shrink-0"
+                style={{
+                  transform: scale < 1 ? `scale(${scale})` : 'none',
+                  transformOrigin: 'top center',
+                }}
+              >
             {/* ── VECTOR BACKGROUND ACCENTS (FIDELIDAD TOTAL A LA FOTO) ── */}
             <svg
               className="absolute inset-0 w-full h-full pointer-events-none z-0"
@@ -235,14 +265,26 @@ const CertificadoAfiliacionPage: React.FC = () => {
               </p>
 
               {/* Nombre del Afiliado */}
-              <h1 className="text-emerald-950 font-sans font-extrabold text-3xl my-4 tracking-tight uppercase">
+              <h1 className="text-emerald-950 font-sans font-extrabold text-3xl mt-4 mb-1 tracking-tight uppercase">
                 {data.nombre_completo}
               </h1>
 
+              {/* Roles corporativos */}
+              {data.tipo_afiliado === 'Corporativo' && (data.nombres || data.apellidos) && (
+                <p className="text-emerald-800 font-sans font-bold text-sm mb-3 uppercase tracking-wider">
+                  Representante Legal: {data.nombres} {data.apellidos}
+                </p>
+              )}
+
+              {data.tipo_afiliado === 'Agente Corporativo' && data.empresa_razon_social && (
+                <p className="text-emerald-800 font-sans font-bold text-sm mb-3 uppercase tracking-wider">
+                  Agente Corporativo de: {data.empresa_razon_social}
+                </p>
+              )}
+
               {/* Cédula / RIF */}
-              <div className="flex flex-col items-center mb-1">
+              <div className="flex flex-col items-center mb-1 mt-1">
                 <p className="text-emerald-900 font-sans font-bold text-sm tracking-widest flex items-center gap-1.5 border-b border-emerald-900/60 pb-1 px-8 min-w-[240px] justify-center">
-                  <span>ID:</span>
                   <span className="font-mono">{formatDocumentId(data)}</span>
                 </p>
               </div>
@@ -323,6 +365,8 @@ const CertificadoAfiliacionPage: React.FC = () => {
                 </span>
               </div>
             </div>
+          </div>
+          </div>
           </div>
         )}
       </main>

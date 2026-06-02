@@ -13,8 +13,7 @@ const FALLBACK_CURSOS = [
     link: "/cibir",
     titulo: "CIBIR",
     subtitulo: "Curso Introductorio de Bienes Raíces",
-    imagen_url:
-      "https://observatorio.tec.mx/wp-content/uploads/2020/04/CC3B3mohacerunaclaseenvivoefectivaysincomplicaciones.jpg",
+    imagen_url: "/assets/cibir_catalog.png",
   },
   {
     id: "PREANI",
@@ -22,8 +21,7 @@ const FALLBACK_CURSOS = [
     link: "/preani",
     titulo: "PREANI",
     subtitulo: "Programa de Estudios Avanzados en Negocios Inmobiliarios",
-    imagen_url:
-      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1200",
+    imagen_url: "/assets/preani_catalog.png",
   },
   {
     id: "PEGI",
@@ -31,8 +29,7 @@ const FALLBACK_CURSOS = [
     link: "/pegi",
     titulo: "PEGI",
     subtitulo: "Programa de Especializacion en Gerencia Inmobiliaria",
-    imagen_url:
-      "https://static.studyusa.com/article/aws_bEqqGGmAziTXnqDcljdFyWoFhYcnEMGI_sm_2x.jpg?format=webp",
+    imagen_url: "/assets/pegi_catalog.png",
   },
   {
     id: "PADI",
@@ -40,8 +37,7 @@ const FALLBACK_CURSOS = [
     link: "/padi",
     titulo: "PADI",
     subtitulo: "Programa de Administración de Inmuebles",
-    imagen_url:
-      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1200",
+    imagen_url: "/assets/padi_catalog.png",
   },
 ];
 

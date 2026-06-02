@@ -7,6 +7,7 @@ import FileUpload from '@/components/common/FileUpload'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
 import { useExpedienteProgress } from '@/hooks/useExpedienteProgress'
+import { useAuth } from '@/context/AuthContext'
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -36,6 +37,7 @@ const CURSO_STEPS = [
 const INPUT_H = "h-[62px]" // Altura unificada
 
 export default function VerificarPreinscripcionProgramaPage() {
+  const { user, token: sessionToken } = useAuth()
   const [searchParams] = useSearchParams()
   const tokenFromUrl = searchParams.get('token')
   const [verifiedToken, setVerifiedToken] = useState<string>('')
@@ -172,8 +174,7 @@ export default function VerificarPreinscripcionProgramaPage() {
             navigate('/cursos/verificar', { replace: true })
           }
 
-          // Intentar restaurar progreso guardado directamente desde localStorage
-          // (no podemos llamar a hooks dentro de un async, leemos con la misma lógica del hook)
+          // 1. Intentar restaurar progreso guardado desde localStorage
           const storageKey = `expediente_progress_${tok.slice(0, 12).replace(/[^a-zA-Z0-9_-]/g, '_')}`
           let saved: any = null
           try {
@@ -183,6 +184,19 @@ export default function VerificarPreinscripcionProgramaPage() {
               if (parsed._version === 1) saved = parsed
             }
           } catch { /* ignorar */ }
+
+          // 2. Intentar obtener datos del perfil si está logueado
+          let profileData: any = null
+          if (user?.id_afiliado || user?.id_estudiante) {
+            try {
+              const targetId = user.id_afiliado || user.id_estudiante;
+              const profileRes = await fetch(`${API_URL}/api/afiliados/${targetId}`, {
+                headers: { 'Authorization': `Bearer ${sessionToken}` }
+              })
+              const profileJson = await profileRes.json()
+              if (profileJson.success) profileData = profileJson.data
+            } catch (e) { console.error("Error loading profile for pre-fill:", e) }
+          }
 
           if (saved) {
             setFormData({
@@ -207,20 +221,30 @@ export default function VerificarPreinscripcionProgramaPage() {
               nombre_referencia2: saved.nombre_referencia2 || '',
             })
           } else {
-            // Sin progreso guardado — inicializar con datos del servidor
+            // Sin progreso guardado — inicializar con datos del servidor + perfil
+            const docs = profileData?.documentos || []
+            const cvDoc = docs.find((d: any) => d.tipo_doc === 'cv')
+            const tituloDoc = docs.find((d: any) => d.tipo_doc === 'titulo')
+            const registroDoc = docs.find((d: any) => d.tipo_doc === 'registro_mercantil')
+            const tituloRepDoc = docs.find((d: any) => d.tipo_doc === 'titulo_representante')
+
             setFormData(prev => ({
               ...prev,
-              nivelProfesional: (json.data.nivelProfesional as any) || '',
-              profesion: json.data.profesion || '',
-              ano_inicio_servicio: json.data.ano_inicio_servicio !== undefined ? String(json.data.ano_inicio_servicio) : '',
-              url_titulo: '',
-              url_cv: '',
-              url_registro_mercantil: '',
-              url_titulo_representante: '',
-              especializaciones: [],
-              cursos_extras: [],
-              diplomados: [],
-              otros_docs: [],
+              nivelProfesional: (profileData?.nivel_academico || json.data.nivel_academico || '') as any,
+              profesion: profileData?.profesion || json.data.profesion || '',
+              ano_inicio_servicio: profileData?.ano_inicio_servicio !== undefined ? String(profileData.ano_inicio_servicio) : (json.data.ano_inicio_servicio !== undefined ? String(json.data.ano_inicio_servicio) : ''),
+              url_cv: cvDoc?.url || '',
+              name_cv: cvDoc?.nombre_archivo || '',
+              url_titulo: tituloDoc?.url || '',
+              name_titulo: tituloDoc?.nombre_archivo || '',
+              url_registro_mercantil: registroDoc?.url || '',
+              name_registro_mercantil: registroDoc?.nombre_archivo || '',
+              url_titulo_representante: tituloRepDoc?.url || '',
+              name_titulo_representante: tituloRepDoc?.nombre_archivo || '',
+              especializaciones: docs.filter((d: any) => d.tipo_doc === 'especializacion').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
+              cursos_extras: docs.filter((d: any) => d.tipo_doc === 'curso_extra').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
+              diplomados: docs.filter((d: any) => d.tipo_doc === 'diplomado').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
+              otros_docs: docs.filter((d: any) => d.tipo_doc === 'otro_documento').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
               url_referencia1: '',
               nombre_referencia1: '',
               url_referencia2: '',
@@ -239,7 +263,7 @@ export default function VerificarPreinscripcionProgramaPage() {
     }
     verificarToken()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenFromUrl])
+  }, [tokenFromUrl, user?.id_afiliado, user?.id_estudiante])
 
   // ── Auto-guardado de progreso con debounce de 600ms ──────────────────────
   useEffect(() => {

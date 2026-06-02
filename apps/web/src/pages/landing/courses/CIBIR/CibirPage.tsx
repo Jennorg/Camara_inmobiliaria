@@ -188,7 +188,7 @@ export default function Cibir() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-32 items-stretch">
             <div className="relative rounded-[3rem] overflow-hidden group min-h-[400px]">
               <img
-                src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"
+                src="/assets/pegi_catalog.png"
                 alt="Networking"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
@@ -215,7 +215,7 @@ export default function Cibir() {
 
             <div className="relative rounded-[3rem] overflow-hidden flex items-end">
               <img
-                src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2070&auto=format&fit=crop"
+                src="/assets/cibir_catalog.png"
                 alt="Inscripción"
                 className="absolute inset-0 w-full h-full object-cover"
               />

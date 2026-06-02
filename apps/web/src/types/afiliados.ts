@@ -128,6 +128,7 @@ export interface AfiliadoDTO {
   descripcion?: string | null;
   website?: string;
   twitter?: string;
+  tiktok?: string;
   documentos?: any[]; // Added to support admin panel document list
 }
 

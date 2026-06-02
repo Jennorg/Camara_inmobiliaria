@@ -19,6 +19,18 @@ interface ProfileHeroProps {
   ubicacionTexto: string;
 }
 
+const XIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+  </svg>
+);
+
+const TikTokIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.14-.1-.27-.2-.4-.31v4.99c0 .24-.01.48-.03.71-.11 2.53-1.44 4.81-3.66 6.03-2.12 1.19-4.81 1.25-6.99.14-2.16-1.07-3.66-3.23-3.92-5.63-.33-2.43.74-4.99 2.82-6.28 1.34-.84 2.97-1.18 4.54-.93V11.1c-1-.22-2.11-.08-3 .42-.9.5-1.52 1.45-1.58 2.47-.07 1.16.51 2.33 1.51 2.89 1 .58 2.34.5 3.24-.22.6-.48.92-1.22.92-1.99V0z"/>
+  </svg>
+);
+
 export const ProfileHero = ({ 
   afiliado, 
   isRepMode, 
@@ -116,25 +128,28 @@ export const ProfileHero = ({
               </a>
             )}
             {afiliado.instagram && (
-              <a href={afiliado.instagram.startsWith('http') ? afiliado.instagram : `https://instagram.com/${afiliado.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Instagram">
+              <a href={afiliado.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Instagram">
                 <Instagram size={16} />
               </a>
             )}
             {afiliado.facebook && (
-              <a href={afiliado.facebook.startsWith('http') ? afiliado.facebook : `https://facebook.com/${afiliado.facebook}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#1877F2] hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Facebook">
+              <a href={afiliado.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#1877F2] hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Facebook">
                 <Facebook size={16} />
               </a>
             )}
             {afiliado.twitter && (
-              <a href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="X">
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
-                </svg>
+              <a href={afiliado.twitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="X">
+                <XIcon size={16} />
               </a>
             )}
             {afiliado.tiktok && (
-              <a href={afiliado.tiktok.startsWith('http') ? afiliado.tiktok : `https://tiktok.com/@${afiliado.tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="TikTok">
-                <Music2 size={16} />
+              <a href={afiliado.tiktok} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="TikTok">
+                <TikTokIcon size={16} />
+              </a>
+            )}
+            {(afiliado.website || (isCorporativo && afiliado.empresa_website)) && (
+              <a href={isCorporativo ? (afiliado.empresa_website || afiliado.website) : afiliado.website} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Sitio Web">
+                <Globe size={16} />
               </a>
             )}
             {(isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono) && (

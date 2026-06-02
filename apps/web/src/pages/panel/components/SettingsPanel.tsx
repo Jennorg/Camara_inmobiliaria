@@ -6,11 +6,12 @@ import {
   CheckCircle2, AlertCircle, Globe, Phone, MapPin, 
   Briefcase, GraduationCap, Instagram, Facebook, 
   Linkedin, Twitter, Save, Loader2, ChevronRight, Clock,
-  Music2
+  Music2, FileText
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import FileUpload from '@/components/common/FileUpload';
 
-type SettingsTab = 'personal' | 'profesional' | 'social' | 'empresa' | 'membresia';
+type SettingsTab = 'personal' | 'profesional' | 'social' | 'empresa' | 'membresia' | 'documentos';
 
 interface ProfileFormData {
   nombres?: string;
@@ -22,6 +23,7 @@ interface ProfileFormData {
   fecha_nacimiento?: string;
   nivel_academico?: string;
   profesion?: string;
+  descripcion?: string;
   ano_inicio_servicio?: number | string;
   es_corredor_inmobiliario?: boolean | number;
   instagram?: string;
@@ -29,6 +31,7 @@ interface ProfileFormData {
   linkedin?: string;
   twitter?: string;
   tiktok?: string;
+  website?: string;
   empresa_razon_social?: string;
   empresa_rif_tipo?: string;
   empresa_rif_numero?: string;
@@ -49,6 +52,29 @@ const SettingsPanel = () => {
   const [fetching, setFetching] = useState(true);
   const [formData, setFormData] = useState<ProfileFormData>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [documentos, setDocumentos] = useState<{ tipo_doc: string; url: string; nombre_archivo?: string }[]>([]);
+
+  const getDocUrl = (tipo: string) => {
+    return documentos.find(d => d.tipo_doc === tipo)?.url || '';
+  };
+
+  const getDocName = (tipo: string) => {
+    return documentos.find(d => d.tipo_doc === tipo)?.nombre_archivo || '';
+  };
+
+  const handleUploadSuccess = (tipo: string, url: string, name?: string) => {
+    setDocumentos(prev => {
+      const filtered = prev.filter(d => d.tipo_doc !== tipo);
+      return [...filtered, { tipo_doc: tipo, url, nombre_archivo: name }];
+    });
+  };
+
+  const handleClearDoc = (tipo: string) => {
+    setDocumentos(prev => {
+      const filtered = prev.filter(d => d.tipo_doc !== tipo);
+      return [...filtered, { tipo_doc: tipo, url: '' }];
+    });
+  };
 
   const isAgente = user?.tipo_afiliado === 'Agente Corporativo' || user?.tipo_afiliado === 'Agente';
   const isCorp = user?.tipo_afiliado === 'Corporativo';
@@ -81,6 +107,7 @@ const SettingsPanel = () => {
           fecha_nacimiento: af.fecha_nacimiento || '',
           nivel_academico: af.nivel_academico || '',
           profesion: af.profesion || '',
+          descripcion: af.descripcion || af.notas || '',
           ano_inicio_servicio: af.ano_inicio_servicio || '',
           es_corredor_inmobiliario: af.es_corredor_inmobiliario === 1 || af.es_corredor_inmobiliario === true,
           instagram: af.instagram || '',
@@ -88,6 +115,7 @@ const SettingsPanel = () => {
           linkedin: af.linkedin || '',
           twitter: af.twitter || '',
           tiktok: af.tiktok || '',
+          website: af.website || '',
           // Empresa fields
           empresa_razon_social: af.empresa_razon_social || '',
           empresa_rif_tipo: af.empresa_rif_tipo || '',
@@ -101,6 +129,7 @@ const SettingsPanel = () => {
           empresa_twitter: af.empresa_twitter || '',
           empresa_tiktok: af.empresa_tiktok || '',
         });
+        setDocumentos(af.documentos || []);
       }
     } catch (err) {
       console.error("Error loading profile:", err);
@@ -125,7 +154,7 @@ const SettingsPanel = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, documentos })
       });
       const data = await res.json();
       if (data.success) {
@@ -199,6 +228,7 @@ const SettingsPanel = () => {
     { id: 'profesional', label: 'Perfil Profesional', icon: Briefcase },
     { id: 'social', label: 'Redes Sociales', icon: Globe },
     { id: 'empresa', label: 'Mi Corporativo', icon: Building, hide: !isCorp && !isAgente },
+    { id: 'documentos', label: 'Expediente / Documentos', icon: FileText },
     { id: 'membresia', label: 'Cuenta', icon: Shield },
   ];
 
@@ -237,12 +267,23 @@ const SettingsPanel = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Nombres" name="nombres" value={formData.nombres} onChange={handleInputChange} icon={User} />
                 <Input label="Apellidos" name="apellidos" value={formData.apellidos} onChange={handleInputChange} icon={User} />
-                <Input label="Cédula / RIF" name="cedula" value={formData.cedula} onChange={handleInputChange} icon={Shield} disabled />
+                <Input label="Cédula / RIF" name="cedula" value={formData.cedula} onChange={handleInputChange} icon={Shield} />
                 <Input label="Email de Contacto" name="email" value={formData.email} onChange={handleInputChange} icon={Mail} />
                 <Input label="Teléfono" name="telefono" value={formData.telefono} onChange={handleInputChange} icon={Phone} />
                 <Input label="Fecha de Nacimiento" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleInputChange} type="date" />
                 <div className="md:col-span-2">
                   <Input label="Dirección de Habitación" name="direccion" value={formData.direccion} onChange={handleInputChange} icon={MapPin} />
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Descripción / Biografía Profesional</label>
+                  <textarea
+                    name="descripcion"
+                    value={formData.descripcion}
+                    onChange={handleInputChange}
+                    placeholder="Cuéntanos un poco sobre tu trayectoria..."
+                    rows={4}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                  />
                 </div>
               </div>
             </div>
@@ -295,13 +336,14 @@ const SettingsPanel = () => {
 
           {activeTab === 'social' && (
             <div className="space-y-6">
-              <HeaderSection title="Redes Sociales" subtitle="Enlaces a tus perfiles para el directorio público." />
+              <HeaderSection title="Redes Sociales y Web" subtitle="Enlaces a tus perfiles para el directorio público." />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="Instagram" name="instagram" value={formData.instagram} onChange={handleInputChange} icon={Instagram} placeholder="@usuario" />
-                <Input label="Facebook" name="facebook" value={formData.facebook} onChange={handleInputChange} icon={Facebook} placeholder="URL perfil" />
-                <Input label="LinkedIn" name="linkedin" value={formData.linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="URL perfil" />
-                <Input label="X (Twitter)" name="twitter" value={formData.twitter} onChange={handleInputChange} icon={XIcon} placeholder="@usuario" />
-                <Input label="TikTok" name="tiktok" value={formData.tiktok} onChange={handleInputChange} icon={Music2} placeholder="@usuario" />
+                <Input label="URL de Instagram" name="instagram" value={formData.instagram} onChange={handleInputChange} icon={Instagram} placeholder="https://www.instagram.com/tuusuario" />
+                <Input label="URL de Facebook" name="facebook" value={formData.facebook} onChange={handleInputChange} icon={Facebook} placeholder="https://www.facebook.com/tuperfil" />
+                <Input label="URL de LinkedIn" name="linkedin" value={formData.linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="https://www.linkedin.com/in/tuperfil" />
+                <Input label="URL de X (Twitter)" name="twitter" value={formData.twitter} onChange={handleInputChange} icon={XIcon} placeholder="https://x.com/tuusuario" />
+                <Input label="URL de TikTok" name="tiktok" value={formData.tiktok} onChange={handleInputChange} icon={TikTokIcon} placeholder="https://www.tiktok.com/@tuusuario" />
+                <Input label="Sitio Web Personal" name="website" value={formData.website} onChange={handleInputChange} icon={Globe} placeholder="https://www.tuweb.com" />
               </div>
             </div>
           )}
@@ -340,11 +382,11 @@ const SettingsPanel = () => {
               <div className="mt-8 pt-8 border-t border-gray-100 space-y-6">
                 <HeaderSection title="Redes Sociales del Corporativo" subtitle="Perfiles oficiales de tu organización." />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input label="Instagram Empresa" name="empresa_instagram" value={formData.empresa_instagram} onChange={handleInputChange} icon={Instagram} placeholder="@empresa" disabled={isAgente} />
-                  <Input label="Facebook Empresa" name="empresa_facebook" value={formData.empresa_facebook} onChange={handleInputChange} icon={Facebook} placeholder="URL empresa" disabled={isAgente} />
-                  <Input label="LinkedIn Empresa" name="empresa_linkedin" value={formData.empresa_linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="URL empresa" disabled={isAgente} />
-                  <Input label="X (Twitter) Empresa" name="empresa_twitter" value={formData.empresa_twitter} onChange={handleInputChange} icon={XIcon} placeholder="@empresa" disabled={isAgente} />
-                  <Input label="TikTok Empresa" name="empresa_tiktok" value={formData.empresa_tiktok} onChange={handleInputChange} icon={Music2} placeholder="@empresa" disabled={isAgente} />
+                  <Input label="URL Instagram Empresa" name="empresa_instagram" value={formData.empresa_instagram} onChange={handleInputChange} icon={Instagram} placeholder="https://instagram.com/empresa" disabled={isAgente} />
+                  <Input label="URL Facebook Empresa" name="empresa_facebook" value={formData.empresa_facebook} onChange={handleInputChange} icon={Facebook} placeholder="https://facebook.com/empresa" disabled={isAgente} />
+                  <Input label="URL LinkedIn Empresa" name="empresa_linkedin" value={formData.empresa_linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="https://linkedin.com/company/empresa" disabled={isAgente} />
+                  <Input label="URL X (Twitter) Empresa" name="empresa_twitter" value={formData.empresa_twitter} onChange={handleInputChange} icon={XIcon} placeholder="https://x.com/empresa" disabled={isAgente} />
+                  <Input label="URL TikTok Empresa" name="empresa_tiktok" value={formData.empresa_tiktok} onChange={handleInputChange} icon={TikTokIcon} placeholder="https://tiktok.com/@empresa" disabled={isAgente} />
                 </div>
               </div>
 
@@ -354,6 +396,65 @@ const SettingsPanel = () => {
                   <p className="text-xs text-blue-800 font-bold">Eres agente corporativo. Solo el representante legal puede editar estos datos.</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'documentos' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <HeaderSection title="Expediente y Documentación" subtitle="Sube o actualiza la documentación requerida para tu membresía." />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <FileUpload 
+                  label="Cédula de Identidad / Pasaporte" 
+                  initialUrl={getDocUrl('cedula')}
+                  initialFileName={getDocName('cedula')}
+                  onUploadSuccess={(url, name) => handleUploadSuccess('cedula', url, name)}
+                  onClear={() => handleClearDoc('cedula')}
+                />
+                
+                <FileUpload 
+                  label="Curriculum Vitae (CV)" 
+                  initialUrl={getDocUrl('cv')}
+                  initialFileName={getDocName('cv')}
+                  onUploadSuccess={(url, name) => handleUploadSuccess('cv', url, name)}
+                  onClear={() => handleClearDoc('cv')}
+                />
+
+                <FileUpload 
+                  label="Título Universitario / Académico" 
+                  initialUrl={getDocUrl('titulo')}
+                  initialFileName={getDocName('titulo')}
+                  onUploadSuccess={(url, name) => handleUploadSuccess('titulo', url, name)}
+                  onClear={() => handleClearDoc('titulo')}
+                />
+
+                {(isCorp || user?.tipo_afiliado === 'Corporativo') && (
+                  <>
+                    <FileUpload 
+                      label="Registro Mercantil de la Empresa" 
+                      initialUrl={getDocUrl('registro_mercantil')}
+                      initialFileName={getDocName('registro_mercantil')}
+                      onUploadSuccess={(url, name) => handleUploadSuccess('registro_mercantil', url, name)}
+                      onClear={() => handleClearDoc('registro_mercantil')}
+                    />
+
+                    <FileUpload 
+                      label="RIF de la Empresa" 
+                      initialUrl={getDocUrl('rif_empresa')}
+                      initialFileName={getDocName('rif_empresa')}
+                      onUploadSuccess={(url, name) => handleUploadSuccess('rif_empresa', url, name)}
+                      onClear={() => handleClearDoc('rif_empresa')}
+                    />
+
+                    <FileUpload 
+                      label="Cédula del Representante Legal" 
+                      initialUrl={getDocUrl('cedula_representante')}
+                      initialFileName={getDocName('cedula_representante')}
+                      onUploadSuccess={(url, name) => handleUploadSuccess('cedula_representante', url, name)}
+                      onClear={() => handleClearDoc('cedula_representante')}
+                    />
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -436,6 +537,12 @@ const HeaderSection = ({ title, subtitle }: { title: string, subtitle: string })
 const XIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+  </svg>
+);
+
+const TikTokIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.14-.1-.27-.2-.4-.31v4.99c0 .24-.01.48-.03.71-.11 2.53-1.44 4.81-3.66 6.03-2.12 1.19-4.81 1.25-6.99.14-2.16-1.07-3.66-3.23-3.92-5.63-.33-2.43.74-4.99 2.82-6.28 1.34-.84 2.97-1.18 4.54-.93V11.1c-1-.22-2.11-.08-3 .42-.9.5-1.52 1.45-1.58 2.47-.07 1.16.51 2.33 1.51 2.89 1 .58 2.34.5 3.24-.22.6-.48.92-1.22.92-1.99V0z"/>
   </svg>
 );
 

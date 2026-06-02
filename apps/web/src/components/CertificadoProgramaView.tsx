@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import logoImg from '@/assets/Logo2.png'
 import firmaFranciscoImg from '@/assets/firma-francisco.png'
 
@@ -50,16 +50,45 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
 
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
+  const [width, setWidth] = useState(1000)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+
+  const trackerRef = useCallback((node: HTMLDivElement | null) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect()
+      resizeObserverRef.current = null
+    }
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setWidth(entry.contentRect.width)
+        }
+      })
+      observer.observe(node)
+      resizeObserverRef.current = observer
+    }
+  }, [])
+
+  const scale = Math.min(1, width / 1000)
+
   return (
-    <article
-      id="certificate-print-area"
-      className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between p-12 select-none"
-      style={{
-        backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
+    <div className="w-full relative">
+      <div ref={trackerRef} className="absolute inset-x-0 top-0 h-0 pointer-events-none" />
+      <div
+        className="w-full flex justify-center items-start overflow-hidden print:!h-auto print:!overflow-visible"
+        style={{ height: scale < 1 ? `${707 * scale}px` : 'auto' }}
+      >
+        <article
+          id="certificate-print-area"
+          className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between p-12 select-none print:!transform-none shrink-0"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            transform: scale < 1 ? `scale(${scale})` : 'none',
+            transformOrigin: 'top center',
+          }}
+        >
       {/* ── BORDES DECORATIVOS ── */}
       {/* Doble borde interno */}
       <div className="absolute inset-4.5 border border-slate-300 pointer-events-none rounded-2xl" />
@@ -230,6 +259,8 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
         </div>
       </div>
     </article>
+    </div>
+    </div>
   )
 }
 

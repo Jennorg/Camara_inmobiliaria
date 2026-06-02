@@ -71,9 +71,6 @@ const WidgetMisCursos = () => {
           <BookOpen size={48} className="text-gray-300 mb-4" />
           <p className="font-medium text-lg">No estás inscrito en ningún curso o programa.</p>
           <p className="text-sm mt-1">Cuando te preinscribas, aparecerá aquí tu progreso.</p>
-          <pre className="mt-4 p-2 bg-gray-100 text-xs rounded text-left max-w-full overflow-x-auto">
-            {JSON.stringify({ debug: 'Cursos array empty', userRole: user?.roles }, null, 2)}
-          </pre>
         </div>
       </DashboardCard>
     );

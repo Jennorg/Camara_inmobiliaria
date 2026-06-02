@@ -23,7 +23,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'PREANI', 
     nivel_academico: 'Estudios Avanzados', 
     precio: 'Consultar', 
-    imagen_url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800', 
+    imagen_url: '/assets/preani_catalog.png', 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'PREANI'
@@ -33,7 +33,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'PEGI', 
     nivel_academico: 'Especialización', 
     precio: 'Consultar', 
-    imagen_url: 'https://images.unsplash.com/photo-1454165833767-12469a92c90b?auto=format&fit=crop&q=80&w=800', 
+    imagen_url: '/assets/pegi_catalog.png', 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'PEGI'
@@ -43,7 +43,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'PADI', 
     nivel_academico: 'Actualización', 
     precio: 'Consultar', 
-    imagen_url: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=800', 
+    imagen_url: '/assets/padi_catalog.png', 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'PADI'
@@ -53,7 +53,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'CIBIR', 
     nivel_academico: 'Gremial', 
     precio: 'Consultar', 
-    imagen_url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=800', 
+    imagen_url: '/assets/cibir_catalog.png', 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'CIBIR'

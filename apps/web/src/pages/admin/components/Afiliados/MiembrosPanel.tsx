@@ -178,12 +178,13 @@ export default function MiembrosPanel() {
   const filteredItems = useMemo(() => {
     let result = items.filter(item => {
       const nombre = (item.nombre_completo || '').toLowerCase()
+      const razonSocial = (item.empresa_razon_social || '').toLowerCase()
       const cedula = (item.cedula || '').toLowerCase()
       const rif = (item.empresa_rif_numero || '').toLowerCase()
       const email = (item.email || '').toLowerCase()
       const s = search.toLowerCase()
 
-      const matchSearch = nombre.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
+      const matchSearch = nombre.includes(s) || razonSocial.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
 
        let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
        if (filterTipo === 'Agente Corporativo') {
@@ -199,8 +200,8 @@ export default function MiembrosPanel() {
         const codB = parseInt(b.codigo || '0', 10) || 0;
         return sortState === 'codigo_asc' ? codA - codB : codB - codA;
       } else {
-        const nomA = (a.nombre_completo || '').toLowerCase();
-        const nomB = (b.nombre_completo || '').toLowerCase();
+        const nomA = (a.tipo_afiliado === 'Corporativo' && a.empresa_razon_social ? a.empresa_razon_social : a.nombre_completo || '').toLowerCase();
+        const nomB = (b.tipo_afiliado === 'Corporativo' && b.empresa_razon_social ? b.empresa_razon_social : b.nombre_completo || '').toLowerCase();
         if (nomA < nomB) return sortState === 'nombre_asc' ? -1 : 1;
         if (nomA > nomB) return sortState === 'nombre_asc' ? 1 : -1;
         return 0;
@@ -450,7 +451,11 @@ export default function MiembrosPanel() {
                 className={`w-full p-4 text-left hover:bg-slate-50 transition-colors group flex items-center justify-between ${selected?.id_afiliado === item.id_afiliado ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'border-l-4 border-transparent'}`}
               >
                 <div className="min-w-0">
-                  <p className="font-bold text-slate-800 text-sm truncate">{formatNombreCard(item.nombre_completo)}</p>
+                  <p className="font-bold text-slate-800 text-sm truncate">
+                    {item.tipo_afiliado === 'Corporativo' && item.empresa_razon_social
+                      ? item.empresa_razon_social
+                      : formatNombreCard(item.nombre_completo)}
+                  </p>
 
                   <div className="flex items-center gap-2 mt-1">
                      <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${
@@ -616,7 +621,9 @@ export default function MiembrosPanel() {
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <h2 className="text-2xl font-black text-slate-800 tracking-tight">
                       {/* nombre_completo es columna VIRTUAL GENERATED — se muestra, no se edita */}
-                      {formatNombreCard(selected.nombre_completo)}
+                      {selected.tipo_afiliado === 'Corporativo' && selected.empresa_razon_social
+                        ? selected.empresa_razon_social
+                        : formatNombreCard(selected.nombre_completo)}
                     </h2>
                   </div>
 
