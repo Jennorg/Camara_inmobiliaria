@@ -30,6 +30,7 @@ import WidgetAcademico from '@/pages/landing/afiliado/components/WidgetAcademico
 import WidgetMisCursos from '@/pages/landing/afiliado/components/WidgetMisCursos';
 import WidgetFormalizarInscripcion from '@/pages/landing/afiliado/components/WidgetFormalizarInscripcion';
 import WidgetMisCertificados from '@/pages/landing/afiliado/components/WidgetMisCertificados';
+import WidgetExpediente from '@/pages/landing/afiliado/components/WidgetExpediente';
 import WidgetSolicitudAfiliacion from '@/pages/landing/afiliado/components/WidgetSolicitudAfiliacion';
 import WidgetGestionAfiliadosCorp from '@/pages/landing/afiliado/components/WidgetGestionAfiliadosCorp';
 import AdminMisAgentesPanel from '@/pages/admin/components/Afiliados/AdminMisAgentesPanel';
@@ -56,10 +57,10 @@ import { formatNombreCard } from '@/utils/formatters';
 const NAV_AFILIADO = [
   { icon: LayoutDashboard, label: 'Resumen / Inicio' },
   { icon: FolderSearch, label: 'Mi Expediente' },
-  { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
+  // { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
   { icon: GraduationCap, label: 'Catálogo Académico' },
   { icon: Award, label: 'Mis Certificados' },
-  { icon: Gavel, label: 'Sistema de Denuncias' },
+  // { icon: Gavel, label: 'Sistema de Denuncias' },
 ];
 
 const NAV_ADMIN_CORE = [
@@ -166,8 +167,11 @@ const PanelPage = () => {
   const buildNavItems = () => {
     let baseItems: any[] = [];
     
+    // Todos los admins y super_admins también son considerados afiliados para la vista
+    const isConsideredAfiliado = user?.roles.includes('afiliado') || isAdmin;
+
     // Base de navegación pública o afiliada
-    if (user?.roles.includes('afiliado')) {
+    if (isConsideredAfiliado) {
       // Si es afiliado pero tiene restricción por falta de pago inicial
       if (isLimited) {
         baseItems = [
@@ -175,7 +179,7 @@ const PanelPage = () => {
           { icon: FolderSearch, label: 'Mi Expediente' }
         ];
       } else {
-        // Acceso completo para Naturales y Corporativos
+        // Acceso completo para Naturales y Corporativos (y admins)
         baseItems = [...NAV_AFILIADO];
       }
     } else if (isEstudiante && user?.roles.length === 1) {
@@ -227,6 +231,8 @@ const PanelPage = () => {
   };
 
   const navItems = buildNavItems();
+  
+  const isConsideredAfiliadoContent = user?.roles.includes('afiliado') || isAdmin;
 
   // ── Renderizado del contenido activo ────────────────────────────────────────
 
@@ -241,12 +247,12 @@ const PanelPage = () => {
             </div>
           )}
           
-          {isLimited && user?.roles.includes('afiliado') ? (
+          {isLimited && isConsideredAfiliadoContent ? (
             <div className="col-span-1 lg:col-span-3">
               <WidgetFormalizarInscripcion onSuccess={fetchAfiliado} />
             </div>
           ) : (
-            user?.roles.includes('afiliado') && (
+            isConsideredAfiliadoContent && (
               <>
                 {user?.tipo_afiliado === 'Corporativo' && (
                   <div className="lg:col-span-3">
@@ -294,8 +300,8 @@ const PanelPage = () => {
                     </div>
                   </div>
                 )}
-                <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div>
-                <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div>
+                {/* <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div> */}
+                {/* <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div> */}
                 <div className="lg:col-span-3"><WidgetMisCursos /></div>
                 <div className="lg:col-span-3"><WidgetAcademico /></div>
               </>
@@ -313,7 +319,7 @@ const PanelPage = () => {
         </>
       );
     }
-    if (activeTab === 'Mi Expediente') return <Section label="Mi Expediente" />;
+    if (activeTab === 'Mi Expediente') return <div className="col-span-1 lg:col-span-3"><WidgetExpediente /></div>;
     if (activeTab === 'Estado de Cuenta y Solvencias') return <Section label="Estado de Cuenta" />;
     if (activeTab === 'Catálogo Académico') return <div className="col-span-1 lg:col-span-3"><WidgetAcademico limit={0} /></div>;
     if (activeTab === 'Mis Certificados') {
@@ -405,8 +411,14 @@ const PanelPage = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {/* Filtramos y normalizamos los roles para la vista */}
-                    {Array.from(new Set(user?.roles?.map(r => r === 'super_admin' ? 'admin' : r))).map(role => (
+                    {/* Filtramos y normalizamos los roles para la vista, priorizando afiliado sobre estudiante */}
+                    {(() => {
+                      const uniqueRoles = Array.from(new Set(user?.roles?.map(r => r === 'super_admin' ? 'admin' : r)));
+                      if (uniqueRoles.includes('afiliado') && uniqueRoles.includes('estudiante')) {
+                        return uniqueRoles.filter(r => r !== 'estudiante');
+                      }
+                      return uniqueRoles;
+                    })().map(role => (
                       <span
                         key={role}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-[10px] font-black uppercase tracking-widest border ${

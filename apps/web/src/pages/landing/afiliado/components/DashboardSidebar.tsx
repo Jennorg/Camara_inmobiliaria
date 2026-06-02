@@ -112,7 +112,7 @@ const SidebarContent = ({
       </div>
 
       {/* Nav */}
-      <nav className="flex-grow py-2 px-2 space-y-0.5 overflow-y-auto custom-scrollbar">
+      <nav className={`flex-grow py-2 px-2 space-y-0.5 overflow-y-auto custom-scrollbar ${isCollapsed ? 'scrollbar-collapsed' : 'scrollbar-expanded'}`}>
         {navItems.map((item) => {
           const hasChildren = !!item.children?.length;
           const isExpanded = expandedTabs.includes(item.label);

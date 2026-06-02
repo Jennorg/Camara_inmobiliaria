@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, HelpCircle, Menu, Search, User } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 
 import NotificationCenter from '@/components/NotificationCenter';
 
@@ -7,14 +7,12 @@ interface DashboardHeaderProps {
   onMenuOpen: () => void;
   userName?: string;
   userCode?: string;
-  searchPlaceholder?: string;
 }
 
 const DashboardHeader = ({
   onMenuOpen,
   userName = 'Juan Pérez',
   userCode = 'CIBIR-2026-001',
-  searchPlaceholder = 'Buscar trámites, cursos o solvencias...',
 }: DashboardHeaderProps) => (
   <header
     className="sticky top-0 z-40 px-4 sm:px-8 py-3 h-18 flex items-center justify-between gap-4 shadow-sm border-b"
@@ -23,7 +21,7 @@ const DashboardHeader = ({
       borderColor: 'var(--color-border-accent)',
     }}
   >
-    {/* Left: Hamburger + Search */}
+    {/* Left: Hamburger */}
     <div className="flex items-center gap-3 flex-grow max-w-xl">
       <button
         onClick={onMenuOpen}
@@ -33,31 +31,12 @@ const DashboardHeader = ({
       >
         <Menu size={20} />
       </button>
-
-      <div className="relative w-full">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-faint)' }} />
-        <input
-          type="text"
-          placeholder={searchPlaceholder}
-          className="w-full rounded-full py-2.5 pl-10 pr-4 text-sm outline-none transition-all"
-          style={{
-            backgroundColor: 'var(--color-bg-subtle)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-text-base)',
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--color-accent)')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
-        />
-      </div>
     </div>
 
     {/* Right: Notifications + Profile */}
     <div className="flex items-center gap-4 flex-shrink-0">
       <div className="flex items-center gap-1 pr-4" style={{ borderRight: '1px solid var(--color-border)' }}>
         <NotificationCenter />
-        <button className="p-2 rounded-full transition-colors hover:bg-slate-100">
-          <HelpCircle size={20} style={{ color: 'var(--color-text-muted)' }} />
-        </button>
       </div>
 
       <div className="flex items-center gap-3 cursor-pointer group">

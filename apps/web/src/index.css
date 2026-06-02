@@ -139,4 +139,53 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
   .pause { animation-play-state: paused; }
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-}
+  /* Vercel-like Custom Scrollbar */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+  
+  .custom-scrollbar:hover {
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Base thumb */
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 20px;
+    border: 4px solid transparent; 
+    background-clip: content-box;
+  }
+
+  /* Hover on container makes it visible */
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Hover directly on thumb makes it thicker */
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.35);
+    border-width: 2px; 
+  }
+
+  /* Collapsed state adjustments */
+  .custom-scrollbar.scrollbar-collapsed::-webkit-scrollbar {
+    width: 8px;
+  }
+  .custom-scrollbar.scrollbar-collapsed::-webkit-scrollbar-thumb {
+    border-width: 3px;
+  }
+  .custom-scrollbar.scrollbar-collapsed::-webkit-scrollbar-thumb:hover {
+    border-width: 1px;
+  }
+  }
