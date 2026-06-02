@@ -5,7 +5,7 @@ import {
   User, Mail, Shield, Building, ArrowRightLeft, 
   CheckCircle2, AlertCircle, Globe, Phone, MapPin, 
   Briefcase, GraduationCap, Instagram, Facebook, 
-  Linkedin, Twitter, Save, Loader2, ChevronRight
+  Linkedin, Twitter, Save, Loader2, ChevronRight, Clock
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -21,6 +21,8 @@ interface ProfileFormData {
   fecha_nacimiento?: string;
   nivel_academico?: string;
   profesion?: string;
+  ano_inicio_servicio?: number | string;
+  es_corredor_inmobiliario?: boolean | number;
   instagram?: string;
   facebook?: string;
   linkedin?: string;
@@ -76,6 +78,8 @@ const SettingsPanel = () => {
           fecha_nacimiento: af.fecha_nacimiento || '',
           nivel_academico: af.nivel_academico || '',
           profesion: af.profesion || '',
+          ano_inicio_servicio: af.ano_inicio_servicio || '',
+          es_corredor_inmobiliario: af.es_corredor_inmobiliario === 1 || af.es_corredor_inmobiliario === true,
           instagram: af.instagram || '',
           facebook: af.facebook || '',
           linkedin: af.linkedin || '',
@@ -259,6 +263,27 @@ const SettingsPanel = () => {
                   </select>
                 </div>
                 <Input label="Profesión" name="profesion" value={formData.profesion} onChange={handleInputChange} icon={Briefcase} />
+                <Input label="Año de inicio en el sector" name="ano_inicio_servicio" value={formData.ano_inicio_servicio} onChange={handleInputChange} type="number" icon={Clock} />
+                
+                <div className="md:col-span-2 py-4">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative">
+                      <input 
+                        type="checkbox" 
+                        name="es_corredor_inmobiliario"
+                        checked={!!formData.es_corredor_inmobiliario}
+                        onChange={(e) => setFormData(prev => ({ ...prev, es_corredor_inmobiliario: e.target.checked }))}
+                        className="sr-only" 
+                      />
+                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${formData.es_corredor_inmobiliario ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                      <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${formData.es_corredor_inmobiliario ? 'translate-x-6' : ''}`}></div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-gray-700 group-hover:text-emerald-600 transition-colors">¿Eres Corredor Inmobiliario Certificado?</span>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">Marca esta opción si posees certificación oficial.</p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
           )}

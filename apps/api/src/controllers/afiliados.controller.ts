@@ -110,13 +110,14 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
         LEFT JOIN cursos cu ON ic.id_curso = cu.id_curso
         LEFT JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
-        WHERE (e.id_estudiante = ? AND ? IS NOT NULL)
+        WHERE ((e.id_estudiante = ? AND ? IS NOT NULL)
            OR (? <> '' AND LOWER(TRIM(p.email)) = ?)
            OR (? <> '' AND EXISTS (
                 SELECT 1 FROM personas p_inner 
                 WHERE p_inner.id = e.id_persona 
                 AND LOWER(TRIM(p_inner.email)) = ?
-              ))
+              )))
+           AND (ic.programa_codigo IS NULL OR ic.programa_codigo <> 'AFILIACION')
         ORDER BY ic.creado_en DESC
       `,
       args: [
@@ -1049,6 +1050,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
       'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio'
     ];
+    const estudianteFields = ['es_corredor_inmobiliario'];
     const empresaFieldsMap: Record<string, string> = {
       empresa_razon_social: 'razon_social',
       empresa_rif_tipo: 'rif_tipo',
@@ -1082,6 +1084,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const aArgs: any[] = [];
     const eUpdates: string[] = [];
     const eArgs: any[] = [];
+    const stUpdates: string[] = [];
+    const stArgs: any[] = [];
 
     const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter'];
 
@@ -1094,15 +1098,12 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         if (key === 'redes_sociales' && typeof val === 'object') val = JSON.stringify(val);
         aUpdates.push(`${key} = ?`);
         aArgs.push(val);
+      } else if (estudianteFields.includes(key)) {
+        stUpdates.push(`${key} = ?`);
+        stArgs.push(fields[key] === true || fields[key] === 1 ? 1 : 0);
       } else if (empresaFieldsMap[key]) {
         eUpdates.push(`${empresaFieldsMap[key]} = ?`);
         eArgs.push(fields[key]);
-      } else if (socialFields.includes(key)) {
-        // Manejo especial para campos de redes sociales sueltos
-        // En lugar de actualizar el JSON entero (que requeriría leerlo primero), 
-        // los guardamos para procesarlos después si es necesario.
-        // Pero para simplificar, el frontend debería enviar el objeto completo o manejamos el merge aquí.
-        // Optamos por soportar el envío directo de instagram, facebook, etc.
       }
     });
 
@@ -1164,7 +1165,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       }
     }
 
-    if (pUpdates.length === 0 && aUpdates.length === 0 && eUpdates.length === 0) {
+    if (pUpdates.length === 0 && aUpdates.length === 0 && eUpdates.length === 0 && stUpdates.length === 0) {
       return res.status(400).json({ success: false, message: 'Nada que actualizar' });
     }
 
@@ -1199,6 +1200,24 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         sql: `UPDATE empresas SET ${eUpdates.join(', ')} WHERE id_empresa = ?`,
         args: eArgs
       });
+    }
+
+    if (stUpdates.length > 0) {
+      stUpdates.push('actualizado_en = ?');
+      stArgs.push(now);
+      // Necesitamos el id_estudiante
+      const stCheck = await db.execute({
+        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ?`,
+        args: [idPersona]
+      });
+      if (stCheck.rows.length > 0) {
+        const idEstudiante = stCheck.rows[0].id_estudiante;
+        stArgs.push(idEstudiante);
+        await db.execute({
+          sql: `UPDATE estudiantes SET ${stUpdates.join(', ')} WHERE id_estudiante = ?`,
+          args: stArgs
+        });
+      }
     }
 
     return res.json({ success: true, message: 'Afiliado actualizado correctamente' });
