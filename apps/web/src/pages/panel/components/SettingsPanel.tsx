@@ -5,7 +5,8 @@ import {
   User, Mail, Shield, Building, ArrowRightLeft, 
   CheckCircle2, AlertCircle, Globe, Phone, MapPin, 
   Briefcase, GraduationCap, Instagram, Facebook, 
-  Linkedin, Twitter, Save, Loader2, ChevronRight, Clock
+  Linkedin, Twitter, Save, Loader2, ChevronRight, Clock,
+  Music2
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -27,6 +28,7 @@ interface ProfileFormData {
   facebook?: string;
   linkedin?: string;
   twitter?: string;
+  tiktok?: string;
   empresa_razon_social?: string;
   empresa_rif_tipo?: string;
   empresa_rif_numero?: string;
@@ -37,6 +39,7 @@ interface ProfileFormData {
   empresa_facebook?: string;
   empresa_linkedin?: string;
   empresa_twitter?: string;
+  empresa_tiktok?: string;
 }
 
 const SettingsPanel = () => {
@@ -84,6 +87,7 @@ const SettingsPanel = () => {
           facebook: af.facebook || '',
           linkedin: af.linkedin || '',
           twitter: af.twitter || '',
+          tiktok: af.tiktok || '',
           // Empresa fields
           empresa_razon_social: af.empresa_razon_social || '',
           empresa_rif_tipo: af.empresa_rif_tipo || '',
@@ -95,6 +99,7 @@ const SettingsPanel = () => {
           empresa_facebook: af.empresa_facebook || '',
           empresa_linkedin: af.empresa_linkedin || '',
           empresa_twitter: af.empresa_twitter || '',
+          empresa_tiktok: af.empresa_tiktok || '',
         });
       }
     } catch (err) {
@@ -295,7 +300,8 @@ const SettingsPanel = () => {
                 <Input label="Instagram" name="instagram" value={formData.instagram} onChange={handleInputChange} icon={Instagram} placeholder="@usuario" />
                 <Input label="Facebook" name="facebook" value={formData.facebook} onChange={handleInputChange} icon={Facebook} placeholder="URL perfil" />
                 <Input label="LinkedIn" name="linkedin" value={formData.linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="URL perfil" />
-                <Input label="Twitter" name="twitter" value={formData.twitter} onChange={handleInputChange} icon={Twitter} placeholder="@usuario" />
+                <Input label="X (Twitter)" name="twitter" value={formData.twitter} onChange={handleInputChange} icon={XIcon} placeholder="@usuario" />
+                <Input label="TikTok" name="tiktok" value={formData.tiktok} onChange={handleInputChange} icon={Music2} placeholder="@usuario" />
               </div>
             </div>
           )}
@@ -337,7 +343,8 @@ const SettingsPanel = () => {
                   <Input label="Instagram Empresa" name="empresa_instagram" value={formData.empresa_instagram} onChange={handleInputChange} icon={Instagram} placeholder="@empresa" disabled={isAgente} />
                   <Input label="Facebook Empresa" name="empresa_facebook" value={formData.empresa_facebook} onChange={handleInputChange} icon={Facebook} placeholder="URL empresa" disabled={isAgente} />
                   <Input label="LinkedIn Empresa" name="empresa_linkedin" value={formData.empresa_linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="URL empresa" disabled={isAgente} />
-                  <Input label="Twitter Empresa" name="empresa_twitter" value={formData.empresa_twitter} onChange={handleInputChange} icon={Twitter} placeholder="@empresa" disabled={isAgente} />
+                  <Input label="X (Twitter) Empresa" name="empresa_twitter" value={formData.empresa_twitter} onChange={handleInputChange} icon={XIcon} placeholder="@empresa" disabled={isAgente} />
+                  <Input label="TikTok Empresa" name="empresa_tiktok" value={formData.empresa_tiktok} onChange={handleInputChange} icon={Music2} placeholder="@empresa" disabled={isAgente} />
                 </div>
               </div>
 
@@ -424,6 +431,12 @@ const HeaderSection = ({ title, subtitle }: { title: string, subtitle: string })
     <p className="text-xs font-bold text-gray-400 mt-1">{subtitle}</p>
     <div className="h-1 w-12 bg-emerald-600 rounded-full mt-3"></div>
   </div>
+);
+
+const XIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+  </svg>
 );
 
 const Input = ({ label, icon: Icon, ...props }: any) => (

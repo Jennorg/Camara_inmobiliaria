@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, MapPin, User, 
   Globe, Instagram, Linkedin, 
   Facebook, GraduationCap, Loader2, Twitter, 
-  Link2, Briefcase, FileText, Building2 
+  Link2, Briefcase, FileText, Building2, Music2 
 } from 'lucide-react';
 import { formatNombreCard, getInitials, formatRif } from '@/utils/formatters';
 import { AfiliadoData } from '../AfiliadoCard';
@@ -128,8 +128,13 @@ export const ProfileHero = ({
             {afiliado.twitter && (
               <a href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="X">
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
                 </svg>
+              </a>
+            )}
+            {afiliado.tiktok && (
+              <a href={afiliado.tiktok.startsWith('http') ? afiliado.tiktok : `https://tiktok.com/@${afiliado.tiktok.replace('@','')}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="TikTok">
+                <Music2 size={16} />
               </a>
             )}
             {(isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono) && (

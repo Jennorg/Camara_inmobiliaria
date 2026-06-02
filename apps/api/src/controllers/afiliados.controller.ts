@@ -1087,7 +1087,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const stUpdates: string[] = [];
     const stArgs: any[] = [];
 
-    const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter'];
+    const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok'];
 
     Object.keys(fields).forEach(key => {
       if (personaFields.includes(key)) {

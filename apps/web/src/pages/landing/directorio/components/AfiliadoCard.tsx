@@ -1,11 +1,17 @@
 import React from 'react';
-import { Mail, Instagram, Linkedin, Facebook, Building2, User, Briefcase } from 'lucide-react';
+import { Mail, Instagram, Linkedin, Facebook, Building2, User, Briefcase, Music2 } from 'lucide-react';
 import { formatNombreCard, getInitials } from '@/utils/formatters';
 import { Link } from 'react-router-dom';
 
 import { AfiliadoDTO } from '@/types/afiliados';
 
 export type AfiliadoData = AfiliadoDTO;
+
+const XIcon = ({ size = 12 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+  </svg>
+);
 
 /** Tarjeta corporativa: logo con contain; personas: foto con cover. */
 function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
@@ -180,7 +186,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
         </div>
         
         {/* Acciones de Contacto */}
-        {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook) && (
+        {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok) && (
           <div className="flex gap-2 items-center justify-center pt-3 border-t border-slate-100 dark:border-emerald-50/10 w-full">
             {(isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) && (
               <a 
@@ -228,6 +234,30 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
                 title="Facebook"
               >
                 <Facebook size={12} />
+              </a>
+            )}
+            {afiliado.twitter && (
+              <a 
+                href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@','')}`}
+                onClick={(e) => e.stopPropagation()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-all duration-300"
+                title="X"
+              >
+                <XIcon size={12} />
+              </a>
+            )}
+            {afiliado.tiktok && (
+              <a 
+                href={afiliado.tiktok.startsWith('http') ? afiliado.tiktok : `https://tiktok.com/@${afiliado.tiktok.replace('@','')}`}
+                onClick={(e) => e.stopPropagation()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-all duration-300"
+                title="TikTok"
+              >
+                <Music2 size={12} />
               </a>
             )}
             {phoneNumber && (
