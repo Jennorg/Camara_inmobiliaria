@@ -6,48 +6,36 @@ export const API = API_URL
 export const api = {
   get: (path: string) => fetch(`${API}${path}`).then(r => r.json()),
   post: <T,>(path: string, body: T) => {
-    const token = localStorage.getItem('ciebo_token')
     return fetch(`${API}${path}`, { 
       method: 'POST', 
       headers: { 
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }, 
       body: JSON.stringify(body) 
     }).then(r => r.json())
   },
   put: <T,>(path: string, body: T) => {
-    const token = localStorage.getItem('ciebo_token')
     return fetch(`${API}${path}`, { 
       method: 'PUT', 
       headers: { 
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }, 
       body: JSON.stringify(body) 
     }).then(r => r.json())
   },
   delete: (path: string) => {
-    const token = localStorage.getItem('ciebo_token')
     return fetch(`${API}${path}`, { 
       method: 'DELETE',
-      headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      }
     }).then(r => r.json())
   },
 }
 
 
 export const uploadFileSupabase = async (file: File, folder: string): Promise<string> => {
-  const token = localStorage.getItem('ciebo_token')
-  if (!token) throw new Error('No hay sesión activa (token). Inicia sesión nuevamente.')
-
   const presignRes = await fetch(`${API_URL}/api/cms/uploads/presign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       filename: file.name,
@@ -59,6 +47,9 @@ export const uploadFileSupabase = async (file: File, folder: string): Promise<st
   if (!presignRes.ok || !presignJson?.success) throw new Error(presignJson?.message || 'No se pudo generar URL de subida')
 
   const { signedUploadUrl, publicUrl } = presignJson.data as { signedUploadUrl: string; publicUrl: string }
+  
+  // Para subir directamente a Supabase NO usamos el interceptor, así que usamos el fetch original
+  // o confiamos en que el interceptor no toque urls que no sean de la API_URL. (El interceptor verifica isApiCall)
   const putRes = await fetch(signedUploadUrl, {
     method: 'PUT',
     headers: {
