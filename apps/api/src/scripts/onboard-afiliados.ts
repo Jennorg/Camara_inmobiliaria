@@ -7,11 +7,17 @@ const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 
 async function main() {
   const isTest = process.argv.includes('--test')
-  const testEmail = 'jenfermz44@gmail.com'
+  
+  // Intentar obtener el email de los argumentos (ej: --test mi@correo.com)
+  let testEmail = 'jenfermz44@gmail.com'
+  const testIdx = process.argv.indexOf('--test')
+  if (isTest && process.argv[testIdx + 1] && process.argv[testIdx + 1].includes('@')) {
+    testEmail = process.argv[testIdx + 1]
+  }
 
   console.log('🚀 Iniciando proceso de onboarding masivo...')
   if (isTest) {
-    console.log(`🧪 MODO TEST ACTIVADO: Se enviará solo a ${testEmail}`)
+    console.log(`🧪 MODO TEST ACTIVADO: Se procesará solo a ${testEmail}`)
   }
 
   // 1. Obtener todos los afiliados
@@ -31,11 +37,19 @@ async function main() {
   const result = await db.execute(query)
   const allAfiliados = result.rows as any[]
 
-  // Filtrar según lógica: Afiliados aprobados, o el de test
+  // Filtrar según lógica: Afiliados aprobados, o el de test (ignorando estatus en test)
   const afiliados = allAfiliados.filter(a => {
     if (isTest) return a.email.toLowerCase() === testEmail.toLowerCase()
     return a.estatus === 'Afiliado'
   })
+
+  if (afiliados.length === 0) {
+    console.log(isTest 
+      ? `⚠️ No se encontró ningún afiliado con el correo: ${testEmail}` 
+      : '⚠️ No hay afiliados con estatus "Afiliado" para procesar.'
+    )
+    return
+  }
 
   console.log(`📊 Se seleccionaron ${afiliados.length} afiliados para procesar.`)
 

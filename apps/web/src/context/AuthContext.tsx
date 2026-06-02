@@ -41,6 +41,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
   if (isApiCall && response.status === 401 && !isAuthEndpoint) {
     if (!isRefreshing) {
       isRefreshing = true;
+      const oldToken = activeAccessToken; // Guardar para saber si teníamos sesión
       try {
         const refreshRes = await originalFetch(`${API_URL}/api/auth/refresh`, {
           method: 'POST',
@@ -59,7 +60,10 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
         } else {
           isRefreshing = false;
           activeAccessToken = null;
-          window.dispatchEvent(new CustomEvent('ciebo_auth_expired'));
+          // Solo disparar evento de expiración si teníamos un token previo
+          if (oldToken) {
+            window.dispatchEvent(new CustomEvent('ciebo_auth_expired'));
+          }
           return response;
         }
       } catch (err) {
@@ -173,9 +177,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const handleExpired = () => {
       localStorage.removeItem(TOKEN_KEY)
+      const hadUser = !!activeAccessToken || !!localStorage.getItem(TOKEN_KEY)
       setToken(null)
       setUser(null)
-      navigate('/')
+      // Solo redirigir si realmente había una sesión activa que falló
+      if (hadUser) {
+        navigate('/')
+      }
     };
     
     window.addEventListener('ciebo_auth_refresh', handleRefresh)

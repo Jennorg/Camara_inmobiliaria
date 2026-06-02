@@ -135,23 +135,23 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
               {isCorpView ? (
                 <>
                   <Building2 size={10} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90">Corporativo</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90 whitespace-nowrap">Corporativo</span>
                 </>
               ) : (afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente' || forceRepMode) ? (
                 <>
                   <Briefcase size={10} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90">
-                    {forceRepMode ? 'Representante' : 'Agente Corporativo'}
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90 whitespace-nowrap">
+                    {forceRepMode ? 'Representante' : 'Agente Corp.'}
                   </span>
                 </>
               ) : (
                 <>
                   <User size={10} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90">Agente Independiente</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-emerald-400/90 whitespace-nowrap">Agente Indep.</span>
                 </>
               )}
             </div>
-            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-emerald-500 text-white rounded-full shadow-lg">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-emerald-500 text-white rounded-full shadow-lg whitespace-nowrap">
               Activo
             </span>
         </div>
