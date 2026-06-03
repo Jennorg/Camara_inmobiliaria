@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { ToastProvider } from '@/context/ToastContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollToHash from '@/components/ScrollToHash'
 import ScrollToTop from '@/components/ScrollToTop'
@@ -47,6 +48,7 @@ export default function App() {
       <BrowserRouter>
         <ScrollToHash />
         <ScrollToTop />
+        <ToastProvider>
         <AuthProvider>
         <Routes>
           {/* Rutas principales dependientes del host */}
@@ -96,6 +98,7 @@ export default function App() {
           <Route path='/afiliado' element={<Navigate to='/panel' replace />} />
         </Routes>
       </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
     </HelmetProvider>
   )

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Fuse from 'fuse.js';
-import { Search, MapPin, Building2, Filter, ChevronRight, User, Star, ShieldCheck, Users, Loader2 } from 'lucide-react';
+import { Search, MapPin, Building2, Filter, ChevronRight, ChevronDown, User, Star, ShieldCheck, Users, Loader2 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
@@ -12,6 +12,8 @@ const DirectorioPage = () => {
   const [afiliados, setAfiliados] = useState<AfiliadoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre');
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
@@ -77,12 +79,20 @@ const DirectorioPage = () => {
     fetchAfiliados();
   }, []);
 
-  const fuse = useMemo(() => new Fuse(afiliados, {
-    keys: ['nombre_completo', 'codigo', 'cedula', 'empresa_rif_numero'],
-    threshold: 0.25, // Un poco más estricto para evitar ruido en códigos numéricos
-    ignoreLocation: true,
-    minMatchCharLength: 1
-  }), [afiliados]);
+  const fuse = useMemo(() => {
+    let keys = ['nombre_completo'];
+    if (searchField === 'cedula') {
+      keys = ['cedula', 'empresa_rif_numero'];
+    } else if (searchField === 'codigo') {
+      keys = ['codigo'];
+    }
+    return new Fuse(afiliados, {
+      keys,
+      threshold: 0.25, // Un poco más estricto para evitar ruido en códigos numéricos
+      ignoreLocation: true,
+      minMatchCharLength: 1
+    });
+  }, [afiliados, searchField]);
 
   const resultados = useMemo(() => {
     const query = searchQuery.trim();
@@ -150,21 +160,68 @@ const DirectorioPage = () => {
 
             {/* Buscador y Filtros */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none z-10">
-                  <Search className="text-slate-400 group-focus-within:text-emerald-600 transition-colors" size={24} />
+              <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg overflow-hidden h-[68px]">
+                {/* Selector de campo en el input */}
+                <div className="relative shrink-0 border-r border-slate-200/60 dark:border-emerald-500/20 h-full flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+                    className="flex items-center gap-1.5 px-6 h-full text-xs md:text-sm font-black uppercase tracking-wider text-slate-500 dark:text-emerald-100/60 hover:text-slate-800 dark:hover:text-white transition-colors"
+                  >
+                    <span>
+                      {searchField === 'nombre' && 'Nombre'}
+                      {searchField === 'cedula' && 'Cédula / RIF'}
+                      {searchField === 'codigo' && 'Código'}
+                    </span>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showSearchDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
+                      <div className="absolute left-4 top-full mt-2 bg-white dark:bg-[#04432f] border border-slate-100 dark:border-emerald-500/20 rounded-2xl shadow-2xl py-1.5 z-50 min-w-[140px] animate-in fade-in slide-in-from-top-1 duration-200">
+                        {([
+                          { key: 'nombre', label: 'Nombre' },
+                          { key: 'cedula', label: 'Cédula / RIF' },
+                          { key: 'codigo', label: 'Código' },
+                        ] as const).map(option => (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => {
+                              setSearchField(option.key);
+                              setShowSearchDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 text-xs font-black uppercase tracking-wider transition-colors ${
+                              searchField === option.key ? 'bg-emerald-50 dark:bg-[#022c22] text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-emerald-100/60 hover:bg-slate-50 dark:hover:bg-[#022c22]/50'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-16 pr-16 sm:pr-24 py-5 rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none border-2 border-transparent focus:border-emerald-500 transition-all text-lg relative z-0"
-                />
-                <div className="absolute inset-y-0 right-4 flex items-center z-10">
-                  <div className="flex items-center gap-2">
+
+                <div className="relative flex-grow h-full flex items-center">
+                  <div className="absolute left-6 pointer-events-none text-slate-400 dark:text-emerald-100/40">
+                    <Search size={22} />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={`Buscar por ${
+                      searchField === 'nombre' ? 'nombre completo' :
+                      searchField === 'cedula' ? 'cédula o RIF' : 'código de afiliado'
+                    }...`}
+                    className="w-full h-full pl-16 pr-24 bg-transparent text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none text-lg"
+                  />
+                  
+                  <div className="absolute right-6 flex items-center gap-2">
                     {filterType !== 'Todos' && (
-                      <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2 py-1 rounded-md">
+                      <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2.5 py-1 rounded-md">
                         {filterType === 'Natural' ? 'Agentes Independientes' : filterType === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}
                       </span>
                     )}

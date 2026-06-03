@@ -467,3 +467,38 @@ export const notificarAdminNuevaAfiliacion = async (params: {
     `, 'Notificación Admin')
   })
 }
+
+/**
+ * Notifica a un afiliado independiente que fue vinculado como Agente Corporativo.
+ */
+export const enviarCorreoVinculacionCorporativa = async (params: {
+  nombre: string
+  emailOriginal: string
+  nombreEmpresa: string
+}) => {
+  const { nombre, emailOriginal, nombreEmpresa } = params
+  const enlacePanel = `${env.APP_URL}/panel`
+  const { data, error } = await sendResendEmail({
+    from: DEFAULT_FROM,
+    to: emailOriginal,
+    subject: `Ahora eres Agente Corporativo de ${nombreEmpresa} — Cámara Inmobiliaria`,
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Tenemos buenas noticias para ti. La empresa <strong>${nombreEmpresa}</strong> te ha seleccionado y vinculado como <strong>Agente Corporativo</strong> en la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>.</p>
+      <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0; border: 1px solid #d1fae5;">
+        <p style="margin-top: 0; font-weight: 700; color: #065f46;">¿Qué significa esto?</p>
+        <ul style="color: #374151; font-size: 14px; padding-left: 20px; line-height: 1.8;">
+          <li>Tu perfil ahora está asociado a <strong>${nombreEmpresa}</strong>.</li>
+          <li>Seguirás disfrutando de todos los beneficios de tu afiliación.</li>
+          <li>La empresa podrá coordinar actividades contigo a través del portal.</li>
+        </ul>
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${enlacePanel}" class="btn">Ver mi Panel</a>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #6b7280; text-align: center;">Si tienes alguna duda, comunícate directamente con la empresa o con la Cámara Inmobiliaria.</p>
+    `, 'Vinculación Corporativa')
+  })
+  if (error) { console.error('enviarCorreoVinculacionCorporativa:', error) }
+  return data
+}
