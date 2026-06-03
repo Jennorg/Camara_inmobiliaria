@@ -102,16 +102,14 @@ async function upsertEstudianteByEmail(params: {
     })
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number
-      // Actualizar nivel, profesion, website, descripcion si se proveen
-      if (nivelProfesional || profesion || website || descripcion) {
+      // Actualizar nivel, profesion si se proveen
+      if (nivelProfesional || profesion) {
         await db.execute({
           sql: `UPDATE personas SET 
                   nivel_academico = COALESCE(?, nivel_academico),
-                  profesion = COALESCE(?, profesion),
-                  website = COALESCE(?, website),
-                  descripcion = COALESCE(?, descripcion)
+                  profesion = COALESCE(?, profesion)
                 WHERE id = ?`,
-          args: [nivelProfesional || null, profesion || null, website || null, descripcion || null, idPersona]
+          args: [nivelProfesional || null, profesion || null, idPersona]
         })
       }
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -122,8 +120,8 @@ async function upsertEstudianteByEmail(params: {
       }
     } else {
       const insP = await db.execute({
-        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion, website, descripcion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null, website || null, descripcion || null]
+        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {

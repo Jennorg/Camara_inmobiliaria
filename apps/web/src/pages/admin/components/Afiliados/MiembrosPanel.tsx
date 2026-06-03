@@ -10,7 +10,7 @@ import {
   ChevronRight, Building2, User as UserIcon, CheckCircle2, AlertCircle,
   Mail, Phone, MapPin, BadgeCheck, FileText, Calendar, CreditCard,
   ShieldAlert, ArrowUpDown, ChevronDown, ImageIcon, Upload, Loader2,
-  Briefcase, StickyNote, Globe, FileDown
+  Briefcase, StickyNote, Globe, FileDown, Music2, Facebook, Instagram, Linkedin
 } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
@@ -262,31 +262,32 @@ export default function MiembrosPanel() {
     setShowNewModal(true)
   }
 
-  const handleNewTipoChange = (tipo: 'Natural' | 'Corporativo') => {
+  const handleNewTipoChange = (tipo: 'Natural' | 'Corporativo' | 'Agente Corporativo') => {
     setNewForm((prev) => ({
       ...prev,
       tipo_afiliado: tipo,
       ...(tipo === 'Corporativo'
         ? { id_empresa: null }
         : { empresa_razon_social: undefined, empresa_rif_tipo: undefined, empresa_rif_numero: undefined, empresa_email: undefined, empresa_telefono: undefined, empresa_website: undefined }),
+      ...(tipo !== 'Agente Corporativo' ? { id_empresa: null } : {})
     }))
   }
 
   const handleCreate = async () => {
     try {
-      const tipoFinal = isNewCorporativo ? 'Corporativo' : (newForm.id_empresa ? 'Agente Corporativo' : 'Natural')
-      const rifEmpresa = newForm.empresa_rif_numero?.trim()
+      const tipoFinal = newTipo;
+      const rifEmpresa = newForm.empresa_rif_numero?.trim();
       const payload = {
         ...newForm,
         tipo_afiliado: tipoFinal,
-        id_empresa: isNewCorporativo ? null : (newForm.id_empresa || null),
-        cedula: isNewCorporativo && rifEmpresa
+        id_empresa: tipoFinal === 'Agente Corporativo' ? newForm.id_empresa : null,
+        cedula: tipoFinal === 'Corporativo' && rifEmpresa
           ? rifEmpresa
           : (newForm.cedula || ''),
-        email: isNewCorporativo
+        email: tipoFinal === 'Corporativo'
           ? (newForm.empresa_email || newForm.email)
           : newForm.email,
-        telefono: isNewCorporativo
+        telefono: tipoFinal === 'Corporativo'
           ? (newForm.empresa_telefono || newForm.telefono)
           : newForm.telefono,
       }
@@ -715,17 +716,20 @@ labelClassName="hidden"
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula</label>
                     {isEditing ? (
                       <div className="flex gap-2 max-w-xs">
-                        <select
-                          className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                          value={editForm.cedula?.split('-')[0] || 'V'}
-                          onChange={(e) => {
-                            const parts = (editForm.cedula || '').split('-');
-                            const rest = parts.slice(1).join('-');
-                            setEditForm({ ...editForm, cedula: `${e.target.value}-${rest}` })
-                          }}
-                        >
-                          {ID_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
+                        <div className="relative">
+                          <select
+                            className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                            value={editForm.cedula?.split('-')[0] || 'V'}
+                            onChange={(e) => {
+                              const parts = (editForm.cedula || '').split('-');
+                              const rest = parts.slice(1).join('-');
+                              setEditForm({ ...editForm, cedula: `${e.target.value}-${rest}` })
+                            }}
+                          >
+                            {ID_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
                         <input
                           type="text"
                           className="flex-1 bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
@@ -748,15 +752,18 @@ labelClassName="hidden"
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Afiliación</p>
                       {isEditing ? (
-                        <select
-                          className="text-[10px] font-black uppercase px-2 py-1 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10"
-                          value={editForm.tipo_afiliado}
-                          onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
-                        >
-                          <option value="Natural">Agente Independiente</option>
-                          <option value="Corporativo">Corporativo</option>
-                          <option value="Agente Corporativo">Agente Corporativo</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            className="text-[10px] font-black uppercase px-2 py-1 pr-6 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10 appearance-none cursor-pointer"
+                            value={editForm.tipo_afiliado}
+                            onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
+                          >
+                            <option value="Natural">Agente Independiente</option>
+                            <option value="Corporativo">Corporativo</option>
+                            <option value="Agente Corporativo">Agente Corporativo</option>
+                          </select>
+                          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
                       ) : (
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
                           selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
@@ -772,18 +779,21 @@ labelClassName="hidden"
                       <div className="pt-2 border-t border-gray-200 space-y-2">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
                         {isEditing ? (
-                          <select
-                            className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                            value={editForm.id_empresa || ''}
-                            onChange={(e) => setEditForm({ ...editForm, id_empresa: e.target.value ? Number(e.target.value) : null })}
-                          >
-                            <option value="">Sin vinculación</option>
-                            {companies.map(c => (
-                              <option key={c.id_afiliado} value={c.id_afiliado}>
-                                {c.empresa_razon_social} (RIF: {c.empresa_rif_numero})
-                              </option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select
+                              className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                              value={editForm.id_empresa || ''}
+                              onChange={(e) => setEditForm({ ...editForm, id_empresa: e.target.value ? Number(e.target.value) : null })}
+                            >
+                              <option value="">Sin vinculación</option>
+                              {companies.map(c => (
+                                <option key={c.id_afiliado} value={c.id_afiliado}>
+                                  {c.empresa_razon_social} (RIF: {c.empresa_rif_numero})
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          </div>
                         ) : selected.id_empresa ? (
                           <>
                             <div className="flex items-center gap-2">
@@ -807,13 +817,15 @@ labelClassName="hidden"
                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
                     <BadgeCheck size={16} />
                   </div>
-                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Redes Sociales</h3>
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Redes Sociales y Web</h3>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <DataField label="Sitio Web" value={selected.website || 'No configurado'} isEditing={isEditing} fieldName="website" form={editForm} setForm={setEditForm} />
                   <DataField label="Instagram" value={selected.instagram || 'No configurado'} isEditing={isEditing} fieldName="instagram" form={editForm} setForm={setEditForm} />
                   <DataField label="Facebook" value={selected.facebook || 'No configurado'} isEditing={isEditing} fieldName="facebook" form={editForm} setForm={setEditForm} />
                   <DataField label="LinkedIn" value={selected.linkedin || 'No configurado'} isEditing={isEditing} fieldName="linkedin" form={editForm} setForm={setEditForm} />
                   <DataField label="X (Twitter)" value={selected.twitter || 'No configurado'} isEditing={isEditing} fieldName="twitter" form={editForm} setForm={setEditForm} />
+                  <DataField label="TikTok" value={selected.tiktok || 'No configurado'} isEditing={isEditing} fieldName="tiktok" form={editForm} setForm={setEditForm} />
                 </div>
               </div>
             </div>
@@ -830,23 +842,26 @@ labelClassName="hidden"
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estatus de Afiliación</label>
                   {isEditing ? (
-                    <select
-                      className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                      value={editForm.estatus || ''}
-                      onChange={(e) => setEditForm({ ...editForm, estatus: e.target.value as EstatusAfiliado })}
-                    >
-                      <option value="1_PREINSCRIPCION">Preinscripción</option>
-                      <option value="2_EXPEDIENTE">Expediente</option>
-                      <option value="3_ENTREVISTA">Entrevista</option>
-                      <option value="4_VERIFICACION">Verificación</option>
-                      <option value="5_CIBIR">CIBIR</option>
-                      <option value="6_INSCRIPCION">Inscripción</option>
-                      <option value="Requiere Acción">Requiere Acción</option>
-                      <option value="Afiliado">Afiliado</option>
-                      <option value="Moroso">Moroso</option>
-                      <option value="Suspendido">Suspendido</option>
-                      <option value="Rechazado">Rechazado</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                        value={editForm.estatus || ''}
+                        onChange={(e) => setEditForm({ ...editForm, estatus: e.target.value as EstatusAfiliado })}
+                      >
+                        <option value="1_PREINSCRIPCION">Preinscripción</option>
+                        <option value="2_EXPEDIENTE">Expediente</option>
+                        <option value="3_ENTREVISTA">Entrevista</option>
+                        <option value="4_VERIFICACION">Verificación</option>
+                        <option value="5_CIBIR">CIBIR</option>
+                        <option value="6_INSCRIPCION">Inscripción</option>
+                        <option value="Requiere Acción">Requiere Acción</option>
+                        <option value="Afiliado">Afiliado</option>
+                        <option value="Moroso">Moroso</option>
+                        <option value="Suspendido">Suspendido</option>
+                        <option value="Rechazado">Rechazado</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
                   ) : (
                     <p className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
                       selected.estatus === 'Afiliado' ? 'bg-emerald-100 text-emerald-700' :
@@ -1016,65 +1031,77 @@ labelClassName="hidden"
             </div>
 
             <div className="p-8 overflow-y-auto space-y-6 flex-1">
-              <FormSection
-                icon={<Briefcase size={16} />}
-                title="Tipo de afiliado"
-                subtitle="Define si es independiente, corporativo o agente de una empresa"
-              >
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
-                  <select
-                    className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                    value={newTipo}
-                    onChange={(e) => handleNewTipoChange(e.target.value as 'Natural' | 'Corporativo')}
-                  >
-                    <option value="Natural">Agente independiente</option>
-                    <option value="Corporativo">Corporativo (empresa)</option>
-                  </select>
-                  {!isNewCorporativo && newForm.id_empresa && (
-                    <p className="text-[10px] text-amber-600 font-bold ml-1 mt-1">
-                      Se registrará como agente corporativo vinculado a la empresa seleccionada abajo.
-                    </p>
-                  )}
-                </div>
-              </FormSection>
-
+              {/* SECCIÓN 1: Perfil y Datos Personales */}
               <FormSection
                 icon={<UserIcon size={16} />}
-                title="Información personal"
-                subtitle="Datos del representante o del afiliado independiente"
+                title="Perfil y Datos Personales"
+                subtitle="Información del representante legal, agente o miembro independiente"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Miembro</label>
+                    <div className="relative">
+                      <select
+                        className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        value={newTipo}
+                        onChange={(e) => handleNewTipoChange(e.target.value as 'Natural' | 'Corporativo' | 'Agente Corporativo')}
+                      >
+                        <option value="Natural">Agente independiente</option>
+                        <option value="Corporativo">Corporativo (empresa)</option>
+                        <option value="Agente Corporativo">Agente Corporativo</option>
+                      </select>
+                      <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+
                   <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} />
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} />
-                  {!isNewCorporativo && (
-                    <DataInput label="Cédula" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
-                  )}
-                  {isNewCorporativo && (
-                    <DataInput label="Cédula del representante legal" placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
-                  )}
+                  <DataInput label={isNewCorporativo ? "Cédula del representante" : "Cédula"} placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
                   <DataInput label="Fecha de nacimiento" type="date" value={newForm.fecha_nacimiento || ''} onChange={(v: string) => setNewForm({ ...newForm, fecha_nacimiento: v })} />
+                  <DataInput label="Correo electrónico" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} />
+                  <DataInput label="Teléfono" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
+                  <div className="sm:col-span-2">
+                    <DataInput label="Dirección de habitación" placeholder="Av. Principal..." value={newForm.direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, direccion: v })} />
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nivel académico</label>
-                    <select
-                      className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                      value={newForm.nivel_academico || ''}
-                      onChange={(e) => setNewForm({ ...newForm, nivel_academico: e.target.value })}
-                    >
-                      <option value="">No especificado</option>
-                      {ACADEMIC_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        value={newForm.nivel_academico || ''}
+                        onChange={(e) => setNewForm({ ...newForm, nivel_academico: e.target.value })}
+                      >
+                        <option value="">No especificado</option>
+                        {ACADEMIC_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                  <DataInput label="Código de Afiliado (opcional)" placeholder="Dejar en blanco para autogenerar" value={newForm.codigo || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo: v })} />
+                </div>
+                
+                {/* Redes Sociales del Individuo */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Personal)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <DataInput label="Sitio Web" placeholder="https://..." value={newForm.website || ''} onChange={(v: string) => setNewForm({ ...newForm, website: v })} />
+                    <DataInput label="Instagram" placeholder="https://instagram.com/..." value={newForm.instagram || ''} onChange={(v: string) => setNewForm({ ...newForm, instagram: v })} />
+                    <DataInput label="Facebook" placeholder="https://facebook.com/..." value={newForm.facebook || ''} onChange={(v: string) => setNewForm({ ...newForm, facebook: v })} />
+                    <DataInput label="LinkedIn" placeholder="https://linkedin.com/in/..." value={newForm.linkedin || ''} onChange={(v: string) => setNewForm({ ...newForm, linkedin: v })} />
+                    <DataInput label="X (Twitter)" placeholder="https://x.com/..." value={newForm.twitter || ''} onChange={(v: string) => setNewForm({ ...newForm, twitter: v })} />
+                    <DataInput label="TikTok" placeholder="https://tiktok.com/@..." value={newForm.tiktok || ''} onChange={(v: string) => setNewForm({ ...newForm, tiktok: v })} />
                   </div>
                 </div>
               </FormSection>
 
+              {/* SECCIÓN 2: Información de la Empresa (Solo Corporativos) */}
               {isNewCorporativo && (
                 <FormSection
                   icon={<Building2 size={16} />}
-                  title="Información de la empresa"
-                  subtitle="Datos legales y de contacto del corporativo"
+                  title="Datos de la Empresa"
+                  subtitle="Información pública y de contacto de la inmobiliaria"
                   variant="emerald"
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1088,15 +1115,18 @@ labelClassName="hidden"
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF</label>
-                      <select
-                        className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                        value={newForm.empresa_rif_tipo || 'J'}
-                        onChange={(e) => setNewForm({ ...newForm, empresa_rif_tipo: e.target.value })}
-                      >
-                        {ID_PREFIXES.map((p) => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                          value={newForm.empresa_rif_tipo || 'J'}
+                          onChange={(e) => setNewForm({ ...newForm, empresa_rif_tipo: e.target.value })}
+                        >
+                          {ID_PREFIXES.map((p) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
                     </div>
                     <DataInput
                       label="Número RIF"
@@ -1104,86 +1134,58 @@ labelClassName="hidden"
                       value={newForm.empresa_rif_numero || ''}
                       onChange={(v: string) => setNewForm({ ...newForm, empresa_rif_numero: v })}
                     />
-                    <DataInput label="Correo de la empresa" placeholder="contacto@empresa.com" value={newForm.empresa_email || newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_email: v, email: v })} />
-                    <DataInput label="Teléfono de la empresa" placeholder="+58 412..." value={newForm.empresa_telefono || newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_telefono: v, telefono: v })} />
+                    <DataInput label="Correo corporativo" placeholder="contacto@empresa.com" value={newForm.empresa_email || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_email: v })} />
+                    <DataInput label="Teléfono corporativo" placeholder="+58 412..." value={newForm.empresa_telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_telefono: v })} />
                     <div className="sm:col-span-2">
-                      <DataInput label="Sitio web" placeholder="https://www.empresa.com" value={newForm.empresa_website || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_website: v })} />
+                      <DataInput label="Dirección fiscal o de oficina" placeholder="Av. Principal..." value={newForm.empresa_direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_direccion: v })} />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-emerald-100/50">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Empresa)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <DataInput label="Sitio web de la empresa" placeholder="https://www.empresa.com" value={newForm.empresa_website || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_website: v })} />
+                      <DataInput label="Instagram Empresa" placeholder="https://instagram.com/..." value={newForm.empresa_instagram || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_instagram: v })} />
+                      <DataInput label="Facebook Empresa" placeholder="https://facebook.com/..." value={newForm.empresa_facebook || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_facebook: v })} />
+                      <DataInput label="LinkedIn Empresa" placeholder="https://linkedin.com/company/..." value={newForm.empresa_linkedin || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_linkedin: v })} />
+                      <DataInput label="X (Twitter) Empresa" placeholder="https://x.com/..." value={newForm.empresa_twitter || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_twitter: v })} />
+                      <DataInput label="TikTok Empresa" placeholder="https://tiktok.com/@..." value={newForm.empresa_tiktok || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_tiktok: v })} />
                     </div>
                   </div>
                 </FormSection>
               )}
 
-              {!isNewCorporativo && (
+              {/* SECCIÓN 2 ALT: Vinculación Corporativa (Solo Agentes Corporativos) */}
+              {newTipo === 'Agente Corporativo' && (
                 <FormSection
                   icon={<Building2 size={16} />}
-                  title="Vinculación corporativa"
-                  subtitle="Opcional: vincular a un corporativo existente como agente"
+                  title="Vinculación Corporativa"
+                  subtitle="Empresa a la que representa este agente"
                   variant="emerald"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Corporativo al que pertenece</label>
-                    <select
-                      className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                      value={newForm.id_empresa || ''}
-                      onChange={(e) => {
-                        const corpId = e.target.value ? Number(e.target.value) : null
-                        setNewForm({
-                          ...newForm,
-                          id_empresa: corpId,
-                          tipo_afiliado: corpId ? 'Agente Corporativo' : 'Natural',
-                        })
-                      }}
-                    >
-                      <option value="">Ninguno (independiente)</option>
-                      {companies.map((c) => (
-                        <option key={c.id_afiliado} value={c.id_empresa ?? ''}>
-                          {c.empresa_razon_social || c.nombre_completo} (RIF: {c.empresa_rif_numero || c.cedula})
-                        </option>
-                      ))}
-                    </select>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seleccionar Empresa</label>
+                    <div className="relative">
+                      <select
+                        className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        value={newForm.id_empresa || ''}
+                        onChange={(e) => {
+                          const corpId = e.target.value ? Number(e.target.value) : null
+                          setNewForm({ ...newForm, id_empresa: corpId })
+                        }}
+                      >
+                        <option value="">Buscar o seleccionar una empresa...</option>
+                        {companies.map((c) => (
+                          <option key={c.id_afiliado} value={c.id_empresa ?? ''}>
+                            {c.empresa_razon_social || c.nombre_completo} (RIF: {c.empresa_rif_numero || c.cedula})
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
                   </div>
                 </FormSection>
               )}
-
-              <FormSection
-                icon={<Mail size={16} />}
-                title="Contacto y ubicación"
-                subtitle={isNewCorporativo ? 'Dirección fiscal o de oficina principal' : 'Correo, teléfono y dirección del afiliado'}
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {!isNewCorporativo && (
-                    <>
-                      <DataInput label="Correo electrónico" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} />
-                      <DataInput label="Teléfono" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
-                    </>
-                  )}
-                  <div className={isNewCorporativo ? 'sm:col-span-2' : 'sm:col-span-2'}>
-                    <DataInput label="Dirección" placeholder="Av. Principal, Ciudad..." value={newForm.direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, direccion: v })} />
-                  </div>
-                </div>
-              </FormSection>
-
-              <FormSection
-                icon={<BadgeCheck size={16} />}
-                title="Código de Afiliado"
-                subtitle="Identificación gremial"
-              >
-                <DataInput label="Código de Afiliado (opcional)" placeholder="359" value={newForm.codigo || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo: v })} />
-              </FormSection>
-
-              <FormSection
-                icon={<Globe size={16} />}
-                title="Redes sociales"
-                subtitle="Opcional"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <DataInput label="Instagram" placeholder="@usuario" value={newForm.instagram || ''} onChange={(v: string) => setNewForm({ ...newForm, instagram: v })} />
-                  <DataInput label="Facebook" placeholder="facebook.com/usuario" value={newForm.facebook || ''} onChange={(v: string) => setNewForm({ ...newForm, facebook: v })} />
-                  <div className="sm:col-span-2">
-                    <DataInput label="LinkedIn" placeholder="linkedin.com/in/usuario" value={newForm.linkedin || ''} onChange={(v: string) => setNewForm({ ...newForm, linkedin: v })} />
-                  </div>
-                </div>
-              </FormSection>
             </div>
 
             <div className="p-8 border-t border-gray-50 flex gap-4 shrink-0 bg-white">
@@ -1333,16 +1335,19 @@ function DataField({ label, value, isEditing, fieldName, form, setForm, type = '
       <label className={`text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 ${labelClassName}`}>{label}</label>
       {isEditing ? (
         type === 'select' ? (
-          <select
-            className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
-            value={form[fieldName] || ''}
-            onChange={(e) => setForm({ ...form, [fieldName]: e.target.value })}
-          >
-            <option value="">Seleccionar...</option>
-            {options.map((opt: any) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+              value={form[fieldName] || ''}
+              onChange={(e) => setForm({ ...form, [fieldName]: e.target.value })}
+            >
+              <option value="">Seleccionar...</option>
+              {options.map((opt: any) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
         ) : (
           <input
             type={type}

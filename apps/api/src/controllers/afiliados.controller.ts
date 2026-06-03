@@ -1047,7 +1047,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     // Campos permitidos por entidad
-    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url', 'website', 'descripcion'];
+    const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
     const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo', 'id_empresa', 'activo'];
     const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
@@ -1109,7 +1109,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       } else if (afiliadoFields.includes(key)) {
         let val = fields[key];
         if (key === 'redes_sociales' && typeof val === 'object') val = JSON.stringify(val);
-        aUpdates.push(`${key} = ?`);
+        const dbKey = key === 'descripcion' ? 'notas' : key;
+        aUpdates.push(`${dbKey} = ?`);
         aArgs.push(val);
       } else if (estudianteFields.includes(key)) {
         stUpdates.push(`${key} = ?`);
@@ -1686,10 +1687,12 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
 export const createAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
-      nombres, apellidos, empresa_razon_social,
+      nombres, apellidos, empresa_razon_social, empresa_rif_tipo,
       cedula, email, tipo_afiliado, estatus,
-      telefono, direccion, codigo,
-      id_empresa, instagram, facebook, linkedin
+      telefono, direccion, codigo, nivel_academico,
+      id_empresa, instagram, facebook, linkedin, twitter, tiktok, website,
+      empresa_direccion, empresa_email, empresa_telefono, empresa_website,
+      empresa_instagram, empresa_facebook, empresa_linkedin, empresa_twitter, empresa_tiktok
     } = req.body;
 
     if (!cedula || !email) {
@@ -1697,6 +1700,11 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
       return;
     }
     const tipoFinal = tipo_afiliado || 'Natural'
+
+    if (tipoFinal === 'Agente Corporativo' && !id_empresa) {
+      res.status(400).json({ success: false, message: 'La empresa es obligatoria para un Agente Corporativo.' });
+      return;
+    }
 
     // Verificar duplicados en personas
     const existing = await db.execute({
@@ -1711,9 +1719,9 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
 
     // 1. Insertar Persona
     const resultP = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, direccion)
-            VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [nombres || '', apellidos || '', cedula, email, telefono || null, direccion || null]
+      sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, direccion, nivel_academico)
+            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      args: [nombres || '', apellidos || '', cedula, email, telefono || null, direccion || null, nivel_academico || null]
     });
     const idPersona = resultP.rows[0].id;
 
@@ -1722,21 +1730,45 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
 
     // Si es corporativo y NO se pasó un id_empresa, creamos la empresa
     if (tipoFinal === 'Corporativo' && !finalIdEmpresa) {
+      const empresa_redes = JSON.stringify({
+        instagram: empresa_instagram,
+        facebook: empresa_facebook,
+        linkedin: empresa_linkedin,
+        twitter: empresa_twitter,
+        tiktok: empresa_tiktok,
+        website: empresa_website
+      });
       const resultE = await db.execute({
-        sql: `INSERT INTO empresas (razon_social, rif_numero, email, telefono)
-              VALUES (?, ?, ?, ?) RETURNING id_empresa`,
-        args: [empresa_razon_social || '', cedula, email, telefono || null]
+        sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, direccion, website, redes_sociales)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
+        args: [
+          empresa_razon_social || '', 
+          empresa_rif_tipo || 'J', 
+          cedula, 
+          empresa_email || email, 
+          empresa_telefono || telefono || null, 
+          empresa_direccion || direccion || null, 
+          empresa_website || website || null, 
+          empresa_redes
+        ]
       });
       finalIdEmpresa = resultE.rows[0].id_empresa as number;
     }
 
-    // 3. Insertar Afiliado
-    const redes_sociales = JSON.stringify({ instagram, facebook, linkedin });
+    // 3. Generar Código si es necesario
+    const estatusFinal = estatus || 'Afiliado';
+    let finalCodigo = codigo || null;
+    if (!finalCodigo && estatusFinal === 'Afiliado') {
+      finalCodigo = await obtenerSiguienteCodigoAfiliado();
+    }
+
+    // 4. Insertar Afiliado
+    const redes_sociales = JSON.stringify({ instagram, facebook, linkedin, twitter, tiktok, website });
     const resultA = await db.execute({
       sql: `INSERT INTO afiliados (
         id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, activo
       ) VALUES (?, ?, ?, ?, ?, ?, 1) RETURNING *`,
-      args: [idPersona, finalIdEmpresa, tipoFinal, estatus || 'Afiliado', codigo || null, redes_sociales]
+      args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales]
     });
 
     res.status(201).json({
