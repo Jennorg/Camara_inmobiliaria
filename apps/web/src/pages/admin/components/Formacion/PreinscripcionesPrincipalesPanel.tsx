@@ -274,8 +274,8 @@ export default function PreinscripcionesPrincipalesPanel({
                 <p class="font-bold text-slate-800">${af.doc_identidad || 'No registrado'}</p>
               </div>
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
-                <p className="text-[10px] font-black uppercase text-slate-400">Código de Afiliado</p>
-                <p className="font-bold text-slate-800">${af.codigo || 'Sin código'}</p>
+                <p class="text-[10px] font-black uppercase text-slate-400">Código de Afiliado</p>
+                <p class="font-bold text-slate-800">${af.codigo || 'Sin código'}</p>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -414,7 +414,7 @@ export default function PreinscripcionesPrincipalesPanel({
   }
   const getStatusStyles = (s: Estatus) => {
     if (s === 'Preinscrito') return 'bg-amber-50 text-amber-600'
-    if (s === 'Entrevista') return 'bg-blue-50 text-blue-600'
+    if (s === 'Entrevista') return 'bg-emerald-50 text-emerald-600'
     if (s === 'Inscrito') return 'bg-emerald-50 text-emerald-600'
     if (s === 'Rechazado') return 'bg-red-50 text-red-500'
     return 'bg-slate-100 text-slate-500'
@@ -517,7 +517,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   {' • '}{r.estudiante_cedula || 'S/N'}
                 </span>
                 {r.programa_codigo === 'AFILIACION' && !!r.apto_convalidacion && (
-                  <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100 mt-0.5 self-start">
+                  <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-0.5 self-start">
                     Apto para convalidación
                   </span>
                 )}
@@ -547,7 +547,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
                 <p className="text-xs text-slate-400 mt-0.5 truncate">{selected.estudiante_cedula || 'Sin documento'}</p>
                 {selected.programa_codigo === 'AFILIACION' && !!selected.apto_convalidacion && (
-                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100 mt-1">
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-1">
                     Apto para convalidación
                   </span>
                 )}
@@ -560,7 +560,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     selected.afiliado_tipo === 'Corporativo' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                     selected.afiliado_tipo === 'Agente Corporativo' || selected.afiliado_tipo === 'Agente' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                    'bg-blue-50 text-blue-600 border border-blue-100'
+                    'bg-emerald-50 text-emerald-600 border border-emerald-100'
                   }`}>
                     {selected.afiliado_tipo === 'Corporativo' ? 'CORPORATIVO' :
                      selected.afiliado_tipo === 'Agente Corporativo' || selected.afiliado_tipo === 'Agente' ? 'AGENTE CORPORATIVO' :
@@ -568,7 +568,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   </span>
                 ) : (
                   (selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J')) && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                       JURÍDICO
                     </span>
                   )
@@ -641,9 +641,9 @@ export default function PreinscripcionesPrincipalesPanel({
                   `
                 } else if (idx < activeIndex) {
                   warningHtml = `
-                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs text-left">
-                      <p class="font-bold text-blue-900 mb-1">ℹ️ NOTA: Estás retrocediendo en el proceso:</p>
-                      <p class="leading-tight text-[10px] text-blue-700">El proceso se devolverá a una etapa anterior. Se deberán procesar los requisitos de nuevo desde este punto.</p>
+                    <div class="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs text-left">
+                      <p class="font-bold text-emerald-900 mb-1">ℹ️ NOTA: Estás retrocediendo en el proceso:</p>
+                      <p class="leading-tight text-[10px] text-emerald-700">El proceso se devolverá a una etapa anterior. Se deberán procesar los requisitos de nuevo desde este punto.</p>
                     </div>
                   `
                 }
@@ -762,23 +762,23 @@ export default function PreinscripcionesPrincipalesPanel({
               const qualifyingDocs = documentos.filter(d => d.tipo_doc === 'diplomado' && d.nombre_archivo && ['FIPPI', 'FIPI', 'PREANI'].includes(d.nombre_archivo.toUpperCase().trim()));
               
               return (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-3 flex flex-col gap-2">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-3 flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    <GraduationCap className="w-5 h-5 text-indigo-600" />
-                    <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Apto para Convalidación CIBIR</p>
+                    <GraduationCap className="w-5 h-5 text-emerald-600" />
+                    <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Apto para Convalidación CIBIR</p>
                   </div>
-                  <p className="text-xs text-indigo-700 font-medium leading-relaxed">
+                  <p className="text-xs text-emerald-700 font-medium leading-relaxed">
                     El aspirante cumple con los requisitos reglamentarios para la acreditación directa o nivelación especial del programa de formación:
                   </p>
                   <div className="flex flex-col gap-1.5 mt-1">
                     {has8Years && (
-                      <div className="flex items-start gap-1.5 text-[11px] text-indigo-900 font-semibold">
+                      <div className="flex items-start gap-1.5 text-[11px] text-emerald-900 font-semibold">
                         <span className="text-emerald-500">✓</span>
                         <span>Tiene {anosServicio} años de servicio (inició en {selected.ano_inicio_servicio}), superando el mínimo requerido de 8 años.</span>
                       </div>
                     )}
                     {qualifyingDocs.length > 0 && (
-                      <div className="flex items-start gap-1.5 text-[11px] text-indigo-900 font-semibold">
+                      <div className="flex items-start gap-1.5 text-[11px] text-emerald-900 font-semibold">
                         <span className="text-emerald-500">✓</span>
                         <span>
                           Adjuntó soporte de diplomado:{" "}
@@ -1013,9 +1013,9 @@ export default function PreinscripcionesPrincipalesPanel({
               )}
               {selected.estatus === 'Entrevista' && (
                 <div className="flex flex-col gap-3">
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                    <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-1">Cita Programada</p>
-                    <p className="text-xs text-blue-700">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                    <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Cita Programada</p>
+                    <p className="text-xs text-emerald-700">
                       {selected.entrevista_fecha} a las {selected.entrevista_hora} <br />
                       <span className="opacity-70">{selected.entrevista_lugar}</span>
                     </p>
@@ -1029,7 +1029,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     </button>
                     <button
                       onClick={() => setShowModalAgendar(true)}
-                      className="px-4 py-2.5 rounded-xl border border-blue-200 text-blue-600 text-sm font-semibold hover:bg-blue-100 transition-colors"
+                      className="px-4 py-2.5 rounded-xl border border-emerald-200 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors"
                     >
                       Reprogramar
                     </button>

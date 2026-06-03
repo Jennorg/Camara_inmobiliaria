@@ -132,7 +132,7 @@ export default function AdminMisAgentesPanel() {
   }
 
   return (
-    <div className="space-y-8 p-2">
+    <div className="h-full space-y-8 p-4 lg:p-8 overflow-y-auto">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">

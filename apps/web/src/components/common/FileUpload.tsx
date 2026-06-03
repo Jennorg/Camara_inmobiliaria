@@ -9,6 +9,7 @@ interface FileUploadProps {
   onUploadSuccess: (url: string, fileName?: string) => void;
   onClear: () => void;
   required?: boolean;
+  disabled?: boolean;
   /** URL de un archivo ya subido previamente (p.ej. restaurado de localStorage). */
   initialUrl?: string;
   /** Nombre original del archivo cuando se restaura del progreso guardado. */
@@ -22,6 +23,7 @@ export default function FileUpload({
   onUploadSuccess, 
   onClear,
   required = false,
+  disabled = false,
   initialUrl,
   initialFileName,}: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -38,6 +40,7 @@ export default function FileUpload({
   // No longer needed: filename extraction was handled via stored name
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    if (disabled) return;
     let selectedFile: File | undefined;
     
     if ('target' in e && (e.target as HTMLInputElement).files) {
@@ -106,6 +109,7 @@ export default function FileUpload({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    if (disabled) return;
     setIsDragging(true);
   };
 
@@ -115,6 +119,7 @@ export default function FileUpload({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    if (disabled) return;
     setIsDragging(false);
     handleFileChange(e);
   };
@@ -146,15 +151,17 @@ export default function FileUpload({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => !uploadedUrl && !uploading && fileInputRef.current?.click()}
+        onClick={() => !uploadedUrl && !uploading && !disabled && fileInputRef.current?.click()}
         className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden ${
-          isDragging
-            ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10'
-            : uploadedUrl 
-              ? 'border-emerald-500/30 bg-emerald-50/30 hover:bg-emerald-50/50' 
-              : error 
-                ? 'border-rose-500/30 bg-rose-50/30'
-                : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
+          disabled
+            ? 'border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
+            : isDragging
+              ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10'
+              : uploadedUrl 
+                ? 'border-emerald-500/30 bg-emerald-50/30 hover:bg-emerald-50/50' 
+                : error 
+                  ? 'border-rose-500/30 bg-rose-50/30'
+                  : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
         }`}
       >
         {!file && !uploadedUrl ? (
@@ -201,7 +208,7 @@ export default function FileUpload({
                     target="_blank" 
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-bold underline uppercase tracking-widest"
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-bold underline uppercase tracking-widest"
                   >
                     Ver archivo
                   </a>
@@ -209,7 +216,7 @@ export default function FileUpload({
               </div>
             </div>
 
-            {!uploading && (
+            {!uploading && !disabled && (
               <button
                 type="button"
                 onClick={handleRemove}

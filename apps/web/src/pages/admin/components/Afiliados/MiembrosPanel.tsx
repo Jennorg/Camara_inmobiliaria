@@ -29,6 +29,8 @@ export default function MiembrosPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre')
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos')
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
   const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('codigo_asc')
@@ -181,10 +183,18 @@ export default function MiembrosPanel() {
       const razonSocial = (item.empresa_razon_social || '').toLowerCase()
       const cedula = (item.cedula || '').toLowerCase()
       const rif = (item.empresa_rif_numero || '').toLowerCase()
-      const email = (item.email || '').toLowerCase()
       const s = search.toLowerCase()
 
-      const matchSearch = nombre.includes(s) || razonSocial.includes(s) || cedula.includes(s) || rif.includes(s) || email.includes(s)
+      let matchSearch = true
+      if (s) {
+        if (searchField === 'cedula') {
+          matchSearch = cedula.includes(s) || rif.includes(s)
+        } else if (searchField === 'codigo') {
+          matchSearch = (item.codigo || '').toLowerCase().includes(s)
+        } else { // default: nombre
+          matchSearch = nombre.includes(s) || razonSocial.includes(s)
+        }
+      }
 
        let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
        if (filterTipo === 'Agente Corporativo') {
@@ -374,15 +384,71 @@ export default function MiembrosPanel() {
           </div>
 
           <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-              <input
-                type="text"
-                placeholder="Buscar miembro..."
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-gray-100 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-8 overflow-hidden">
+              {/* Dropdown de criterio */}
+              <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+                  className="flex items-center gap-0.5 px-2 h-full text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
+                >
+                  <span>
+                    {searchField === 'nombre' && 'Nom'}
+                    {searchField === 'cedula' && 'Céd'}
+                    {searchField === 'codigo' && 'Cód'}
+                  </span>
+                  <ChevronDown size={10} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showSearchDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[90px] animate-in fade-in slide-in-from-top-1 duration-200">
+                      {([
+                        { key: 'nombre', label: 'Nombre' },
+                        { key: 'cedula', label: 'Cédula' },
+                        { key: 'codigo', label: 'Código' },
+                      ] as const).map(option => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setSearchField(option.key);
+                            setShowSearchDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors ${
+                            searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="relative flex-grow h-full flex items-center">
+                <Search className="absolute left-2 text-slate-400" size={12} />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={`Buscar por ${
+                    searchField === 'nombre' ? 'nombre' :
+                    searchField === 'cedula' ? 'cédula' : 'código'
+                  }...`}
+                  className="w-full h-full pl-6 pr-8 bg-transparent text-xs font-semibold placeholder-slate-400 outline-none"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-all"
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
             </div>
             <button
               onClick={() => {
@@ -421,7 +487,7 @@ export default function MiembrosPanel() {
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className={`w-2 h-2 rounded-full ${
                   filterTipo === 'Todos' ? 'bg-slate-400' :
-                  filterTipo === 'Natural' ? 'bg-blue-500' :
+                  filterTipo === 'Natural' ? 'bg-emerald-500' :
                   filterTipo === 'Corporativo' ? 'bg-emerald-500' : 'bg-amber-500'
                 }`} />
                 <ChevronDown size={14} className={`text-slate-400 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
@@ -447,7 +513,7 @@ export default function MiembrosPanel() {
                         }}
                         className={`w-full text-left px-2 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 flex items-center justify-between ${
                           filterTipo === f.id
-                            ? f.id === 'Todos' ? 'bg-slate-800 text-white' : f.id === 'Natural' ? 'bg-blue-600 text-white' : f.id === 'Corporativo' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                            ? f.id === 'Todos' ? 'bg-slate-800 text-white' : f.id === 'Natural' ? 'bg-emerald-600 text-white' : f.id === 'Corporativo' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
                             : 'text-slate-600 hover:bg-slate-50'
                         }`}
                       >
@@ -457,7 +523,7 @@ export default function MiembrosPanel() {
                         ) : (
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             f.id === 'Todos' ? 'bg-slate-300' :
-                            f.id === 'Natural' ? 'bg-blue-400' :
+                            f.id === 'Natural' ? 'bg-emerald-400' :
                             f.id === 'Corporativo' ? 'bg-emerald-400' : 'bg-amber-400'
                           }`} />
                         )}
@@ -492,7 +558,7 @@ export default function MiembrosPanel() {
                   <div className="flex items-center gap-2 mt-1">
                      <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${
                        item.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 
-                       item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                       item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                      }`}>
                        {item.tipo_afiliado === 'Corporativo' ? 'Corporativos' : 
                         item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Agentes Independientes'}
@@ -625,14 +691,14 @@ export default function MiembrosPanel() {
                 ) : (
                   <div className="relative shrink-0">
                     <div
-                      className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-blue-50 border-2 border-blue-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                      className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                       onClick={() => openImageEditor('foto')}
                       title="Haz clic para cambiar la foto de perfil"
                     >
                       {selected.foto_url ? (
                         <img src={selected.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xl font-black text-blue-600 uppercase tracking-tighter">
+                        <span className="text-xl font-black text-emerald-600 uppercase tracking-tighter">
                           {getInitials(selected.nombres, selected.apellidos)}
                         </span>
                       )}
@@ -718,7 +784,7 @@ labelClassName="hidden"
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                       (isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'bg-emerald-50 text-emerald-500' :
                       ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-50 text-amber-500' :
-                      'bg-blue-50 text-blue-500'
+                      'bg-emerald-50 text-emerald-500'
                     }`}>
                       <UserIcon size={16} />
                     </div>
@@ -798,7 +864,7 @@ labelClassName="hidden"
                       ) : (
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
                           selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
-                          (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                          (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                         }`}>
                           {selected.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
                            (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Agente Corporativo' : 'Agente Independiente'}

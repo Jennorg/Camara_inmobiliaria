@@ -27,7 +27,7 @@ interface CursoDB {
 
 const STATUS_STYLES: Record<string, string> = {
   'Abierto': 'bg-emerald-50 text-emerald-600',
-  'Próximamente': 'bg-blue-50 text-blue-500',
+  'Próximamente': 'bg-emerald-50 text-emerald-600',
   'En curso': 'bg-amber-50 text-amber-600',
   'Cerrado': 'bg-slate-100 text-slate-500',
 };

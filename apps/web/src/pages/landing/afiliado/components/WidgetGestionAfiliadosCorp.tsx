@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Users,
   Link as LinkIcon,
-  Plus,
-  Trash2,
   Copy,
   CheckCircle,
   ExternalLink,
@@ -20,11 +18,13 @@ import {
   Check,
   User,
   Mail,
-  ArrowRight
+  Search,
+  UserCheck,
+  Phone
 } from 'lucide-react';
 import { API_URL } from '@/config/env';
-import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { formatNombreCard, getInitials } from '@/utils/formatters';
 
 interface Invitacion {
@@ -50,7 +50,21 @@ interface AfiliadoMiembro {
   fase: 'Solicitud' | 'Aprobado' | 'En Proceso' | 'Rechazado';
 }
 
+interface AfiliadoIndependiente {
+  id_afiliado: number;
+  nombre_completo: string;
+  nombres: string | null;
+  apellidos: string | null;
+  cedula: string;
+  email: string;
+  telefono: string | null;
+  codigo: string | null;
+  foto_url: string | null;
+}
+
 const BOX_H = 'h-[58px]';
+
+type ActiveTab = 'agentes' | 'links' | 'vincular';
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -61,14 +75,23 @@ const NIVELES = [
 
 export default function WidgetGestionAfiliadosCorp() {
   const { user, token } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
+  const [activeTab, setActiveTab] = useState<ActiveTab>('agentes');
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([]);
   const [miembros, setMiembros] = useState<AfiliadoMiembro[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState('');
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
-  // Modal State
+  // Vincular independiente
+  const [busquedaInd, setBusquedaInd] = useState('');
+  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre');
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [independientes, setIndependientes] = useState<AfiliadoIndependiente[]>([]);
+  const [loadingInd, setLoadingInd] = useState(false);
+  const [confirmVincular, setConfirmVincular] = useState<AfiliadoIndependiente | null>(null);
+  const [vinculandoId, setVinculandoId] = useState<number | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showNivelDropdown, setShowNivelDropdown] = useState(false);
   const [modalForm, setModalForm] = useState({
@@ -125,7 +148,7 @@ export default function WidgetGestionAfiliadosCorp() {
       if (dataMbr.success) setMiembros(dataMbr.data);
     } catch (err) {
       console.error(err);
-      setError('Error al cargar datos de gestión corporativa.');
+      toastError('Error al cargar datos', 'Error al cargar datos de gestión corporativa.');
     } finally {
       setLoading(false);
     }
@@ -134,6 +157,66 @@ export default function WidgetGestionAfiliadosCorp() {
   useEffect(() => {
     fetchData();
   }, [user?.id_empresa, user?.id_afiliado, token]);
+
+  // Búsqueda con debounce de afiliados independientes disponibles
+  const getCompanyId = async (): Promise<number | null> => {
+    let companyId = user?.id_empresa;
+    if (!companyId && user?.id_afiliado && token) {
+      const res = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await res.json();
+      if (d.success && d.data.id_empresa) companyId = d.data.id_empresa;
+    }
+    return companyId ?? null;
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'vincular') return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const companyId = await getCompanyId();
+      if (!companyId || !token) return;
+      setLoadingInd(true);
+      try {
+        const q = busquedaInd.trim();
+        const url = `${API_URL}/api/afiliados/${companyId}/independientes-disponibles?q=${encodeURIComponent(q)}&field=${searchField}`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (data.success) setIndependientes(data.data);
+      } catch { /* silencioso */ } finally {
+        setLoadingInd(false);
+      }
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [busquedaInd, searchField, activeTab, token]);
+
+  const handleVincular = async (afiliado: AfiliadoIndependiente) => {
+    const companyId = await getCompanyId();
+    if (!companyId || !token) return;
+    setVinculandoId(afiliado.id_afiliado);
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/vincular`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id_afiliado: afiliado.id_afiliado })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setConfirmVincular(null);
+        const nombre = formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos);
+        toastSuccess('Agente vinculado', `${nombre} fue establecido como Agente Corporativo.`);
+        setIndependientes(prev => prev.filter(a => a.id_afiliado !== afiliado.id_afiliado));
+        fetchData();
+      } else {
+        toastError('Error al vincular', data.message || 'No se pudo completar la vinculación.');
+      }
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión a internet e intenta nuevamente.');
+    } finally {
+      setVinculandoId(null);
+    }
+  };
 
   const handleGenerarLink = async () => {
     let companyId = user?.id_empresa;
@@ -150,24 +233,21 @@ export default function WidgetGestionAfiliadosCorp() {
     if (!companyId || !token) return;
 
     setActionLoading(true);
-    setError('');
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${companyId}/invitacion`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ diasExpiracion: 30 })
       });
       const data = await res.json();
       if (data.success) {
         fetchData();
+        toastSuccess('Link generado', 'El link de invitación está listo para compartir.');
       } else {
-        setError(data.message || 'Error al generar link.');
+        toastError('Error al generar link', data.message || 'No se pudo generar el link.');
       }
-    } catch (err) {
-      setError('Error de conexión.');
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión e intenta nuevamente.');
     } finally {
       setActionLoading(false);
     }
@@ -196,14 +276,10 @@ export default function WidgetGestionAfiliadosCorp() {
     if (!companyId || !token) return;
     
     setActionLoading(true);
-    setError('');
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/crear-solicitud`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           nombreCompleto: modalForm.nombreCompleto.trim(),
           cedulaRif: `${modalForm.cedulaPrefix}-${modalForm.cedulaNumber}`,
@@ -216,22 +292,14 @@ export default function WidgetGestionAfiliadosCorp() {
       const data = await res.json();
       if (data.success) {
         setShowModal(false);
-        setModalForm({
-          nombreCompleto: '',
-          cedulaPrefix: 'V',
-          cedulaNumber: '',
-          email: '',
-          phonePrefix: '+58',
-          telefono: '',
-          nivelProfesional: '',
-          esCorredorInmobiliario: '',
-        });
+        setModalForm({ nombreCompleto: '', cedulaPrefix: 'V', cedulaNumber: '', email: '', phonePrefix: '+58', telefono: '', nivelProfesional: '', esCorredorInmobiliario: '' });
         fetchData();
+        toastSuccess('Solicitud creada', 'La solicitud de agente corporativo fue registrada.');
       } else {
-        setError(data.message || 'Error al crear la solicitud.');
+        toastError('Error al crear solicitud', data.message || 'No se pudo crear la solicitud.');
       }
-    } catch (err) {
-      setError('Error de conexión.');
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión e intenta nuevamente.');
     } finally {
       setActionLoading(false);
     }
@@ -240,35 +308,26 @@ export default function WidgetGestionAfiliadosCorp() {
   const handleAprobarSolicitud = async (idAfiliado: number) => {
     let companyId = user?.id_empresa;
     if (!companyId && user?.id_afiliado && token) {
-      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, { headers: { Authorization: `Bearer ${token}` } });
       const dataProfile = await resProfile.json();
-      if (dataProfile.success && dataProfile.data.id_empresa) {
-        companyId = dataProfile.data.id_empresa;
-      }
+      if (dataProfile.success && dataProfile.data.id_empresa) companyId = dataProfile.data.id_empresa;
     }
-
     if (!companyId || !token) return;
-
     setActionLoading(true);
-    setError('');
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/${idAfiliado}/aprobar`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {
         fetchData();
+        toastSuccess('Solicitud aprobada', 'El agente ha sido aprobado exitosamente.');
       } else {
-        setError(data.message || 'Error al aprobar la solicitud.');
+        toastError('Error al aprobar', data.message || 'No se pudo aprobar la solicitud.');
       }
-    } catch (err) {
-      setError('Error de conexión.');
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión e intenta nuevamente.');
     } finally {
       setActionLoading(false);
     }
@@ -277,35 +336,26 @@ export default function WidgetGestionAfiliadosCorp() {
   const handleRechazarSolicitud = async (idAfiliado: number) => {
     let companyId = user?.id_empresa;
     if (!companyId && user?.id_afiliado && token) {
-      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, { headers: { Authorization: `Bearer ${token}` } });
       const dataProfile = await resProfile.json();
-      if (dataProfile.success && dataProfile.data.id_empresa) {
-        companyId = dataProfile.data.id_empresa;
-      }
+      if (dataProfile.success && dataProfile.data.id_empresa) companyId = dataProfile.data.id_empresa;
     }
-
     if (!companyId || !token) return;
-
     setActionLoading(true);
-    setError('');
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp/${idAfiliado}/rechazar`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {
         fetchData();
+        toastSuccess('Solicitud rechazada', 'La solicitud fue rechazada.');
       } else {
-        setError(data.message || 'Error al rechazar la solicitud.');
+        toastError('Error al rechazar', data.message || 'No se pudo rechazar la solicitud.');
       }
-    } catch (err) {
-      setError('Error de conexión.');
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión e intenta nuevamente.');
     } finally {
       setActionLoading(false);
     }
@@ -327,22 +377,22 @@ export default function WidgetGestionAfiliadosCorp() {
   }
 
   return (
-    <div className="space-y-8 p-2">
-      {/* Header / Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+    <div className="h-full space-y-6 p-4 lg:p-8 overflow-y-auto">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
         <div>
           <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
             <Building2 className="text-emerald-600" size={24} />
-            Gestión de Afiliados Corporativos
+            Gestión de Agentes Corporativos
           </h2>
           <p className="text-xs font-medium text-gray-500 mt-1">
-            Administra los miembros vinculados a tu empresa y genera links de invitación.
+            Administra los miembros vinculados a tu empresa.
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowModal(true)}
-            className={`flex items-center gap-2 px-6 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all active:scale-95 ${BOX_H}`}
+            className={`flex items-center gap-2 px-5 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all active:scale-95 ${BOX_H}`}
           >
             <UserPlus size={14} className="text-emerald-500" />
             Crear Solicitud
@@ -350,22 +400,44 @@ export default function WidgetGestionAfiliadosCorp() {
           <button
             onClick={handleGenerarLink}
             disabled={actionLoading}
-            className={`flex items-center gap-2 px-6 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 ${BOX_H}`}
+            className={`flex items-center gap-2 px-5 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 ${BOX_H}`}
           >
             {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <LinkIcon size={14} />}
-            Generar Link de Invitación
+            Generar Link
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-red-700 text-xs font-bold flex items-center gap-2">
-          <AlertCircle size={14} />
-          {error}
-        </div>
-      )}
+      {/* Tab Navigation */}
+      <div className="flex gap-1 p-1 bg-gray-100/70 rounded-2xl w-full sm:w-fit">
+        {([
+          { key: 'agentes', label: 'Mis Agentes', icon: Users, count: miembrosVinculados.length },
+          { key: 'links', label: 'Links', icon: LinkIcon, count: invitaciones.filter(i => i.activo).length },
+          { key: 'vincular', label: 'Vincular Afiliado', icon: UserCheck },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <tab.icon size={13} />
+            {tab.label}
+            {'count' in tab && tab.count! > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+                activeTab === tab.key ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'
+              }`}>{tab.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
 
-      {/* Solicitudes de Afiliación Pendientes */}
+
+
+      {/* ── Solicitudes Pendientes (siempre visible si hay alguna) ─────── */}
       {solicitudesPendientes.length > 0 && (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
           <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-emerald-50/10">
@@ -428,13 +500,63 @@ export default function WidgetGestionAfiliadosCorp() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sección de Links */}
+      {/* ── TAB: Mis Agentes ─────────────────────────────────────────────── */}
+      {activeTab === 'agentes' && (
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+              <Users size={14} className="text-emerald-500" />
+              Afiliados Vinculados a la Empresa
+            </h3>
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+              {miembrosVinculados.length} Miembros
+            </span>
+            </div>
+
+          <div className="divide-y divide-gray-50 flex-1 overflow-y-auto max-h-[420px]">
+            {miembrosVinculados.length === 0 ? (
+              <div className="p-12 text-center text-gray-400 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-widest">Sin miembros vinculados</p>
+                <p className="text-[10px] font-medium leading-relaxed">Los afiliados que se registren con tu link o sean vinculados aparecerán aquí.</p>
+              </div>
+            ) : (
+              miembrosVinculados.map((m) => (
+                <div key={m.id_afiliado} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black text-xs">
+                      {getInitials(m.nombres || m.nombre_completo, m.apellidos)}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}</p>
+                      <p className="text-[10px] font-medium text-gray-500">{m.email}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                          m.fase === 'Aprobado' ? 'bg-emerald-50 text-emerald-600' : 
+                          m.fase === 'Rechazado' ? 'bg-red-50 text-red-600' :
+                          'bg-amber-50 text-amber-600'
+                        }`}>
+                          {m.fase === 'Aprobado' ? 'Activo' : 
+                           m.fase === 'En Proceso' ? 'Esperando Admin' : 
+                           m.fase}
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-medium">Registrado: {new Date(m.fecha_registro).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: Links ──────────────────────────────────────────────────── */}
+      {activeTab === 'links' && (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
           <div className="p-6 border-b border-gray-50 flex items-center justify-between">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
               <LinkIcon size={14} className="text-emerald-500" />
-              Links Activos
+              Links de Invitación Activos
             </h3>
             <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
               {invitaciones.filter(i => i.activo).length} Links
@@ -481,7 +603,7 @@ export default function WidgetGestionAfiliadosCorp() {
                       href={`/afiliacion/invitacion/${inv.token}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all"
+                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all"
                       title="Ver Página de Registro"
                     >
                       <ExternalLink size={16} />
@@ -492,55 +614,231 @@ export default function WidgetGestionAfiliadosCorp() {
             )}
           </div>
         </div>
+      )}
 
-        {/* Sección de Miembros */}
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
-              <Users size={14} className="text-emerald-500" />
-              Afiliados Vinculados
-            </h3>
-            <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest">
-              {miembrosVinculados.length} Miembros
-            </span>
+      {/* ── TAB: Vincular Afiliado Independiente ─────────────────────────── */}
+      {activeTab === 'vincular' && (
+        <div className="space-y-4">
+          {/* Descripción */}
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-3xl p-6 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-600/20">
+              <UserCheck size={22} />
+            </div>
+            <div>
+              <h3 className="font-black text-emerald-900 text-sm uppercase tracking-tight">Vincular afiliado independiente ya registrado</h3>
+              <p className="text-xs font-medium text-emerald-700 mt-1 leading-relaxed">
+                Busca y selecciona un afiliado Natural ya activo en el sistema para establecerlo directamente como Agente Corporativo de tu empresa. La vinculación es inmediata y se notifica al afiliado por correo.
+              </p>
+            </div>
           </div>
 
-          <div className="divide-y divide-gray-50 flex-1 overflow-y-auto max-h-[400px]">
-            {miembrosVinculados.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 space-y-2">
-                <p className="text-xs font-bold uppercase tracking-widest">Sin miembros vinculados</p>
-                <p className="text-[10px] font-medium leading-relaxed">Los afiliados que se registren con tu link aparecerán aquí.</p>
+          {/* Buscador */}
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-50">
+              <div className="relative flex items-center bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-400/10 transition-all h-12">
+                {/* Dropdown de criterio */}
+                <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+                    className="flex items-center gap-1 px-4 h-full text-xs font-black uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors"
+                  >
+                    <span>
+                      {searchField === 'nombre' && 'Nombre'}
+                      {searchField === 'cedula' && 'Cédula'}
+                      {searchField === 'codigo' && 'Código'}
+                    </span>
+                    <ChevronDown size={12} className={`text-gray-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showSearchDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
+                      <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200">
+                        {([
+                          { key: 'nombre', label: 'Nombre' },
+                          { key: 'cedula', label: 'Cédula' },
+                          { key: 'codigo', label: 'Código' },
+                        ] as const).map(option => (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => {
+                              setSearchField(option.key);
+                              setShowSearchDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-colors ${
+                              searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="relative flex-grow h-full">
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={busquedaInd}
+                    onChange={e => setBusquedaInd(e.target.value)}
+                    placeholder={`Buscar por ${
+                      searchField === 'nombre' ? 'nombre completo' :
+                      searchField === 'cedula' ? 'cédula de identidad' : 'código de afiliado'
+                    }...`}
+                    className="w-full h-full pl-11 pr-10 bg-transparent text-sm text-gray-800 placeholder-gray-400 font-medium outline-none"
+                  />
+                  {busquedaInd && (
+                    <button
+                      onClick={() => setBusquedaInd('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-gray-200/80 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-all"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
-            ) : (
-              miembrosVinculados.map((m) => (
-                <div key={m.id_afiliado} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black text-xs">
-                      {getInitials(m.nombres || m.nombre_completo, m.apellidos)}
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}</p>
-                      <p className="text-[10px] font-medium text-gray-500">{m.email}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                          m.fase === 'Aprobado' ? 'bg-emerald-50 text-emerald-600' : 
-                          m.fase === 'Rechazado' ? 'bg-red-50 text-red-600' :
-                          'bg-amber-50 text-amber-600'
-                        }`}>
-                          {m.fase === 'Aprobado' ? 'Activo' : 
-                           m.fase === 'En Proceso' ? 'Esperando Admin' : 
-                           m.fase}
-                        </span>
-                        <span className="text-[9px] text-gray-400 font-medium">Registrado: {new Date(m.fecha_registro).toLocaleDateString()}</span>
+            </div>
+
+            <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto">
+              {loadingInd ? (
+                <div className="p-12 flex flex-col items-center gap-3 text-gray-400">
+                  <Loader2 className="animate-spin text-emerald-500" size={28} />
+                  <p className="text-xs font-black uppercase tracking-widest">Buscando afiliados...</p>
+                </div>
+              ) : independientes.length === 0 ? (
+                <div className="p-12 text-center text-gray-400 space-y-2">
+                  <UserCheck size={32} className="mx-auto opacity-30" />
+                  <p className="text-xs font-bold uppercase tracking-widest">
+                    {busquedaInd ? 'Sin resultados para tu búsqueda' : 'Escribe para buscar afiliados disponibles'}
+                  </p>
+                  <p className="text-[10px] font-medium leading-relaxed">
+                    Solo aparecen afiliados Naturales activos sin empresa asignada.
+                  </p>
+                </div>
+              ) : (
+                independientes.map(a => (
+                  <div key={a.id_afiliado} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/60 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-xs shrink-0">
+                        {getInitials(a.nombres || a.nombre_completo, a.apellidos)}
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
+                          {formatNombreCard(a.nombres || a.nombre_completo, a.apellidos)}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                            <Mail size={10} /> {a.email}
+                          </span>
+                          {a.telefono && (
+                            <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                              <Phone size={10} /> {a.telefono}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-gray-400 font-mono">{a.cedula}</span>
+                          {a.codigo && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest">{a.codigo}</span>
+                          )}
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest">Afiliado Activo</span>
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={() => setConfirmVincular(a)}
+                      disabled={vinculandoId === a.id_afiliado}
+                      className="flex items-center gap-2 px-4 h-10 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] shadow-lg shadow-emerald-600/15 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-60 shrink-0"
+                    >
+                      {vinculandoId === a.id_afiliado ? <Loader2 className="animate-spin" size={12} /> : <UserCheck size={12} />}
+                      Vincular
+                    </button>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* MODAL CONFIRMACIÓN VINCULAR INDEPENDIENTE */}
+      {confirmVincular && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setConfirmVincular(null)} />
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden">
+            <div className="p-8">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-6">
+                <UserCheck size={30} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 text-center uppercase tracking-tight">¿Vincular este agente?</h3>
+              <p className="text-sm text-gray-500 text-center mt-2 font-medium">
+                Este afiliado será establecido como <strong>Agente Corporativo</strong> de tu empresa de forma inmediata.
+              </p>
+
+              <div className="mt-6 rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 border-b border-gray-100">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0">
+                    {getInitials(confirmVincular.nombres || confirmVincular.nombre_completo, confirmVincular.apellidos)}
+                  </div>
+                  <div>
+                    <p className="font-black text-gray-900 text-sm uppercase tracking-tight">
+                      {formatNombreCard(confirmVincular.nombres || confirmVincular.nombre_completo, confirmVincular.apellidos)}
+                    </p>
+                    {confirmVincular.codigo && (
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest">{confirmVincular.codigo}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  <div className="flex items-center px-4 py-2.5 gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Cédula</span>
+                    <span className="text-xs font-mono text-gray-700">{confirmVincular.cedula}</span>
+                  </div>
+                  <div className="flex items-center px-4 py-2.5 gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Email</span>
+                    <span className="text-xs text-gray-700 font-medium truncate">{confirmVincular.email}</span>
+                  </div>
+                  {confirmVincular.telefono && (
+                    <div className="flex items-center px-4 py-2.5 gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Teléfono</span>
+                      <span className="text-xs text-gray-700 font-medium">{confirmVincular.telefono}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center px-4 py-2.5 gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Tipo</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest">Afiliado Natural Activo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-8 pb-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmVincular(null)}
+                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={vinculandoId === confirmVincular.id_afiliado}
+                onClick={() => handleVincular(confirmVincular)}
+                className="flex-[2] h-12 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {vinculandoId === confirmVincular.id_afiliado
+                  ? <><Loader2 className="animate-spin" size={14} /> Vinculando...</>
+                  : <><UserCheck size={14} /> Confirmar Vinculación</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE REGISTRO DIRECTO */}
       {showModal && (

@@ -259,13 +259,13 @@ const PanelPage = () => {
                     <div className={`rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl transition-all duration-700 ${
                       solicitudesPendientesCount > 0 
                         ? 'bg-emerald-600 shadow-emerald-600/20 animate-in fade-in slide-in-from-top-4' 
-                        : 'bg-slate-800 shadow-slate-900/20'
+                        : 'bg-[#022c22] shadow-[#022c22]/20'
                     }`}>
                       <div className="flex items-center gap-5 text-center md:text-left">
                         <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 ${
-                          solicitudesPendientesCount > 0 ? 'bg-white/20 backdrop-blur-md' : 'bg-slate-700'
+                          solicitudesPendientesCount > 0 ? 'bg-white/20 backdrop-blur-md' : 'bg-emerald-950/50'
                         }`}>
-                          <UserPlus size={32} className={solicitudesPendientesCount > 0 ? 'text-white' : 'text-slate-400'} />
+                          <UserPlus size={32} className={solicitudesPendientesCount > 0 ? 'text-white' : 'text-emerald-500/60'} />
                         </div>
                         <div>
                           <h3 className="text-xl font-black uppercase tracking-tight">Gestión de Agentes</h3>
@@ -291,7 +291,7 @@ const PanelPage = () => {
                           className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap ${
                             solicitudesPendientesCount > 0 
                               ? 'bg-white text-emerald-700' 
-                              : 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                              : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
                           }`}
                         >
                           {solicitudesPendientesCount > 0 ? 'Gestionar Solicitudes' : 'Ver Mi Equipo'}
@@ -422,7 +422,7 @@ const PanelPage = () => {
                       <span
                         key={role}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-[10px] font-black uppercase tracking-widest border ${
-                          role === 'admin' ? 'border-blue-200 bg-blue-50 text-blue-700'
+                          role === 'admin' ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                             : isLimited
                               ? 'border-amber-200 bg-amber-50 text-amber-700'
                               : 'border-[var(--color-border-accent)] bg-[var(--color-accent-muted)] text-[var(--color-accent-hover)]'

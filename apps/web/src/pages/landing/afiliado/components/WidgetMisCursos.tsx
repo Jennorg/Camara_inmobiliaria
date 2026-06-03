@@ -85,7 +85,7 @@ const WidgetMisCursos = () => {
               {curso.imagen_url ? (
                 <img src={curso.imagen_url} alt={curso.curso_nombre} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-r from-blue-600 to-blue-800 flex items-center justify-center">
+                <div className="w-full h-full bg-gradient-to-r from-emerald-600 to-emerald-800 flex items-center justify-center">
                   <BookOpen className="text-white opacity-20" size={48} />
                 </div>
               )}
@@ -93,7 +93,7 @@ const WidgetMisCursos = () => {
               <div className="absolute top-3 right-3">
                 <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm backdrop-blur-md bg-white/90 ${
                   curso.estatus_academico === 'Aprobado' ? 'text-green-700' :
-                  curso.estatus_academico === 'Cursando' ? 'text-blue-700' :
+                  curso.estatus_academico === 'Cursando' ? 'text-emerald-700' :
                   curso.estatus_academico === 'Retirado' ? 'text-red-700' : 'text-slate-700'
                 }`}>
                   {curso.estatus_academico}

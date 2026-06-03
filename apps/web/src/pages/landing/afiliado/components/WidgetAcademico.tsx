@@ -251,7 +251,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 {/* Badge Status */}
                 {course.estatus === 'Próximamente' && (
                   <div
-                    className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-blue-500"
+                    className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-500"
                   >
                     Próximamente
                   </div>

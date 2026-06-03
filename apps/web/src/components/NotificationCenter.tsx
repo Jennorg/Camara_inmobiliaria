@@ -9,7 +9,7 @@ const PriorityIcon = ({ priority, leido }: { priority: string, leido: boolean })
   switch (priority) {
     case 'URGENTE': return <AlertCircle size={16} className={`${baseClass} text-rose-500`} />;
     case 'ALTA': return <AlertTriangle size={16} className={`${baseClass} text-amber-500`} />;
-    default: return <Info size={16} className={`${baseClass} text-blue-500`} />;
+    default: return <Info size={16} className={`${baseClass} text-emerald-500`} />;
   }
 };
 

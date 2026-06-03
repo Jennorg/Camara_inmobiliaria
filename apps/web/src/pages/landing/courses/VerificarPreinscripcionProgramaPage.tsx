@@ -645,7 +645,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                   {/* Selector de Nivel Académico */}
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Nivel Académico Alcanzado</h3></div></div>
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Nivel Académico Alcanzado</h3></div></div>
                       <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Confirma tu grado de instrucción actual.</p>
                     </div>
 
@@ -653,12 +653,12 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <button
                         type="button"
                         onClick={() => setShowNivelDropdown(!showNivelDropdown)}
-                        className={`w-full px-5 flex items-center justify-between bg-white border-2 transition-all duration-300 rounded-2xl ${showNivelDropdown ? 'border-blue-500 ring-4 ring-blue-500/10' : 'border-slate-100 hover:border-blue-300'} ${INPUT_H}`}
+                        className={`w-full px-5 flex items-center justify-between bg-white border-2 transition-all duration-300 rounded-2xl ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 hover:border-emerald-300'} ${INPUT_H}`}
                       >
                         <div className="flex items-center gap-3">
                           {currentNivel ? (
                             <>
-                              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                                 <currentNivel.icon size={18} />
                               </div>
                               <span className="text-base font-bold text-slate-700">{currentNivel.label}</span>
@@ -681,7 +681,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                   setFormData(prev => ({ ...prev, nivelProfesional: nivel.value as any }))
                                   setShowNivelDropdown(false)
                                 }}
-                                className={`flex items-center gap-4 p-3 rounded-xl transition-all ${formData.nivelProfesional === nivel.value ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}`}
+                                className={`flex items-center gap-4 p-3 rounded-xl transition-all ${formData.nivelProfesional === nivel.value ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}`}
                               >
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${formData.nivelProfesional === nivel.value ? 'bg-white/20' : 'bg-slate-100'}`}>
                                   <nivel.icon size={20} />
@@ -702,11 +702,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                   {formData.nivelProfesional && formData.nivelProfesional !== 'Bachiller' && (
                     <div className="space-y-4">
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-400" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Área de Especialización</h3></div></div>
+                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-400" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Área de Especialización</h3></div></div>
                         <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Indica el área de especialización de tu título.</p>
                       </div>
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                           <Briefcase size={18} />
                         </div>
                         <input
@@ -715,7 +715,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={formData.profesion}
                           onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                           placeholder="Ej. Derecho, Ingeniería, Administración..."
-                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
                         />
                       </div>
                     </div>
@@ -725,11 +725,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                   {isAfiliacion && (
                     <div className="space-y-4">
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Año de Inicio como Asesor</h3></div></div>
+                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Año de Inicio como Asesor</h3></div></div>
                         <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Indica el año en el que comenzaste a ejercer como asesor o corredor inmobiliario.</p>
                       </div>
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                           <Briefcase size={18} />
                         </div>
                         <input
@@ -740,7 +740,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={formData.ano_inicio_servicio}
                           onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
                           placeholder="Ej. 2015"
-                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
                         />
                       </div>
                     </div>
@@ -754,7 +754,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     {/* SECCIÓN REPRESENTANTE */}
                     <div className="space-y-6">
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Representante Legal</h3></div></div>
+                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Representante Legal</h3></div></div>
                         <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Información profesional y soportes de identidad.</p>
                       </div>
 
@@ -766,12 +766,12 @@ export default function VerificarPreinscripcionProgramaPage() {
                             <button
                               type="button"
                               onClick={() => setShowNivelDropdown(!showNivelDropdown)}
-                              className={`w-full px-4 flex items-center justify-between bg-white border-2 transition-all duration-300 rounded-xl ${showNivelDropdown ? 'border-blue-500 ring-4 ring-blue-500/10' : 'border-slate-100 hover:border-blue-300'} h-[50px]`}
+                              className={`w-full px-4 flex items-center justify-between bg-white border-2 transition-all duration-300 rounded-xl ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 hover:border-emerald-300'} h-[50px]`}
                             >
                               <div className="flex items-center gap-2">
                                 {currentNivel ? (
                                   <>
-                                    <currentNivel.icon size={14} className="text-blue-600" />
+                                    <currentNivel.icon size={14} className="text-emerald-600" />
                                     <span className="text-sm font-bold text-slate-700">{currentNivel.label}</span>
                                   </>
                                 ) : (
@@ -791,7 +791,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                         setFormData(prev => ({ ...prev, nivelProfesional: nivel.value as any }))
                                         setShowNivelDropdown(false)
                                       }}
-                                      className={`flex items-center gap-3 p-2 rounded-lg transition-all ${formData.nivelProfesional === nivel.value ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
+                                      className={`flex items-center gap-3 p-2 rounded-lg transition-all ${formData.nivelProfesional === nivel.value ? 'bg-emerald-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
                                     >
                                       <nivel.icon size={14} />
                                       <span className="text-xs font-bold">{nivel.label}</span>
@@ -815,7 +815,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 value={formData.profesion}
                                 onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                                 placeholder="Ej. Derecho, Ingeniería, Administración..."
-                                className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
+                                className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
                               />
                             </div>
                           </div>
@@ -865,7 +865,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 <div className="space-y-6 pt-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-blue-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Postgrados</h3></div></div>
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-600" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Postgrados</h3></div></div>
                       <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Si posees estudios adicionales de postgrado, puedes registrarlos aquí.</p>
                     </div>
 
@@ -875,9 +875,9 @@ export default function VerificarPreinscripcionProgramaPage() {
                     {formData.especializaciones.length > 0 && (
                       <div className="space-y-2">
                         {formData.especializaciones.map((esp, idx) => (
-                          <div key={idx} className="group flex items-center gap-3 p-3 bg-blue-50/50 border border-blue-100 rounded-xl">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                              <FileText size={14} className="text-blue-600" />
+                          <div key={idx} className="group flex items-center gap-3 p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                              <FileText size={14} className="text-emerald-600" />
                             </div>
                             <div className="flex-1 min-w-0 space-y-1">
                               <input
@@ -908,7 +908,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                   />
                                 </div>
                                 <a href={esp.url} target="_blank" rel="noopener noreferrer"
-                                  className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                                  className="text-xs text-emerald-500 font-bold hover:underline uppercase tracking-widest">
                                   Ver archivo
                                 </a>
                               </div>
@@ -935,7 +935,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                             value={pendingEspecializacionNombre}
                             onChange={(e) => setPendingEspecializacionNombre(e.target.value)}
                             placeholder="Especialidad (ej: Maestría en Finanzas)..."
-                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -946,7 +946,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               type="date"
                               value={pendingEspecializacionFecha}
                               onChange={(e) => setPendingEspecializacionFecha(e.target.value)}
-                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 bg-white transition"
+                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition"
                             />
                           </div>
                         </div>
@@ -982,17 +982,17 @@ export default function VerificarPreinscripcionProgramaPage() {
                 <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-indigo-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
+                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
                       <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
                     </div>
                     <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-full">Opcional</span>
                   </div>
 
                   {/* Banner informativo de FIPPI/PREANI */}
-                  <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 flex gap-3 text-indigo-900 text-sm leading-relaxed">
-                    <AlertCircle className="text-indigo-500 shrink-0 mt-0.5" size={16} />
+                  <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 flex gap-3 text-emerald-900 text-sm leading-relaxed">
+                    <AlertCircle className="text-emerald-500 shrink-0 mt-0.5" size={16} />
                     <div>
-                      <span className="font-bold text-indigo-950">Información importante:</span> Solo se permite cargar los certificados correspondientes a los diplomados <span className="font-black">FIPPI</span> y/o <span className="font-black">PREANI</span>. Puede cargar un máximo de 2 certificados en total (uno de cada tipo).
+                      <span className="font-bold text-emerald-950">Información importante:</span> Solo se permite cargar los certificados correspondientes a los diplomados <span className="font-black">FIPPI</span> y/o <span className="font-black">PREANI</span>. Puede cargar un máximo de 2 certificados en total (uno de cada tipo).
                     </div>
                   </div>
 
@@ -1001,8 +1001,8 @@ export default function VerificarPreinscripcionProgramaPage() {
                     <div className="space-y-2">
                       {formData.diplomados.map((dip, idx) => (
                         <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                            <FileText size={14} className="text-indigo-600" />
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                            <FileText size={14} className="text-emerald-600" />
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="text-sm font-bold text-slate-700 select-none">
@@ -1024,7 +1024,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 />
                               </div>
                               <a href={dip.url} target="_blank" rel="noopener noreferrer"
-                                className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                                className="text-xs text-emerald-500 font-bold hover:underline uppercase tracking-widest">
                                 Ver archivo
                               </a>
                             </div>
@@ -1050,7 +1050,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           <select
                             value={pendingDiplomadoNombre}
                             onChange={(e) => setPendingDiplomadoNombre(e.target.value)}
-                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 bg-white transition cursor-pointer"
+                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition cursor-pointer"
                           >
                             <option value="">-- Seleccione --</option>
                             <option value="FIPPI">FIPPI</option>
@@ -1067,7 +1067,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               max={new Date().toISOString().split('T')[0]}
                               min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
                               onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
-                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-blue-400 bg-white transition"
+                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition"
                             />
                           </div>
                         </div>
@@ -1195,7 +1195,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               />
                             </div>
                             <a href={curso.url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              className="text-xs text-emerald-500 font-bold hover:underline uppercase tracking-widest">
                               Ver archivo
                             </a>
                           </div>
@@ -1222,7 +1222,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                         value={pendingCursoNombre}
                         onChange={(e) => setPendingCursoNombre(e.target.value)}
                         placeholder="Nombre del curso (ej: Valuación Inmobiliaria UCAB)..."
-                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1235,7 +1235,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           max={new Date().toISOString().split('T')[0]}
                           min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
                           onChange={(e) => setPendingCursoFecha(e.target.value)}
-                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-blue-400 bg-white transition"
+                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-emerald-400 bg-white transition"
                         />
                       </div>
                     </div>
@@ -1333,7 +1333,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               />
                             </div>
                             <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-500 font-bold hover:underline uppercase tracking-widest">
+                              className="text-xs text-emerald-500 font-bold hover:underline uppercase tracking-widest">
                               Ver archivo
                             </a>
                           </div>
@@ -1360,7 +1360,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                         value={pendingOtroNombre}
                         onChange={(e) => setPendingOtroNombre(e.target.value)}
                         placeholder="Nombre o descripción..."
-                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 placeholder:text-slate-400 bg-white transition"
+                        className="w-full h-10 px-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -1372,7 +1372,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={pendingOtroFecha}
                           max={new Date().toISOString().split('T')[0]}
                           onChange={(e) => setPendingOtroFecha(e.target.value)}
-                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-blue-400 bg-white transition"
+                          className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-emerald-400 bg-white transition"
                         />
                       </div>
                     </div>
