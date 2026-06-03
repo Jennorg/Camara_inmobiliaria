@@ -43,6 +43,8 @@ interface ProfileFormData {
   empresa_linkedin?: string;
   empresa_twitter?: string;
   empresa_tiktok?: string;
+  foto_url?: string;
+  empresa_logo_url?: string;
 }
 
 const SettingsPanel = () => {
@@ -128,6 +130,8 @@ const SettingsPanel = () => {
           empresa_linkedin: af.empresa_linkedin || '',
           empresa_twitter: af.empresa_twitter || '',
           empresa_tiktok: af.empresa_tiktok || '',
+          foto_url: af.foto_url || '',
+          empresa_logo_url: af.empresa_logo_url || '',
         });
         setDocumentos(af.documentos || []);
       }
@@ -233,9 +237,9 @@ const SettingsPanel = () => {
   ];
 
   return (
-    <div className="col-span-3 grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="col-span-3 h-full p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
       {/* Sidebar de Ajustes */}
-      <aside className="lg:col-span-1 space-y-2">
+      <aside className="lg:col-span-1 space-y-2 overflow-y-auto pr-2">
         <div className="mb-6 px-4">
           <h2 className="text-xl font-black tracking-tight text-gray-900">Ajustes</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Gestiona tu presencia en la Cámara</p>
@@ -258,12 +262,24 @@ const SettingsPanel = () => {
       </aside>
 
       {/* Area de Formulario */}
-      <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+      <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-y-auto flex flex-col">
         <form onSubmit={handleSave} className="p-6 lg:p-8 flex-grow">
           
           {activeTab === 'personal' && (
             <div className="space-y-6">
               <HeaderSection title="Información Personal" subtitle="Datos básicos que te identifican como miembro." />
+              
+              <div className="flex justify-center py-4">
+                <FileUpload 
+                  label="Foto de Perfil"
+                  accept="image/*"
+                  folder="perfiles"
+                  initialUrl={formData.foto_url}
+                  onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
+                  onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Nombres" name="nombres" value={formData.nombres} onChange={handleInputChange} icon={User} />
                 <Input label="Apellidos" name="apellidos" value={formData.apellidos} onChange={handleInputChange} icon={User} />
@@ -308,7 +324,9 @@ const SettingsPanel = () => {
                     <option value="Doctorado">Doctorado</option>
                   </select>
                 </div>
-                <Input label="Profesión" name="profesion" value={formData.profesion} onChange={handleInputChange} icon={Briefcase} />
+                {formData.nivel_academico !== 'Bachiller' && (
+                  <Input label="Profesión" name="profesion" value={formData.profesion} onChange={handleInputChange} icon={Briefcase} />
+                )}
                 <Input label="Año de inicio en el sector" name="ano_inicio_servicio" value={formData.ano_inicio_servicio} onChange={handleInputChange} type="number" icon={Clock} />
                 
                 <div className="md:col-span-2 py-4">
@@ -351,6 +369,19 @@ const SettingsPanel = () => {
           {activeTab === 'empresa' && (
             <div className="space-y-6">
               <HeaderSection title="Información de Corporativo" subtitle="Datos corporativos visibles en tu membresía." />
+              
+              <div className="flex justify-center py-4">
+                <FileUpload 
+                  label="Logo de la Empresa"
+                  accept="image/*"
+                  folder="logos"
+                  disabled={isAgente}
+                  initialUrl={formData.empresa_logo_url}
+                  onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
+                  onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <Input label="Razón Social" name="empresa_razon_social" value={formData.empresa_razon_social} onChange={handleInputChange} icon={Building} disabled={isAgente} />
@@ -391,10 +422,10 @@ const SettingsPanel = () => {
               </div>
 
               {isAgente && (
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-3">
-                  <AlertCircle className="text-blue-600" size={20} />
-                  <p className="text-xs text-blue-800 font-bold">Eres agente corporativo. Solo el representante legal puede editar estos datos.</p>
-                </div>
+               <div className="mt-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3">
+                 <AlertCircle className="text-emerald-600" size={20} />
+                 <p className="text-xs text-emerald-800 font-bold">Eres agente corporativo. Solo el representante legal puede editar estos datos.</p>
+               </div>
               )}
             </div>
           )}
@@ -403,14 +434,6 @@ const SettingsPanel = () => {
             <div className="space-y-6 animate-in fade-in duration-300">
               <HeaderSection title="Expediente y Documentación" subtitle="Sube o actualiza la documentación requerida para tu membresía." />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <FileUpload 
-                  label="Cédula de Identidad / Pasaporte" 
-                  initialUrl={getDocUrl('cedula')}
-                  initialFileName={getDocName('cedula')}
-                  onUploadSuccess={(url, name) => handleUploadSuccess('cedula', url, name)}
-                  onClear={() => handleClearDoc('cedula')}
-                />
-                
                 <FileUpload 
                   label="Curriculum Vitae (CV)" 
                   initialUrl={getDocUrl('cv')}

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, establecerAccesoPanel, aprobarAfiliadoCorporativo, rechazarAfiliadoCorporativo, crearSolicitudAgenteCorporativo } from '../controllers/afiliados.controller.js';
+import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, establecerAccesoPanel, aprobarAfiliadoCorporativo, rechazarAfiliadoCorporativo, crearSolicitudAgenteCorporativo, listarIndependientesDisponibles, vincularAfiliadoIndependiente } from '../controllers/afiliados.controller.js';
 import { requireAuth, requireRole, enrichUser } from '../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -76,6 +76,12 @@ router.post('/:id/afiliados-corp/:idAfiliado/rechazar', requireAuth, enrichUser,
 
 // POST /api/afiliados/:id/afiliados-corp/crear-solicitud — Crear solicitud (pendiente) de agente corporativo
 router.post('/:id/afiliados-corp/crear-solicitud', requireAuth, enrichUser, crearSolicitudAgenteCorporativo);
+
+// GET /api/afiliados/:id/independientes-disponibles — Lista afiliados Naturales disponibles para vincular
+router.get('/:id/independientes-disponibles', requireAuth, enrichUser, listarIndependientesDisponibles);
+
+// POST /api/afiliados/:id/afiliados-corp/vincular — Vincula directamente un afiliado independiente como agente corporativo
+router.post('/:id/afiliados-corp/vincular', requireAuth, enrichUser, vincularAfiliadoIndependiente);
 
 export { router as afiliadosRoutes };
 

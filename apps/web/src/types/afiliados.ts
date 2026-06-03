@@ -130,6 +130,13 @@ export interface AfiliadoDTO {
   twitter?: string;
   tiktok?: string;
   documentos?: any[]; // Added to support admin panel document list
+  cedula_tipo?: string;
+  empresa_direccion?: string | null;
+  empresa_instagram?: string | null;
+  empresa_facebook?: string | null;
+  empresa_linkedin?: string | null;
+  empresa_twitter?: string | null;
+  empresa_tiktok?: string | null;
 }
 
 export interface AfiliadoCompleto {

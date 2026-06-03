@@ -12,7 +12,8 @@ import {
   enviarCorreoVerificacion,
   enviarCorreoAprobacion,
   notificarAdminNuevaAfiliacion,
-  enviarCorreoInvitacionCorporativa
+  enviarCorreoInvitacionCorporativa,
+  enviarCorreoVinculacionCorporativa
 } from '../lib/email.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
@@ -2204,3 +2205,117 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
 }
 
 
+
+
+/**
+ * GET /api/afiliados/:id/independientes-disponibles
+ */
+export const listarIndependientesDisponibles = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idEmpresa = Number(req.params.id)
+    const requesterId = req.user?.id_empresa
+    const requesterRole = req.user?.rol
+    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+      res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
+    }
+    const busqueda = String(req.query.q || '').trim().toLowerCase()
+    const searchField = String(req.query.field || '').trim().toLowerCase()
+    let sql = `
+      SELECT a.id_afiliado, a.codigo, a.estatus, a.tipo_afiliado, a.fecha_registro,
+        COALESCE(NULLIF(TRIM(COALESCE(p.nombres,'') || ' ' || COALESCE(p.apellidos,'')), ''), p.email) as nombre_completo,
+        p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula,
+        p.email, p.telefono, p.foto_url
+      FROM afiliados a JOIN personas p ON a.id_persona = p.id
+      WHERE a.eliminado_en IS NULL AND p.eliminado_en IS NULL
+        AND a.tipo_afiliado = 'Natural' AND a.estatus = 'Afiliado' AND a.activo = 1
+        AND (a.id_empresa IS NULL OR a.id_empresa = 0)
+        AND p.email <> 'admin@ciebo.com'`
+    const args: any[] = []
+    if (busqueda) {
+      const like = '%' + busqueda + '%'
+      if (searchField === 'cedula') {
+        sql += ` AND LOWER(p.cedula) LIKE ?`
+        args.push(like)
+      } else if (searchField === 'codigo') {
+        sql += ` AND LOWER(COALESCE(a.codigo,'')) LIKE ?`
+        args.push(like)
+      } else { // default to 'nombre'
+        sql += ` AND LOWER(COALESCE(p.nombres,'') || ' ' || COALESCE(p.apellidos,'')) LIKE ?`
+        args.push(like)
+      }
+    }
+    sql += ' ORDER BY nombre_completo ASC LIMIT 50'
+    const result = await db.execute({ sql, args })
+    res.json({ success: true, data: result.rows })
+  } catch (error) {
+    console.error('listarIndependientesDisponibles:', error)
+    res.status(500).json({ success: false, message: 'Error al listar afiliados disponibles.' })
+  }
+}
+
+
+/**
+ * POST /api/afiliados/:id/afiliados-corp/vincular
+ * Vincula un afiliado Natural existente como Agente Corporativo. Aprobacion directa.
+ */
+export const vincularAfiliadoIndependiente = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idEmpresa = Number(req.params.id)
+    const requesterId = req.user?.id_empresa
+    const requesterRole = req.user?.rol
+    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+      res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
+    }
+    const { id_afiliado } = req.body
+    if (!id_afiliado || isNaN(Number(id_afiliado))) {
+      res.status(400).json({ success: false, message: 'El campo id_afiliado es requerido.' }); return
+    }
+    const idAfiliado = Number(id_afiliado)
+    const resAfiliado = await db.execute({
+      sql: `SELECT a.id_afiliado, a.id_persona, a.id_user, a.tipo_afiliado, a.estatus, a.id_empresa,
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres,'') || ' ' || COALESCE(p.apellidos,'')), ''), p.email) as nombre_completo,
+                   p.nombres, p.apellidos, p.email
+            FROM afiliados a JOIN personas p ON a.id_persona = p.id
+            WHERE a.id_afiliado = ? AND a.eliminado_en IS NULL`,
+      args: [idAfiliado]
+    })
+    if (resAfiliado.rows.length === 0) { res.status(404).json({ success: false, message: 'Afiliado no encontrado.' }); return }
+    const af = resAfiliado.rows[0] as any
+    if (af.tipo_afiliado !== 'Natural') { res.status(400).json({ success: false, message: `Solo se pueden vincular afiliados de tipo Natural. Tipo actual: ${af.tipo_afiliado}.` }); return }
+    if (af.estatus !== 'Afiliado') { res.status(400).json({ success: false, message: `El afiliado debe tener estatus Afiliado para ser vinculado. Estatus actual: ${af.estatus}.` }); return }
+    if (af.id_empresa && af.id_empresa !== 0) { res.status(409).json({ success: false, message: 'Este afiliado ya esta vinculado a otra empresa corporativa.' }); return }
+    const resEmpresa = await db.execute({ sql: `SELECT razon_social FROM empresas WHERE id_empresa = ? LIMIT 1`, args: [idEmpresa] })
+    if (resEmpresa.rows.length === 0) { res.status(404).json({ success: false, message: 'Empresa no encontrada.' }); return }
+    const empresa = resEmpresa.rows[0] as any
+    const nombreEmpresa = empresa.razon_social || 'la empresa'
+    const now = new Date().toISOString()
+    await db.execute({
+      sql: `UPDATE afiliados SET tipo_afiliado = 'Agente Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
+      args: [idEmpresa, now, idAfiliado]
+    })
+    if (af.id_user) {
+      NotificationService.notify({
+        userId: af.id_user, title: 'Ahora eres Agente Corporativo',
+        message: `La empresa ${nombreEmpresa} te ha vinculado como Agente Corporativo. Tu perfil fue actualizado.`,
+        type: 'VINCULACION_CORPORATIVA', priority: 'ALTA', channels: ['IN_APP'],
+        data: { id_empresa: idEmpresa, nombre_empresa: nombreEmpresa }
+      }).catch(err => console.error('vincular [IN_APP]:', err))
+    }
+    NotificationService.notifyAdmins({
+      title: 'Nuevo agente corporativo vinculado',
+      message: `${af.nombre_completo} fue vinculado como Agente Corporativo de ${nombreEmpresa}.`,
+      type: 'VINCULACION_CORPORATIVA', priority: 'NORMAL', channels: ['IN_APP'],
+      data: { id_afiliado: idAfiliado, id_empresa: idEmpresa }
+    }).catch(err => console.error('vincular [ADMIN IN_APP]:', err))
+    if (af.email) {
+      enviarCorreoVinculacionCorporativa({
+        nombre: af.nombre_completo || af.nombres || 'Afiliado',
+        emailOriginal: af.email, nombreEmpresa
+      }).catch(err => console.error('vincular [EMAIL]:', err))
+    }
+    res.status(200).json({ success: true, message: `${af.nombre_completo} ha sido vinculado exitosamente como Agente Corporativo de ${nombreEmpresa}.` })
+  } catch (error) {
+    console.error('vincularAfiliadoIndependiente:', error)
+    res.status(500).json({ success: false, message: 'Error interno al vincular el afiliado.' })
+  }
+}
