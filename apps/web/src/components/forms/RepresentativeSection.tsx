@@ -1,6 +1,6 @@
 import React from 'react'
 import { useFormContext } from 'react-hook-form'
-import { UserCheck, User, Mail, Hash } from 'lucide-react'
+import { UserCheck, User, Mail } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 const COUNTRIES = [
@@ -29,52 +29,69 @@ export default function RepresentativeSection() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombres</label>
+          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.representanteNombres ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            Nombres <span className="text-emerald-500">*</span>
+          </label>
           <Input 
             {...register('representanteNombres')}
             placeholder="Ej. Carlos"
             icon={<User size={16} />}
-            className={errors.representanteNombres ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+            className={errors.representanteNombres ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.representanteNombres && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.representanteNombres.message as string}</p>}
+          {errors.representanteNombres && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.representanteNombres.message as string}</p>}
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Apellidos</label>
+          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.representanteApellidos ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            Apellidos <span className="text-emerald-500">*</span>
+          </label>
           <Input 
             {...register('representanteApellidos')}
             placeholder="Ej. Mendoza"
             icon={<User size={16} />}
-            className={errors.representanteApellidos ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+            className={errors.representanteApellidos ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.representanteApellidos && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.representanteApellidos.message as string}</p>}
+          {errors.representanteApellidos && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.representanteApellidos.message as string}</p>}
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Cédula</label>
-          <Input 
-            {...register('cedulaRepresentante')}
-            placeholder="00000000"
-            icon={<HashIcon size={16} />}
-            className={errors.cedulaRepresentante ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
-          />
-          {errors.cedulaRepresentante && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.cedulaRepresentante.message as string}</p>}
+          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.cedulaRepresentante ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            Cédula <span className="text-emerald-500">*</span>
+          </label>
+          <div className="flex gap-2">
+            <select 
+              {...register('cedulaRepresentantePrefix')}
+              className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
+            >
+              {['V', 'E', 'P'].map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <Input 
+              {...register('cedulaRepresentante')}
+              placeholder="00000000"
+              className={errors.cedulaRepresentante ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+            />
+          </div>
+          {errors.cedulaRepresentante && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.cedulaRepresentante.message as string}</p>}
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Correo Personal</label>
+          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailRepresentante ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            Correo Personal <span className="text-emerald-500">*</span>
+          </label>
           <Input 
             {...register('emailRepresentante')}
             type="email"
             placeholder="carlos@empresa.com"
             icon={<Mail size={16} />}
-            className={errors.emailRepresentante ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+            className={errors.emailRepresentante ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.emailRepresentante && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.emailRepresentante.message as string}</p>}
+          {errors.emailRepresentante && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.emailRepresentante.message as string}</p>}
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Teléfono de Contacto</label>
+          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.telefono ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            Teléfono de Contacto <span className="text-emerald-500">*</span>
+          </label>
           <div className="flex gap-2">
             <select 
               {...register('phonePrefix')}
@@ -85,10 +102,10 @@ export default function RepresentativeSection() {
             <Input 
               {...register('telefono')}
               placeholder="4XX 0000000"
-              className={errors.telefono ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+              className={errors.telefono ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
           </div>
-          {errors.telefono && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.telefono.message as string}</p>}
+          {errors.telefono && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.telefono.message as string}</p>}
         </div>
       </div>
     </div>

@@ -273,9 +273,38 @@ export default function MiembrosPanel() {
     }))
   }
 
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
+
   const handleCreate = async () => {
+    setCreateError(null)
+    setFormErrors({})
+    const errors: Record<string, boolean> = {}
+
     try {
       const tipoFinal = newTipo;
+      
+      // Basic validation
+      if (!newForm.nombres?.trim()) errors.nombres = true
+      if (!newForm.apellidos?.trim()) errors.apellidos = true
+      if (!newForm.email?.trim()) errors.email = true
+      if (!newForm.cedula?.trim()) errors.cedula = true
+
+      if (tipoFinal === 'Agente Corporativo' && !newForm.id_empresa) {
+        errors.id_empresa = true
+      }
+
+      if (tipoFinal === 'Corporativo') {
+        if (!newForm.empresa_razon_social?.trim()) errors.empresa_razon_social = true
+        if (!newForm.empresa_rif_numero?.trim()) errors.empresa_rif_numero = true
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors)
+        setCreateError('Por favor, complete todos los campos obligatorios marcados en rojo.')
+        return
+      }
+
       const rifEmpresa = newForm.empresa_rif_numero?.trim();
       const payload = {
         ...newForm,
@@ -301,12 +330,14 @@ export default function MiembrosPanel() {
       if (res.ok && json.success) {
         setShowNewModal(false)
         setNewForm({ tipo_afiliado: 'Natural', estatus: 'Afiliado' })
+        setFormErrors({})
         load()
       } else {
-        alert(json.message || 'Error al crear')
+        setCreateError(json.message || 'Error al crear')
       }
     } catch (err) {
       console.error(err)
+      setCreateError('Error de conexión al servidor.')
     }
   }
 
@@ -1054,20 +1085,41 @@ labelClassName="hidden"
                     </div>
                   </div>
 
-                  <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} />
-                  <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} />
-                  <DataInput label={isNewCorporativo ? "Cédula del representante" : "Cédula"} placeholder="V-12345678" value={newForm.cedula || ''} onChange={(v: string) => setNewForm({ ...newForm, cedula: v })} />
+                  <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} isRequired hasError={formErrors.nombres} />
+                  <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} isRequired hasError={formErrors.apellidos} />
+                  
+                  <div className="space-y-1.5">
+                    <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${formErrors.cedula ? 'text-red-500' : 'text-slate-400'}`}>
+                      {isNewCorporativo ? "Cédula del representante" : "Cédula"} <span className="text-emerald-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <select 
+                        className={`w-20 bg-slate-50 border rounded-2xl px-3 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
+                        value={newForm.cedula_tipo || 'V'}
+                        onChange={(e) => setNewForm({ ...newForm, cedula_tipo: e.target.value })}
+                      >
+                        {['V', 'E', 'P'].map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <input 
+                        className={`flex-1 bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
+                        placeholder="12345678"
+                        value={newForm.cedula || ''}
+                        onChange={(e) => setNewForm({ ...newForm, cedula: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <DataInput label="Fecha de nacimiento" type="date" value={newForm.fecha_nacimiento || ''} onChange={(v: string) => setNewForm({ ...newForm, fecha_nacimiento: v })} />
-                  <DataInput label="Correo electrónico" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} />
+                  <DataInput label="Correo electrónico" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} isRequired hasError={formErrors.email} />
                   <DataInput label="Teléfono" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
                   <div className="sm:col-span-2">
                     <DataInput label="Dirección de habitación" placeholder="Av. Principal..." value={newForm.direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, direccion: v })} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nivel académico</label>
+                    <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${formErrors.nivel_academico ? 'text-red-500' : 'text-slate-400'}`}>Nivel académico</label>
                     <div className="relative">
                       <select
-                        className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.nivel_academico ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
                         value={newForm.nivel_academico || ''}
                         onChange={(e) => setNewForm({ ...newForm, nivel_academico: e.target.value })}
                       >
@@ -1111,10 +1163,12 @@ labelClassName="hidden"
                         placeholder="Inmobiliaria XYZ C.A."
                         value={newForm.empresa_razon_social || ''}
                         onChange={(v: string) => setNewForm({ ...newForm, empresa_razon_social: v })}
+                        isRequired
+                        hasError={formErrors.empresa_razon_social}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF <span className="text-emerald-500">*</span></label>
                       <div className="relative">
                         <select
                           className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
@@ -1133,6 +1187,8 @@ labelClassName="hidden"
                       placeholder="12345678-9"
                       value={newForm.empresa_rif_numero || ''}
                       onChange={(v: string) => setNewForm({ ...newForm, empresa_rif_numero: v })}
+                      isRequired
+                      hasError={formErrors.empresa_rif_numero}
                     />
                     <DataInput label="Correo corporativo" placeholder="contacto@empresa.com" value={newForm.empresa_email || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_email: v })} />
                     <DataInput label="Teléfono corporativo" placeholder="+58 412..." value={newForm.empresa_telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_telefono: v })} />
@@ -1164,10 +1220,10 @@ labelClassName="hidden"
                   variant="emerald"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seleccionar Empresa</label>
+                    <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${formErrors.id_empresa ? 'text-red-500' : 'text-slate-400'}`}>Seleccionar Empresa <span className="text-emerald-500">*</span></label>
                     <div className="relative">
                       <select
-                        className="w-full bg-white border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                        className={`w-full bg-white border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.id_empresa ? 'border-red-500 ring-red-500/10' : 'border-emerald-100 focus:ring-emerald-500/10'}`}
                         value={newForm.id_empresa || ''}
                         onChange={(e) => {
                           const corpId = e.target.value ? Number(e.target.value) : null
@@ -1188,20 +1244,29 @@ labelClassName="hidden"
               )}
             </div>
 
-            <div className="p-8 border-t border-gray-50 flex gap-4 shrink-0 bg-white">
-              <button
-                onClick={() => setShowNewModal(false)}
-                className="flex-1 px-8 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:bg-slate-50 transition-all"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreate}
-                className="flex-[2] bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-              >
-                <Save size={18} />
-                Registrar Miembro
-              </button>
+            <div className="px-8 pb-8 flex flex-col gap-4 bg-white">
+              {createError && (
+                <div className="flex items-center gap-3 text-red-100 bg-red-500/20 border border-red-400/40 p-4 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">
+                  <AlertCircle size={16} className="text-red-400 shrink-0" />
+                  {createError}
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowNewModal(false)}
+                  className="flex-1 px-8 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:bg-slate-50 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreate}
+                  className="flex-[2] bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Save size={18} />
+                  Registrar Miembro
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1401,14 +1466,20 @@ function FormSection({
   )
 }
 
-function DataInput({ label, placeholder, value, onChange, type = 'text' }: any) {
+function DataInput({ label, placeholder, value, onChange, type = 'text', isRequired = false, hasError = false }: any) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+      <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
+        {label} {isRequired && <span className="text-emerald-500">*</span>}
+      </label>
       <input
         type={type}
         placeholder={placeholder}
-        className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${
+          hasError 
+            ? 'border-red-500 ring-4 ring-red-500/10 focus:ring-red-500/20' 
+            : 'border-gray-100 focus:ring-emerald-500/10 focus:border-emerald-500'
+        }`}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
       />

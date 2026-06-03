@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { API_URL } from '@/config/env';
+import logo from '@/assets/Logo2.png';
 
 export default function SetupPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -92,19 +93,20 @@ export default function SetupPasswordPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 selection:bg-emerald-100 italic-none">
-      {/* Logo Placeholder / Header */}
-      <div className="mb-8 text-center flex flex-col items-center">
-        <div className="w-16 h-16 bg-emerald-600 rounded-2xl shadow-lg flex items-center justify-center mb-4 transform -rotate-3">
-          <ShieldCheck className="text-white w-10 h-10" />
-        </div>
-        <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Cámara <span className="text-emerald-500">Inmobiliaria</span></h2>
-      </div>
-
       <div className="max-w-md w-full bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 p-8 sm:p-10 border border-slate-100 relative overflow-hidden">
         {/* Background micro-decoration */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 opacity-50" />
         
         <div className="relative">
+          {/* Logo */}
+          <div className="mb-8 flex justify-center">
+            <img
+              src={logo}
+              alt="Logo Cámara Inmobiliaria"
+              className="h-40 w-auto object-contain transition-transform hover:scale-105 duration-300"
+            />
+          </div>
+
           <h1 className="text-2xl font-black text-slate-800 mb-2">{title}</h1>
           <p className="text-slate-400 text-sm mb-8">{subtitle}</p>
 
@@ -183,9 +185,6 @@ export default function SetupPasswordPage() {
         </div>
       </div>
 
-      <p className="mt-8 text-slate-400 text-xs font-medium">
-        ¿Tienes problemas? <Link to="/contacto" className="text-emerald-600 font-bold hover:underline">Contacta a soporte</Link>
-      </p>
     </div>
   );
 }

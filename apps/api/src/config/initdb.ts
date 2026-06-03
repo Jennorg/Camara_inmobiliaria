@@ -38,7 +38,8 @@ const statements = [
     id                  INTEGER     PRIMARY KEY,
     nombres             TEXT        NOT NULL,
     apellidos           TEXT        NOT NULL,
-    cedula              TEXT        UNIQUE NOT NULL,
+    cedula_tipo         TEXT        NOT NULL DEFAULT 'V' CHECK (cedula_tipo IN ('V','E','P')),
+    cedula              TEXT        UNIQUE NOT NULL CHECK (cedula NOT GLOB '*[^0-9]*'),
     email               TEXT        UNIQUE NOT NULL,
     telefono            TEXT,
     fecha_nacimiento    TEXT,
@@ -62,7 +63,7 @@ const statements = [
     id_user                 INTEGER     UNIQUE REFERENCES users(id) ON DELETE SET NULL,
     razon_social            TEXT        NOT NULL,
     rif_tipo                TEXT        NOT NULL DEFAULT 'J' CHECK (rif_tipo IN ('J','G','P','V','E')),
-    rif_numero              TEXT        UNIQUE NOT NULL,
+    rif_numero              TEXT        UNIQUE NOT NULL CHECK (rif_numero NOT GLOB '*[^0-9]*'),
     email                   TEXT        UNIQUE NOT NULL,
     direccion               TEXT,
     telefono                TEXT,
@@ -207,11 +208,14 @@ const statements = [
   // VERIFICACIONES DE EMAIL
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS verificaciones_email (
-    id          INTEGER  PRIMARY KEY,
-    email       TEXT     NOT NULL,
-    codigo      TEXT     NOT NULL,
-    expira_en   INTEGER  NOT NULL,
-    usado       INTEGER  DEFAULT 0
+    id                  INTEGER     PRIMARY KEY,
+    token_verificacion  TEXT        UNIQUE NOT NULL,
+    nombre_completo     TEXT,
+    cedula_rif          TEXT        CHECK (cedula_rif IS NULL OR cedula_rif NOT GLOB '*[^0-9]*'),
+    email               TEXT        NOT NULL,
+    telefono            TEXT,
+    fecha_expiracion    TEXT        NOT NULL,
+    usado               INTEGER     DEFAULT 0
   )`,
 
   `CREATE TABLE IF NOT EXISTS verificaciones_preinscripciones (
@@ -220,7 +224,7 @@ const statements = [
     email                     TEXT NOT NULL,
     nombres                   TEXT,
     apellidos                 TEXT,
-    cedula                    TEXT,
+    cedula                    TEXT CHECK (cedula IS NULL OR cedula NOT GLOB '*[^0-9]*'),
     telefono                  TEXT,
     nivel_academico           TEXT CHECK (nivel_academico IS NULL OR nivel_academico IN ('Bachiller','TSU','Nivel Profesional','Postgrado')),
     profesion                 TEXT,
@@ -229,11 +233,11 @@ const statements = [
     id_empresa                INTEGER REFERENCES empresas(id_empresa) ON DELETE SET NULL,
     razon_social              TEXT,
     rif_tipo                  TEXT,
-    rif_numero                TEXT,
+    rif_numero                TEXT CHECK (rif_numero IS NULL OR rif_numero NOT GLOB '*[^0-9]*'),
     empresa_telefono          TEXT,
     representante_legal_nombres   TEXT,
     representante_legal_apellidos TEXT,
-    representante_legal_cedula    TEXT,
+    representante_legal_cedula    TEXT CHECK (representante_legal_cedula IS NULL OR representante_legal_cedula NOT GLOB '*[^0-9]*'),
     representante_legal_email     TEXT,
     programa_interes          TEXT,
     es_corredor_inmobiliario  INTEGER CHECK (es_corredor_inmobiliario IS NULL OR es_corredor_inmobiliario IN (0,1)),
@@ -580,32 +584,23 @@ async function run() {
     }
   }
 
+  console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')
   try {
-    await db.execute(`ALTER TABLE personas ADD COLUMN foto_url TEXT`)
-    console.log('  · Migration: personas.foto_url')
-  } catch {
-    // columna ya existe
-  }
-
-  try {
-    await db.execute(`ALTER TABLE afiliados ADD COLUMN ano_inicio_servicio INTEGER`)
-    console.log('  · Migration: afiliados.ano_inicio_servicio')
-  } catch {
-    // columna ya existe
-  }
-
-  try {
-    await db.execute(`ALTER TABLE verificaciones_preinscripciones ADD COLUMN ano_inicio_servicio INTEGER`)
-    console.log('  · Migration: verificaciones_preinscripciones.ano_inicio_servicio')
-  } catch {
-    // columna ya existe
-  }
-
-  try {
-    await db.execute(`ALTER TABLE afiliados ADD COLUMN fecha_afiliacion TEXT`)
-    console.log('  · Migration: afiliados.fecha_afiliacion')
-  } catch {
-    // columna ya existe
+    // personas: quitar prefijos comunes V, E, P, guiones y puntos
+    await db.execute(`UPDATE personas SET cedula = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(cedula, 'V', ''), 'E', ''), 'P', ''), '-', ''), '.', '') WHERE cedula GLOB '*[^0-9]*'`)
+    
+    // empresas: quitar prefijos J, G, P, V, E, guiones y puntos
+    await db.execute(`UPDATE empresas SET rif_numero = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(rif_numero, 'J', ''), 'G', ''), 'P', ''), 'V', ''), 'E', ''), '-', ''), '.', '') WHERE rif_numero GLOB '*[^0-9]*'`)
+    
+    // verificaciones
+    await db.execute(`UPDATE verificaciones_email SET cedula_rif = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(cedula_rif, 'V', ''), 'E', ''), 'P', ''), '-', ''), '.', '') WHERE cedula_rif GLOB '*[^0-9]*'`)
+    await db.execute(`UPDATE verificaciones_preinscripciones SET cedula = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(cedula, 'V', ''), 'E', ''), 'P', ''), '-', ''), '.', '') WHERE cedula GLOB '*[^0-9]*'`)
+    await db.execute(`UPDATE verificaciones_preinscripciones SET rif_numero = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(rif_numero, 'J', ''), 'G', ''), 'P', ''), 'V', ''), 'E', ''), '-', ''), '.', '') WHERE rif_numero GLOB '*[^0-9]*'`)
+    await db.execute(`UPDATE verificaciones_preinscripciones SET representante_legal_cedula = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(representante_legal_cedula, 'V', ''), 'E', ''), 'P', ''), '-', ''), '.', '') WHERE representante_legal_cedula GLOB '*[^0-9]*'`)
+    
+    console.log('  · OK: Data cleaned.')
+  } catch (e: any) {
+    console.warn(`  · WARNING: Data cleaning failed (possibly due to existing constraints): ${e.message}`)
   }
 
   console.log('\n--- SEEDING INITIAL DATA ---')
@@ -623,8 +618,8 @@ async function run() {
     const adminId = Number(adminRes.lastInsertRowid)
 
     const persAdmin = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula, email) VALUES (?, ?, ?, ?)`,
-      args: ['Admin', 'Cámara', 'V00000000', adminEmail]
+      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email) VALUES (?, ?, ?, ?, ?)`,
+      args: ['Admin', 'Cámara', 'V', '00000000', adminEmail]
     })
     const personaIdAdmin = Number(persAdmin.lastInsertRowid)
 

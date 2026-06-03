@@ -29,19 +29,23 @@ export default function CompanySection() {
 
       <div className="grid grid-cols-1 gap-6">
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Razón Social</label>
+          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.razonSocial ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            Razón Social <span className="text-emerald-500">*</span>
+          </label>
           <Input 
             {...register('razonSocial')}
             placeholder="Ej. Inversiones Mendoza, C.A."
             icon={<Building2 size={16} />}
-            className={errors.razonSocial ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+            className={errors.razonSocial ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.razonSocial && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.razonSocial.message as string}</p>}
+          {errors.razonSocial && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.razonSocial.message as string}</p>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">RIF de la Empresa</label>
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.rifNumber ? 'text-red-400' : 'text-emerald-100/60'}`}>
+              RIF de la Empresa <span className="text-emerald-500">*</span>
+            </label>
             <div className="flex gap-2">
               <select 
                 {...register('rifPrefix')}
@@ -52,25 +56,29 @@ export default function CompanySection() {
               <Input 
                 {...register('rifNumber')}
                 placeholder="000000000"
-                className={errors.rifNumber ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+                className={errors.rifNumber ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
               />
             </div>
-            {errors.rifNumber && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.rifNumber.message as string}</p>}
+            {errors.rifNumber && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.rifNumber.message as string}</p>}
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Correo Corporativo</label>
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
+              Correo Corporativo <span className="text-emerald-500">*</span>
+            </label>
             <Input 
               {...register('emailEmpresa')}
               type="email"
               placeholder="info@empresa.com"
               icon={<Mail size={16} />}
-              className={errors.emailEmpresa ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+              className={errors.emailEmpresa ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
-            {errors.emailEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.emailEmpresa.message as string}</p>}
+            {errors.emailEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.emailEmpresa.message as string}</p>}
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Teléfono de la Empresa (Opcional)</label>
+            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.telefonoEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
+              Teléfono de la Empresa (Opcional)
+            </label>
             <div className="flex gap-2">
               <select 
                 {...register('phonePrefixEmpresa')}
@@ -81,10 +89,10 @@ export default function CompanySection() {
               <Input 
                 {...register('telefonoEmpresa')}
                 placeholder="4XX 0000000"
-                className={errors.telefonoEmpresa ? 'border-red-500' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
+                className={errors.telefonoEmpresa ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
               />
             </div>
-            {errors.telefonoEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase">{errors.telefonoEmpresa.message as string}</p>}
+            {errors.telefonoEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.telefonoEmpresa.message as string}</p>}
           </div>
         </div>
       </div>

@@ -89,9 +89,10 @@ async function upsertEstudianteByEmail(params: {
     if (resE.rows.length > 0) {
       idEmpresa = resE.rows[0].id_empresa as number
     } else {
+      const cleanedRif = (cedulaRif || '').replace(/\D/g, '') || `TEMP-J-${Date.now()}`;
       const insE = await db.execute({
         sql: `INSERT INTO empresas (razon_social, rif_numero, email, telefono) VALUES (?, ?, ?, ?) RETURNING id_empresa`,
-        args: [razonSocial, cedulaRif || `TEMP-J-${Date.now()}`, email, telefono || null]
+        args: [razonSocial, cleanedRif, email, telefono || null]
       })
       idEmpresa = insE.rows[0].id_empresa as number
     }
@@ -119,9 +120,14 @@ async function upsertEstudianteByEmail(params: {
         })
       }
     } else {
+      const cedulaInput = String(cedulaRif || `TEMP-V-${Date.now()}`).trim();
+      const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
+      const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
+      const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
+
       const insP = await db.execute({
-        sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || '', apellidos || '', cedulaRif || `TEMP-V-${Date.now()}`, email, telefono || null, nivelProfesional || null, profesion || null]
+        sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [nombres || '', apellidos || '', cedulaTipo, cedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -201,6 +207,10 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   const fechaExpiracion = expiracion.toISOString()
   const token = randomUUID()
 
+  // Sanitizar campos numéricos
+  const cleanedCedulaRif = (cedulaRif || '').replace(/\D/g, '')
+  const cleanedCedulaRep = (cedulaRepresentante || '').replace(/\D/g, '')
+
   const repNombre = representanteLegal || ''
   const repParts = repNombre.trim().split(' ')
   const repMid = Math.ceil(repParts.length / 2)
@@ -223,13 +233,13 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
             id_empresa, fecha_expiracion
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
-      token, email, nombres || null, apellidos || null, cedulaRif || null, telefono || null,
+      token, email, nombres || null, apellidos || null, cleanedCedulaRif || null, telefono || null,
       programaCodigo, tipoAfiliado || 'Natural', nivelProfesional || null, profesion || null,
       esCorredorInmobiliario === null ? null : (esCorredorInmobiliario === 'si' || esCorredorInmobiliario === true ? 1 : 0),
       razonSocial ?? null,
       repNombres || null,
       repApellidos || null,
-      cedulaRepresentante ?? null,
+      cleanedCedulaRep ?? null,
       emailRepresentante ?? null,
       empresaTelefono ?? null,
       id_empresa ?? null,
@@ -575,12 +585,18 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
         }
 
         if (!idRepPersona) {
+          const cedulaRepInput = String(registro.representante_legal_cedula || `TEMP-V-${Date.now()}`).trim();
+          const cedulaRepMatch = cedulaRepInput.match(/^([VEP])?-?(.+)$/i);
+          const cedulaRepTipo = cedulaRepMatch && cedulaRepMatch[1] ? cedulaRepMatch[1].toUpperCase() : 'V';
+          const cedulaRepNumero = cedulaRepMatch ? cedulaRepMatch[2].replace(/\D/g, '') : cedulaRepInput.replace(/\D/g, '');
+
           const insP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
             args: [
               registro.representante_legal_nombres || '',
               registro.representante_legal_apellidos || '',
-              registro.representante_legal_cedula || `TEMP-V-${Date.now()}`,
+              cedulaRepTipo,
+              cedulaRepNumero,
               registro.representante_legal_email || null,
               registro.telefono || null
             ]
@@ -818,20 +834,25 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           const repNombres = String(registro.representante_legal_nombres || '').trim()
           const repApellidos = String(registro.representante_legal_apellidos || '').trim()
           const repEmail = String(registro.representante_legal_email || '').trim().toLowerCase() || `rep-${idEmpresa}@placeholder.com`
-          const repCedula = String(registro.representante_legal_cedula || '').trim() || `TEMP-R-${idEmpresa}`
+          
+          const repCedulaInput = String(registro.representante_legal_cedula || '').trim() || `TEMP-R-${idEmpresa}`
+          const repCedulaMatch = repCedulaInput.match(/^([VEP])?-?(.+)$/i)
+          const repCedulaTipo = repCedulaMatch && repCedulaMatch[1] ? repCedulaMatch[1].toUpperCase() : 'V'
+          const repCedulaNumero = repCedulaMatch ? repCedulaMatch[2].replace(/\D/g, '') : repCedulaInput.replace(/\D/g, '')
 
           const resP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, actualizado_en)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, actualizado_en)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(email) DO UPDATE SET
                     nombres = excluded.nombres,
                     apellidos = excluded.apellidos,
+                    cedula_tipo = excluded.cedula_tipo,
                     cedula = excluded.cedula,
                     telefono = COALESCE(excluded.telefono, personas.telefono),
                     nivel_academico = COALESCE(excluded.nivel_academico, personas.nivel_academico),
                     actualizado_en = excluded.actualizado_en
                   RETURNING id`,
-            args: [repNombres, repApellidos, repCedula, repEmail, registro.telefono || null, nivelAcademico, now]
+            args: [repNombres, repApellidos, repCedulaTipo, repCedulaNumero, repEmail, registro.telefono || null, nivelAcademico, now]
           })
           const idPersona = resP.rows[0].id as number
 
@@ -848,15 +869,6 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
             args: [idPersona, idEmpresa, now]
           })
           const idAfiliado = resA.rows[0].id_afiliado as number
-
-          // Asignar código si no tiene usando el helper
-          if (idAfiliado) {
-            const nextCode = await obtenerSiguienteCodigoAfiliado()
-            await db.execute({
-              sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ? AND codigo IS NULL`,
-              args: [nextCode, idAfiliado]
-            })
-          }
 
           // Vincular el id_representante_legal a la empresa
           await db.execute({
@@ -875,13 +887,19 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           // Igual que Natural pero vinculado a una empresa existente (id_empresa del registro de verificación)
           const empresaId = registro.id_empresa as number | null
 
+          const acCedulaInput = String(registro.cedula || `TEMP-V-${Date.now()}`).trim();
+          const acCedulaMatch = acCedulaInput.match(/^([VEP])?-?(.+)$/i);
+          const acCedulaTipo = acCedulaMatch && acCedulaMatch[1] ? acCedulaMatch[1].toUpperCase() : 'V';
+          const acCedulaNumero = acCedulaMatch ? acCedulaMatch[2].replace(/\D/g, '') : acCedulaInput.replace(/\D/g, '');
+
           // 1. Upsert Persona
           const resP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, actualizado_en)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, actualizado_en)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(email) DO UPDATE SET
                     nombres = excluded.nombres,
                     apellidos = excluded.apellidos,
+                    cedula_tipo = excluded.cedula_tipo,
                     cedula = excluded.cedula,
                     telefono = excluded.telefono,
                     nivel_academico = COALESCE(excluded.nivel_academico, personas.nivel_academico),
@@ -890,7 +908,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
             args: [
               registro.nombres || '',
               registro.apellidos || '',
-              registro.cedula || `TEMP-V-${Date.now()}`,
+              acCedulaTipo,
+              acCedulaNumero,
               registro.email,
               registro.telefono || telefono,
               nivelAcademico,
@@ -914,14 +933,6 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           })
           const idAfiliadoAC = resA.rows[0].id_afiliado as number
 
-          if (idAfiliadoAC) {
-            const nextCode = await obtenerSiguienteCodigoAfiliado()
-            await db.execute({
-              sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ? AND codigo IS NULL`,
-              args: [nextCode, idAfiliadoAC]
-            })
-          }
-
           // Vincular id_persona al estudiante (la empresa se guarda en afiliados, no en estudiantes)
           await db.execute({
             sql: `UPDATE estudiantes SET id_persona = ? WHERE id_estudiante = ?`,
@@ -930,13 +941,19 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
         } else {
           // AFILIACION NATURAL
+          const natCedulaInput = String(registro.cedula || `TEMP-V-${Date.now()}`).trim();
+          const natCedulaMatch = natCedulaInput.match(/^([VEP])?-?(.+)$/i);
+          const natCedulaTipo = natCedulaMatch && natCedulaMatch[1] ? natCedulaMatch[1].toUpperCase() : 'V';
+          const natCedulaNumero = natCedulaMatch ? natCedulaMatch[2].replace(/\D/g, '') : natCedulaInput.replace(/\D/g, '');
+
           // 1. Upsert Persona
           const resP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, actualizado_en)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, actualizado_en)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(email) DO UPDATE SET
                     nombres = excluded.nombres,
                     apellidos = excluded.apellidos,
+                    cedula_tipo = excluded.cedula_tipo,
                     cedula = excluded.cedula,
                     telefono = excluded.telefono,
                     nivel_academico = COALESCE(excluded.nivel_academico, personas.nivel_academico),
@@ -945,7 +962,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
             args: [
               registro.nombres || '',
               registro.apellidos || '',
-              registro.cedula || `TEMP-V-${Date.now()}`,
+              natCedulaTipo,
+              natCedulaNumero,
               registro.email,
               registro.telefono || telefono,
               nivelAcademico,
@@ -967,14 +985,6 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
             args: [idPersona, anoInicioServicio, now]
           })
           const idAfiliado = resA.rows[0].id_afiliado as number
-
-          if (idAfiliado) {
-            const nextCode = await obtenerSiguienteCodigoAfiliado()
-            await db.execute({
-              sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ? AND codigo IS NULL`,
-              args: [nextCode, idAfiliado]
-            })
-          }
 
           // Vincular el id_persona al estudiante
           await db.execute({

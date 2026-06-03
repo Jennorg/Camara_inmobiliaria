@@ -23,10 +23,11 @@ async function run() {
 
   for (const a of PIPELINE_DATA) {
     try {
+      const cleanedCedula = a.cedula.replace(/\D/g, '');
       await db.execute({
         sql: `INSERT INTO agremiados (nombre_completo, cedula_rif, email, telefono, estatus)
               VALUES (?, ?, ?, ?, '1_SOLICITUD')`,
-        args: [a.nombre, a.cedula, a.email, a.tlf],
+        args: [a.nombre, cleanedCedula, a.email, a.tlf],
       })
       console.log(`  ✓ Solicitud creada: ${a.nombre} [1_SOLICITUD]`)
       creados++

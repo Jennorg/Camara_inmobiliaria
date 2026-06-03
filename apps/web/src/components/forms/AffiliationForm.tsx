@@ -17,6 +17,7 @@ const affiliationSchema = z.object({
   telefonoEmpresa: z.string().optional(),
   representanteNombres: z.string().min(2, 'Nombre muy corto'),
   representanteApellidos: z.string().min(2, 'Apellido muy corto'),
+  cedulaRepresentantePrefix: z.string(),
   cedulaRepresentante: z.string().min(6, 'Cédula inválida'),
   emailRepresentante: z.string().email('Email personal inválido'),
   phonePrefix: z.string(),
@@ -39,6 +40,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
     resolver: zodResolver(affiliationSchema),
     defaultValues: {
       rifPrefix: 'J',
+      cedulaRepresentantePrefix: 'V',
       phonePrefix: '+58',
     }
   })
@@ -61,7 +63,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
         representanteLegal: `${data.representanteNombres} ${data.representanteApellidos}`.trim(),
         representanteLegalNombres: data.representanteNombres.trim(),
         representanteLegalApellidos: data.representanteApellidos.trim(),
-        cedulaRepresentante: data.cedulaRepresentante.trim(),
+        cedulaRepresentante: `${data.cedulaRepresentantePrefix}-${data.cedulaRepresentante.replace(/\D/g, '')}`,
         emailRepresentante: data.emailRepresentante.trim(),
       }
 
@@ -134,6 +136,13 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
         </div>
 
         <div className="flex flex-col gap-6 pt-4">
+          {/* Leyenda de campos requeridos */}
+          <div className="flex justify-end">
+            <p className="text-[10px] text-emerald-100/40 font-bold uppercase tracking-widest">
+              <span className="text-emerald-500">*</span> Campos obligatorios
+            </p>
+          </div>
+
           <Button
             type="submit"
             disabled={loading}
@@ -146,6 +155,14 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
               </div>
             )}
           </Button>
+
+          {/* Mensaje de error general de validación */}
+          {Object.keys(methods.formState.errors).length > 0 && methods.formState.submitCount > 0 && (
+            <div className="flex items-center gap-3 text-amber-100 bg-amber-500/20 border border-amber-400/40 p-5 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle size={18} className="text-amber-400" />
+              Por favor, complete todos los campos obligatorios marcados en rojo.
+            </div>
+          )}
 
           {errorMsg && (
             <div className="flex items-center gap-3 text-red-100 bg-red-500/20 border border-red-400/40 p-5 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">

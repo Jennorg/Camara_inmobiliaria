@@ -343,6 +343,7 @@ export default function VerificarPreinscripcionProgramaPage() {
     e.preventDefault()
     if (!verifiedToken) return
 
+    // 1. Validar Currículum (CV)
     if (!formData.url_cv) {
       Swal.fire({
         title: '¡Atención!',
@@ -355,51 +356,126 @@ export default function VerificarPreinscripcionProgramaPage() {
       return;
     }
 
+    // 2. Validar Nivel Académico
+    if (!formData.nivelProfesional) {
+      Swal.fire({
+        title: '¡Atención!',
+        text: isCorporativo
+          ? 'Por favor, selecciona el Nivel Académico del Representante Legal.'
+          : 'Por favor, selecciona tu Nivel Académico.',
+        icon: 'warning',
+        confirmButtonColor: '#059669',
+      });
+      return;
+    }
+
+    // 3. Validar Área de Especialización
+    if (formData.nivelProfesional !== 'Bachiller' && !formData.profesion.trim()) {
+      Swal.fire({
+        title: '¡Atención!',
+        text: isCorporativo
+          ? 'Por favor, indica el Área de Especialización del Representante Legal.'
+          : 'Por favor, indica el Área de Especialización de tu título.',
+        icon: 'warning',
+        confirmButtonColor: '#059669',
+      });
+      return;
+    }
+
+    // 4. Validar Año de Inicio como Asesor (Solo para afiliados naturales)
+    if (isAfiliacion && !isCorporativo && !formData.ano_inicio_servicio) {
+      Swal.fire({
+        title: '¡Atención!',
+        text: 'Por favor, indica el Año de Inicio como Asesor.',
+        icon: 'warning',
+        confirmButtonColor: '#059669',
+      });
+      return;
+    }
+
+    // 5. Validar Documentos Obligatorios por Tipo de Afiliado
     if (isCorporativo) {
       if (!formData.url_titulo) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga el RIF de la Empresa.', icon: 'warning', confirmButtonColor: '#059669' });
+        Swal.fire({
+          title: '¡Atención!',
+          text: 'Por favor, carga el RIF de la Empresa.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
         return;
       }
       if (!formData.url_registro_mercantil) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga el Acta Constitutiva de la Empresa.', icon: 'warning', confirmButtonColor: '#059669' });
+        Swal.fire({
+          title: '¡Atención!',
+          text: 'Por favor, carga el Acta Constitutiva de la Empresa.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
         return;
       }
       if (!formData.url_titulo_representante) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga el Título Académico del Representante Legal.', icon: 'warning', confirmButtonColor: '#059669' });
+        Swal.fire({
+          title: '¡Atención!',
+          text: 'Por favor, carga el Título Académico del Representante Legal.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
         return;
       }
     } else {
       if (!formData.url_titulo) {
-        Swal.fire({ title: '¡Atención!', text: 'Por favor, carga tu Título Académico.', icon: 'warning', confirmButtonColor: '#059669' });
+        Swal.fire({
+          title: '¡Atención!',
+          text: 'Por favor, carga tu Título Académico.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
         return;
       }
     }
 
-    if (showReferencesSection) {
-      // Solo validar si se ha intentado llenar algo de la referencia 1
-      if ((formData.url_referencia1 || searchCedula1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
-        Swal.fire({ title: 'Referencia 1 Incompleta', text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.', icon: 'warning', confirmButtonColor: '#059669' });
-        return;
-      }
-      // Solo validar si se ha intentado llenar algo de la referencia 2
-      if ((formData.url_referencia2 || searchCedula2) && (!selectedAffiliate2 || !formData.url_referencia2)) {
-        Swal.fire({ title: 'Referencia 2 Incompleta', text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 2, o deja ambos campos vacíos.', icon: 'warning', confirmButtonColor: '#059669' });
-        return;
-      }
-      if (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado) {
-        Swal.fire({ title: 'Referencias Duplicadas', text: 'Las dos cartas de recomendación deben ser de afiliados activos diferentes.', icon: 'warning', confirmButtonColor: '#059669' });
-        return;
-      }
-    }
-
+    // 6. Validar Soporte de Postgrado (si aplica)
     if (formData.nivelProfesional === 'Postgrado' && formData.especializaciones.length === 0) {
       Swal.fire({
         title: 'Documentación incompleta',
         text: 'Como indicaste que tienes nivel de Postgrado, es obligatorio cargar al menos un soporte de especialización o maestría.',
         icon: 'info',
-        confirmButtonColor: '#059669'
+        confirmButtonColor: '#059669',
       });
-      return
+      return;
+    }
+
+    // 7. Validar Referencias (si aplica)
+    if (showReferencesSection) {
+      // Solo validar si se ha intentado llenar algo de la referencia 1
+      if ((formData.url_referencia1 || searchCedula1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
+        Swal.fire({
+          title: 'Referencia 1 Incompleta',
+          text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
+        return;
+      }
+      // Solo validar si se ha intentado llenar algo de la referencia 2
+      if ((formData.url_referencia2 || searchCedula2) && (!selectedAffiliate2 || !formData.url_referencia2)) {
+        Swal.fire({
+          title: 'Referencia 2 Incompleta',
+          text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 2, o deja ambos campos vacíos.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
+        return;
+      }
+      if (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado) {
+        Swal.fire({
+          title: 'Referencias Duplicadas',
+          text: 'Las dos cartas de recomendación deben ser de afiliados activos diferentes.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
+        return;
+      }
     }
 
     submitConfirmation({
@@ -1474,7 +1550,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={submitLoading || !formData.url_cv || (isCorporativo ? (!formData.url_titulo || !formData.url_registro_mercantil || !formData.url_titulo_representante) : !formData.url_titulo) || (formData.nivelProfesional === 'Postgrado' && formData.especializaciones.length === 0) || isReferencesIncomplete} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
+              <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
                 {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
               </button>
             </form>

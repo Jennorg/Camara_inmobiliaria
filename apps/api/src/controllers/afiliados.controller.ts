@@ -179,7 +179,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
 
     const result = await db.execute({
       sql: `SELECT a.*, 
-                   p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
+                   p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                    p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
@@ -268,15 +268,18 @@ export const registerAfiliado = async (req: Request, res: Response) => {
       });
     }
 
+    // Sanitizar cedulaRif (solo números para evitar errores con puntos o guiones)
+    const cleanedCedulaRif = (cedulaRif || '').replace(/\D/g, '');
+
     // Verificar si ya existe en personas o empresas
     const existePersona = await db.execute({
       sql: `SELECT id FROM personas WHERE email = ? OR cedula = ?`,
-      args: [email, cedulaRif]
+      args: [email, cleanedCedulaRif]
     });
 
     const existeEmpresa = await db.execute({
       sql: `SELECT id_empresa FROM empresas WHERE email = ? OR rif_numero = ?`,
-      args: [email, cedulaRif]
+      args: [email, cleanedCedulaRif]
     });
 
     if (existePersona.rows.length > 0 || existeEmpresa.rows.length > 0) {
@@ -289,13 +292,13 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     // Verificar si ya tiene una verificación pendiente y eliminarla para usar una nueva
     const existeVerificacion = await db.execute({
       sql: `SELECT token_verificacion, fecha_expiracion FROM verificaciones_email WHERE email = ? OR cedula_rif = ?`,
-      args: [email, cedulaRif]
+      args: [email, cleanedCedulaRif]
     });
 
     if (existeVerificacion.rows.length > 0) {
       await db.execute({
         sql: `DELETE FROM verificaciones_email WHERE email = ? OR cedula_rif = ?`,
-        args: [email, cedulaRif]
+        args: [email, cleanedCedulaRif]
       });
     }
 
@@ -315,7 +318,7 @@ export const registerAfiliado = async (req: Request, res: Response) => {
               telefono, 
               fecha_expiracion
             ) VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [token, nombreCompleto, cedulaRif, email, telefono, fechaExpiracionStr]
+      args: [token, nombreCompleto, cleanedCedulaRif, email, telefono, fechaExpiracionStr]
     });
 
     // NOTA: Para no romper el esquema de verificaciones_email (que es temporal), 
@@ -401,16 +404,22 @@ export const verificarEmail = async (req: Request, res: Response) => {
       const apellidos = parts.length > 1 ? parts.slice(Math.ceil(parts.length / 2)).join(' ') : ''
       const nombres = parts.length > 1 ? parts.slice(0, Math.ceil(parts.length / 2)).join(' ') : fullName
 
+      const cedulaInput = String(registro.cedula_rif || '').trim()
+      const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i)
+      const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V'
+      const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '')
+
       // Insertar en personas
       const insertPersona = await db.execute({
         sql: `INSERT INTO personas (
                 nombres,
                 apellidos,
                 email, 
+                cedula_tipo,
                 cedula, 
                 telefono
-              ) VALUES (?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || fullName, apellidos, registro.email, registro.cedula_rif, registro.telefono]
+              ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [nombres || fullName, apellidos, registro.email, cedulaTipo, cedulaNumero, registro.telefono]
       });
 
       const idPersona = insertPersona.rows[0].id;
@@ -426,14 +435,6 @@ export const verificarEmail = async (req: Request, res: Response) => {
       });
 
       const newAfiliado = insertAfiliado.rows[0] as any;
-
-      if (newAfiliado?.id_afiliado) {
-        const nextCode = await obtenerSiguienteCodigoAfiliado();
-        await db.execute({
-          sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ?`,
-          args: [nextCode, newAfiliado.id_afiliado]
-        });
-      }
 
       // Eliminar el token usado
       await db.execute({
@@ -469,7 +470,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
     let sql = `
       SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
              p.nombres, p.apellidos, 
-             p.cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico, p.foto_url,
+             (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico, p.foto_url,
              e.razon_social as empresa_razon_social, 
              e.rif_tipo as empresa_rif_tipo,
              e.rif_numero as empresa_rif_numero,
@@ -706,7 +707,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              END as nombre_completo, 
              NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') as representante_nombre,
              p.nombres, p.apellidos, a.codigo, p.foto_url, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
-             p.cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
+             (p.cedula_tipo || '-' || p.cedula) as cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
              a.tipo_afiliado,
              e.razon_social as empresa_razon_social,
              e.logo_url as empresa_logo_url, e.website as empresa_website,
@@ -768,7 +769,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                  WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
                  ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
                END as nombre_completo, 
-               p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, 
+               p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
                e.razon_social as empresa_razon_social, 
                e.rif_tipo as empresa_rif_tipo,
@@ -819,7 +820,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
     if (row.tipo_afiliado === 'Corporativo') {
       const assocResult = await db.execute({
         sql: `
-          SELECT a.id_afiliado, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, a.codigo, p.cedula, a.tipo_afiliado, p.foto_url
+          SELECT a.id_afiliado, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, a.codigo, (p.cedula_tipo || '-' || p.cedula) as cedula, a.tipo_afiliado, p.foto_url
           FROM afiliados a
           JOIN personas p ON a.id_persona = p.id
           WHERE a.id_empresa = ? AND a.estatus = 'Afiliado' AND a.activo = 1
@@ -1081,9 +1082,17 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const { id_persona: idPersona, id_empresa: idEmpresa } = current.rows[0] as any;
 
     if (fields.cedula) {
+      const cedulaInput = String(fields.cedula).trim();
+      const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
+      const newCedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
+      const newCedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
+
+      fields.cedula_tipo = newCedulaTipo;
+      fields.cedula = newCedulaNumero;
+
       const cedulaCheck = await db.execute({
         sql: `SELECT id FROM personas WHERE cedula = ? AND id <> ?`,
-        args: [fields.cedula, idPersona]
+        args: [newCedulaNumero, idPersona]
       });
       if (cedulaCheck.rows.length > 0) {
         return res.status(400).json({ success: false, message: 'La cédula ingresada ya está registrada por otro usuario.' });
@@ -1103,7 +1112,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok', 'website'];
 
     Object.keys(fields).forEach(key => {
-      if (personaFields.includes(key)) {
+      if (personaFields.includes(key) || key === 'cedula_tipo') {
         pUpdates.push(`${key} = ?`);
         pArgs.push(fields[key]);
       } else if (afiliadoFields.includes(key)) {
@@ -1645,15 +1654,21 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 }
 /**
  * DELETE /api/afiliados/:id
- * Elimina un registro de afiliado.
+ * Elimina un registro de afiliado de forma permanente, incluyendo sus datos relacionados
+ * en personas, usuarios, empresas (si es el dueño) y documentos.
  */
 export const deleteAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    // Primero verificar si existe
+    // 1. Obtener toda la información relacionada antes de borrar nada
     const check = await db.execute({
-      sql: 'SELECT id_persona FROM afiliados WHERE id_afiliado = ?',
+      sql: `SELECT a.id_afiliado, a.id_persona, a.id_user, a.id_empresa, a.tipo_afiliado,
+                   p.email, p.cedula, e.rif_numero as empresa_rif
+            FROM afiliados a
+            JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            WHERE a.id_afiliado = ?`,
       args: [id as string]
     });
 
@@ -1661,22 +1676,101 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
       return;
     }
-    const idPersona = check.rows[0].id_persona;
 
-    // Borrar de afiliados (cascade borrará de personas si está configurado, 
-    // pero si no, borramos personas también para no dejar huérfanos)
-    await db.execute({
-      sql: 'DELETE FROM afiliados WHERE id_afiliado = ?',
-      args: [id as string]
+    const { id_persona, id_user, id_empresa, tipo_afiliado, email, cedula, empresa_rif } = check.rows[0] as any;
+
+    // 2. Preparar lote de borrado
+    const batch: any[] = [];
+
+    // A. Borrar documentos adjuntos (No tienen FK formal con CASCADE en todos los casos)
+    batch.push({
+      sql: "DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'afiliado' AND entidad_id = ?",
+      args: [id]
     });
 
-    // Opcional: borrar de personas si no tiene otras relaciones (estudiante, etc.)
-    // Por ahora lo dejamos así para simplificar.
+    if (id_empresa && tipo_afiliado === 'Corporativo') {
+      batch.push({
+        sql: "DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'empresa' AND entidad_id = ?",
+        args: [id_empresa]
+      });
+      batch.push({
+        sql: "DELETE FROM documentos_empresa WHERE id_empresa = ?",
+        args: [id_empresa]
+      });
+    }
 
-    res.json({ success: true, message: 'Afiliado eliminado correctamente' });
+    // B. Borrar historial académico y estudiante
+    if (id_persona) {
+      const estCheck = await db.execute({
+        sql: 'SELECT id_estudiante FROM estudiantes WHERE id_persona = ?',
+        args: [id_persona]
+      });
+      if (estCheck.rows.length > 0) {
+        const idEst = estCheck.rows[0].id_estudiante;
+        batch.push({
+          sql: "DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?",
+          args: [idEst]
+        });
+        // inscripciones_cursos y certificados tienen ON DELETE CASCADE con estudiante/inscripcion
+        batch.push({
+          sql: 'DELETE FROM estudiantes WHERE id_estudiante = ?',
+          args: [idEst]
+        });
+      }
+    }
+
+    // C. Borrar transacciones y usuario
+    if (id_user) {
+      batch.push({
+        sql: 'DELETE FROM transacciones WHERE id_user = ?',
+        args: [id_user]
+      });
+      // notificaciones y refresh_tokens tienen ON DELETE CASCADE
+      batch.push({
+        sql: 'DELETE FROM users WHERE id = ?',
+        args: [id_user]
+      });
+    }
+
+    // D. Borrar la empresa si es el afiliado corporativo principal
+    if (id_empresa && tipo_afiliado === 'Corporativo') {
+      batch.push({
+        sql: 'DELETE FROM empresas WHERE id_empresa = ?',
+        args: [id_empresa]
+      });
+    }
+
+    // E. Borrar el afiliado y la persona
+    // (Borrar la persona disparará el CASCADE en la tabla afiliados)
+    batch.push({
+      sql: 'DELETE FROM personas WHERE id = ?',
+      args: [id_persona]
+    });
+
+    // F. Limpiar posibles preinscripciones o verificaciones pendientes con esos datos
+    batch.push({
+      sql: 'DELETE FROM verificaciones_preinscripciones WHERE email = ? OR cedula = ? OR rif_numero = ?',
+      args: [email, cedula, empresa_rif || cedula]
+    });
+    batch.push({
+      sql: 'DELETE FROM verificaciones_email WHERE email = ? OR cedula_rif = ?',
+      args: [email, cedula]
+    });
+
+    // 3. Ejecutar todo en una transacción atómica
+    await db.batch(batch, 'write');
+
+    res.json({ 
+      success: true, 
+      message: 'Afiliado y todos sus registros asociados han sido eliminados. Ahora puede volver a registrarlo con los mismos datos si lo desea.' 
+    });
+
   } catch (error) {
-    console.error('Error en deleteAfiliado:', error);
-    res.status(500).json({ success: false, message: 'Error interno al eliminar afiliado' });
+    console.error('Error en deleteAfiliado (Hard Delete):', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno al intentar realizar el borrado completo del afiliado.' 
+    });
   }
 };
 
@@ -1707,9 +1801,14 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     }
 
     // Verificar duplicados en personas
+    const cedulaInput = String(cedula || '').trim();
+    const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
+    const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
+    const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
+
     const existing = await db.execute({
       sql: 'SELECT id FROM personas WHERE email = ? OR cedula = ?',
-      args: [email, cedula]
+      args: [email, cedulaNumero]
     });
 
     if (existing.rows.length > 0) {
@@ -1719,9 +1818,9 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
 
     // 1. Insertar Persona
     const resultP = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, direccion, nivel_academico)
-            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [nombres || '', apellidos || '', cedula, email, telefono || null, direccion || null, nivel_academico || null]
+      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, direccion, nivel_academico)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      args: [nombres || '', apellidos || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null]
     });
     const idPersona = resultP.rows[0].id;
 
@@ -1744,7 +1843,7 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
         args: [
           empresa_razon_social || '', 
           empresa_rif_tipo || 'J', 
-          cedula, 
+          cedulaNumero, 
           empresa_email || email, 
           empresa_telefono || telefono || null, 
           empresa_direccion || direccion || null, 
@@ -2045,9 +2144,14 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
     }
 
     // Verificar si ya existe en personas
+    const cedulaInput = String(cedulaRif || '').trim();
+    const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
+    const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
+    const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
+
     const existing = await db.execute({
       sql: `SELECT id FROM personas WHERE email = ? OR cedula = ? LIMIT 1`,
-      args: [email, cedulaRif]
+      args: [email, cedulaNumero]
     })
     if (existing.rows.length > 0) {
       res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o cédula.' }); return
@@ -2062,10 +2166,10 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
     const apellidos = nameParts.length > 1 ? nameParts.slice(mid).join(' ') : ''
 
     const resP = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono, nivel_academico, creado_en, actualizado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, creado_en, actualizado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id`,
-      args: [nombres, apellidos, cedulaRif, email, telefono || null, nivelProfesional || null, now, now]
+      args: [nombres, apellidos, cedulaTipo, cedulaNumero, email, telefono || null, nivelProfesional || null, now, now]
     })
     const idPersona = Number(resP.rows[0].id)
 
@@ -2086,21 +2190,11 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
     })
 
     // 4. Crear Afiliado en 1_PREINSCRIPCION
-    const resA = await db.execute({
+    await db.execute({
       sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, creado_en, actualizado_en)
-            VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)
-            RETURNING id_afiliado`,
+            VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)`,
       args: [idPersona, idEmpresa, now, now]
     })
-    const idAfiliado = Number(resA.rows[0].id_afiliado)
-
-    if (idAfiliado) {
-      const nextCode = await obtenerSiguienteCodigoAfiliado();
-      await db.execute({
-        sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ?`,
-        args: [nextCode, idAfiliado]
-      })
-    }
 
     res.status(201).json({ success: true, message: 'Solicitud de agente creada con éxito.' })
   } catch (error) {

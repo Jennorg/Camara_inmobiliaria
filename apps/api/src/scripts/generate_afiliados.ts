@@ -32,12 +32,13 @@ async function run() {
       // 1. Crear Persona
       const [nombres, ...apellidosArr] = (a.nombre as string).split(' ');
       const apellidos = apellidosArr.join(' ');
+      const cleanedCedula = a.cedula.replace(/\D/g, '');
       const resP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula, email, telefono)
               VALUES (?, ?, ?, ?, ?) 
               ON CONFLICT(email) DO UPDATE SET nombres=excluded.nombres
               RETURNING id`,
-        args: [nombres || a.nombre, apellidos || '', a.cedula, a.email, a.tlf]
+        args: [nombres || a.nombre, apellidos || '', cleanedCedula, a.email, a.tlf]
       })
       const idPersona = resP.rows[0].id
 
