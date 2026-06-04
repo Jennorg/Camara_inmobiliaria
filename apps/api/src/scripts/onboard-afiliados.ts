@@ -37,7 +37,7 @@ async function main() {
     FROM afiliados a
     JOIN personas p ON a.id_persona = p.id
     LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-    WHERE p.eliminado_en IS NULL
+    WHERE p.eliminado_en IS NULL AND p.email <> 'admin@ciebo.com'
   `
   const result = await db.execute(query)
   const allAfiliados = result.rows as any[]
@@ -166,7 +166,7 @@ async function main() {
       console.log('   ✅ Procesado correctamente')
 
     } catch (err) {
-      console.error(`   ❌ Error procesando a ${afiliado.email}:`, err)
+      console.error(`   ❌ Error procesando a ${targetEmail || persona_email}:`, err)
       errores++
     }
   }
