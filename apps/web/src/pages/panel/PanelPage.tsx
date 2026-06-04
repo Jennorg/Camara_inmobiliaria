@@ -58,7 +58,7 @@ const NAV_AFILIADO = [
   { icon: LayoutDashboard, label: 'Resumen / Inicio' },
   { icon: FolderSearch, label: 'Mi Expediente' },
   // { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
-  { icon: GraduationCap, label: 'Catálogo Académico' },
+  // { icon: GraduationCap, label: 'Catálogo Académico' },
   { icon: Award, label: 'Mis Certificados' },
   // { icon: Gavel, label: 'Sistema de Denuncias' },
 ];
@@ -186,7 +186,7 @@ const PanelPage = () => {
       // Exclusivo estudiante
       baseItems = [
         { icon: LayoutDashboard, label: 'Resumen / Inicio' },
-        { icon: GraduationCap, label: 'Catálogo Académico' },
+        // { icon: GraduationCap, label: 'Catálogo Académico' },
         { icon: Award, label: 'Mis Certificados' },
         { icon: UserPlus, label: 'Solicitud de Afiliación' },
       ];
