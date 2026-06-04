@@ -237,32 +237,57 @@ const SettingsPanel = () => {
   ];
 
   return (
-    <div className="col-span-3 h-full p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
-      {/* Sidebar de Ajustes */}
-      <aside className="lg:col-span-1 space-y-2 overflow-y-auto pr-2">
-        <div className="mb-6 px-4">
+    <div className="col-span-3 h-full lg:p-8 flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+      {/* Sidebar / Mobile Tabs */}
+      <aside className="lg:col-span-1 flex flex-col shrink-0">
+        <div className="hidden lg:block mb-6 px-4">
           <h2 className="text-xl font-black tracking-tight text-gray-900">Ajustes</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Gestiona tu presencia en la Cámara</p>
         </div>
-        {tabs.filter(t => !t.hide).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-left group ${
-              activeTab === tab.id 
-                ? 'bg-white shadow-sm border border-gray-100 text-emerald-600 font-bold' 
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <tab.icon size={18} className={activeTab === tab.id ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-900'} />
-            <span className="text-sm">{tab.label}</span>
-            {activeTab === tab.id && <ChevronRight size={14} className="ml-auto opacity-40" />}
-          </button>
-        ))}
+
+        {/* Desktop Menu */}
+        <div className="hidden lg:flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar">
+          {tabs.filter(t => !t.hide).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-left group ${
+                activeTab === tab.id 
+                  ? 'bg-white shadow-sm border border-gray-100 text-emerald-600 font-bold' 
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <tab.icon size={18} className={activeTab === tab.id ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-900'} />
+              <span className="text-sm">{tab.label}</span>
+              {activeTab === tab.id && <ChevronRight size={14} className="ml-auto opacity-40" />}
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile Horizontal Menu */}
+        <div className="lg:hidden flex items-center gap-2 overflow-x-auto p-4 bg-white border-b border-gray-100 scrollbar-hide">
+          {tabs.filter(t => !t.hide).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest ${
+                activeTab === tab.id 
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' 
+                  : 'bg-gray-50 text-gray-400 border border-gray-100'
+              }`}
+            >
+              <tab.icon size={14} />
+              {tab.id === 'personal' ? 'Personal' : 
+               tab.id === 'empresa' ? 'Corporativo' : 
+               tab.id === 'documentos' ? 'Expediente' : 
+               tab.label.split(' ')[0]}
+            </button>
+          ))}
+        </div>
       </aside>
 
       {/* Area de Formulario */}
-      <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-y-auto flex flex-col">
+      <div className="lg:col-span-3 bg-white lg:rounded-3xl border-t lg:border border-gray-100 shadow-sm overflow-y-auto flex flex-col custom-scrollbar">
         <form onSubmit={handleSave} className="p-6 lg:p-8 flex-grow">
           
           {activeTab === 'personal' && (

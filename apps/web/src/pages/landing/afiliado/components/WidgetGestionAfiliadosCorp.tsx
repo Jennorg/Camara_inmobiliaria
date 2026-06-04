@@ -92,6 +92,7 @@ export default function WidgetGestionAfiliadosCorp() {
   const [confirmVincular, setConfirmVincular] = useState<AfiliadoIndependiente | null>(null);
   const [vinculandoId, setVinculandoId] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastQueryRef = useRef({ q: '', field: 'nombre', initialized: false });
   const [showModal, setShowModal] = useState(false);
   const [showNivelDropdown, setShowNivelDropdown] = useState(false);
   const [modalForm, setModalForm] = useState({
@@ -173,17 +174,33 @@ export default function WidgetGestionAfiliadosCorp() {
 
   useEffect(() => {
     if (activeTab !== 'vincular') return;
+    
+    const q = busquedaInd.trim();
+    
+    // Si la búsqueda es vacía, ya se inicializó y el campo de búsqueda cambia, no hacer petición
+    if (q === '' && lastQueryRef.current.q === '' && lastQueryRef.current.initialized) {
+      lastQueryRef.current.field = searchField;
+      return;
+    }
+    
+    // Si la búsqueda y el campo son iguales a la última petición (y ya se inicializó), no hacer nada
+    if (q === lastQueryRef.current.q && searchField === lastQueryRef.current.field && lastQueryRef.current.initialized) {
+      return;
+    }
+    
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const companyId = await getCompanyId();
       if (!companyId || !token) return;
       setLoadingInd(true);
       try {
-        const q = busquedaInd.trim();
         const url = `${API_URL}/api/afiliados/${companyId}/independientes-disponibles?q=${encodeURIComponent(q)}&field=${searchField}`;
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
-        if (data.success) setIndependientes(data.data);
+        if (data.success) {
+          setIndependientes(data.data);
+          lastQueryRef.current = { q, field: searchField, initialized: true };
+        }
       } catch { /* silencioso */ } finally {
         setLoadingInd(false);
       }
@@ -513,7 +530,7 @@ export default function WidgetGestionAfiliadosCorp() {
             </span>
             </div>
 
-          <div className="divide-y divide-gray-50 flex-1 overflow-y-auto max-h-[420px]">
+          <div className="divide-y divide-gray-50">
             {miembrosVinculados.length === 0 ? (
               <div className="p-12 text-center text-gray-400 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest">Sin miembros vinculados</p>

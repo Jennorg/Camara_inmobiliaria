@@ -14,7 +14,8 @@ import {
   AlertCircle,
   ExternalLink,
   Mail,
-  Phone
+  Phone,
+  ChevronLeft
 } from 'lucide-react'
 
 export default function AdminMisAgentesPanel() {
@@ -161,7 +162,7 @@ export default function AdminMisAgentesPanel() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-6">
-        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className={`bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${selectedCompanyId ? 'hidden xl:block' : 'block'}`}>
           <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-4">
             <div>
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Empresas Corporativas</h3>
@@ -213,12 +214,22 @@ export default function AdminMisAgentesPanel() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className={`space-y-6 ${!selectedCompanyId ? 'hidden xl:block' : 'block'}`}>
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Agentes Corporativos</h3>
-                <p className="text-[11px] text-slate-500 mt-1">Gestión de solicitudes y miembros vinculados.</p>
+              <div className="flex items-center gap-3">
+                {selectedCompanyId && (
+                  <button 
+                    onClick={() => setSelectedCompanyId(null)}
+                    className="xl:hidden p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-all"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                )}
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Agentes Corporativos</h3>
+                  <p className="text-[11px] text-slate-500 mt-1">Gestión de solicitudes y miembros vinculados.</p>
+                </div>
               </div>
               <span className="rounded-full bg-slate-50 text-slate-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
                 {selectedCompany ? `${agents.length} agentes` : 'Selecciona una empresa'}
