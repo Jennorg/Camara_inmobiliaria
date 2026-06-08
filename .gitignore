@@ -40,3 +40,6 @@ tmp/
 # Database Seeds
 apps/api/src/config/seed-*.ts
 apps/api/src/config/afiliados_seed.json
+
+# Temporary Data Extractions
+corporativos_asociacion.md

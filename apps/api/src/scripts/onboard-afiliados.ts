@@ -7,6 +7,8 @@ const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 
 async function main() {
   const isTest = process.argv.includes('--test')
+  const onlyCorporativos = process.argv.includes('--corporativos')
+  const onlyCorporativosPersonales = process.argv.includes('--corporativos-personales')
   
   // Intentar obtener el email de los argumentos (ej: --test mi@correo.com)
   let testEmail = 'jenfermz44@gmail.com'
@@ -18,6 +20,11 @@ async function main() {
   console.log('🚀 Iniciando proceso de onboarding masivo...')
   if (isTest) {
     console.log(`🧪 MODO TEST ACTIVADO: Se procesará solo a ${testEmail}`)
+  }
+  if (onlyCorporativosPersonales) {
+    console.log(`🏢 MODO CORPORATIVOS (SOLO PERSONALES): Se procesarán solo afiliados Corporativos cuyo correo de empresa sea inválido/pendiente.`)
+  } else if (onlyCorporativos) {
+    console.log(`🏢 MODO CORPORATIVOS: Se procesarán solo afiliados de tipo Corporativo o Agente Corporativo.`)
   }
 
   // 1. Obtener todos los afiliados
@@ -49,6 +56,24 @@ async function main() {
       return (a.persona_email?.toLowerCase() === testEmail.toLowerCase()) || 
              (a.empresa_email?.toLowerCase() === testEmail.toLowerCase())
     }
+
+    const isCorporate = a.tipo_afiliado === 'Corporativo' || a.tipo_afiliado === 'Agente Corporativo';
+
+    // Si el modo "solo corporativos personales" está activo
+    if (onlyCorporativosPersonales) {
+      if (!isCorporate) return false;
+      const isEmpresaValid = a.empresa_email && 
+                             !a.empresa_email.includes('@placeholder.com') && 
+                             !a.empresa_email.includes('temp-') && 
+                             !a.empresa_email.toLowerCase().includes('pendiente');
+      // Solo dejamos pasar a los que NO tienen un correo de empresa válido (van a usar el personal)
+      if (isEmpresaValid) return false;
+    } 
+    // Si el modo corporativo genérico está activo, filtramos a los demás
+    else if (onlyCorporativos && !isCorporate) {
+      return false
+    }
+
     return a.estatus === 'Afiliado'
   })
 
@@ -74,8 +99,11 @@ async function main() {
       let targetEmail = persona_email
       let sourceInfo = 'Personal'
 
-      if (tipo_afiliado === 'Corporativo') {
-        const isEmpresaValid = empresa_email && !empresa_email.includes('@placeholder.com') && !empresa_email.includes('temp-')
+      if (tipo_afiliado === 'Corporativo' || tipo_afiliado === 'Agente Corporativo') {
+        const isEmpresaValid = empresa_email && 
+                               !empresa_email.includes('@placeholder.com') && 
+                               !empresa_email.includes('temp-') && 
+                               !empresa_email.toLowerCase().includes('pendiente')
         
         if (isEmpresaValid) {
           targetEmail = empresa_email
@@ -94,8 +122,8 @@ async function main() {
             }
           }
         } else {
-          // Fallback al personal si el de la empresa no sirve
-          console.log(`   ⚠️ Correo de empresa inválido o vacío. Usando correo personal como respaldo: ${persona_email}`)
+          // Fallback al personal si el de la empresa no sirve o está pendiente
+          console.log(`   ⚠️ Correo de empresa inválido, vacío o marcado como pendiente (${empresa_email}). Usando correo personal como respaldo: ${persona_email}`)
         }
       }
 
