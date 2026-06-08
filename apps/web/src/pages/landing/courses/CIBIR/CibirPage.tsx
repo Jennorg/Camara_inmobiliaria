@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Footer from '@/pages/landing/components/Footer';
 import bgCibir from "@/assets/Pzo.jpg";
 import heroCibir from "@/assets/Cibir.jpg";
+import pegiImg from "@/assets/Pegi.jpg";
+import cibirImg from "@/assets/Cibir.jpg";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
 import Estudiosa from "@/assets/estudiosa1.png";
 import Estudioso from "@/assets/estudioso1.png";
@@ -76,7 +78,10 @@ const ModuloCibir: React.FC<ModuloProps> = ({
 
 export default function Cibir() {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
   const setRevealEstudiosa = useScrollReveal();
   const setRevealEstudioso = useScrollReveal();
 
@@ -136,7 +141,7 @@ export default function Cibir() {
             Formación Básica Inicial
           </p>
           <h1
-            className="text-4xl sm:text-5xl lg:text-8xl font-black tracking-tighter animate-header-text"
+            className="text-4xl sm:text-5xl lg:text-8xl font-black tracking-tighter animate-header-text text-white"
             style={{ animationDelay: "0.4s", opacity: 0 }}
           >
             <span className="text-emerald-500 italic">CIBIR</span>
@@ -188,7 +193,7 @@ export default function Cibir() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-32 items-stretch">
             <div className="relative rounded-[3rem] overflow-hidden group min-h-[400px]">
               <img
-                src="/assets/pegi_catalog.png"
+                src={pegiImg}
                 alt="Networking"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
@@ -215,7 +220,7 @@ export default function Cibir() {
 
             <div className="relative rounded-[3rem] overflow-hidden flex items-end">
               <img
-                src="/assets/cibir_catalog.png"
+                src={cibirImg}
                 alt="Inscripción"
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -318,11 +323,7 @@ export default function Cibir() {
         </div>
       </main>
 
-      <footer className="bg-[#011a14] px-6 lg:px-20 py-12 pt-16 text-center border-t border-white/5 relative z-10">
-        <p className="text-gray-600 text-[10px] uppercase tracking-[0.2em]">
-          CIBIR • COORDINACIÓN DE FORMACIÓN • CÁMARA INMOBILIARIA • 2026
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }

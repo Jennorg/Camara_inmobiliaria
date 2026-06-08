@@ -16,7 +16,10 @@ function isImageUrl(url: string): boolean {
 }
 
 export default function Comerciales() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ConvenioPublico[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -163,6 +166,12 @@ export default function Comerciales() {
             </div>
           </div>
         )}
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
       </main>
 
       <footer className="bg-[#011a14] px-4 sm:px-6 lg:px-20 py-8 md:py-12 text-center relative z-10">

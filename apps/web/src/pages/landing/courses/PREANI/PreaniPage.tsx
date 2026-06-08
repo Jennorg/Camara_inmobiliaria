@@ -52,7 +52,10 @@ const MODULES: ProgramModule[] = [
 
 export default function PreaniPage() {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
   const setRevealEstudiosa = useScrollReveal();
   const setRevealEstudioso = useScrollReveal();
 
@@ -73,7 +76,7 @@ export default function PreaniPage() {
           <p className="text-emerald-500 font-black uppercase tracking-[0.4em] text-xs animate-header-text">
             Diplomado Profesional Avanzado
           </p>
-          <h1 className="text-4xl sm:text-5xl lg:text-8xl font-black tracking-tighter animate-header-text">
+          <h1 className="text-4xl sm:text-5xl lg:text-8xl font-black tracking-tighter animate-header-text text-white">
             <span className="">PREANI</span>
           </h1>
           <p className="text-emerald-100/60 text-lg md:text-xl font-light max-w-2xl mx-auto animate-header-text">

@@ -2,7 +2,7 @@ import React from 'react'
 import logo from '@/assets/Logo3.png'
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 import { STATIC } from '@/pages/landing/config/staticContent'
-import { Instagram, Facebook, Linkedin, Icon } from 'lucide-react'
+import { Instagram, Facebook } from 'lucide-react'
 
 const s = STATIC.footer
 
@@ -10,13 +10,12 @@ export default function Footer() {
   const cfg = useCachedConfig()
 
   const sociallinks = [
-    { name: 'Instagram', icon: <Instagram size={20} />, url: cfg['redes_instagram'] },
-    { name: 'Facebook', icon: <Facebook size={20} />, url: cfg['redes_instagram'] },
-    { name: 'Linkedin', icon: <Linkedin size={20} />, url: cfg['redes_instagram'] },
+    { name: 'Instagram', icon: <Instagram size={20} />, url: 'https://www.instagram.com/ciebolivar' },
+    { name: 'Facebook', icon: <Facebook size={20} />, url: 'https://www.facebook.com/CIEBOLIVAR' },
   ]
 
   return (
-    <footer className='bg-[#022c22] px-6 lg:px-20 py-16 text-center border-t border-white/5 space-y-6'>
+    <footer className='relative z-50 bg-[#022c22] px-6 lg:px-20 py-16 text-center border-t border-white/5 space-y-6'>
       <img
         src={logo}
         alt='Logo Cámara Inmobiliaria de Bolívar - Inmobiliarias en Puerto Ordaz y Ciudad Bolívar'

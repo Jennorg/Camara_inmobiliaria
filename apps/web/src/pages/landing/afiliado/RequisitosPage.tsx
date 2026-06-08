@@ -82,7 +82,10 @@ const AFFILIATION_STEPS = [
 ]
 
 export default function RequisitosPage() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth">

@@ -63,7 +63,11 @@ const Navbar = ({
           {/* 3. ACCIONES Y AUTENTICACIÓN */}
           <div className="flex-1 flex items-center justify-end space-x-3">
             <button 
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={() => {
+                const nextMode = !darkMode;
+                setDarkMode(nextMode);
+                localStorage.setItem('darkMode', JSON.stringify(nextMode));
+              }}
               className={`p-2 rounded-full transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-emerald-50"}`}
             >
               {darkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-emerald-700" />}

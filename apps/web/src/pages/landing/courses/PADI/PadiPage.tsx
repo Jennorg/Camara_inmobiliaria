@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Footer from '@/pages/landing/components/Footer'
 import bgCaracas from "@/assets/Pzo.jpg";
+import padiImg from "@/assets/Padi.jpg";
 import Estudiosa from "@/assets/estudiosa1.png";
 import Estudioso from "@/assets/estudioso1.png";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
@@ -40,7 +41,10 @@ const MODULES: ProgramModule[] = [
 
 export default function PadiPage() {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
   const setRevealEstudiosa = useScrollReveal();
   const setRevealEstudioso = useScrollReveal();
 
@@ -64,7 +68,7 @@ export default function PadiPage() {
             Especialización Profesional
           </p>
           <h1
-            className="text-4xl sm:text-5xl lg:text-8xl font-black tracking-tighter animate-header-text"
+            className="text-4xl sm:text-5xl lg:text-8xl font-black tracking-tighter animate-header-text text-white"
             style={{ animationDelay: "0.4s", opacity: 0 }}
           >
             <span className="text-emerald-500 italic">PADI</span>
@@ -83,7 +87,7 @@ export default function PadiPage() {
           <div className="flex flex-col lg:flex-row items-center gap-12 mb-20 bg-slate-50 p-8 lg:p-16 rounded-[3rem] border border-emerald-50">
             <div className="w-full lg:w-1/3 flex justify-center">
               <img
-                src="/assets/padi_catalog.png"
+                src={padiImg}
                 alt="Logo PADI"
                 className="w-64 h-auto drop-shadow-2xl"
               />

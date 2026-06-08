@@ -23,7 +23,10 @@ type Status = 'loading' | 'form' | 'success' | 'error'
 export default function InvitacionCorporativaPage() {
   const { token } = useParams<{ token: string }>()
 
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
   const [status, setStatus] = useState<Status>('loading')
   const [empresa, setEmpresa] = useState<{ nombreEmpresa: string; idEmpresa: number } | null>(null)
   const [errorMsg, setErrorMsg] = useState('')

@@ -1,27 +1,62 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { API_URL } from '@/config/env'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { formatNombreCard } from '@/utils/formatters'
-import Mision_img from '@/assets/Mision.jpeg'
 
 const s = STATIC.directiva
 
-// Tier 3: Directiva members fetched on mount.
-// Tier 1: All UI labels come from staticContent.
 export default function DirectivaSection() {
   const [directivaMembers, setDirectivaMembers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/api/cms/directiva`)
       .then(r => r.json())
-      .then(data => { if (data.success) setDirectivaMembers(data.data || []) })
+      .then(data => {
+        if (data.success) {
+          const activos = (data.data || [])
+            .filter((m: any) => m.activo !== 0 && m.activo !== false)
+            .sort((a: any, b: any) => (a.orden || 0) - (b.orden || 0))
+          setDirectivaMembers(activos)
+        }
+      })
       .catch(() => { })
+      .finally(() => setLoading(false))
   }, [])
 
+  const scroll = useCallback((direction: 'left' | 'right') => {
+    const current = scrollRef.current
+    if (!current) return
+    const containerWidth = current.offsetWidth
+    const maxScroll = current.scrollWidth - current.offsetWidth
+    if (direction === 'right') {
+      if (current.scrollLeft >= maxScroll - 10) {
+        current.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        current.scrollBy({ left: containerWidth, behavior: 'smooth' })
+      }
+    } else {
+      if (current.scrollLeft <= 0) {
+        current.scrollTo({ left: maxScroll, behavior: 'smooth' })
+      } else {
+        current.scrollBy({ left: -containerWidth, behavior: 'smooth' })
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (directivaMembers.length <= 4) return
+    const interval = setInterval(() => scroll('right'), 5000)
+    return () => clearInterval(interval)
+  }, [directivaMembers, scroll])
+
+  if (loading || directivaMembers.length === 0) return null
+
   return (
-    <section id='directiva' className='bg-white px-6 lg:px-20 py-24 scroll-mt-24'>
-      <div className='max-w-7xl mx-auto space-y-16'>
+    <section id='directiva' className='bg-white px-6 lg:px-20 py-24 scroll-mt-24 overflow-hidden relative'>
+      <div className='max-w-7xl mx-auto space-y-16 relative'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
             <p className='text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs'>
@@ -33,14 +68,29 @@ export default function DirectivaSection() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {directivaMembers.length > 0 ? (
-            directivaMembers.slice(0, 4).map((m, i) => (
-              <div key={m.id} className="group relative flex flex-col items-center text-center space-y-4">
+        <div className="relative group w-full">
+          {directivaMembers.length > 4 && (
+            <button 
+              onClick={() => scroll('left')} 
+              className='absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+            >
+              <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
+            </button>
+          )}
+
+          <div 
+            ref={scrollRef} 
+            className="flex gap-8 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory w-full"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {directivaMembers.map((m, i) => (
+              <div key={m.id || i} className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
                 <div className="relative w-40 h-40 lg:w-48 lg:h-48 rounded-[2.5rem] overflow-hidden shadow-xl ring-4 ring-emerald-50 transition-all group-hover:ring-emerald-500/20">
                   <img
                     src={m.foto_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.nombre)}&background=10b981&color=fff&size=200`}
                     alt={m.nombre}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform group-hover:scale-110"
                   />
                 </div>
@@ -49,35 +99,24 @@ export default function DirectivaSection() {
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-widest mt-1 opacity-80">{m.cargo}</p>
                 </div>
               </div>
-            ))
-          ) : (
-            <Link to='/junta_directiva' className='col-span-full max-w-4xl mx-auto group cursor-pointer w-full'>
-              <div className='relative aspect-video overflow-hidden rounded-[2.5rem] mb-4 shadow-2xl shadow-emerald-900/10'>
-                <img 
-                  src={Mision_img} 
-                  alt='Junta Directiva' 
-                  loading="lazy"
-                  decoding="async"
-                  className='w-full h-full object-cover group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700 ease-in-out' 
-                />
-                <div className='absolute inset-0 bg-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
-              </div>
-              <div className='bg-white border-2 border-gray-100 group-hover:border-emerald-500 p-6 rounded-[1.5rem] flex items-center justify-center transition-all duration-300 shadow-sm'>
-                <span className='font-black text-emerald-700 uppercase tracking-widest text-sm group-hover:scale-105 transition-transform'>
-                  {s.cta}
-                </span>
-              </div>
-            </Link>
+            ))}
+          </div>
+
+          {directivaMembers.length > 4 && (
+            <button 
+              onClick={() => scroll('right')} 
+              className='absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+            >
+              <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
+            </button>
           )}
         </div>
 
-        {directivaMembers.length > 0 && (
-          <div className="flex justify-center pt-8">
-            <Link to="/junta_directiva" className="px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
-              {s.verTodos}
-            </Link>
-          </div>
-        )}
+        <div className="flex justify-center pt-8">
+          <Link to="/junta_directiva" className="px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
+            {s.verTodos}
+          </Link>
+        </div>
       </div>
     </section>
   )

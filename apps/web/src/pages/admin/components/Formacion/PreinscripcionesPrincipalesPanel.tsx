@@ -42,6 +42,8 @@ type Row = {
   afiliado_tipo?: string | null
   empresa_vinculada_nombre?: string | null
   estudiante_es_corredor_inmobiliario?: number | boolean | null
+  estudiante_nivel_profesional?: string | null
+  estudiante_profesion?: string | null
   ano_inicio_servicio?: number | null
   apto_convalidacion?: number
 }
@@ -895,6 +897,14 @@ export default function PreinscripcionesPrincipalesPanel({
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
                   <span className="text-sm text-slate-700 font-medium break-all">{new Date(selected.creado_en).toLocaleString('es-ES')}</span>
                 </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nivel Académico</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nivel_profesional || 'No indicado'}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Profesión</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_profesion || 'No indicado'}</span>
+                </div>
                 {selected.ano_inicio_servicio !== undefined && selected.ano_inicio_servicio !== null && (
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Año Inicio de Servicio</span>
@@ -904,18 +914,19 @@ export default function PreinscripcionesPrincipalesPanel({
                 <div className="sm:col-span-2 flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl mt-2">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-bold text-slate-800">¿Es Corredor Inmobiliario?</span>
-                    <span className="text-[10px] text-slate-400">Confirmar si el aspirante ya cuenta con acreditación en el sector</span>
+                    <span className="text-[10px] text-slate-400">Información sobre si el aspirante ejerce en el sector</span>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={!!selected.estudiante_es_corredor_inmobiliario} 
-                      onChange={handleToggleCorredor}
-                      disabled={toggleLoading}
-                      className="sr-only peer" 
-                    />
-                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                  </label>
+                  <div>
+                    {selected.estudiante_es_corredor_inmobiliario ? (
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider">
+                        Sí, es Asesor
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+                        No es Asesor
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

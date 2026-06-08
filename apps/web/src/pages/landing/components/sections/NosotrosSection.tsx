@@ -10,7 +10,7 @@ export default function NosotrosSection() {
   const revealCards = useScrollReveal()
 
   return (
-    <section id='nosotros' className='scroll-mt-24 bg-white text-slate-900 px-6 lg:px-20 py-24 border-b border-gray-100 relative z-10 -mt-12'>
+    <section id='nosotros' className='scroll-mt-24 bg-white text-slate-900 px-6 lg:px-20 py-24 border-b border-slate-100 relative z-10 -mt-12'>
       <div className='max-w-6xl mx-auto text-center space-y-12'>
         <div ref={revealTitle} className='space-y-4 reveal-on-scroll'>
           <p className='text-emerald-600 font-black uppercase tracking-[0.3em] text-xs'>
@@ -37,6 +37,8 @@ export default function NosotrosSection() {
                   <img
                     src={card.img}
                     alt={card.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover  group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700 ease-in-out"
                   />
                   {/* Overlay sutil hover */}

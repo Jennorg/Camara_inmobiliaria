@@ -6,6 +6,11 @@ import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import Swal from 'sweetalert2';
 
+import cibirCatalog from '@/assets/cibir_catalog.png';
+import preaniCatalog from '@/assets/preani_catalog.png';
+import pegiCatalog from '@/assets/pegi_catalog.png';
+import padiCatalog from '@/assets/padi_catalog.png';
+
 interface CursoDB {
   id_curso: number;
   nombre: string;
@@ -23,7 +28,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'PREANI', 
     nivel_academico: 'Estudios Avanzados', 
     precio: 'Consultar', 
-    imagen_url: '/assets/preani_catalog.png', 
+    imagen_url: preaniCatalog, 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'PREANI'
@@ -33,7 +38,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'PEGI', 
     nivel_academico: 'Especialización', 
     precio: 'Consultar', 
-    imagen_url: '/assets/pegi_catalog.png', 
+    imagen_url: pegiCatalog, 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'PEGI'
@@ -43,7 +48,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'PADI', 
     nivel_academico: 'Actualización', 
     precio: 'Consultar', 
-    imagen_url: '/assets/padi_catalog.png', 
+    imagen_url: padiCatalog, 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'PADI'
@@ -53,7 +58,7 @@ const FLAGSHIP_PROGRAMS: CursoDB[] = [
     nombre: 'CIBIR', 
     nivel_academico: 'Gremial', 
     precio: 'Consultar', 
-    imagen_url: '/assets/cibir_catalog.png', 
+    imagen_url: cibirCatalog, 
     estatus: 'Activo',
     isFlagship: true,
     codigo: 'CIBIR'

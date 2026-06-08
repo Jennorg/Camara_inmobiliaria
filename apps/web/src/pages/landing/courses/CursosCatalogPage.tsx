@@ -19,7 +19,10 @@ interface CursoDB {
 /** Catálogo público de cursos/talleres (`/cursos`, `/talleres`). */
 export default function CursosCatalogPage() {
   const navigate = useNavigate()
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
   const [cursos, setCursos] = useState<CursoDB[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -119,7 +122,7 @@ export default function CursosCatalogPage() {
           <div key={curso.id_curso} className={`group rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 hover:-translate-y-3 ${darkMode ? 'bg-[#022c22]/50 backdrop-blur-md border-white shadow-[0_20px_50px_rgba(0,0,0,0.3)]' : 'bg-white border-emerald-50 shadow-[0_15px_35px_rgba(16,185,129,0.05)] border-emerald-500'}`}>
             <div className='relative h-56 overflow-hidden bg-slate-100 flex items-center justify-center'>
               {curso.imagen_url ? (
-                <img src={curso.imagen_url} alt={curso.nombre} className='w-full h-full object-cover group-hover:scale-110 transition duration-1000' />
+                <img src={curso.imagen_url} alt={curso.nombre} loading="lazy" decoding="async" className='w-full h-full object-cover group-hover:scale-110 transition duration-1000' />
               ) : (
                 <svg className="w-16 h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
               )}

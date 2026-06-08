@@ -20,7 +20,10 @@ const useScrollReveal = () => {
 }
 
 export default function MisionVision() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
   const navigate = useNavigate()
   return (
     <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
@@ -32,7 +35,7 @@ export default function MisionVision() {
       <header className='relative px-6 lg:px-20 py-16 lg:py-24 flex items-center justify-center min-h-[40vh] bg-cover animate-header-bg' style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
         <div className='text-center space-y-4'>
           <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Mision y visión</p>
-          <h1 className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text' style={{ animationDelay: '0.4s', opacity: 0 }}>
+          <h1 className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white' style={{ animationDelay: '0.4s', opacity: 0 }}>
             Nuestra <span className='text-emerald-500 italic'>Esencia</span>
           </h1>
           <p className='text-emerald-100/60 text-sm tracking-widest uppercase font-medium animate-header-text' style={{ animationDelay: '0.5s', opacity: 0 }}>Valores y Compromiso</p>
@@ -45,7 +48,7 @@ export default function MisionVision() {
               <svg className='w-8 h-8' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
             </div>
             <h2 className='text-4xl font-black text-[#022c22] tracking-tight uppercase'>Misión</h2>
-            <p className='text-lg text-slate-600 leading-relaxed italic'>"Promover iniciativas para el desarrollo del ramo inmobiliario en el estado Bolívar con la participación de los diferentes actores y sectores públicos y privados; además de defender los intereses de todos los afiliados y el cumplimiento de sus deberes."</p>
+            <p className='text-lg text-slate-600 leading-relaxed italic'>Promover el desarrollo inmobiliario del estado Bolívar, mediante la capacitación profesional de sus agremiados. A su vez, proteger los derechos de sus afiliados y clientes en relación al ejercicio de la profesión inmobiliaria de manera ética y transparente.</p>
           </div>
           <div className='group space-y-6 p-8 rounded-[2.5rem] bg-white border-2 border-slate-100 shadow-sm hover:border-emerald-500 transition-all duration-500'>
             <div className='w-14 h-14 bg-[#022c22] text-emerald-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
@@ -55,7 +58,7 @@ export default function MisionVision() {
               </svg>
             </div>
             <h2 className='text-4xl font-black text-[#022c22] tracking-tight uppercase'>Visión</h2>
-            <p className='text-lg text-slate-600 leading-relaxed italic'>"Transformar a la cámara inmobiliaria del estado Bolívar en la institución de vanguardia y sostenible que impulsa un desarrollo inmobiliario desde una perspectiva enmarcada en principios, valores y profesionalismo; así como en las alianzas estratégicas con los sectores públicos y privados."</p>
+            <p className='text-lg text-slate-600 leading-relaxed italic'>Ser fuente de conocimiento en el sector inmobiliario, impulsando el desarrollo sustentable de la profesión a través del tiempo. De igual manera, brindar a todo el público en general alianzas educativas comerciales y ser referentes en el área de bienes raíces.</p>
           </div>
         </div>
         <div className='max-w-4xl mx-auto mt-20 pt-10 border-t border-slate-100 text-center'>

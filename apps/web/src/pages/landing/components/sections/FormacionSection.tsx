@@ -8,36 +8,36 @@ const s = STATIC.formacion;
 
 const FALLBACK_CURSOS = [
   {
-    id: "CIBIR",
-    codigo: "CIBIR",
-    link: "/cibir",
-    titulo: "CIBIR",
-    subtitulo: "Curso Introductorio de Bienes Raíces",
-    imagen_url: "/assets/cibir_catalog.png",
-  },
-  {
     id: "PREANI",
     codigo: "PREANI",
     link: "/preani",
-    titulo: "PREANI",
-    subtitulo: "Programa de Estudios Avanzados en Negocios Inmobiliarios",
-    imagen_url: "/assets/preani_catalog.png",
+    titulo: "Programa de Estudios Académicos",
+    subtitulo: "Inmobiliarios Nivel Inicial",
+    imagen_url: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=75&w=600",
+  },
+  {
+    id: "CIBIR",
+    codigo: "CIBIR",
+    link: "/cibir",
+    titulo: "Curso Intensivo de Bienes Raíces",
+    subtitulo: "Capacitación Técnica Avanzada",
+    imagen_url: "https://observatorio.tec.mx/wp-content/uploads/2020/04/CC3B3mohacerunaclaseenvivoefectivaysincomplicaciones.jpg",
   },
   {
     id: "PEGI",
     codigo: "PEGI",
     link: "/pegi",
-    titulo: "PEGI",
-    subtitulo: "Programa de Especializacion en Gerencia Inmobiliaria",
-    imagen_url: "/assets/pegi_catalog.png",
+    titulo: "Programa Ejecutivo",
+    subtitulo: "Gestión Inmobiliaria Estratégica",
+    imagen_url: "https://static.studyusa.com/article/aws_bEqqGGmAziTXnqDcljdFyWoFhYcnEMGI_sm_2x.jpg?format=webp",
   },
   {
     id: "PADI",
     codigo: "PADI",
     link: "/padi",
-    titulo: "PADI",
-    subtitulo: "Programa de Administración de Inmuebles",
-    imagen_url: "/assets/padi_catalog.png",
+    titulo: "Programa de Administración",
+    subtitulo: "Administración en inmuebles",
+    imagen_url: "https://cms.usanmarcos.ac.cr/sites/default/files/tips-para-el-primer-dia-de-clases.png",
   },
 ];
 
@@ -122,7 +122,8 @@ export default function FormacionSection() {
 
         <div
           ref={revealPanels}
-          className="overflow-hidden -mx-3 reveal-on-scroll"
+          className="overflow-x-auto scrollbar-hide -mx-3 reveal-on-scroll"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <div
             className="flex transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
@@ -138,6 +139,8 @@ export default function FormacionSection() {
                     <img
                       src={curso.imagen_url}
                       alt={curso.titulo}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#022c22] via-[#022c22]/50 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />

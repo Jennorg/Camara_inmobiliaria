@@ -20,7 +20,10 @@ const useScrollReveal = () => {
 };
 
 export default function Proposito() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
   const setRevealCuerpo = useScrollReveal();
   const setRevealAgenda = useScrollReveal();
 

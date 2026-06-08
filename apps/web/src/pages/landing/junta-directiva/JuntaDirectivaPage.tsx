@@ -70,7 +70,7 @@ const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: s
     <div ref={setReveal} style={{ transitionDelay: `${index * 0.1}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[2.5rem] bg-white p-6 border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-700 hover:-translate-y-2'>
       <div className='relative overflow-hidden rounded-[2rem] aspect-square mb-6 bg-gradient-to-br from-emerald-100 to-slate-200'>
         {foto ? (
-          <img src={foto} alt={nombre} className='w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-110' />
+          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-110' />
         ) : (
           <div className='w-full h-full flex items-center justify-center text-6xl font-black text-emerald-300'>
             {nombre.charAt(0)}
@@ -88,7 +88,10 @@ const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: s
 }
 
 export default function EquipoDirectivo() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
   const [directiva, setDirectiva] = useState<MiembroDirectiva[]>(() => readCache() ?? [])
   const [loading, setLoading] = useState(directiva.length === 0)
 
@@ -144,7 +147,7 @@ export default function EquipoDirectivo() {
       <header className='relative px-6 lg:px-20 py-16 lg:py-24 flex items-center justify-center min-h-[40vh] bg-cover animate-header-bg' style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
         <div className='text-center space-y-4'>
           <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Liderazgo Gremial</p>
-          <h1 style={{ animationDelay: '0.4s', opacity: 0 }} className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text'>
+          <h1 style={{ animationDelay: '0.4s', opacity: 0 }} className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white'>
             Junta <span className='text-emerald-500 italic'>Directiva</span>
           </h1>
           <p className='text-emerald-100/60 text-sm tracking-widest uppercase font-medium animate-header-text' style={{ animationDelay: '0.5s', opacity: 0 }}>Gestión 2024 - 2026</p>
@@ -164,9 +167,11 @@ export default function EquipoDirectivo() {
               ))}
             </div>
           ) : (
-            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10'>
+            <div className='flex flex-wrap justify-center gap-10'>
               {directiva.map((miembro, index) => (
-                <DirectorCard key={miembro.id || index} index={index} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto_url || ''} />
+                <div key={miembro.id || index} className="w-full sm:w-[calc(50%-20px)] lg:w-[calc(33.33%-27px)] xl:w-[calc(25%-30px)] max-w-sm">
+                  <DirectorCard index={index} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto_url || ''} />
+                </div>
               ))}
             </div>
           )}

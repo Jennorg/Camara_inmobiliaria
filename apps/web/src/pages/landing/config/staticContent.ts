@@ -26,7 +26,7 @@ export const STATIC = {
       {
         title: "Historia",
         path: "/historia",
-        img: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800",
+        img: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=75&w=500",
       },
       {
         title: "Junta Directiva",

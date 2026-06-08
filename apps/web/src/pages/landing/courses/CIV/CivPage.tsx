@@ -19,8 +19,11 @@ const useScrollReveal = () => {
 }
 
 export default function CodigoEtica() {
-  const [darkMode, setDarkMode] = useState(false)
-  const setReveal = useScrollReveal()
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
+  const setReveal = useScrollReveal();
 
   const principios = [
     { t: 'Integridad', d: 'Actuar con rectitud y honradez en cada asesoría inmobiliaria.', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04k' },
@@ -41,7 +44,7 @@ export default function CodigoEtica() {
       >
         <div className='text-center space-y-4'>
           <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Normativa Profesional</p>
-          <h1 className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text' style={{ animationDelay: '0.4s', opacity: 0 }}>
+          <h1 className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white' style={{ animationDelay: '0.4s', opacity: 0 }}>
             Código de <span className='text-emerald-500 italic'>Ética</span>
           </h1>
         </div>

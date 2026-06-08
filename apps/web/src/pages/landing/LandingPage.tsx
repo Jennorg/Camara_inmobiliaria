@@ -16,7 +16,10 @@ import ConveniosSection from '@/pages/landing/components/sections/ConveniosSecti
 import NoticiasSection from '@/pages/landing/components/sections/NoticiasSection'
 
 export default function LandingPage() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
 
   return (
     <div className={`${darkMode ? 'dark bg-[#022c22]' : 'bg-[#ffffff]'} transition-colors duration-300`}>

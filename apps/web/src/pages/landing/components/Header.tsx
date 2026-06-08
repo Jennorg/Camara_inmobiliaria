@@ -1,4 +1,4 @@
-import bgBolivar from '@/assets/Pzo.png'
+import bgBolivar from '@/assets/Pzo.jpg'
 import { Link } from 'react-router-dom'
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 import { STATIC } from '@/pages/landing/config/staticContent'
@@ -13,7 +13,7 @@ export default function Header({ darkMode }: { darkMode?: boolean }) {
   return (
     <header
       id='inicio'
-      className='relative overflow-hidden px-6 lg:px-20 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 items-center min-h-[95vh]'
+      className='relative overflow-hidden px-6 lg:px-20 py-16 lg:py-16 grid lg:grid-cols-2 gap-12 items-center min-h-[75vh]'
     >
       {/* CAPA 1: IMAGEN CON ZOOM */}
       <div

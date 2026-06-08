@@ -37,7 +37,10 @@ const HitoHistoria = ({ año, titulo, descripcion, index }: { año: string, titu
 }
 
 export default function Historia() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  })
   const navigate = useNavigate()
   const [hitos, setHitos] = useState<{ año: string, titulo: string, descripcion: string }[]>([])
 
@@ -72,9 +75,11 @@ export default function Historia() {
       </header>
       <main className='bg-white text-slate-900 rounded-t-[4rem] -mt-12 relative z-10 px-6 lg:px-20 py-24'>
         <div className='max-w-6xl mx-auto'>
-          <div className='text-center mb-20 space-y-4'>
-            <h2 className='text-3xl font-black text-[#022c22] uppercase tracking-tight'>Un legado en movimiento</h2>
-            <p className='max-w-2xl mx-auto text-slate-500'>Desde nuestros inicios, hemos trabajado para ser el pilar del desarrollo inmobiliario en el sur de Venezuela.</p>
+          <div className='max-w-4xl mx-auto text-center mb-20 space-y-6'>
+            <h2 className='text-3xl font-black text-[#022c22] uppercase tracking-tight'>Reseña Histórica</h2>
+            <p className='text-slate-600 leading-relaxed text-lg md:text-center text-justify'>
+              La Cámara Inmobiliaria del Estado Bolívar, también conocida como CIEBO, es una asociación civil sin fines de lucro que agrupa a personas jurídicas y naturales en el área inmobiliaria. De igual manera, difunde las políticas inmobiliarias de la región del estado Bolívar, asegurando el buen ejercicio de la profesión y la protección de los intereses de sus miembros. Esta cámara nace y se constituye en Ciudad Guayana el 29 de julio de 1999 con el fin de asistir, asesorar y dar asistencia a todos sus agremiados en materia inmobiliaria, además de servir como enlace con las demás cámaras que hacen vida en la región.
+            </p>
           </div>
           <div className='relative'>
             <div className='absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-1 bg-slate-100 hidden md:block' />

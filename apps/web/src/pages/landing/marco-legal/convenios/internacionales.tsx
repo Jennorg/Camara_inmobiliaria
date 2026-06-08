@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bgBolivar from "@/assets/Pzo.jpg";
 import Navbar2 from "@/pages/landing/components/Navbar_sc";
+import Footer from '@/pages/landing/components/Footer'
 
 const CONVENIOS_INTERNACIONALES = [
   {
@@ -95,7 +96,7 @@ export default function Internacionales() {
                   </div>
 
                   <div className="flex flex-col items-center flex-grow justify-center">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-24 md:h-24 rounded-full bg-slate-50 border-2 border-slate-100 flex items-center justify-center overflow-hidden mb-3 md:mb-5 group-hover:border-emerald-200 transition-all duration-500 shadow-inner">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-24 md:h-24 rounded-full bg-slate-50 border-2 border-slate-100 flex items-center justify-center overflow-hidden mb-3 md:mb-5 group-hover:bg-white group-hover:border-emerald-100 transition-all duration-500 shadow-inner">
                       {item.logo ? (
                         <img
                           src={item.logo}
@@ -147,11 +148,7 @@ export default function Internacionales() {
         )}
       </main>
 
-      <footer className="bg-[#011a14] px-4 sm:px-6 lg:px-20 py-8 md:py-12 text-center relative z-10">
-        <p className="text-slate-500 text-[9px] md:text-xs uppercase tracking-[0.2em] font-medium">
-          © 2026 Cámara Inmobiliaria del Estado Bolívar • RIF J-30462520-0
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }

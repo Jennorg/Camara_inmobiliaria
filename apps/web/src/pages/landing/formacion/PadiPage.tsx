@@ -5,6 +5,7 @@ import logoPadi from "../assets/Padi.jpg";
 import Estudiosa from "../assets/estudiosa1.png";
 import Estudioso from "../assets/estudioso1.png";
 import Navbar from '@/pages/landing/components/navbar/Navbar';
+import Footer from '@/pages/landing/components/Footer';
 
 // --- INTERFACES ---
 interface ModuloProps {
@@ -68,7 +69,10 @@ const ModuloPadi: React.FC<ModuloProps> = ({ numero, titulo, descripcion, index 
 
 export default function Padi() {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const stored = localStorage.getItem('darkMode')
+    return stored ? JSON.parse(stored) : false
+  });
   const setRevealEstudiosa = useScrollReveal();
   const setRevealEstudioso = useScrollReveal();
 
@@ -246,11 +250,7 @@ export default function Padi() {
         </div>
       </main>
 
-      <footer className="bg-[#011a14] px-6 lg:px-20 py-12 pt-16 text-center border-t border-white/5 relative z-10">
-        <p className="text-gray-600 text-[10px] uppercase tracking-[0.2em]">
-          PADI • Coordinación de Formación • Cámara Inmobiliaria de Bolívar
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import bgBolivar from "@/assets/Pzo.jpg";
 import Navbar2 from "@/pages/landing/components/Navbar_sc"
+import Footer from '@/pages/landing/components/Footer'
 
 const CONVENIOS_INSTITUCIONALES = [
   {
@@ -128,11 +129,7 @@ export default function Institucionales() {
         )}
       </main>
 
-      <footer className="bg-[#011a14] px-4 sm:px-6 lg:px-20 py-8 md:py-12 text-center relative z-10">
-        <p className="text-slate-500 text-[9px] md:text-xs uppercase tracking-[0.2em] font-medium">
-          © 2026 Cámara Inmobiliaria del Estado Bolívar • RIF J-30462520-0
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }
