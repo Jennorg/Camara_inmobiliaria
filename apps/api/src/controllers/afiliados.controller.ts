@@ -696,69 +696,103 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
 
 export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
   try {
-    // REGLA CRÍTICA: Añadida cedula_rif pública
-    // REGLA DE FILTRO: Solo afiliados con estatus = 'Afiliado'.
-    // Retornamos hasta 1000 afiliados (o todos) para que fuse.js en el frontend haga la búsqueda fuzzy y filtrado local sin saturar DB
-    const result = await db.execute({
-      sql: `
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query params:
+    //   ?q=<digits>  → exact-match search value (stripped of non-digits)
+    //   ?tipo=cedula → match against personas.cedula  (all active affiliates)
+    //   ?tipo=rif    → match against empresas.rif_numero (Corporativos only)
+    //
+    // When ?q is absent the full list is returned (backward compat for Fuse.js).
+    // ──────────────────────────────────────────────────────────────────────────
+    const rawQ  = String(req.query.q  ?? '').trim()
+    const tipo  = String(req.query.tipo ?? '').toLowerCase() // 'cedula' | 'rif' | ''
+    const q     = rawQ.replace(/\D/g, '') // only digits
+
+    const BASE_SELECT = `
       SELECT a.id_afiliado, a.id_empresa,
-             CASE 
+             CASE
                WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''))
-               ELSE NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') 
-             END as nombre_completo, 
+               ELSE NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')
+             END as nombre_completo,
              NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') as representante_nombre,
-             p.nombres, p.apellidos, a.codigo, p.foto_url, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
-             (p.cedula_tipo || '-' || p.cedula) as cedula, e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
+             p.nombres, p.apellidos, a.codigo, p.foto_url,
+             (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
+             (p.cedula_tipo || '-' || p.cedula) as cedula,
+             e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
              a.tipo_afiliado,
              e.razon_social as empresa_razon_social,
              e.logo_url as empresa_logo_url, e.website as empresa_website,
              p.email as email,
              e.email as empresa_email,
              CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END as instagram,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END as facebook,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END as twitter
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook')  ELSE NULL END as facebook,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin')  ELSE NULL END as linkedin,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter')   ELSE NULL END as twitter
       FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-      WHERE (a.estatus = 'Afiliado' OR (a.tipo_afiliado = 'Corporativo' AND a.estatus NOT IN ('Rechazado', 'Cancelado')))
+    `
+
+    const BASE_WHERE = `
+      WHERE a.estatus = 'Afiliado'
         AND a.activo = 1
         AND a.eliminado_en IS NULL
         AND p.eliminado_en IS NULL
-        AND e.eliminado_en IS NULL
-      ORDER BY CASE WHEN a.estatus = 'Afiliado' THEN 0 ELSE 1 END ASC, CAST(a.codigo AS INTEGER) ASC
-      `,      args: []
-    });
+    `
 
-    console.log(`[DEBUG] buscarAfiliadosPublic: Encontrados ${result.rows.length} afiliados activos.`);
-    if (result.rows.length > 0) {
-      console.log(`[DEBUG] Tipos encontrados:`, [...new Set(result.rows.map(r => r.tipo_afiliado))]);
+    let sql: string
+    let args: any[]
+
+    if (q && q.length >= 5) {
+      if (tipo === 'rif') {
+        // ── Búsqueda por RIF de empresa (solo Corporativos) ─────────────────
+        sql = `${BASE_SELECT} ${BASE_WHERE}
+               AND a.tipo_afiliado = 'Corporativo'
+               AND e.rif_numero = ?
+               LIMIT 5`
+        args = [q]
+      } else {
+        // ── Búsqueda por cédula personal (todos los afiliados activos) ──────
+        // También incluye corporativos buscados por la cédula de su representante legal
+        sql = `${BASE_SELECT} ${BASE_WHERE}
+               AND p.cedula = ?
+               LIMIT 5`
+        args = [q]
+      }
+    } else {
+      // ── Sin q → lista completa para compatibilidad ──────────────────────
+      sql = `${BASE_SELECT} ${BASE_WHERE}
+             ORDER BY CASE WHEN a.estatus = 'Afiliado' THEN 0 ELSE 1 END ASC,
+                      CAST(a.codigo AS INTEGER) ASC`
+      args = []
     }
+
+    const result = await db.execute({ sql, args })
+
+    console.log(`[DEBUG] buscarAfiliadosPublic: q="${q}" tipo="${tipo}" → ${result.rows.length} resultado(s)`)
 
     const mappedData = result.rows.map((row) => ({
       ...row,
       foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
       redes_sociales: {
         instagram: row.instagram || '',
-        linkedin: row.linkedin || '',
-        facebook: row.facebook || '',
-        twitter: row.twitter || '',
-        website: row.website || ''
+        linkedin:  row.linkedin  || '',
+        facebook:  row.facebook  || '',
+        twitter:   row.twitter   || '',
+        website:   row.website   || ''
       }
-    }));
+    }))
 
-    return res.status(200).json({
-      success: true,
-      data: mappedData
-    });
+    return res.status(200).json({ success: true, data: mappedData })
   } catch (error) {
-    console.error('Error en buscarAfiliadosPublic:', error);
+    console.error('Error en buscarAfiliadosPublic:', error)
     return res.status(500).json({
       success: false,
       message: 'Error interno del servidor al realizar la búsqueda pública'
-    });
+    })
   }
-};
+}
+
 
 export const getAfiliadoPublicById = async (req: Request, res: Response) => {
   try {

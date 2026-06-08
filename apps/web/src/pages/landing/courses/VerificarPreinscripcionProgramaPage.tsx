@@ -88,77 +88,86 @@ export default function VerificarPreinscripcionProgramaPage() {
   // Ref para el debounce del guardado automático
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [activeAffiliates, setActiveAffiliates] = useState<any[]>([])
-  const [affiliatesLoading, setAffiliatesLoading] = useState(false)
-  const [searchCedula1, setSearchCedula1] = useState('')
+  // ── Reference search state (on-demand per reference) ────────────────────
+  type TipoReferencia = 'cedula' | 'rif'
+  const [searchTipo1, setSearchTipo1] = useState<TipoReferencia>('cedula')
+  const [searchQuery1, setSearchQuery1] = useState('')
+  const [searching1, setSearching1] = useState(false)
   const [selectedAffiliate1, setSelectedAffiliate1] = useState<any | null>(null)
-  const [searchCedula2, setSearchCedula2] = useState('')
+  const [notFound1, setNotFound1] = useState(false)
+
+  const [searchTipo2, setSearchTipo2] = useState<TipoReferencia>('cedula')
+  const [searchQuery2, setSearchQuery2] = useState('')
+  const [searching2, setSearching2] = useState(false)
   const [selectedAffiliate2, setSelectedAffiliate2] = useState<any | null>(null)
+  const [notFound2, setNotFound2] = useState(false)
 
-  useEffect(() => {
-    if (userData?.programaCodigo === 'AFILIACION') {
-      setAffiliatesLoading(true)
-      fetch(`${API_URL}/api/public/afiliados/buscar`)
-        .then(res => res.json())
-        .then(json => {
-          if (json.success) {
-            setActiveAffiliates(json.data)
-          }
-        })
-        .catch(err => console.error('Error fetching active affiliates:', err))
-        .finally(() => setAffiliatesLoading(false))
+  // Debounce refs
+  const refTimer1 = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refTimer2 = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /** Generic on-demand affiliate search — fires after 400ms debounce */
+  const makeRefSearchHandler = (
+    tipo: TipoReferencia,
+    setQuery: React.Dispatch<React.SetStateAction<string>>,
+    setSearching: React.Dispatch<React.SetStateAction<boolean>>,
+    setSelected: React.Dispatch<React.SetStateAction<any | null>>,
+    setNotFound: React.Dispatch<React.SetStateAction<boolean>>,
+    refField: 'nombre_referencia1' | 'nombre_referencia2',
+    timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>
+  ) => (val: string) => {
+    setQuery(val)
+    const q = val.replace(/\D/g, '')
+    if (q.length < 5) {
+      setSelected(null)
+      setNotFound(false)
+      setFormData(prev => ({ ...prev, [refField]: '' }))
+      return
     }
-  }, [userData])
-
-  const handleSearchCedula1Change = (val: string) => {
-    setSearchCedula1(val)
-    const cleanSearch = val.replace(/\D/g, '')
-    if (cleanSearch.length >= 5) {
-      const match = activeAffiliates.find(a => {
-        const cleanCed = (a.cedula || '').replace(/\D/g, '')
-        const cleanRif = (a.empresa_rif_numero || '').replace(/\D/g, '')
-        return cleanCed === cleanSearch || cleanRif === cleanSearch
-      })
-      if (match) {
-        setSelectedAffiliate1(match)
-        setFormData(prev => ({
-          ...prev,
-          nombre_referencia1: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})`
-        }))
-      } else {
-        setSelectedAffiliate1(null)
-        setFormData(prev => ({ ...prev, nombre_referencia1: '' }))
+    // Debounce
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      setSearching(true)
+      setSelected(null)
+      setNotFound(false)
+      try {
+        const res = await fetch(`${API_URL}/api/public/afiliados/buscar?q=${encodeURIComponent(q)}&tipo=${tipo}`)
+        const json = await res.json()
+        const match = json.success && json.data.length > 0 ? json.data[0] : null
+        if (match) {
+          setSelected(match)
+          const displayId = tipo === 'rif'
+            ? `RIF: ${match.empresa_rif_tipo ?? 'J'}-${match.empresa_rif_numero}`
+            : `C.I.: ${match.cedula}`
+          setFormData(prev => ({
+            ...prev,
+            [refField]: `${match.nombre_completo} (${displayId})`
+          }))
+        } else {
+          setNotFound(true)
+          setFormData(prev => ({ ...prev, [refField]: '' }))
+        }
+      } catch {
+        setNotFound(true)
+        setFormData(prev => ({ ...prev, [refField]: '' }))
+      } finally {
+        setSearching(false)
       }
-    } else {
-      setSelectedAffiliate1(null)
-      setFormData(prev => ({ ...prev, nombre_referencia1: '' }))
-    }
+    }, 400)
   }
 
-  const handleSearchCedula2Change = (val: string) => {
-    setSearchCedula2(val)
-    const cleanSearch = val.replace(/\D/g, '')
-    if (cleanSearch.length >= 5) {
-      const match = activeAffiliates.find(a => {
-        const cleanCed = (a.cedula || '').replace(/\D/g, '')
-        const cleanRif = (a.empresa_rif_numero || '').replace(/\D/g, '')
-        return cleanCed === cleanSearch || cleanRif === cleanSearch
-      })
-      if (match) {
-        setSelectedAffiliate2(match)
-        setFormData(prev => ({
-          ...prev,
-          nombre_referencia2: `${match.nombre_completo} (C.I. / RIF: ${match.cedula || match.empresa_rif_numero})`
-        }))
-      } else {
-        setSelectedAffiliate2(null)
-        setFormData(prev => ({ ...prev, nombre_referencia2: '' }))
-      }
-    } else {
-      setSelectedAffiliate2(null)
-      setFormData(prev => ({ ...prev, nombre_referencia2: '' }))
-    }
-  }
+  const handleRefQuery1Change = makeRefSearchHandler(
+    searchTipo1, setSearchQuery1, setSearching1, setSelectedAffiliate1, setNotFound1,
+    'nombre_referencia1', refTimer1
+  )
+  const handleRefQuery2Change = makeRefSearchHandler(
+    searchTipo2, setSearchQuery2, setSearching2, setSelectedAffiliate2, setNotFound2,
+    'nombre_referencia2', refTimer2
+  )
+
+  /** Reset a reference search when tipo changes */
+  const resetRef1 = () => { setSearchQuery1(''); setSelectedAffiliate1(null); setNotFound1(false); setFormData(prev => ({ ...prev, nombre_referencia1: '' })) }
+  const resetRef2 = () => { setSearchQuery2(''); setSelectedAffiliate2(null); setNotFound2(false); setFormData(prev => ({ ...prev, nombre_referencia2: '' })) }
 
   useEffect(() => {
     const verificarToken = async () => {
@@ -311,7 +320,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   const displayName = userData?.nombreCompleto
   const currentYear = new Date().getFullYear()
   const anosServicio = formData.ano_inicio_servicio ? (currentYear - parseInt(formData.ano_inicio_servicio, 10)) : 0
-  const tieneDiplomadoRequerido = formData.diplomados.some(d => 
+  const tieneDiplomadoRequerido = formData.diplomados.some(d =>
     ['FIPPI', 'PREANI', 'PREANI'].includes(d.nombre.toUpperCase())
   )
   const showReferencesSection = isAfiliacion && (anosServicio > 5 || tieneDiplomadoRequerido)
@@ -451,7 +460,7 @@ export default function VerificarPreinscripcionProgramaPage() {
     // 7. Validar Referencias (si aplica)
     if (showReferencesSection) {
       // Solo validar si se ha intentado llenar algo de la referencia 1
-      if ((formData.url_referencia1 || searchCedula1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
+      if ((formData.url_referencia1 || searchQuery1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
         Swal.fire({
           title: 'Referencia 1 Incompleta',
           text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.',
@@ -461,7 +470,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         return;
       }
       // Solo validar si se ha intentado llenar algo de la referencia 2
-      if ((formData.url_referencia2 || searchCedula2) && (!selectedAffiliate2 || !formData.url_referencia2)) {
+      if ((formData.url_referencia2 || searchQuery2) && (!selectedAffiliate2 || !formData.url_referencia2)) {
         Swal.fire({
           title: 'Referencia 2 Incompleta',
           text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 2, o deja ambos campos vacíos.',
@@ -508,106 +517,106 @@ export default function VerificarPreinscripcionProgramaPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
-      
+
       {status !== 'error' && (
         <section className="relative bg-[#022c22] pt-28 pb-16 overflow-hidden text-center animate-in fade-in duration-500">
           <div className="relative z-10 max-w-5xl mx-auto px-6">
-          {isMainProgram ? (
-            <div className="w-full max-w-5xl mx-auto mb-10 mt-2 px-2">
-              {/* Timeline Desktop/Mobile wrapping */}
-              <div className="flex flex-wrap md:flex-nowrap items-start justify-center md:justify-between relative pb-4 pt-2 gap-y-4 gap-x-3 md:gap-x-0">
-                <div
-                  className="absolute top-[28px] left-[8%] right-[8%] h-0.5 bg-emerald-500/20 -z-0 hidden md:block" />
-                <div
-                  className="absolute top-[28px] left-[8%] h-0.5 bg-emerald-400 -z-0 hidden md:block transition-all duration-1000"
-                  style={{ width: `${percent}%` }}
-                />
+            {isMainProgram ? (
+              <div className="w-full max-w-5xl mx-auto mb-10 mt-2 px-2">
+                {/* Timeline Desktop/Mobile wrapping */}
+                <div className="flex flex-wrap md:flex-nowrap items-start justify-center md:justify-between relative pb-4 pt-2 gap-y-4 gap-x-3 md:gap-x-0">
+                  <div
+                    className="absolute top-[28px] left-[8%] right-[8%] h-0.5 bg-emerald-500/20 -z-0 hidden md:block" />
+                  <div
+                    className="absolute top-[28px] left-[8%] h-0.5 bg-emerald-400 -z-0 hidden md:block transition-all duration-1000"
+                    style={{ width: `${percent}%` }}
+                  />
 
-                {steps.map((step, idx) => {
-                  const isCompleted = idx < (status === 'success' ? 2 : 1)
-                  const isCurrent = idx === (status === 'success' ? 2 : 1)
-                  const StepIcon = step.icon
+                  {steps.map((step, idx) => {
+                    const isCompleted = idx < (status === 'success' ? 2 : 1)
+                    const isCurrent = idx === (status === 'success' ? 2 : 1)
+                    const StepIcon = step.icon
 
-                  return (
-                    <div key={step.id} className="flex flex-col items-center gap-2 relative z-10 flex-1 min-w-[75px] max-w-[120px] md:max-w-none text-center">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md ${isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' :
-                          isCurrent ? 'bg-emerald-400 text-[#022c22] scale-110 font-bold' :
-                            'bg-emerald-900/30 text-emerald-100/40 border border-emerald-500/30'
-                          }`}
-                      >
-                        {isCompleted ? <Check size={16} strokeWidth={3} /> : <StepIcon size={16} />}
+                    return (
+                      <div key={step.id} className="flex flex-col items-center gap-2 relative z-10 flex-1 min-w-[75px] max-w-[120px] md:max-w-none text-center">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md ${isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' :
+                            isCurrent ? 'bg-emerald-400 text-[#022c22] scale-110 font-bold' :
+                              'bg-emerald-900/30 text-emerald-100/40 border border-emerald-500/30'
+                            }`}
+                        >
+                          {isCompleted ? <Check size={16} strokeWidth={3} /> : <StepIcon size={16} />}
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className={`text-[8px] font-black uppercase tracking-wider ${isCurrent ? 'text-emerald-300' : isCompleted ? 'text-emerald-400' : 'text-emerald-100/40'}`}>
+                            Paso {idx + 1}
+                          </p>
+                          <p className={`text-[10px] font-bold leading-tight truncate max-w-[95px] mx-auto ${isCurrent ? 'text-white' : 'text-emerald-100/60'}`}>
+                            {step.label}
+                          </p>
+                        </div>
                       </div>
-                      <div className="space-y-0.5">
-                        <p className={`text-[8px] font-black uppercase tracking-wider ${isCurrent ? 'text-emerald-300' : isCompleted ? 'text-emerald-400' : 'text-emerald-100/40'}`}>
-                          Paso {idx + 1}
-                        </p>
-                        <p className={`text-[10px] font-bold leading-tight truncate max-w-[95px] mx-auto ${isCurrent ? 'text-white' : 'text-emerald-100/60'}`}>
-                          {step.label}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
-                  <CheckCircle2 size={16} />
+                    )
+                  })}
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                  Paso 1
-                </span>
               </div>
-              <div className="w-12 h-px bg-emerald-500/30" />
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'success' ? 'bg-emerald-500' : 'bg-emerald-500/20 border border-emerald-500/40'}`}>
-                  {status === 'success' ? <CheckCircle2 size={16} className="text-white" /> : <span className="text-emerald-400 text-xs font-black">2</span>}
+            ) : (
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
+                    <CheckCircle2 size={16} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                    Paso 1
+                  </span>
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'success' ? 'text-emerald-400' : 'text-emerald-100/60'}`}>
-                  Paso 2
-                </span>
+                <div className="w-12 h-px bg-emerald-500/30" />
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'success' ? 'bg-emerald-500' : 'bg-emerald-500/20 border border-emerald-500/40'}`}>
+                    {status === 'success' ? <CheckCircle2 size={16} className="text-white" /> : <span className="text-emerald-400 text-xs font-black">2</span>}
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'success' ? 'text-emerald-400' : 'text-emerald-100/60'}`}>
+                    Paso 2
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
-          
-          {status !== 'loading' && status !== 'verifying' && (
-            <>
-              <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-3">
-                {status === 'success' ? '¡Todo Listo!' : (isAfiliacion ? 'Validación de Afiliado' : 'Completa tu Perfil')}
-              </h1>
-              <p className="text-white/90 text-sm max-w-lg mx-auto">
-                {status === 'form' && userData
-                  ? <>Hola <span className="text-white font-bold">{displayName || 'aspirante'}</span>, falta poco para finalizar tu <span className="text-emerald-400 font-bold">{isAfiliacion ? 'solicitud de afiliación' : `inscripción al programa ${programaLabel}`}</span>.</>
-                  : message
-                }
-              </p>
-            </>
-          )}
+            )}
 
-          {status === 'loading' && (
-            <div className="flex flex-col items-center justify-center py-4 space-y-4">
-              <Loader2 size={32} className="animate-spin text-emerald-400" />
-              <div className="space-y-1">
-                <h2 className="text-xl font-black text-white uppercase tracking-tight">Verificando enlace</h2>
-                <p className="text-emerald-100/60 text-xs font-bold uppercase tracking-wider">Cargando tu información...</p>
-              </div>
-            </div>
-          )}
+            {status !== 'loading' && status !== 'verifying' && (
+              <>
+                <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-3">
+                  {status === 'success' ? '¡Todo Listo!' : (isAfiliacion ? 'Validación de Afiliado' : 'Completa tu Perfil')}
+                </h1>
+                <p className="text-white/90 text-sm max-w-lg mx-auto">
+                  {status === 'form' && userData
+                    ? <>Hola <span className="text-white font-bold">{displayName || 'aspirante'}</span>, falta poco para finalizar tu <span className="text-emerald-400 font-bold">{isAfiliacion ? 'solicitud de afiliación' : `inscripción al programa ${programaLabel}`}</span>.</>
+                    : message
+                  }
+                </p>
+              </>
+            )}
 
-          {status === 'verifying' && (
-            <div className="flex flex-col items-center justify-center py-4 space-y-4">
-              <Loader2 size={32} className="animate-spin text-emerald-400" />
-              <div className="space-y-1">
-                <h2 className="text-xl font-black text-white uppercase tracking-tight">Procesando Solicitud</h2>
-                <p className="text-emerald-100/60 text-xs font-bold uppercase tracking-wider">Generando tu expediente digital...</p>
+            {status === 'loading' && (
+              <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                <Loader2 size={32} className="animate-spin text-emerald-400" />
+                <div className="space-y-1">
+                  <h2 className="text-xl font-black text-white uppercase tracking-tight">Verificando enlace</h2>
+                  <p className="text-emerald-100/60 text-xs font-bold uppercase tracking-wider">Cargando tu información...</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+
+            {status === 'verifying' && (
+              <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                <Loader2 size={32} className="animate-spin text-emerald-400" />
+                <div className="space-y-1">
+                  <h2 className="text-xl font-black text-white uppercase tracking-tight">Procesando Solicitud</h2>
+                  <p className="text-emerald-100/60 text-xs font-bold uppercase tracking-wider">Generando tu expediente digital...</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       <main className="flex-1">
@@ -1445,110 +1454,125 @@ export default function VerificarPreinscripcionProgramaPage() {
                       </div>
                     </div>
                     <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
-                      Debes adjuntar dos cartas de recomendación moral emitidas por afiliados activos de la Cámara.
+                      Adjunta dos cartas de recomendación moral emitidas por afiliados activos de la Cámara.
+                      Puedes buscar por cédula personal o por RIF de empresa.
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Referencia 1 */}
-                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
-                      <div className="space-y-1.5">
+
+                    {/* ── Referencia 1 ─────────────────────────────────── */}
+                    {([
+                      {
+                        label: 'Recomendante 1 (Opcional)',
+                        tipo: searchTipo1,
+                        setTipo: (t: 'cedula' | 'rif') => { setSearchTipo1(t); resetRef1() },
+                        query: searchQuery1,
+                        onQueryChange: handleRefQuery1Change,
+                        searching: searching1,
+                        selected: selectedAffiliate1,
+                        notFound: notFound1,
+                        urlField: 'url_referencia1' as const,
+                        uploadLabel: 'Carta de referencia 1',
+                      },
+                      {
+                        label: 'Recomendante 2 (Opcional)',
+                        tipo: searchTipo2,
+                        setTipo: (t: 'cedula' | 'rif') => { setSearchTipo2(t); resetRef2() },
+                        query: searchQuery2,
+                        onQueryChange: handleRefQuery2Change,
+                        searching: searching2,
+                        selected: selectedAffiliate2,
+                        notFound: notFound2,
+                        urlField: 'url_referencia2' as const,
+                        uploadLabel: 'Carta de referencia 2',
+                      },
+                    ] as const).map((ref, idx) => (
+                      <div key={idx} className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
+
+                        {/* Label */}
                         <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">
-                          Recomendante 1 (Opcional)
+                          {ref.label}
                         </label>
-                        <div className="relative group">
-                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                          <input
-                            type="text"
-                            value={searchCedula1}
-                            onChange={(e) => handleSearchCedula1Change(e.target.value)}
-                            placeholder="Buscar por Cédula..."
-                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
-                          />
+
+                        {/* Tipo dropdown + search input */}
+                        <div className="flex gap-2 items-stretch">
+
+                          {/* Dropdown tipo */}
+                          <div className="relative shrink-0">
+                            <select
+                              value={ref.tipo}
+                              onChange={e => ref.setTipo(e.target.value as 'cedula' | 'rif')}
+                              className="h-10 pl-2 min-w-[82px] rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wider text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 appearance-none cursor-pointer transition"
+                            >
+                              <option value="cedula">Cédula</option>
+                              <option value="rif">RIF</option>
+                            </select>
+                            <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                          </div>
+
+                          {/* Search input */}
+                          <div className="relative group flex-1">
+                            {ref.searching
+                              ? <Loader2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin" />
+                              : <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                            }
+                            <input
+                              type="text"
+                              value={ref.query}
+                              onChange={e => ref.onQueryChange(e.target.value)}
+                              placeholder={ref.tipo === 'rif' ? 'Ej: 12345678 (solo dígitos)' : 'Ej: 12345678 (solo dígitos)'}
+                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
+                            />
+                          </div>
                         </div>
+
+                        {/* Result card */}
+                        {ref.query.replace(/\D/g, '').length >= 5 && !ref.searching && (
+                          <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                            {ref.selected ? (
+                              <div className="flex items-start gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold">
+                                <ShieldCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                                <div className="min-w-0">
+                                  <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
+                                  <span className="truncate block mt-0.5 font-bold">{ref.selected.nombre_completo}</span>
+                                  {ref.tipo === 'rif' && ref.selected.representante_nombre && (
+                                    <span className="block mt-0.5 text-emerald-700 font-medium">Rep. Legal: {ref.selected.representante_nombre}</span>
+                                  )}
+                                  <span className="block mt-0.5 text-emerald-600 font-medium">
+                                    {ref.tipo === 'rif'
+                                      ? `RIF: ${ref.selected.empresa_rif_tipo ?? 'J'}-${ref.selected.empresa_rif_numero}`
+                                      : `C.I.: ${ref.selected.cedula}`
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                            ) : ref.notFound ? (
+                              <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-xs font-bold">
+                                <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                                <div>
+                                  <span className="text-[11px] uppercase font-black tracking-widest block text-rose-600 leading-none">No encontrado</span>
+                                  <span className="block mt-0.5">
+                                    {ref.tipo === 'rif'
+                                      ? 'No existe empresa afiliada activa con ese RIF.'
+                                      : 'No existe afiliado activo con esa cédula.'}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+
+                        <FileUpload
+                          label={ref.uploadLabel}
+                          accept="image/*,.pdf"
+                          folder="afiliados/referencias"
+                          onUploadSuccess={(url) => setFormData(prev => ({ ...prev, [ref.urlField]: url }))}
+                          onClear={() => setFormData(prev => ({ ...prev, [ref.urlField]: '' }))}
+                        />
                       </div>
+                    ))}
 
-                      {/* Display Selected Affiliate Status */}
-                      {searchCedula1.replace(/\D/g, '').length >= 5 && (
-                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                          {selectedAffiliate1 ? (
-                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold">
-                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
-                              <div className="truncate">
-                                <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
-                                <span className="truncate block mt-0.5">{selectedAffiliate1.nombre_completo}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-xs font-bold">
-                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
-                              <div>
-                                <span className="text-[11px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
-                                <span className="block mt-0.5">No se encontró el afiliado.</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <FileUpload
-                        label="Referencia de afiliado 1"
-                        accept="image/*,.pdf"
-                        folder="afiliados/referencias"
-                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia1: url }))}
-                        onClear={() => setFormData(prev => ({ ...prev, url_referencia1: '' }))}
-                      />
-                    </div>
-
-                    {/* Referencia 2 */}
-                    <div className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
-                      <div className="space-y-1.5">
-                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">
-                          Recomendante 2 (Opcional)
-                        </label>
-                        <div className="relative group">
-                          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
-                          <input
-                            type="text"
-                            value={searchCedula2}
-                            onChange={(e) => handleSearchCedula2Change(e.target.value)}
-                            placeholder="Buscar por Cédula..."
-                            className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Display Selected Affiliate Status */}
-                      {searchCedula2.replace(/\D/g, '').length >= 5 && (
-                        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                          {selectedAffiliate2 ? (
-                            <div className="flex items-center gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold">
-                              <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
-                              <div className="truncate">
-                                <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
-                                <span className="truncate block mt-0.5">{selectedAffiliate2.nombre_completo}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-100 rounded-xl text-rose-800 text-xs font-bold">
-                              <AlertCircle size={14} className="text-rose-500 shrink-0" />
-                              <div>
-                                <span className="text-[11px] uppercase font-black tracking-widest block text-rose-600 leading-none">Buscando</span>
-                                <span className="block mt-0.5">No se encontró el afiliado.</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <FileUpload
-                        label="Referencia de afiliado 2"
-                        accept="image/*,.pdf"
-                        folder="afiliados/referencias"
-                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, url_referencia2: url }))}
-                        onClear={() => setFormData(prev => ({ ...prev, url_referencia2: '' }))}
-                      />
-                    </div>
                   </div>
                 </div>
               )}
