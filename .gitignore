@@ -28,7 +28,9 @@ dist-ssr
 .vercel
 .env*.local
 
+scripts/
 scripts/temp_*
+apps/api/src/scripts/inspect_*
 *.temp.js
 *.temp.ts
 *.temp.sh
