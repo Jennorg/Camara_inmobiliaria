@@ -334,6 +334,20 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  const remitirACibir = async (id: number) => {
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/remitir-cibir`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo remitir a CIBIR')
+      await fetchData()
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
   const rechazar = async (id: number) => {
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/rechazar`, {
@@ -999,7 +1013,31 @@ export default function PreinscripcionesPrincipalesPanel({
               <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col gap-2">
               {selected.estatus === 'Preinscrito' && (
                 <div className="flex gap-2">
-                  {['AFILIACION', 'PEGI'].includes(selected.programa_codigo) ? (
+                  {selected.programa_codigo === 'AFILIACION' ? (
+                    <>
+                      {selected.apto_convalidacion ? (
+                        <button
+                          onClick={() => aprobarDirecto(selected.id_inscripcion)}
+                          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[11px] font-bold shadow-lg shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-wider"
+                        >
+                          Aprobar Directo
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => remitirACibir(selected.id_inscripcion)}
+                          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[11px] font-bold shadow-lg shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-wider"
+                        >
+                          Remitir a CIBIR
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowModalAgendar(true)}
+                        className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-[11px] font-bold hover:bg-[#00B870] transition-colors uppercase tracking-wider"
+                      >
+                        Agendar Entrevista
+                      </button>
+                    </>
+                  ) : selected.programa_codigo === 'PEGI' ? (
                     <button
                       onClick={() => setShowModalAgendar(true)}
                       className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-semibold hover:bg-[#00B870] transition-colors"

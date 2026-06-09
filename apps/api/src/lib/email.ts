@@ -333,6 +333,40 @@ export const enviarCorreoAprobacionEstudiante = async (params: {
   return data
 }
 
+export const enviarCorreoInvitacionCibir = async (params: {
+  nombre: string
+  emailOriginal: string
+  token?: string
+}) => {
+  const { nombre, emailOriginal, token } = params
+  const enlacePortal = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
+  
+  const { data, error } = await sendResendEmail({
+    from: DEFAULT_FROM,
+    to: emailOriginal,
+    subject: 'Información sobre tu solicitud de afiliación — CIBIR',
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Hemos revisado tu solicitud de afiliación a la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>.</p>
+      
+      <div style="background-color: #f8fafc; border-radius: 16px; padding: 24px; margin: 32px 0; border: 1px solid #e2e8f0;">
+        <p style="margin-top: 0; font-weight: 700; color: #1e40af;">Requerimiento Académico</p>
+        <p>Para completar tu proceso de afiliación, es necesario que realices el <strong>Curso de Inducción de Bienes Raíces (CIBIR)</strong>, el cual te proporcionará los conocimientos fundamentales necesarios para el ejercicio profesional en nuestro estado.</p>
+        
+        <p>Ya te hemos dado acceso a nuestro portal para que puedas gestionar tu formación y estar al tanto de las próximas cohortes del curso.</p>
+        
+        <div style="text-align: center; margin-top: 24px;">
+          <a href="${enlacePortal}" class="btn">${token ? 'Activar mi Cuenta' : 'Ir a mi Panel'}</a>
+        </div>
+      </div>
+      
+      <p style="font-size: 14px; color: #64748b;">Una vez que completes satisfactoriamente el programa CIBIR, tu solicitud de afiliación continuará a la siguiente fase de aprobación.</p>
+    `, 'Afiliación - CIBIR')
+  })
+  if (error) { console.error('enviarCorreoInvitacionCibir:', error); throw error }
+  return data
+}
+
 /** Notifica el resultado final de la entrevista */
 export const enviarCorreoResultadoEntrevista = async (params: {
   nombre: string
@@ -369,6 +403,37 @@ export const enviarCorreoResultadoEntrevista = async (params: {
     `, 'Resultado')
   })
   if (error) { console.error('enviarCorreoResultadoEntrevista:', error); throw error }
+  return data
+}
+
+/** Correo de Notificación de Rechazo de Solicitud/Preinscripción */
+export const enviarCorreoRechazo = async (params: {
+  nombre: string
+  emailOriginal: string
+  programaCodigo: string
+  motivo?: string | null
+}) => {
+  const { nombre, emailOriginal, programaCodigo, motivo } = params
+  const { data, error } = await sendResendEmail({
+    from: DEFAULT_FROM,
+    to: emailOriginal,
+    subject: `Estatus de tu solicitud — Cámara Inmobiliaria`,
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">Información sobre tu solicitud</h2>
+      <p>Hola, <strong>${nombre}</strong>.</p>
+      <p>Te informamos que tu solicitud para el programa/afiliación <strong>${programaCodigo}</strong> no ha sido aprobada en esta ocasión.</p>
+      ${motivo ? `
+        <div style="background-color: #f9fafb; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; margin: 24px 0;">
+          <p style="margin-top: 0; font-weight: 700; color: #374151; font-size: 14px;">Motivo o comentarios de la administración:</p>
+          <p style="margin-bottom: 0; font-style: italic; color: #4b5563; font-size: 13px;">"${motivo}"</p>
+        </div>
+      ` : ''}
+      <p style="font-size: 14px; color: #4b5563; margin-top: 24px;">
+        Agradecemos tu interés y el tiempo dedicado a postularte. Si deseas solventar los inconvenientes e intentarlo de nuevo en el futuro, podrás realizar una nueva solicitud ingresando a nuestro portal.
+      </p>
+    `, 'Solicitud Rechazada')
+  })
+  if (error) { console.error('enviarCorreoRechazo:', error); throw error }
   return data
 }
 

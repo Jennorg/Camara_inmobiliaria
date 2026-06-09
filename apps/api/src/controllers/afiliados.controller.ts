@@ -13,7 +13,8 @@ import {
   enviarCorreoAprobacion,
   notificarAdminNuevaAfiliacion,
   enviarCorreoInvitacionCorporativa,
-  enviarCorreoVinculacionCorporativa
+  enviarCorreoVinculacionCorporativa,
+  enviarCorreoRechazo
 } from '../lib/email.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
@@ -106,11 +107,14 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
           ic.creado_en as fecha_inscripcion,
           cu.titulo as curso_nombre,
           cu.categoria as nivel_academico,
-          cu.imagen_url
+          cu.imagen_url,
+          a.estatus as afiliado_estatus,
+          a.id_afiliado
         FROM inscripciones_cursos ic
         LEFT JOIN cursos cu ON ic.id_curso = cu.id_curso
         LEFT JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
+        LEFT JOIN afiliados a ON (e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa))
         WHERE ((e.id_estudiante = ? AND ? IS NOT NULL)
            OR (? <> '' AND LOWER(TRIM(p.email)) = ?)
            OR (? <> '' AND EXISTS (
@@ -118,7 +122,7 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
                 WHERE p_inner.id = e.id_persona 
                 AND LOWER(TRIM(p_inner.email)) = ?
               )))
-           AND (ic.programa_codigo IS NULL OR ic.programa_codigo <> 'AFILIACION')
+           AND (ic.programa_codigo IS NULL OR ic.programa_codigo <> 'AFILIACION' OR a.estatus = '5_CIBIR')
         ORDER BY ic.creado_en DESC
       `,
       args: [
@@ -137,13 +141,28 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
     for (const row of inscripciones.rows) {
       const cursoData: any = { ...row };
       
+      // Si es de AFILIACION, pero el estatus del afiliado es '5_CIBIR'
+      // lo convertimos visualmente en el programa CIBIR para el estudiante
+      if (row.programa_codigo === 'AFILIACION') {
+        if (row.afiliado_estatus === '5_CIBIR') {
+          cursoData.programa_codigo = 'CIBIR';
+          cursoData.curso_nombre = 'Programa CIBIR';
+          cursoData.nivel_academico = 'Profesional';
+          cursoData.estatus_academico = 'Cursando'; // forzar cursando mientras hace CIBIR
+        } else {
+          // Si es AFILIACION pero no está en etapa CIBIR, no lo mostramos en sus cursos
+          continue;
+        }
+      }
+
       // Ajuste para nombre del programa (cuando no hay id_curso)
       if (!cursoData.curso_nombre && cursoData.programa_codigo) {
         cursoData.curso_nombre = cursoData.programa_codigo === 'CIBIR' ? 'Programa CIBIR' : cursoData.programa_codigo;
         cursoData.nivel_academico = 'Profesional'; // default fallback
       }
       
-      if (row.programa_codigo === 'CIBIR' && idAfiliado) {
+      const finalIdAfiliado = row.id_afiliado || idAfiliado;
+      if (cursoData.programa_codigo === 'CIBIR' && finalIdAfiliado) {
         const modulos = await db.execute({
           sql: `
             SELECT modulo, estatus, fecha_evaluacion 
@@ -151,7 +170,7 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
             WHERE id_afiliado = ?
             ORDER BY modulo ASC
           `,
-          args: [idAfiliado]
+          args: [finalIdAfiliado]
         });
         cursoData.modulos = modulos.rows;
       }
@@ -224,9 +243,17 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
             FROM documentos_adjuntos
             WHERE (entidad_tipo = 'afiliado' AND entidad_id = ?)
                OR (entidad_tipo = 'empresa' AND entidad_id = ?)
-               OR (entidad_tipo = 'estudiante' AND entidad_id = (SELECT id_estudiante FROM estudiantes WHERE id_persona = ?))
+               OR (entidad_tipo = 'estudiante' AND entidad_id = (
+                 SELECT id_estudiante FROM estudiantes 
+                 WHERE id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)
+               ))
             ORDER BY creado_en ASC`,
-      args: [afiliado.id_afiliado, afiliado.id_empresa || -1, afiliado.id_persona]
+      args: [
+        afiliado.id_afiliado, 
+        afiliado.id_empresa || -1, 
+        afiliado.id_persona, 
+        afiliado.id_empresa || -1
+      ]
     })
 
     res.status(200).json({
@@ -645,13 +672,18 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
 
-    // 1. Verificar si existe y si su estatus es Preinscrito
+    // 1. Verificar si existe y si su estatus es Preinscrito, obteniendo email y nombre
     const resultAfiliado = await db.execute({
-      sql: 'SELECT * FROM afiliados WHERE id_afiliado = ?',
+      sql: `SELECT a.*, p.nombres, p.apellidos, p.email,
+                   e.razon_social, e.email as empresa_email
+            FROM afiliados a
+            JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            WHERE a.id_afiliado = ?`,
       args: [id]
     });
 
-    const afiliado = resultAfiliado.rows[0];
+    const afiliado = resultAfiliado.rows[0] as any;
 
     if (!afiliado) {
       return res.status(404).json({
@@ -674,6 +706,24 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
             WHERE id_afiliado = ? RETURNING *`,
       args: [fechaCambio, fechaCambio, id]
     });
+
+    // Enviar correo de rechazo
+    try {
+      const isCorp = afiliado.tipo_afiliado === 'Corporativo';
+      const emailOriginal = isCorp ? (afiliado.empresa_email || afiliado.email) : afiliado.email;
+      const nombre = isCorp 
+        ? (afiliado.razon_social || `${afiliado.nombres || ''} ${afiliado.apellidos || ''}`.trim())
+        : `${afiliado.nombres || ''} ${afiliado.apellidos || ''}`.trim();
+
+      await enviarCorreoRechazo({
+        nombre,
+        emailOriginal,
+        programaCodigo: 'AFILIACION',
+        motivo: req.body?.motivo || req.body?.notaAdmin || null
+      });
+    } catch (err) {
+      console.error('Error enviando correo de rechazo de afiliación:', err);
+    }
 
     return res.status(200).json({
       success: true,
@@ -744,20 +794,35 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     let args: any[]
 
     if (q && q.length >= 5) {
-      if (tipo === 'rif') {
-        // ── Búsqueda por RIF de empresa (solo Corporativos) ─────────────────
+      const upperTipo = tipo.toUpperCase()
+      if (['J', 'G', 'C'].includes(upperTipo)) {
+        // ── Búsqueda por RIF de empresa (Corporativos) ─────────────────
         sql = `${BASE_SELECT} ${BASE_WHERE}
-               AND a.tipo_afiliado = 'Corporativo'
                AND e.rif_numero = ?
+               AND UPPER(e.rif_tipo) = ?
                LIMIT 5`
-        args = [q]
-      } else {
-        // ── Búsqueda por cédula personal (todos los afiliados activos) ──────
-        // También incluye corporativos buscados por la cédula de su representante legal
+        args = [q, upperTipo]
+      } else if (['V', 'E', 'P'].includes(upperTipo)) {
+        // ── Búsqueda por cédula personal (todos los afiliados activos) ─────────────
         sql = `${BASE_SELECT} ${BASE_WHERE}
                AND p.cedula = ?
+               AND UPPER(p.cedula_tipo) = ?
                LIMIT 5`
-        args = [q]
+        args = [q, upperTipo]
+      } else {
+        // Fallback backward compatibility for 'cedula' or 'rif'
+        if (tipo === 'rif') {
+          sql = `${BASE_SELECT} ${BASE_WHERE}
+                 AND a.tipo_afiliado = 'Corporativo'
+                 AND e.rif_numero = ?
+                 LIMIT 5`
+          args = [q]
+        } else {
+          sql = `${BASE_SELECT} ${BASE_WHERE}
+                 AND p.cedula = ?
+                 LIMIT 5`
+          args = [q]
+        }
       }
     } else {
       // ── Sin q → lista completa para compatibilidad ──────────────────────
@@ -1282,8 +1347,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     if (hasDocs) {
       const stCheck = await db.execute({
-        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ?`,
-        args: [idPersona]
+        sql: `SELECT id_estudiante FROM estudiantes 
+              WHERE id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)`,
+        args: [idPersona, idEmpresa || -1]
       });
       const idEstudiante = stCheck.rows[0]?.id_estudiante || null;
 
@@ -1295,18 +1361,27 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         let entidadTipo = 'afiliado';
         let entidadId = Number(id);
 
-        if (['registro_mercantil', 'rif_empresa'].includes(tipo_doc) && idEmpresa) {
+        if (['registro_mercantil', 'rif_empresa', 'cedula_representante'].includes(tipo_doc) && idEmpresa) {
           entidadTipo = 'empresa';
           entidadId = Number(idEmpresa);
-        } else if (['titulo', 'cv'].includes(tipo_doc) && idEstudiante) {
-          entidadTipo = 'estudiante';
-          entidadId = Number(idEstudiante);
+        } else if (['titulo', 'cv', 'curso_extra', 'diplomado', 'especializacion'].includes(tipo_doc)) {
+          if (idEstudiante) {
+            entidadTipo = 'estudiante';
+            entidadId = Number(idEstudiante);
+          } else {
+            entidadTipo = 'afiliado';
+            entidadId = Number(id);
+          }
         }
 
-        // Delete previous document of the same type for this entity
+        // Delete previous document of the same type across all associated entities to prevent duplicates
         await db.execute({
-          sql: `DELETE FROM documentos_adjuntos WHERE entidad_tipo = ? AND entidad_id = ? AND tipo_doc = ?`,
-          args: [entidadTipo, entidadId, tipo_doc]
+          sql: `DELETE FROM documentos_adjuntos 
+                WHERE ((entidad_tipo = 'afiliado' AND entidad_id = ?)
+                   OR (entidad_tipo = 'empresa' AND entidad_id = ?)
+                   OR (entidad_tipo = 'estudiante' AND entidad_id = ?))
+                  AND tipo_doc = ?`,
+          args: [Number(id), idEmpresa || -1, idEstudiante || -1, tipo_doc]
         });
 
         // Insert new one if URL is provided
@@ -1737,8 +1812,8 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
     // B. Borrar historial académico y estudiante
     if (id_persona) {
       const estCheck = await db.execute({
-        sql: 'SELECT id_estudiante FROM estudiantes WHERE id_persona = ?',
-        args: [id_persona]
+        sql: 'SELECT id_estudiante FROM estudiantes WHERE id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)',
+        args: [id_persona, id_empresa || -1]
       });
       if (estCheck.rows.length > 0) {
         const idEst = estCheck.rows[0].id_estudiante;

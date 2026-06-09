@@ -89,14 +89,14 @@ export default function VerificarPreinscripcionProgramaPage() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Reference search state (on-demand per reference) ────────────────────
-  type TipoReferencia = 'cedula' | 'rif'
-  const [searchTipo1, setSearchTipo1] = useState<TipoReferencia>('cedula')
+  type TipoReferencia = 'V' | 'E' | 'J' | 'G' | 'P'
+  const [searchTipo1, setSearchTipo1] = useState<TipoReferencia>('V')
   const [searchQuery1, setSearchQuery1] = useState('')
   const [searching1, setSearching1] = useState(false)
   const [selectedAffiliate1, setSelectedAffiliate1] = useState<any | null>(null)
   const [notFound1, setNotFound1] = useState(false)
 
-  const [searchTipo2, setSearchTipo2] = useState<TipoReferencia>('cedula')
+  const [searchTipo2, setSearchTipo2] = useState<TipoReferencia>('V')
   const [searchQuery2, setSearchQuery2] = useState('')
   const [searching2, setSearching2] = useState(false)
   const [selectedAffiliate2, setSelectedAffiliate2] = useState<any | null>(null)
@@ -136,7 +136,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         const match = json.success && json.data.length > 0 ? json.data[0] : null
         if (match) {
           setSelected(match)
-          const displayId = tipo === 'rif'
+          const displayId = ['J', 'G'].includes(tipo)
             ? `RIF: ${match.empresa_rif_tipo ?? 'J'}-${match.empresa_rif_numero}`
             : `C.I.: ${match.cedula}`
           setFormData(prev => ({
@@ -234,11 +234,13 @@ export default function VerificarPreinscripcionProgramaPage() {
             })
           } else {
             // Sin progreso guardado — inicializar con datos del servidor + perfil
-            const docs = profileData?.documentos || []
+            const docs = profileData?.documentos || json.data.documentos || []
             const cvDoc = docs.find((d: any) => d.tipo_doc === 'cv')
             const tituloDoc = docs.find((d: any) => d.tipo_doc === 'titulo')
             const registroDoc = docs.find((d: any) => d.tipo_doc === 'registro_mercantil')
             const tituloRepDoc = docs.find((d: any) => d.tipo_doc === 'titulo_representante')
+            const ref1Doc = docs.find((d: any) => d.tipo_doc === 'referencia_afiliado_1')
+            const ref2Doc = docs.find((d: any) => d.tipo_doc === 'referencia_afiliado_2')
 
             setFormData(prev => ({
               ...prev,
@@ -257,10 +259,10 @@ export default function VerificarPreinscripcionProgramaPage() {
               cursos_extras: docs.filter((d: any) => d.tipo_doc === 'curso_extra').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
               diplomados: docs.filter((d: any) => d.tipo_doc === 'diplomado').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
               otros_docs: docs.filter((d: any) => d.tipo_doc === 'otro_documento').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
-              url_referencia1: '',
-              nombre_referencia1: '',
-              url_referencia2: '',
-              nombre_referencia2: '',
+              url_referencia1: ref1Doc?.url || '',
+              nombre_referencia1: ref1Doc?.nombre_archivo || '',
+              url_referencia2: ref2Doc?.url || '',
+              nombre_referencia2: ref2Doc?.nombre_archivo || '',
             }))
           }
           setStatus('form')
@@ -459,8 +461,9 @@ export default function VerificarPreinscripcionProgramaPage() {
 
     // 7. Validar Referencias (si aplica)
     if (showReferencesSection) {
-      // Solo validar si se ha intentado llenar algo de la referencia 1
-      if ((formData.url_referencia1 || searchQuery1) && (!selectedAffiliate1 || !formData.url_referencia1)) {
+      const hasRef1 = (formData.url_referencia1 && formData.nombre_referencia1) || (formData.url_referencia1 && selectedAffiliate1)
+      const isRef1Attempted = formData.url_referencia1 || searchQuery1 || formData.nombre_referencia1
+      if (isRef1Attempted && !hasRef1) {
         Swal.fire({
           title: 'Referencia 1 Incompleta',
           text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.',
@@ -469,8 +472,10 @@ export default function VerificarPreinscripcionProgramaPage() {
         });
         return;
       }
-      // Solo validar si se ha intentado llenar algo de la referencia 2
-      if ((formData.url_referencia2 || searchQuery2) && (!selectedAffiliate2 || !formData.url_referencia2)) {
+
+      const hasRef2 = (formData.url_referencia2 && formData.nombre_referencia2) || (formData.url_referencia2 && selectedAffiliate2)
+      const isRef2Attempted = formData.url_referencia2 || searchQuery2 || formData.nombre_referencia2
+      if (isRef2Attempted && !hasRef2) {
         Swal.fire({
           title: 'Referencia 2 Incompleta',
           text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 2, o deja ambos campos vacíos.',
@@ -479,6 +484,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         });
         return;
       }
+
       if (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado) {
         Swal.fire({
           title: 'Referencias Duplicadas',
@@ -1461,30 +1467,32 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    {/* ── Referencia 1 ─────────────────────────────────── */}
+                     {/* ── Referencia 1 ─────────────────────────────────── */}
                     {([
                       {
                         label: 'Recomendante 1 (Opcional)',
                         tipo: searchTipo1,
-                        setTipo: (t: 'cedula' | 'rif') => { setSearchTipo1(t); resetRef1() },
+                        setTipo: (t: TipoReferencia) => { setSearchTipo1(t); resetRef1() },
                         query: searchQuery1,
                         onQueryChange: handleRefQuery1Change,
                         searching: searching1,
                         selected: selectedAffiliate1,
                         notFound: notFound1,
                         urlField: 'url_referencia1' as const,
+                        nameField: 'nombre_referencia1' as const,
                         uploadLabel: 'Carta de referencia 1',
                       },
                       {
                         label: 'Recomendante 2 (Opcional)',
                         tipo: searchTipo2,
-                        setTipo: (t: 'cedula' | 'rif') => { setSearchTipo2(t); resetRef2() },
+                        setTipo: (t: TipoReferencia) => { setSearchTipo2(t); resetRef2() },
                         query: searchQuery2,
                         onQueryChange: handleRefQuery2Change,
                         searching: searching2,
                         selected: selectedAffiliate2,
                         notFound: notFound2,
                         urlField: 'url_referencia2' as const,
+                        nameField: 'nombre_referencia2' as const,
                         uploadLabel: 'Carta de referencia 2',
                       },
                     ] as const).map((ref, idx) => (
@@ -1502,11 +1510,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                           <div className="relative shrink-0">
                             <select
                               value={ref.tipo}
-                              onChange={e => ref.setTipo(e.target.value as 'cedula' | 'rif')}
-                              className="h-10 pl-2 min-w-[82px] rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wider text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 appearance-none cursor-pointer transition"
+                              onChange={e => ref.setTipo(e.target.value as TipoReferencia)}
+                              className="h-10 pl-2 pr-6 min-w-[64px] rounded-xl border border-slate-200 text-xs font-black uppercase tracking-wider text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 appearance-none cursor-pointer transition"
                             >
-                              <option value="cedula">Cédula</option>
-                              <option value="rif">RIF</option>
+                              <option value="V">V</option>
+                              <option value="E">E</option>
+                              <option value="J">J</option>
+                              <option value="G">G</option>
+                              <option value="P">P</option>
                             </select>
                             <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
                           </div>
@@ -1521,11 +1532,22 @@ export default function VerificarPreinscripcionProgramaPage() {
                               type="text"
                               value={ref.query}
                               onChange={e => ref.onQueryChange(e.target.value)}
-                              placeholder={ref.tipo === 'rif' ? 'Ej: 12345678 (solo dígitos)' : 'Ej: 12345678 (solo dígitos)'}
+                              placeholder="Ej: 12345678 (solo dígitos)"
                               className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 placeholder:text-slate-400 bg-white transition"
                             />
                           </div>
                         </div>
+
+                        {/* Preloaded reference display */}
+                        {!ref.query && formData[ref.nameField] && (
+                          <div className="flex items-start gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold animate-in fade-in duration-200">
+                            <ShieldCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                            <div className="min-w-0">
+                              <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Recomendante Cargado</span>
+                              <span className="truncate block mt-0.5 font-bold">{formData[ref.nameField]}</span>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Result card */}
                         {ref.query.replace(/\D/g, '').length >= 5 && !ref.searching && (
@@ -1536,11 +1558,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 <div className="min-w-0">
                                   <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Activo Encontrado</span>
                                   <span className="truncate block mt-0.5 font-bold">{ref.selected.nombre_completo}</span>
-                                  {ref.tipo === 'rif' && ref.selected.representante_nombre && (
+                                  {['J', 'G'].includes(ref.tipo) && ref.selected.representante_nombre && (
                                     <span className="block mt-0.5 text-emerald-700 font-medium">Rep. Legal: {ref.selected.representante_nombre}</span>
                                   )}
                                   <span className="block mt-0.5 text-emerald-600 font-medium">
-                                    {ref.tipo === 'rif'
+                                    {['J', 'G'].includes(ref.tipo)
                                       ? `RIF: ${ref.selected.empresa_rif_tipo ?? 'J'}-${ref.selected.empresa_rif_numero}`
                                       : `C.I.: ${ref.selected.cedula}`
                                     }
@@ -1553,9 +1575,9 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 <div>
                                   <span className="text-[11px] uppercase font-black tracking-widest block text-rose-600 leading-none">No encontrado</span>
                                   <span className="block mt-0.5">
-                                    {ref.tipo === 'rif'
+                                    {['J', 'G'].includes(ref.tipo)
                                       ? 'No existe empresa afiliada activa con ese RIF.'
-                                      : 'No existe afiliado activo con esa cédula.'}
+                                      : 'No existe afiliado activo con ese documento.'}
                                   </span>
                                 </div>
                               </div>
@@ -1567,8 +1589,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                           label={ref.uploadLabel}
                           accept="image/*,.pdf"
                           folder="afiliados/referencias"
-                          onUploadSuccess={(url) => setFormData(prev => ({ ...prev, [ref.urlField]: url }))}
-                          onClear={() => setFormData(prev => ({ ...prev, [ref.urlField]: '' }))}
+                          initialUrl={formData[ref.urlField] || undefined}
+                          initialFileName={formData[ref.nameField] || undefined}
+                          onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, [ref.urlField]: url, [ref.nameField]: fileName || '' }))}
+                          onClear={() => setFormData(prev => ({ ...prev, [ref.urlField]: '', [ref.nameField]: '' }))}
                         />
                       </div>
                     ))}

@@ -122,16 +122,16 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
       const body = curso.isFlagship
         ? {
             programaCodigo: curso.codigo,
-            nombreCompleto: nombre,
-            email: email,
-            cedulaRif: '—', 
-            telefono: '—',
-            nivelProfesional: 'No especificado',
-            esCorredorInmobiliario: false
+            nombreCompleto: user?.nombre_completo || nombre,
+            email: user?.email || email,
+            cedulaRif: user?.cedula || '—', 
+            telefono: user?.telefono || '—',
+            nivelProfesional: user?.nivel_profesional || 'No especificado',
+            esCorredorInmobiliario: !!user?.es_corredor_inmobiliario
           }
         : {
-            nombreCompleto: nombre,
-            email: email
+            nombreCompleto: user?.nombre_completo || nombre,
+            email: user?.email || email
           };
 
       fetch(url, {
@@ -142,8 +142,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
       .then(res => res.json())
       .then(json => {
         if (json.success) {
-          const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
-          if (isDev && json.data?.token) {
+          if (json.data?.token) {
             window.location.href = `/cursos/verificar?token=${json.data.token}`;
             return;
           }
@@ -161,7 +160,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
       // Usuario logueado: No pedir datos, solo confirmar
       Swal.fire({
         title: `¿Inscribirse en ${curso.nombre}?`,
-        text: `Usaremos los datos de tu cuenta (${user.email}) para la preinscripción.`,
+        text: `Usaremos los datos de tu perfil para formalizar la preinscripción.`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'Sí, inscribirme',
@@ -169,8 +168,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         confirmButtonColor: '#00D084',
       }).then((result) => {
         if (result.isConfirmed) {
-          const nombreFallback = user.email.split('@')[0];
-          processInscripcion(nombreFallback, user.email);
+          processInscripcion(user.nombre_completo || '', user.email);
         }
       });
     } else {

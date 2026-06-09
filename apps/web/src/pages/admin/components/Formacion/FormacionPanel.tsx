@@ -1,15 +1,17 @@
 import React, { useState } from 'react'
 import AsignarEstudiantePanel from './AsignarEstudiantePanel'
 import CursosAdminPanel from './CursosAdminPanel'
+import AprobarCursosPanel from './AprobarCursosPanel'
 
 // ─── MAIN FORMACION PANEL ─────────────────────────────────────────────────────
-type SubTab = 'cursos' | 'asignar'
+type SubTab = 'cursos' | 'asignar' | 'aprobar'
 
 const FormacionPanel = () => {
   const [activeTab, setActiveTab] = useState<SubTab>('cursos')
 
   const tabs: { id: SubTab; label: string }[] = [
     { id: 'cursos', label: 'Cursos & Talleres' },
+    { id: 'aprobar', label: 'Aprobar Cursos' },
     { id: 'asignar', label: 'Asignar Estudiante' },
   ]
 
@@ -36,6 +38,7 @@ const FormacionPanel = () => {
       {/* Content */}
       <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden">
         {activeTab === 'cursos' && <CursosAdminPanel />}
+        {activeTab === 'aprobar' && <AprobarCursosPanel />}
         {activeTab === 'asignar' && <AsignarEstudiantePanel />}
 
       </div>

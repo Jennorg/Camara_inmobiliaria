@@ -364,7 +364,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
               </div>
             </div>
 
-            {programaCodigo !== 'AFILIACION' && (
+            {!['AFILIACION', 'CIBIR'].includes(programaCodigo) && (
               <>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nivel Académico</label>

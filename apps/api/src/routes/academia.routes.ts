@@ -15,6 +15,7 @@ import {
   adminCompletarCursoEstudiante,
   adminAprobarPreinscripcionDirecta,
   academiaAdminGuards,
+  adminRemitirACibir,
   adminCambiarEtapaInscripcion,
   adminBuscarReferenciaAfiliado,
   adminToggleCorredorStatus,
@@ -58,6 +59,9 @@ router.patch('/inscripciones/:id/finalizar-entrevista', adminFinalizarEntrevista
 
 // PATCH /api/academia/inscripciones/:id/aprobar-directo
 router.patch('/inscripciones/:id/aprobar-directo', adminAprobarPreinscripcionDirecta)
+
+// PATCH /api/academia/inscripciones/:id/remitir-cibir
+router.patch('/inscripciones/:id/remitir-cibir', adminRemitirACibir)
 
 // Mantenemos /aprobar por compatibilidad temporal si es necesario, pero redirigimos a agendar
 router.patch('/inscripciones/:id/aprobar', adminAgendarEntrevista)

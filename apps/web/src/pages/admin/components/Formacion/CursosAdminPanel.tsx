@@ -439,7 +439,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
   const procesar = async (id: number, action: 'aprobar' | 'rechazar' | 'completar') => {
     try {
-      const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/${action}`, {
+      const endpoint = action === 'aprobar' ? 'aprobar-directo' : action;
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/${endpoint}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: action === 'rechazar' ? JSON.stringify({ notaAdmin: '' }) : undefined,
