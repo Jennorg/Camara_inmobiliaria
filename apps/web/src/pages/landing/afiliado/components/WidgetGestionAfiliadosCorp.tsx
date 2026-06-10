@@ -507,7 +507,7 @@ export default function WidgetGestionAfiliadosCorp() {
                     </>
                   ) : (
                     <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-200">
-                      Pendiente Confirmar Correo
+                      Pendiente por cargar expediente
                     </span>
                   )}
                 </div>

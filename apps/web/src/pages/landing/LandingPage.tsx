@@ -50,9 +50,9 @@ export default function LandingPage() {
 
       <DirectivaSection />
 
-      <BentoGallerySection />
-
       <ConveniosSection />
+
+      <BentoGallerySection />
 
       <Footer />
     </div >

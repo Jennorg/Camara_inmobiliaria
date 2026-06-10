@@ -6,13 +6,13 @@ import { API_URL } from '@/config/env'
 
 let activeAccessToken: string | null = null;
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: ((token: string | null) => void)[] = [];
 
-function subscribeTokenRefresh(cb: (token: string) => void) {
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
   refreshSubscribers.push(cb);
 }
 
-function onRefreshed(token: string) {
+function onRefreshed(token: string | null) {
   refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
 }
@@ -60,6 +60,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
         } else {
           isRefreshing = false;
           activeAccessToken = null;
+          onRefreshed(null); // Desbloquear colas aunque falle
           // Solo disparar evento de expiración si teníamos un token previo
           if (oldToken) {
             window.dispatchEvent(new CustomEvent('ciebo_auth_expired'));
@@ -68,6 +69,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
         }
       } catch (err) {
         isRefreshing = false;
+        onRefreshed(null); // Desbloquear colas
         return response;
       }
     }
@@ -75,8 +77,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
     // Encolar peticiones mientras se refresca el token
     return new Promise((resolveRequest) => {
       subscribeTokenRefresh((newToken) => {
-        headers.set('Authorization', `Bearer ${newToken}`);
-        resolveRequest(originalFetch(input, { ...init, headers, credentials: 'include' }));
+        if (newToken) {
+          headers.set('Authorization', `Bearer ${newToken}`);
+          resolveRequest(originalFetch(input, { ...init, headers, credentials: 'include' }));
+        } else {
+          resolveRequest(response); // Resolver con el 401 original
+        }
       });
     });
   }
@@ -197,6 +203,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Restore session on mount
   useEffect(() => {
+    // Failsafe timeout: si en 10 segundos no ha cargado, forzar setLoading(false)
+    const failsafe = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
     // 1. Verificar si viene un token por URL (para saltos de subdominio)
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
@@ -246,6 +257,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         setLoading(false)
       })
+      .finally(() => {
+        clearTimeout(failsafe);
+      });
   }, [setToken])
 
   // Login function

@@ -29,7 +29,7 @@ export default function MiembrosPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre')
+  const [searchField, setSearchField] = useState<'nombre' | 'id' | 'codigo'>('nombre')
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos')
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
@@ -187,12 +187,15 @@ export default function MiembrosPanel() {
 
       let matchSearch = true
       if (s) {
-        if (searchField === 'cedula') {
+        if (searchField === 'id') {
           matchSearch = cedula.includes(s) || rif.includes(s)
         } else if (searchField === 'codigo') {
           matchSearch = (item.codigo || '').toLowerCase().includes(s)
-        } else { // default: nombre
-          matchSearch = nombre.includes(s) || razonSocial.includes(s)
+        } else { // nombre (inclusivo)
+          matchSearch = nombre.includes(s) || 
+                        razonSocial.includes(s) ||
+                        (item.nombres || '').toLowerCase().includes(s) || 
+                        (item.apellidos || '').toLowerCase().includes(s)
         }
       }
 
@@ -384,7 +387,7 @@ export default function MiembrosPanel() {
           </div>
 
           <div className="flex gap-2">
-            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-8 overflow-hidden">
+            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-8">
               {/* Dropdown de criterio */}
               <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
                 <button
@@ -393,9 +396,9 @@ export default function MiembrosPanel() {
                   className="flex items-center gap-0.5 px-2 h-full text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
                 >
                   <span>
-                    {searchField === 'nombre' && 'Nom'}
-                    {searchField === 'cedula' && 'Céd'}
-                    {searchField === 'codigo' && 'Cód'}
+                    {searchField === 'nombre' && 'Nombre'}
+                    {searchField === 'id' && 'ID / RIF'}
+                    {searchField === 'codigo' && 'Código'}
                   </span>
                   <ChevronDown size={10} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -403,10 +406,10 @@ export default function MiembrosPanel() {
                 {showSearchDropdown && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[90px] animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200">
                       {([
                         { key: 'nombre', label: 'Nombre' },
-                        { key: 'cedula', label: 'Cédula' },
+                        { key: 'id', label: 'Cédula / RIF' },
                         { key: 'codigo', label: 'Código' },
                       ] as const).map(option => (
                         <button
@@ -435,8 +438,8 @@ export default function MiembrosPanel() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={`Buscar por ${
-                    searchField === 'nombre' ? 'nombre' :
-                    searchField === 'cedula' ? 'cédula' : 'código'
+                    searchField === 'nombre' ? 'nombre / representante' :
+                    searchField === 'id' ? 'cédula o RIF' : 'código'
                   }...`}
                   className="w-full h-full pl-6 pr-8 bg-transparent text-xs font-semibold placeholder-slate-400 outline-none"
                 />

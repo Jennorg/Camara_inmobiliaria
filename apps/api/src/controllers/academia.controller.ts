@@ -1477,7 +1477,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const countArgs: any[] = []
 
     if (onlyCursos) {
-      baseWhere.push('ic.id_curso IS NOT NULL')
+      // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados
+      baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND ic.programa_codigo <> 'AFILIACION'))")
     } else if (cursoId) {
       baseWhere.push('ic.id_curso = ?')
       countArgs.push(cursoId)
@@ -1553,7 +1554,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
                   AND (UPPER(da.nombre_archivo) LIKE '%FIPPI%' OR UPPER(da.nombre_archivo) LIKE '%FIPI%' OR UPPER(da.nombre_archivo) LIKE '%PREANI%')
               )
             )
-          ) THEN 1 ELSE 0 END as apto_convalidacion
+          ) THEN 1 ELSE 0 END as apto_acreditacion
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
