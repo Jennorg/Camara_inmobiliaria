@@ -106,6 +106,10 @@ export default function VerificarPreinscripcionProgramaPage() {
   const refTimer1 = useRef<ReturnType<typeof setTimeout> | null>(null)
   const refTimer2 = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Control de verificación para evitar re-procesos redundantes (especialmente en incógnito)
+  const lastVerifiedTokenRef = useRef<string | null>(null)
+  const lastUserRef = useRef<string | null>(null)
+
   /** Generic on-demand affiliate search — fires after 400ms debounce */
   const makeRefSearchHandler = (
     tipo: TipoReferencia,
@@ -170,8 +174,23 @@ export default function VerificarPreinscripcionProgramaPage() {
   const resetRef2 = () => { setSearchQuery2(''); setSelectedAffiliate2(null); setNotFound2(false); setFormData(prev => ({ ...prev, nombre_referencia2: '' })) }
 
   useEffect(() => {
+    const currentUserKey = `${user?.id_afiliado || 'anon'}-${user?.id_estudiante || 'anon'}`
+
+    // Si el usuario cambia, permitimos re-verificar
+    if (lastUserRef.current !== currentUserKey) {
+      lastVerifiedTokenRef.current = null
+      lastUserRef.current = currentUserKey
+    }
+
+    const tokenParaValidar = tokenFromUrl || 'session'
+
+    // OPTIMIZACIÓN: Evitar re-verificaciones redundantes.
+    // 1. Si ya verificamos un token real, no hace falta intentar con 'session' (el navigate nos trae aquí).
+    // 2. Si es el mismo token que ya procesamos, ignorar.
+    if (tokenParaValidar === 'session' && lastVerifiedTokenRef.current) return
+    if (tokenParaValidar === lastVerifiedTokenRef.current) return
+
     const verificarToken = async () => {
-      const tokenParaValidar = tokenFromUrl || 'session'
       try {
         const res = await fetch(`${API_URL}/api/public/preinscripciones/token/${tokenParaValidar}`, {
           credentials: 'include'
@@ -180,6 +199,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         if (res.ok && json.success) {
           setUserData(json.data)
           const tok = json.data.token as string
+          lastVerifiedTokenRef.current = tok // Guardar para evitar re-verificación
           setVerifiedToken(tok)
 
           if (tokenFromUrl) {
@@ -323,7 +343,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   const currentYear = new Date().getFullYear()
   const anosServicio = formData.ano_inicio_servicio ? (currentYear - parseInt(formData.ano_inicio_servicio, 10)) : 0
   const tieneDiplomadoRequerido = formData.diplomados.some(d =>
-    ['FIPPI', 'PREANI', 'PREANI'].includes(d.nombre.toUpperCase())
+    ['FIPPI', 'PREANI'].includes(d.nombre.toUpperCase())
   )
   const showReferencesSection = isAfiliacion && (anosServicio > 5 || tieneDiplomadoRequerido)
 
@@ -437,7 +457,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         return;
       }
     } else {
-      if (!formData.url_titulo) {
+      if (!formData.url_titulo && formData.nivelProfesional !== 'Bachiller') {
         Swal.fire({
           title: '¡Atención!',
           text: 'Por favor, carga tu Título Académico.',
@@ -461,24 +481,22 @@ export default function VerificarPreinscripcionProgramaPage() {
 
     // 7. Validar Referencias (si aplica)
     if (showReferencesSection) {
-      const hasRef1 = (formData.url_referencia1 && formData.nombre_referencia1) || (formData.url_referencia1 && selectedAffiliate1)
-      const isRef1Attempted = formData.url_referencia1 || searchQuery1 || formData.nombre_referencia1
-      if (isRef1Attempted && !hasRef1) {
+      const hasRef1 = (formData.url_referencia1 && (formData.nombre_referencia1 || selectedAffiliate1))
+      if (!hasRef1) {
         Swal.fire({
-          title: 'Referencia 1 Incompleta',
-          text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 1, o deja ambos campos vacíos.',
+          title: 'Referencia 1 Obligatoria',
+          text: 'Por favor, completa la búsqueda del primer afiliado recomendante y carga su carta de referencia.',
           icon: 'warning',
           confirmButtonColor: '#059669',
         });
         return;
       }
 
-      const hasRef2 = (formData.url_referencia2 && formData.nombre_referencia2) || (formData.url_referencia2 && selectedAffiliate2)
-      const isRef2Attempted = formData.url_referencia2 || searchQuery2 || formData.nombre_referencia2
-      if (isRef2Attempted && !hasRef2) {
+      const hasRef2 = (formData.url_referencia2 && (formData.nombre_referencia2 || selectedAffiliate2))
+      if (!hasRef2) {
         Swal.fire({
-          title: 'Referencia 2 Incompleta',
-          text: 'Por favor, completa la búsqueda del afiliado y carga la carta para la Referencia 2, o deja ambos campos vacíos.',
+          title: 'Referencia 2 Obligatoria',
+          text: 'Por favor, completa la búsqueda del segundo afiliado recomendante y carga su carta de referencia.',
           icon: 'warning',
           confirmButtonColor: '#059669',
         });
@@ -863,10 +881,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
                         <FileUpload
-                          label="Título Académico"
+                          label={formData.nivelProfesional === 'Bachiller' ? "Título de Bachiller (Opcional)" : "Título Académico"}
                           accept="image/*,.pdf"
                           folder="titulos"
-                          required
+                          required={formData.nivelProfesional !== 'Bachiller'}
                           initialUrl={formData.url_titulo || undefined}
                           initialFileName={formData.name_titulo || undefined}
                           onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, url_titulo: url, name_titulo: fileName || '' }))}
@@ -1499,8 +1517,8 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <div key={idx} className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
 
                         {/* Label */}
-                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">
-                          {ref.label}
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-emerald-600 ml-1">
+                          {ref.label.replace('(Opcional)', '(Obligatorio)')}
                         </label>
 
                         {/* Tipo dropdown + search input */}
