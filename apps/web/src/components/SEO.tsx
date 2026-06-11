@@ -29,25 +29,34 @@ const SEO: React.FC<SEOProps> = ({
 
   const currentUrl = url || (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
 
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "Cámara Inmobiliaria del Estado Bolívar",
-    "alternateName": "CIBIR",
-    "url": "https://camarainmobiliariadebolivar.com",
-    "logo": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
-    "description": defaultDescription,
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Puerto Ordaz",
-      "addressRegion": "Bolívar",
-      "addressCountry": "VE"
+  const structuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "RealEstateAgent",
+      "name": "Cámara Inmobiliaria del Estado Bolívar",
+      "alternateName": "CIBIR",
+      "url": "https://camarainmobiliariadebolivar.com",
+      "logo": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
+      "image": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
+      "description": defaultDescription,
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Puerto Ordaz",
+        "addressRegion": "Bolívar",
+        "addressCountry": "VE"
+      },
+      "sameAs": [
+        "https://www.instagram.com/camarainmobiliariabolivar",
+        "https://twitter.com/camarainmobiliariabolivar"
+      ]
     },
-    "sameAs": [
-      "https://www.instagram.com/camarainmobiliariabolivar",
-      "https://twitter.com/camarainmobiliariabolivar"
-    ]
-  };
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Cámara Inmobiliaria del Estado Bolívar",
+      "url": "https://camarainmobiliariadebolivar.com"
+    }
+  ];
 
   return (
     <Helmet>
