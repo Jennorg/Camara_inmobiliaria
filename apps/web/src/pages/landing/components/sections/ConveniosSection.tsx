@@ -44,8 +44,6 @@ export default function ConveniosSection({ cfg = {} }: { cfg?: Record<string, st
     .animate-marquee-infinite { display: flex; width: max-content; animation: marquee-infinite 28s linear infinite; will-change: transform; }
   `
 
-  if (convenios.length === 0) return null
-
   return (
     <section id='convenios' className='bg-white py-10 scroll-mt-24 overflow-hidden'>
       <style>{marqueeStyle}</style>

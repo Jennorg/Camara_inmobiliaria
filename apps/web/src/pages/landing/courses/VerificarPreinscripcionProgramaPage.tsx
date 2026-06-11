@@ -36,6 +36,11 @@ const CURSO_STEPS = [
 
 const INPUT_H = "h-[62px]" // Altura unificada
 
+const isValidReferenciaString = (val: string) => {
+  if (!val) return false
+  return val.includes('(C.I.:') || val.includes('(RIF:')
+}
+
 export default function VerificarPreinscripcionProgramaPage() {
   const { user, token: sessionToken } = useAuth()
   const [searchParams] = useSearchParams()
@@ -348,8 +353,8 @@ export default function VerificarPreinscripcionProgramaPage() {
   const showReferencesSection = isAfiliacion && (anosServicio > 5 || tieneDiplomadoRequerido)
 
   const isReferencesIncomplete = showReferencesSection && (
-    (formData.url_referencia1 && !formData.nombre_referencia1 && !selectedAffiliate1) ||
-    (formData.url_referencia2 && !formData.nombre_referencia2 && !selectedAffiliate2) ||
+    (formData.url_referencia1 && !selectedAffiliate1 && !isValidReferenciaString(formData.nombre_referencia1)) ||
+    (formData.url_referencia2 && !selectedAffiliate2 && !isValidReferenciaString(formData.nombre_referencia2)) ||
     (selectedAffiliate1 && selectedAffiliate2 && selectedAffiliate1.id_afiliado === selectedAffiliate2.id_afiliado)
   )
 
@@ -481,7 +486,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
     // 7. Validar Referencias (si aplica)
     if (showReferencesSection) {
-      const hasRef1 = (formData.url_referencia1 && (formData.nombre_referencia1 || selectedAffiliate1))
+      const hasRef1 = (formData.url_referencia1 && (selectedAffiliate1 || isValidReferenciaString(formData.nombre_referencia1)))
       if (!hasRef1) {
         Swal.fire({
           title: 'Referencia 1 Obligatoria',
@@ -492,7 +497,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         return;
       }
 
-      const hasRef2 = (formData.url_referencia2 && (formData.nombre_referencia2 || selectedAffiliate2))
+      const hasRef2 = (formData.url_referencia2 && (selectedAffiliate2 || isValidReferenciaString(formData.nombre_referencia2)))
       if (!hasRef2) {
         Swal.fire({
           title: 'Referencia 2 Obligatoria',
@@ -1609,7 +1614,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           folder="afiliados/referencias"
                           initialUrl={formData[ref.urlField] || undefined}
                           initialFileName={formData[ref.nameField] || undefined}
-                          onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, [ref.urlField]: url, [ref.nameField]: fileName || '' }))}
+                          onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, [ref.urlField]: url }))}
                           onClear={() => setFormData(prev => ({ ...prev, [ref.urlField]: '', [ref.nameField]: '' }))}
                         />
                       </div>
