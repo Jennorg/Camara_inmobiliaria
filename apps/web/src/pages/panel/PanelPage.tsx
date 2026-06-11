@@ -21,6 +21,7 @@ import {
   UserPlus,
   ClipboardList,
   RefreshCw,
+  Hammer,
 } from 'lucide-react';
 import DashboardSidebar from '@/pages/landing/afiliado/components/DashboardSidebar';
 import DashboardHeader from '@/pages/landing/afiliado/components/DashboardHeader';
@@ -86,11 +87,17 @@ const NAV_SUPER_ADMIN = [
 const NAV_DIVIDER_ADMIN = { icon: ShieldCheck, label: '— Administración —', isDivider: true };
 const NAV_DIVIDER_CMS = { icon: Settings, label: '— Editor Web —', isDivider: true };
 
-// ─── Sección vacía (placeholder) ─────────────────────────────────────────────
-
 const Section = ({ label }: { label: string }) => (
-  <div className="col-span-1 lg:col-span-3 text-center py-16 opacity-50 font-bold uppercase tracking-widest text-sm">
-    🚧 En construcción: {label}
+  <div className="col-span-1 lg:col-span-3 text-center py-20 flex flex-col items-center justify-center gap-4">
+    <div className="w-16 h-16 bg-slate-100 rounded-3xl flex items-center justify-center text-slate-400">
+      <Hammer size={32} />
+    </div>
+    <div className="space-y-1">
+      <p className="opacity-50 font-black uppercase tracking-widest text-xs text-slate-500">
+        Sección en Construcción
+      </p>
+      <h3 className="text-xl font-bold text-slate-400">{label}</h3>
+    </div>
   </div>
 );
 
@@ -157,7 +164,9 @@ const PanelPage = () => {
 
   const solicitudesPendientesCount = agentesCorp.filter(a => a.fase === 'Solicitud').length;
 
-  const displayName = user?.nombre_completo || (user?.email?.split('@')[0] ?? 'Usuario');
+  const displayName = (afiliado?.tipo_afiliado === 'Corporativo' && afiliado?.razon_social) 
+    ? afiliado.razon_social 
+    : (user?.nombre_completo || (user?.email?.split('@')[0] ?? 'Usuario'));
   const displayCode = user?.codigo ?? (isAdmin ? 'Administrador' : '—');
   const isActivo = user?.estatus === 'CIBIR' || user?.estatus === 'Afiliado';
   const isPaid = user?.id_afiliado ? (afiliado?.inscripcion_pagada === 1) : false; // Necesita fetch o estar en user

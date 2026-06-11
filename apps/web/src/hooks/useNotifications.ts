@@ -27,7 +27,7 @@ export function useNotifications() {
       const json = await res.json();
       if (json.success) {
         setNotifications(json.data);
-        setUnreadCount(json.data.filter((n: Notification) => n.leido === 0).length);
+        setUnreadCount(json.unreadCount ?? json.data.filter((n: Notification) => n.leido === 0).length);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
