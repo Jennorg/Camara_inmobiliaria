@@ -52,7 +52,7 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
           ic.estatus AS inscripcion_estatus,
           ic.completado,
           cu.titulo AS curso_nombre,
-          COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as estudiante_nombre
+          COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as estudiante_nombre
         FROM certificados c
         JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante

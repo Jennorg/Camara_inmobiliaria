@@ -194,6 +194,17 @@ export class NotificationService {
   }
 
   /**
+   * Obtiene la cantidad de notificaciones no leídas de un usuario.
+   */
+  static async getUnreadCount(userId: number): Promise<number> {
+    const res = await db.execute({
+      sql: `SELECT COUNT(*) as count FROM notificaciones WHERE id_user = ? AND leido = 0`,
+      args: [userId]
+    });
+    return (res.rows[0]?.count as number) || 0;
+  }
+
+  /**
    * Marca una notificación como leída.
    */
   static async markAsRead(notificationId: number, userId: number) {

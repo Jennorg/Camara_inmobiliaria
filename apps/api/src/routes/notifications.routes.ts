@@ -20,7 +20,8 @@ router.get('/', requireAuth, async (req, res) => {
     const offset = parseInt(req.query.offset as string) || 0
 
     const notifications = await NotificationService.getUserNotifications(userId, limit, offset)
-    res.json({ success: true, data: notifications })
+    const unreadCount = await NotificationService.getUnreadCount(userId)
+    res.json({ success: true, data: notifications, unreadCount })
   } catch (error) {
     console.error('GET /notifications:', error)
     res.status(500).json({ success: false, message: 'Error al obtener notificaciones' })

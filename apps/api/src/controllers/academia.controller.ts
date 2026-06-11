@@ -469,6 +469,72 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
   }
 }
 
+const checkValidAffiliate = async (nombreRef: string): Promise<boolean> => {
+  const rawNombre = nombreRef.trim()
+  if (!rawNombre) return false
+
+  // 1. Intentar extraer cédula/RIF y nombre limpio
+  let docMatch = rawNombre.match(/(?:C\.I\.\s*\/)?\s*(?:RIF|C\.I\.):\s*([A-Z0-9-]{5,15})/i)
+  if (!docMatch) {
+    docMatch = rawNombre.match(/\b([VJEG]-[0-9]{5,10}-[0-9]|[VJEG][0-9]{5,10})\b/i)
+  }
+  if (!docMatch) {
+    docMatch = rawNombre.match(/\b([0-9]{6,10})\b/)
+  }
+  const extractedDoc = docMatch ? docMatch[1].trim() : null
+
+  // Nombre limpio (quitando los paréntesis y el RIF)
+  let nombreLimpio = rawNombre
+  const parenIndex = rawNombre.indexOf('(')
+  if (parenIndex !== -1) {
+    nombreLimpio = rawNombre.substring(0, parenIndex).trim()
+  }
+
+  const nameSearch = `%${nombreLimpio}%`
+
+  if (extractedDoc) {
+    const cleanDoc = extractedDoc.replace(/[^a-zA-Z0-9]/g, '')
+    const docSearchLike = `%${cleanDoc}%`
+    const res = await db.execute({
+      sql: `
+        SELECT a.id_afiliado 
+        FROM afiliados a
+        JOIN personas p ON a.id_persona = p.id
+        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+        WHERE a.estatus = 'Afiliado' AND a.activo = 1 AND a.eliminado_en IS NULL
+          AND (
+            p.cedula = ?
+            OR e.rif_numero = ?
+            OR REPLACE(REPLACE(p.cedula, '-', ''), ' ', '') LIKE ?
+            OR REPLACE(REPLACE(e.rif_numero, '-', ''), ' ', '') LIKE ?
+            OR (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') LIKE ?)
+            OR (e.razon_social LIKE ?)
+          )
+        LIMIT 1
+      `,
+      args: [extractedDoc, extractedDoc, docSearchLike, docSearchLike, nameSearch, nameSearch]
+    })
+    return res.rows.length > 0
+  } else {
+    const res = await db.execute({
+      sql: `
+        SELECT a.id_afiliado 
+        FROM afiliados a
+        JOIN personas p ON a.id_persona = p.id
+        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+        WHERE a.estatus = 'Afiliado' AND a.activo = 1 AND a.eliminado_en IS NULL
+          AND (
+            (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') LIKE ?)
+            OR (e.razon_social LIKE ?)
+          )
+        LIMIT 1
+      `,
+      args: [nameSearch, nameSearch]
+    })
+    return res.rows.length > 0
+  }
+}
+
 /**
  * POST /api/public/preinscripciones/confirmar
  * Confirma el email y crea la preinscripción real en `inscripciones_cursos`.
@@ -508,6 +574,31 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     */
 
     const programaCodigo = normalizeProgramaCodigo(registro.programa_interes)
+
+    // Validar referencias del afiliado si vienen en el body (solo para AFILIACION)
+    if (programaCodigo === 'AFILIACION') {
+      const ref1Url = typeof req.body?.url_referencia1 === 'string' ? req.body.url_referencia1.trim() : ''
+      const ref1Nombre = typeof req.body?.nombre_referencia1 === 'string' ? req.body.nombre_referencia1.trim() : ''
+      const ref2Url = typeof req.body?.url_referencia2 === 'string' ? req.body.url_referencia2.trim() : ''
+      const ref2Nombre = typeof req.body?.nombre_referencia2 === 'string' ? req.body.nombre_referencia2.trim() : ''
+
+      if (ref1Url) {
+        const isValid = await checkValidAffiliate(ref1Nombre)
+        if (!isValid) {
+          res.status(400).json({ success: false, message: 'La primera referencia no corresponde a un afiliado activo válido.' })
+          return
+        }
+      }
+
+      if (ref2Url) {
+        const isValid = await checkValidAffiliate(ref2Nombre)
+        if (!isValid) {
+          res.status(400).json({ success: false, message: 'La segunda referencia no corresponde a un afiliado activo válido.' })
+          return
+        }
+      }
+    }
+
     const email = String(registro.email ?? '').trim().toLowerCase()
 
     const nombres = String(registro.nombres ?? '').trim()
@@ -959,15 +1050,17 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       }
     }
 
-    // Notificar al admin
-    notificarAdminNuevaPreinscripcion({
-      idInscripcion: Number(result.rows[0].id_inscripcion),
-      nombre: nombreCompleto,
-      email: email,
-      programaCodigo: programaCodigo,
-      cedulaRif: cedulaRif,
-      telefono: telefono
-    }).catch(e => console.error('Error notificando admin (programa):', e))
+    // Notificar al admin (Deshabilitado para AFILIACION temporalmente por solicitud del usuario)
+    if (programaCodigo !== 'AFILIACION') {
+      notificarAdminNuevaPreinscripcion({
+        idInscripcion: Number(result.rows[0].id_inscripcion),
+        nombre: nombreCompleto,
+        email: email,
+        programaCodigo: programaCodigo,
+        cedulaRif: cedulaRif,
+        telefono: telefono
+      }).catch(e => console.error('Error notificando admin (programa):', e))
+    }
 
     NotificationService.notifyAdmins({
       title: `Expediente Recibido: ${programaCodigo}`,
@@ -1527,7 +1620,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           ic.*,
           cur.titulo as curso_nombre,
           e.id_estudiante,
-          COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as estudiante_nombre,
+          COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as estudiante_nombre,
           COALESCE(p.email, emp.email) as estudiante_email,
           COALESCE(p.telefono, emp.telefono) as estudiante_telefono,
           COALESCE(p.cedula_tipo || '-' || p.cedula, 'J-' || REPLACE(emp.rif_numero, 'J-', '')) as estudiante_cedula,
@@ -1707,7 +1800,7 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
     try {
       const estRes = await db.execute({
         sql: `SELECT 
-                COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as nombre_completo,
+                COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo,
                 COALESCE(p.email, emp.email) as email
               FROM estudiantes e 
               LEFT JOIN personas p ON e.id_persona = p.id
@@ -2538,7 +2631,7 @@ export const adminListEstudiantes = async (req: Request, res: Response): Promise
           e.id_persona, 
           e.id_empresa, 
           COALESCE(p.cedula, emp.rif_numero) as cedula, 
-          COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as nombre_completo, 
+          COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo, 
           COALESCE(p.email, emp.email) as email, 
           COALESCE(p.telefono, emp.telefono) as telefono, 
           e.tipo, 
@@ -2576,7 +2669,7 @@ export const adminGetEstudiante = async (req: Request, res: Response): Promise<v
     const est = await db.execute({
       sql: `SELECT e.*, 
                    COALESCE(p.cedula, emp.rif_numero) as cedula, 
-                   COALESCE(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''), emp.razon_social) as nombre_completo, 
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo, 
                    COALESCE(p.email, emp.email) as email, 
                    COALESCE(p.telefono, emp.telefono) as telefono
             FROM estudiantes e 
