@@ -42,6 +42,7 @@ tmp/
 # Database Seeds
 apps/api/src/config/seed-*.ts
 apps/api/src/config/afiliados_seed.json
+apps/api/src/config/send-invitacion-contrasena.ts
 
 # Temporary Data Extractions
 corporativos_asociacion.md
