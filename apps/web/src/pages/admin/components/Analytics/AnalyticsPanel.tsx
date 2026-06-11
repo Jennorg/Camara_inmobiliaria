@@ -1,4 +1,16 @@
 import React from 'react'
+import { 
+  BookOpen, 
+  Calendar, 
+  TrendingDown, 
+  TrendingUp, 
+  Users as UsersIcon, 
+  Eye, 
+  DollarSign, 
+  BarChart2, 
+  FileText as FileIcon, 
+  GraduationCap as GradIcon 
+} from 'lucide-react'
 
 // ─── SVG mini-helpers ─────────────────────────────────────────────────────────
 function buildSmoothedPath(points: [number, number][]): string {
@@ -26,21 +38,24 @@ interface KpiCardProps {
 }
 
 const KpiCard = ({ label, value, sub, change, positive = true, accent = 'bg-emerald-50', icon }: KpiCardProps) => (
-  <div className='bg-white rounded-2xl p-3 sm:p-5 border border-gray-100 flex flex-col gap-2 sm:gap-3 w-full'>
-    <div className='flex items-center justify-between gap-1'>
-      <span className='text-xs font-medium text-slate-400 truncate'>{label}</span>
-      <div className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${accent} flex items-center justify-center`}>{icon}</div>
+  <div className='group bg-white rounded-3xl p-5 border border-slate-100 flex flex-col gap-3 w-full transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 relative overflow-hidden'>
+    <div className='absolute -right-4 -top-4 w-24 h-24 bg-slate-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500' />
+    
+    <div className='flex items-center justify-between gap-2 relative z-10'>
+      <span className='text-[10px] font-black uppercase tracking-widest text-slate-400'>{label}</span>
+      <div className={`flex-shrink-0 w-10 h-10 rounded-2xl ${accent} flex items-center justify-center shadow-sm`}>{icon}</div>
     </div>
-    {/* Value stacks vertically on mobile, side-by-side on sm+ */}
-    <div className='flex flex-col items-start gap-1'>
-      <p className='text-xl sm:text-2xl font-bold text-slate-900 leading-none'>{value}</p>
-      {sub && <p className='text-[10px] text-slate-400'>{sub}</p>}
+    
+    <div className='flex flex-col items-start gap-1 relative z-10'>
+      <p className='text-2xl font-black text-slate-900 leading-none tracking-tight'>{value}</p>
+      {sub && <p className='text-[10px] text-slate-400 font-medium'>{sub}</p>}
       {change && (
         <span className={[
-          'text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5',
-          positive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500',
+          'text-[10px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-1',
+          positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500',
         ].join(' ')}>
-          {positive ? '▲' : '▼'} {change}
+          {positive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+          {change}
         </span>
       )}
     </div>
@@ -58,9 +73,9 @@ interface SparklineProps {
   sub?: string
 }
 
-const SparklineChart = ({ data, labels, color = '#00D084', fill = 'url(#gSpark)', height = 120, label, sub }: SparklineProps) => {
+const SparklineChart = ({ data, labels, color = '#10b981', fill = 'url(#gSpark)', height = 120, label, sub }: SparklineProps) => {
   const W = 440; const H = height
-  const PAD = { top: 10, right: 8, bottom: 22, left: 8 }
+  const PAD = { top: 15, right: 10, bottom: 25, left: 10 }
   const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
   const min = Math.min(...data) * 0.9
@@ -73,14 +88,19 @@ const SparklineChart = ({ data, labels, color = '#00D084', fill = 'url(#gSpark)'
   const area = line + ` L ${xOf(data.length - 1)} ${PAD.top + innerH} L ${xOf(0)} ${PAD.top + innerH} Z`
 
   return (
-    <div className='bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 flex flex-col gap-3'>
+    <div className='bg-white rounded-[2rem] p-6 border border-slate-100 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow'>
       {label && (
-        <div>
-          <h3 className='text-sm font-semibold text-slate-800'>{label}</h3>
-          {sub && <p className='text-xs text-slate-400 mt-0.5'>{sub}</p>}
+        <div className='flex items-center justify-between'>
+          <div>
+            <h3 className='text-sm font-black text-slate-800 uppercase tracking-tight'>{label}</h3>
+            {sub && <p className='text-[11px] text-slate-400 font-medium mt-0.5'>{sub}</p>}
+          </div>
+          <div className='flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg'>
+            <span className='w-1.5 h-1.5 rounded-full' style={{ background: color }} />
+            <span className='text-[9px] font-bold text-slate-500 uppercase'>Tiempo Real</span>
+          </div>
         </div>
       )}
-      {/* width/height as HTML attrs + preserveAspectRatio ensures proper responsive scaling */}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         width="100%"
@@ -90,20 +110,22 @@ const SparklineChart = ({ data, labels, color = '#00D084', fill = 'url(#gSpark)'
       >
         <defs>
           <linearGradient id='gSpark' x1='0' y1='0' x2='0' y2='1'>
-            <stop offset='0%' stopColor={color} stopOpacity='0.2' />
+            <stop offset='0%' stopColor={color} stopOpacity='0.25' />
             <stop offset='100%' stopColor={color} stopOpacity='0.02' />
           </linearGradient>
-          <linearGradient id='gSpark2' x1='0' y1='0' x2='0' y2='1'>
-            <stop offset='0%' stopColor='#6366f1' stopOpacity='0.15' />
-            <stop offset='100%' stopColor='#6366f1' stopOpacity='0.02' />
-          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
         <path d={area} fill={fill} />
-        <path d={line} fill='none' stroke={color} strokeWidth='2.5' strokeLinecap='round' strokeLinejoin='round' />
-        {/* Last dot + tooltip */}
-        <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r='4' fill={color} />
+        <path d={line} fill='none' stroke={color} strokeWidth='3' strokeLinecap='round' strokeLinejoin='round' filter="url(#glow)" />
+        <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r='5' fill={color} stroke="white" strokeWidth="2" />
         {labels && labels.map((l, i) => (
-          <text key={l} x={xOf(i)} y={H - 4} textAnchor='middle' fontSize='9' fill='#94a3b8'>{l}</text>
+          <text key={l} x={xOf(i)} y={H - 4} textAnchor='middle' fontSize='10' fontWeight="700" fill='#cbd5e1'>{l}</text>
         ))}
       </svg>
     </div>
@@ -115,7 +137,7 @@ interface DonutSlice { label: string; value: number; color: string }
 
 const DonutChart = ({ slices, title, sub }: { slices: DonutSlice[]; title: string; sub?: string }) => {
   const total = slices.reduce((a, s) => a + s.value, 0)
-  const R = 40; const cx = 60; const cy = 60; const STROKE = 14
+  const R = 40; const cx = 60; const cy = 60; const STROKE = 12
   let cumulative = 0
 
   const arcs = slices.map(s => {
@@ -138,40 +160,44 @@ const DonutChart = ({ slices, title, sub }: { slices: DonutSlice[]; title: strin
   }
 
   return (
-    <div className='bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 flex flex-col gap-3'>
+    <div className='bg-white rounded-[2rem] p-6 border border-slate-100 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow'>
       <div>
-        <h3 className='text-sm font-semibold text-slate-800'>{title}</h3>
-        {sub && <p className='text-xs text-slate-400 mt-0.5'>{sub}</p>}
+        <h3 className='text-sm font-black text-slate-800 uppercase tracking-tight'>{title}</h3>
+        {sub && <p className='text-[11px] text-slate-400 font-medium mt-0.5'>{sub}</p>}
       </div>
-      <div className='flex items-center gap-3 sm:gap-5'>
-        <svg width='120' height='120' viewBox='0 0 120 120' className='flex-shrink-0'>
-          <circle cx={cx} cy={cy} r={R} fill='none' stroke='#f1f5f9' strokeWidth={STROKE} />
+      <div className='flex flex-col sm:flex-row items-center gap-6'>
+        <div className='relative'>
+          <svg width='120' height='120' viewBox='0 0 120 120' className='flex-shrink-0 drop-shadow-sm'>
+            <circle cx={cx} cy={cy} r={R} fill='none' stroke='#f8fafc' strokeWidth={STROKE} />
+            {arcs.map((a, i) => (
+              <path
+                key={i}
+                d={arcD(a.start, a.pct)}
+                fill='none'
+                stroke={a.color}
+                strokeWidth={STROKE}
+                strokeLinecap='round'
+                className="transition-all duration-700"
+              />
+            ))}
+          </svg>
+          <div className='absolute inset-0 flex flex-col items-center justify-center'>
+            <span className='text-xl font-black text-slate-900 leading-none'>{total}</span>
+            <span className='text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1'>Total</span>
+          </div>
+        </div>
+        <div className='flex flex-col gap-2.5 flex-1 w-full'>
           {arcs.map((a, i) => (
-            <path
-              key={i}
-              d={arcD(a.start, a.pct)}
-              fill='none'
-              stroke={a.color}
-              strokeWidth={STROKE}
-              strokeLinecap='round'
-              style={{ transition: 'stroke-dashoffset 0.6s ease' }}
-            />
-          ))}
-          <text x={cx} y={cy - 4} textAnchor='middle' fontSize='16' fontWeight='700' fill='#0f172a'>{total}</text>
-          <text x={cx} y={cy + 12} textAnchor='middle' fontSize='8' fill='#94a3b8'>Total</text>
-        </svg>
-        <div className='flex flex-col gap-2 flex-1'>
-          {arcs.map((a, i) => (
-            <div key={i} className='flex items-center justify-between gap-2'>
-              <div className='flex items-center gap-1.5'>
-                <span className='w-2 h-2 rounded-full flex-shrink-0' style={{ background: a.color }} />
-                <span className='text-xs text-slate-600'>{a.label}</span>
-              </div>
-              <div className='flex items-center gap-2'>
-                <div className='w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden'>
-                  <div className='h-full rounded-full' style={{ width: `${a.pct * 100}%`, background: a.color }} />
+            <div key={i} className='flex flex-col gap-1'>
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center gap-1.5'>
+                  <span className='w-1.5 h-1.5 rounded-full' style={{ background: a.color }} />
+                  <span className='text-[10px] font-bold text-slate-500 uppercase tracking-wide'>{a.label}</span>
                 </div>
-                <span className='text-xs font-semibold text-slate-700 tabular-nums w-6 text-right'>{a.value}</span>
+                <span className='text-[10px] font-black text-slate-700 tabular-nums'>{a.value}</span>
+              </div>
+              <div className='w-full h-1 bg-slate-50 rounded-full overflow-hidden'>
+                <div className='h-full rounded-full transition-all duration-1000' style={{ width: `${a.pct * 100}%`, background: a.color }} />
               </div>
             </div>
           ))}
@@ -185,22 +211,24 @@ const DonutChart = ({ slices, title, sub }: { slices: DonutSlice[]; title: strin
 interface BarItem { label: string; value: number; max: number; color?: string }
 
 const HorizontalBars = ({ items, title, sub }: { items: BarItem[]; title: string; sub?: string }) => (
-  <div className='bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-4'>
+  <div className='bg-white rounded-[2rem] p-6 border border-slate-100 flex flex-col gap-5 shadow-sm'>
     <div>
-      <h3 className='text-sm font-semibold text-slate-800'>{title}</h3>
-      {sub && <p className='text-xs text-slate-400 mt-0.5'>{sub}</p>}
+      <h3 className='text-sm font-black text-slate-800 uppercase tracking-tight'>{title}</h3>
+      {sub && <p className='text-[11px] text-slate-400 font-medium mt-0.5'>{sub}</p>}
     </div>
-    <div className='flex flex-col gap-3'>
+    <div className='flex flex-col gap-4'>
       {items.map((item, i) => (
-        <div key={i} className='flex flex-col gap-1'>
+        <div key={i} className='flex flex-col gap-1.5'>
           <div className='flex items-center justify-between'>
-            <span className='text-xs font-medium text-slate-600 truncate max-w-[180px]'>{item.label}</span>
-            <span className='text-xs font-semibold text-slate-800 tabular-nums ml-2'>{item.value}/{item.max}</span>
+            <span className='text-[11px] font-bold text-slate-600 truncate max-w-[200px] uppercase tracking-wide'>{item.label}</span>
+            <span className='text-[10px] font-black text-slate-900 tabular-nums bg-slate-50 px-2 py-0.5 rounded-md'>
+              {item.value} / {item.max}
+            </span>
           </div>
-          <div className='h-2 bg-gray-100 rounded-full overflow-hidden'>
+          <div className='h-2.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100/50 p-[1px]'>
             <div
-              className='h-full rounded-full transition-all duration-700'
-              style={{ width: `${(item.value / item.max) * 100}%`, background: item.color ?? '#00D084' }}
+              className='h-full rounded-full transition-all duration-1000 shadow-sm'
+              style={{ width: `${(item.value / item.max) * 100}%`, background: item.color ?? '#10b981' }}
             />
           </div>
         </div>
@@ -223,10 +251,10 @@ const ACTIVITIES: Activity[] = [
 ]
 
 const ACTIVITY_COLORS: Record<Activity['type'], string> = {
-  cibir: 'bg-emerald-400',
-  cms: 'bg-violet-400',
-  finance: 'bg-blue-400',
-  curso: 'bg-amber-400',
+  cibir: 'bg-emerald-500',
+  cms: 'bg-indigo-500',
+  finance: 'bg-sky-500',
+  curso: 'bg-amber-500',
 }
 const ACTIVITY_LABELS: Record<Activity['type'], string> = {
   cibir: 'CIBIR',
@@ -240,39 +268,39 @@ const VISITS_DATA = [820, 940, 880, 1100, 1250, 1080, 1320, 1180, 1400, 1350, 15
 const VISITS_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 const CIBIR_SLICES: DonutSlice[] = [
-  { label: 'Aprobados', value: 18, color: '#00D084' },
-  { label: 'Pendientes', value: 3, color: '#F59E0B' },
-  { label: 'Rechazados', value: 4, color: '#F87171' },
+  { label: 'Aprobados', value: 18, color: '#10b981' },
+  { label: 'Pendientes', value: 3, color: '#f59e0b' },
+  { label: 'Rechazados', value: 4, color: '#ef4444' },
 ]
 
 const ARTICLE_SLICES: DonutSlice[] = [
   { label: 'Publicados', value: 24, color: '#6366f1' },
   { label: 'Borradores', value: 7, color: '#94a3b8' },
-  { label: 'Revisión', value: 3, color: '#F59E0B' },
+  { label: 'Revisión', value: 3, color: '#f59e0b' },
 ]
 
 const CURSO_BARS: BarItem[] = [
   { label: 'Diplomado Derecho Inmobiliario', value: 18, max: 25, color: '#6366f1' },
-  { label: 'Marketing Digital Real Estate', value: 30, max: 30, color: '#00D084' },
-  { label: 'Tasación de Inmuebles Urbanos', value: 12, max: 20, color: '#F59E0B' },
-  { label: 'Neuroventas para Corredores', value: 25, max: 25, color: '#F87171' },
+  { label: 'Marketing Digital Real Estate', value: 30, max: 30, color: '#10b981' },
+  { label: 'Tasación de Inmuebles Urbanos', value: 12, max: 20, color: '#f59e0b' },
+  { label: 'Neuroventas para Corredores', value: 25, max: 25, color: '#ef4444' },
 ]
 
 const INCOME_DATA = [85000, 92000, 78000, 110000, 124500, 105000, 118000, 101000, 130000, 112000, 140000, 128400]
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 const AnalyticsPanel = () => (
-  <div className='flex flex-col gap-4 sm:gap-5 p-4 sm:p-6 overflow-y-auto h-full w-full'>
+  <div className='flex flex-col gap-6 sm:gap-8 p-4 sm:p-8 overflow-y-auto h-full w-full bg-slate-50/50'>
 
     {/* ── KPI Row ─────────────────────────────────────────── */}
-    <div className='grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4'>
+    <div className='grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5'>
       <KpiCard
         label='Afiliados Activos'
         value='347'
         change='+12'
         positive
         accent='bg-emerald-50'
-        icon={<svg viewBox='0 0 24 24' className='w-5 h-5 text-emerald-500' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2' /><circle cx='9' cy='7' r='4' /><path d='M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' /></svg>}
+        icon={<UsersIcon size={20} className='text-emerald-500' />}
       />
       <KpiCard
         label='Visitas este mes'
@@ -280,7 +308,7 @@ const AnalyticsPanel = () => (
         change='+8.6%'
         positive
         accent='bg-blue-50'
-        icon={<svg viewBox='0 0 24 24' className='w-5 h-5 text-blue-400' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' /><circle cx='12' cy='12' r='3' /></svg>}
+        icon={<Eye size={20} className='text-blue-500' />}
       />
       <KpiCard
         label='Balance Total'
@@ -288,7 +316,7 @@ const AnalyticsPanel = () => (
         change='+4.6%'
         positive
         accent='bg-emerald-50'
-        icon={<svg viewBox='0 0 24 24' className='w-5 h-5 text-emerald-500' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><line x1='12' y1='1' x2='12' y2='23' /><path d='M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' /></svg>}
+        icon={<DollarSign size={20} className='text-emerald-500' />}
       />
       <KpiCard
         label='Ingreso Mensual'
@@ -296,14 +324,14 @@ const AnalyticsPanel = () => (
         change='+9%'
         positive
         accent='bg-blue-50'
-        icon={<svg viewBox='0 0 24 24' className='w-5 h-5 text-blue-400' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><polyline points='23 6 13.5 15.5 8.5 10.5 1 18' /><polyline points='17 6 23 6 23 12' /></svg>}
+        icon={<BarChart2 size={20} className='text-blue-500' />}
       />
       <KpiCard
         label='Artículos'
         value='34'
         sub='24 publicados · 10 en proceso'
-        accent='bg-violet-50'
-        icon={<svg viewBox='0 0 24 24' className='w-5 h-5 text-violet-500' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z' /><polyline points='14 2 14 8 20 8' /></svg>}
+        accent='bg-indigo-50'
+        icon={<FileIcon size={20} className='text-indigo-500' />}
       />
       <KpiCard
         label='CIBIR Pendientes'
@@ -311,19 +339,19 @@ const AnalyticsPanel = () => (
         sub='18 aprobados · 4 rechazados'
         positive={false}
         accent='bg-amber-50'
-        icon={<svg viewBox='0 0 24 24' className='w-5 h-5 text-amber-500' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M22 10v6M2 10l10-5 10 5-10 5z' /><path d='M6 12v5c3 3 9 3 12 0v-5' /></svg>}
+        icon={<GradIcon size={20} className='text-amber-500' />}
       />
     </div>
 
     {/* ── Charts row 1 ────────────────────────────────────── */}
-    <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+    <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
       <div className='lg:col-span-2'>
         <SparklineChart
           data={VISITS_DATA}
           labels={VISITS_LABELS}
           color='#6366f1'
           fill='url(#gSpark2)'
-          height={130}
+          height={140}
           label='Visitas al sitio web'
           sub='Tráfico mensual — Ene a Dic 2025'
         />
@@ -336,14 +364,14 @@ const AnalyticsPanel = () => (
     </div>
 
     {/* ── Charts row 2 ────────────────────────────────────── */}
-    <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+    <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
       <div className='lg:col-span-2'>
         <SparklineChart
           data={INCOME_DATA}
           labels={VISITS_LABELS}
-          color='#00D084'
+          color='#10b981'
           fill='url(#gSpark)'
-          height={130}
+          height={140}
           label='Flujo de Ingresos'
           sub='Ingresos mensuales en USD — 2025'
         />
@@ -356,7 +384,7 @@ const AnalyticsPanel = () => (
     </div>
 
     {/* ── Charts row 3 ────────────────────────────────────── */}
-    <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+    <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
       <HorizontalBars
         items={CURSO_BARS}
         title='Inscripción por Curso'
@@ -364,20 +392,23 @@ const AnalyticsPanel = () => (
       />
 
       {/* Activity feed */}
-      <div className='bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-4'>
-        <div>
-          <h3 className='text-sm font-semibold text-slate-800'>Actividad Reciente</h3>
-          <p className='text-xs text-slate-400 mt-0.5'>Últimos eventos de todos los módulos</p>
+      <div className='bg-white rounded-[2rem] p-6 border border-slate-100 flex flex-col gap-5 shadow-sm'>
+        <div className='flex items-center justify-between'>
+          <div>
+            <h3 className='text-sm font-black text-slate-800 uppercase tracking-tight'>Actividad Reciente</h3>
+            <p className='text-[11px] text-slate-400 font-medium mt-0.5'>Últimos eventos de todos los módulos</p>
+          </div>
+          <button className='text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-600 transition-colors'>Ver Todo</button>
         </div>
         <div className='flex flex-col gap-0'>
           {ACTIVITIES.map((a, i) => (
-            <div key={i} className='flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0'>
-              <span className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${ACTIVITY_COLORS[a.type]}`} />
+            <div key={i} className='flex items-start gap-4 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors px-2 -mx-2 rounded-xl'>
+              <div className={`mt-1.5 flex-shrink-0 w-2 h-2 rounded-full ${ACTIVITY_COLORS[a.type]} shadow-sm`} />
               <div className='flex-1 min-w-0'>
-                <p className='text-xs text-slate-700 leading-snug'>{a.text}</p>
-                <p className='text-[10px] text-slate-400 mt-0.5'>{a.time}</p>
+                <p className='text-xs font-bold text-slate-700 leading-snug tracking-tight'>{a.text}</p>
+                <p className='text-[10px] text-slate-400 font-medium mt-1'>{a.time}</p>
               </div>
-              <span className={`flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white ${ACTIVITY_COLORS[a.type]}`}>
+              <span className={`flex-shrink-0 text-[9px] font-black px-2 py-0.5 rounded-lg text-white ${ACTIVITY_COLORS[a.type]} shadow-xs`}>
                 {ACTIVITY_LABELS[a.type]}
               </span>
             </div>
@@ -387,18 +418,20 @@ const AnalyticsPanel = () => (
     </div>
 
     {/* ── Summary stats ────────────────────────────────────── */}
-    <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
+    <div className='grid grid-cols-2 sm:grid-cols-4 gap-5 mb-6'>
       {[
-        { label: 'Cursos Activos', value: '2', icon: '📚' },
-        { label: 'Próximos Cursos', value: '1', icon: '📅' },
-        { label: 'Gastos del Mes', value: '$12,150', icon: '📉' },
-        { label: 'Ganancia Neta', value: '$16,250', icon: '💹' },
+        { label: 'Cursos Activos', value: '2', icon: <BookOpen size={24} className="text-indigo-500" />, accent: 'bg-indigo-50' },
+        { label: 'Próximos Cursos', value: '1', icon: <Calendar size={24} className="text-amber-500" />, accent: 'bg-amber-50' },
+        { label: 'Gastos del Mes', value: '$12,150', icon: <TrendingDown size={24} className="text-rose-500" />, accent: 'bg-rose-50' },
+        { label: 'Ganancia Neta', value: '$16,250', icon: <TrendingUp size={24} className="text-emerald-500" />, accent: 'bg-emerald-50' },
       ].map(s => (
-        <div key={s.label} className='bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3'>
-          <span className='text-2xl'>{s.icon}</span>
+        <div key={s.label} className='group bg-white rounded-[1.5rem] p-5 border border-slate-100 flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1'>
+          <div className={`w-12 h-12 rounded-2xl ${s.accent} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500`}>
+            {s.icon}
+          </div>
           <div>
-            <p className='text-xs text-slate-400 font-medium'>{s.label}</p>
-            <p className='text-base font-bold text-slate-900'>{s.value}</p>
+            <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>{s.label}</p>
+            <p className='text-lg font-black text-slate-900 leading-none mt-1'>{s.value}</p>
           </div>
         </div>
       ))}

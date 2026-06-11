@@ -3,6 +3,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { formatNombreCard } from '@/utils/formatters';
+import { Calendar } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
 
@@ -231,7 +232,10 @@ const CursosAdminPanel = () => {
                   <span>{c.instructor_nombre || 'Sin Instructor'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-slate-400">
-                  <span>📅 {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} className="text-slate-400" />
+                    {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}
+                  </span>
                   <span className="font-semibold text-slate-700">{c.precio || 'Gratis'}</span>
                 </div>
                 {/* Cupos bar */}

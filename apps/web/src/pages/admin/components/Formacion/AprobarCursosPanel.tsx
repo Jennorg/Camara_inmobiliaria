@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard } from '@/utils/formatters'
-import { Check, X, Search, FileText, User, Mail, Phone, CreditCard, Calendar, GraduationCap } from 'lucide-react'
+import { Check, X, Search, FileText, User, Mail, Phone, CreditCard, Calendar, GraduationCap, BookOpen } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 type Estatus = 'Preinscrito' | 'Inscrito' | 'Rechazado' | 'Cancelado'
@@ -313,10 +313,9 @@ export default function AprobarCursosPanel() {
                   </span>
                 </div>
                 
-                <span className="text-[11px] text-slate-500 font-semibold leading-tight line-clamp-1">
-                  📚 {r.curso_nombre}
+                <span className="text-[11px] text-slate-500 font-semibold leading-tight line-clamp-1 flex items-center gap-1">
+                  <BookOpen size={10} className="text-slate-400" /> {r.curso_nombre}
                 </span>
-                
                 <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium mt-0.5">
                   <span>ID: {r.estudiante_cedula || 'S/N'}</span>
                   <span>{new Date(r.creado_en).toLocaleDateString('es-ES', { month: 'short', day: '2-digit' })}</span>
