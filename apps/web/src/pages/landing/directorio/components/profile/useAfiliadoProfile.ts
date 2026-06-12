@@ -53,9 +53,9 @@ export const useAfiliadoProfile = (): UseAfiliadoProfileResult => {
     if (id) fetchProfile();
   }, [id]);
 
-  const isRepMode = useMemo(() => 
-    new URLSearchParams(location.search).get('mode') === 'rep', 
-  [location.search]);
+  const isRepMode = useMemo(() =>
+    new URLSearchParams(location.search).get('mode') === 'rep',
+    [location.search]);
 
   const derived = useMemo(() => {
     if (!afiliado) {
@@ -74,15 +74,15 @@ export const useAfiliadoProfile = (): UseAfiliadoProfileResult => {
     }
 
     const isCorporativo = afiliado.tipo_afiliado === 'Corporativo' && !isRepMode;
-    const yearsOfService = afiliado.fecha_inicio_servicio 
+    const yearsOfService = afiliado.fecha_inicio_servicio
       ? new Date().getFullYear() - new Date(afiliado.fecha_inicio_servicio).getFullYear()
       : 0;
 
     const hasOrganigram = (isCorporativo && afiliado.afiliados_asociados && afiliado.afiliados_asociados.length > 0) ||
-                          (!isCorporativo && afiliado.id_empresa && afiliado.afiliados_asociados && afiliado.afiliados_asociados.length > 0);
+      (!isCorporativo && afiliado.id_empresa && afiliado.afiliados_asociados && afiliado.afiliados_asociados.length > 0);
 
-    const leaderNode = isCorporativo 
-      ? afiliado 
+    const leaderNode = isCorporativo
+      ? afiliado
       : (afiliado.afiliados_asociados || []).find(a => a.tipo_afiliado === 'Corporativo') || afiliado;
 
     const childrenNodes = (afiliado.afiliados_asociados || []).filter(

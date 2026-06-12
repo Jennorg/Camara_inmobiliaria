@@ -48,8 +48,11 @@ export const ProfileHero = ({
   const cleanPhone = phoneForWa.replace(/[^0-9]/g, '');
   const waLink = cleanPhone ? `https://wa.me/${cleanPhone}` : null;
 
+  const isAgent = afiliado.tipo_afiliado === 'Agente' || afiliado.tipo_afiliado === 'Agente Corporativo';
+  const isIndependent = afiliado.tipo_afiliado === 'Natural' || (!isCorporativo && !isAgent);
+
   const actualCompanyLogo = companyLogo || afiliado.empresa_logo_url || null;
-  const logoToShow = isCorporativo ? actualCompanyLogo : logoCibir;
+  const logoToShow = (isCorporativo || isAgent) ? actualCompanyLogo : null;
 
   const handleShare = async () => {
     try {
@@ -123,7 +126,7 @@ END:VCARD`;
                 {formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
               </h1>
               <span className="shrink-0 inline-flex items-center text-[9px] font-black tracking-widest text-emerald-700 bg-emerald-100/60 px-3 py-1.5 rounded-md uppercase">
-                {isCorporativo ? 'MIEMBRO CORPORATIVO' : 'ASESOR INMOBILIARIO'}
+                {isCorporativo ? 'MIEMBRO CORPORATIVO' : isAgent ? 'AGENTE CORPORATIVO' : 'ASESOR INMOBILIARIO'}
               </span>
             </div>
 
@@ -131,6 +134,18 @@ END:VCARD`;
             {isCorporativo ? (
               <div className="flex items-center gap-2 mt-2 flex-wrap text-slate-500 font-bold text-xs uppercase tracking-wider">
                 <span>Representante Legal de</span>
+                <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/50 px-2.5 py-1 rounded-lg">
+                  {actualCompanyLogo && (
+                    <img src={actualCompanyLogo} alt="Logo" className="w-4 h-4 object-contain shrink-0" />
+                  )}
+                  <span className="text-slate-700 font-black">
+                    {afiliado.empresa_razon_social || afiliado.razon_social}
+                  </span>
+                </div>
+              </div>
+            ) : isAgent ? (
+              <div className="flex items-center gap-2 mt-2 flex-wrap text-slate-500 font-bold text-xs uppercase tracking-wider">
+                <span>{afiliado.profesion || 'Asesor Inmobiliario'} en</span>
                 <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/50 px-2.5 py-1 rounded-lg">
                   {actualCompanyLogo && (
                     <img src={actualCompanyLogo} alt="Logo" className="w-4 h-4 object-contain shrink-0" />
@@ -154,12 +169,12 @@ END:VCARD`;
                   {afiliado.nivel_academico}
                 </p>
               )}
-              
+
               <p className="text-slate-500 text-sm font-semibold leading-relaxed max-w-xl">
                 {afiliado.descripcion || afiliado.notas || (isCorporativo ? (
                   `Representante legal y asesor verificado de la empresa afiliada a la Cámara Inmobiliaria del Estado Bolívar.`
                 ) : (
-                  `Profesional inmobiliario registrado y solvente en la Cámara Inmobiliaria del Estado Bolívar.`
+                  `Profesional inmobiliario registrado en la Cámara Inmobiliaria del Estado Bolívar.`
                 ))}
               </p>
             </div>
@@ -169,12 +184,19 @@ END:VCARD`;
           {(logoToShow || afiliado.codigo) && (
             <div className="flex flex-col items-center gap-4 w-full text-center">
               {logoToShow && (
-                <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-3xl bg-white border border-slate-200/60 shadow-md flex items-center justify-center p-5 shrink-0 transition-transform hover:scale-105 duration-500">
-                  <img
-                    src={logoToShow}
-                    alt={isCorporativo ? `Logo de ${afiliado.empresa_razon_social || afiliado.razon_social}` : 'Cámara Inmobiliaria'}
-                    className="max-h-full max-w-full object-contain"
-                  />
+                <div className="flex flex-col items-center gap-2">
+                  {isAgent && (
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+                      FORMA PARTE DE:
+                    </span>
+                  )}
+                  <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-3xl bg-white border border-slate-200/60 shadow-md flex items-center justify-center p-5 shrink-0 transition-transform hover:scale-105 duration-500">
+                    <img
+                      src={logoToShow}
+                      alt={isCorporativo ? `Logo de ${afiliado.empresa_razon_social || afiliado.razon_social}` : 'Empresa'}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
                 </div>
               )}
               {afiliado.codigo && (
