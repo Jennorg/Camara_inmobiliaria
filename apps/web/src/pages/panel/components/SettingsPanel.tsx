@@ -295,14 +295,19 @@ const SettingsPanel = () => {
               <HeaderSection title="Información Personal" subtitle="Datos básicos que te identifican como miembro." />
               
               <div className="flex justify-center py-4">
-                <FileUpload 
+                <FileUpload
                   label="Foto de Perfil"
                   accept="image/*"
-                  folder="perfiles"
+                  folder="fotos"
                   initialUrl={formData.foto_url}
+                  enableCrop
+                  cropAspect={4 / 5}
+                  cropShape="rect"
+                  defaultCropPosition="bottom"
                   onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
                   onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
                 />
+
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -396,12 +401,14 @@ const SettingsPanel = () => {
               <HeaderSection title="Información de Corporativo" subtitle="Datos corporativos visibles en tu membresía." />
               
               <div className="flex justify-center py-4">
-                <FileUpload 
+                <FileUpload
                   label="Logo de la Empresa"
                   accept="image/*"
                   folder="logos"
-                  disabled={isAgente}
                   initialUrl={formData.empresa_logo_url}
+                  enableCrop
+                  cropAspect={1}
+                  cropShape="rect"
                   onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
                   onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
                 />

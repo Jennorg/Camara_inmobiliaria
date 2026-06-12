@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as ImageIcon, FileUp } from 'lucide-react';
 import { API_URL } from '@/config/env';
+import Cropper from 'react-easy-crop';
+import getCroppedImg from '@/utils/cropImage';
 
 interface FileUploadProps {
   label: string;
@@ -14,6 +16,14 @@ interface FileUploadProps {
   initialUrl?: string;
   /** Nombre original del archivo cuando se restaura del progreso guardado. */
   initialFileName?: string;
+  /** Si se debe habilitar el recorte de imagen */
+  enableCrop?: boolean;
+  /** Relación de aspecto del recorte (ej: 1/1, 16/9) */
+  cropAspect?: number;
+  /** Forma del recorte */
+  cropShape?: 'round' | 'rect';
+  /** Alineación por defecto del encuadre */
+  defaultCropPosition?: 'center' | 'bottom';
 }
 
 export default function FileUpload({ 
@@ -25,7 +35,12 @@ export default function FileUpload({
   required = false,
   disabled = false,
   initialUrl,
-  initialFileName,}: FileUploadProps) {
+  initialFileName,
+  enableCrop = false,
+  cropAspect = 1 / 1,
+  cropShape = 'rect',
+  defaultCropPosition = 'center',
+}: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   // Si se provee una URL inicial (restaurada desde progreso guardado), partimos de ese estado
@@ -36,8 +51,59 @@ export default function FileUpload({
   // Nombre original del archivo restaurado (si existe)
   const [restoredFileName, setRestoredFileName] = useState<string | null>(initialFileName ?? null);
 
+  // Estados para el recorte
+  const [showCropper, setShowCropper] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: defaultCropPosition === 'bottom' ? -50 : 0 });
+  const [zoom, setZoom] = useState(enableCrop && cropAspect !== 1 ? 1.1 : 1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
-  // No longer needed: filename extraction was handled via stored name
+  const startUpload = async (targetFile: File) => {
+    setUploading(true);
+    try {
+      // 1. Get presigned URL
+      const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: targetFile.name,
+          folder,
+        }),
+      });
+
+      const presignData = await presignRes.json();
+      if (!presignRes.ok || !presignData.success) {
+        throw new Error(presignData.message || 'Error al obtener URL de subida');
+      }
+
+      const { signedUploadUrl, token, publicUrl } = presignData.data;
+
+      // 2. Upload to Supabase Storage via PUT
+      const uploadRes = await fetch(signedUploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': targetFile.type,
+        },
+        body: targetFile,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Error al subir el archivo a storage');
+      }
+
+      // 3. Success
+      setUploadedUrl(publicUrl);
+      setRestoredFileName(targetFile.name);
+      onUploadSuccess(publicUrl, targetFile.name);
+    } catch (err: any) {
+      console.error('FileUpload error:', err);
+      setError(err.message || 'Error al subir el archivo');
+      setFile(null);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
     if (disabled) return;
@@ -58,53 +124,47 @@ export default function FileUpload({
     }
 
     // Reset state
-    setFile(selectedFile);
     setError(null);
-    setUploading(true);
 
-    try {
-      // 1. Get presigned URL
-      const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          folder,
-        }),
-      });
-
-      const presignData = await presignRes.json();
-      if (!presignRes.ok || !presignData.success) {
-        throw new Error(presignData.message || 'Error al obtener URL de subida');
-      }
-
-      const { signedUploadUrl, token, publicUrl } = presignData.data;
-
-      // 2. Upload to Supabase Storage via PUT
-      const uploadRes = await fetch(signedUploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': selectedFile.type,
-        },
-        body: selectedFile,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('Error al subir el archivo a storage');
-      }
-
-      // 3. Success
-      setUploadedUrl(publicUrl);
-      setRestoredFileName(selectedFile.name);
-      onUploadSuccess(publicUrl, selectedFile.name);
-    } catch (err: any) {
-      console.error('FileUpload error:', err);
-      setError(err.message || 'Error al subir el archivo');
-      setFile(null);
-    } finally {
-      setUploading(false);
+    // Si es imagen y el recorte está habilitado
+    if (enableCrop && selectedFile.type.startsWith('image/')) {
+      setFile(selectedFile);
+      setCrop({ x: 0, y: 0 }); // Reset before media loads
+      setZoom(1);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageToCrop(reader.result as string);
+        setShowCropper(true);
+      };
+      reader.readAsDataURL(selectedFile);
+    } else {
+      setFile(selectedFile);
+      await startUpload(selectedFile);
     }
+  };
+
+  const handleCropSave = async () => {
+    if (!imageToCrop || !croppedAreaPixels || !file) return;
+    
+    try {
+      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+      if (croppedImageBlob) {
+        const croppedFile = new File([croppedImageBlob], file.name, { type: 'image/jpeg' });
+        setShowCropper(false);
+        setImageToCrop(null);
+        await startUpload(croppedFile);
+      }
+    } catch (err) {
+      console.error('Error cropping image:', err);
+      setError('Error al procesar el recorte');
+    }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setImageToCrop(null);
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -247,6 +307,74 @@ export default function FileUpload({
         <div className="flex items-center gap-1.5 text-rose-500 px-1 animate-in slide-in-from-top-1">
           <AlertCircle size={14} />
           <span className="text-xs font-bold uppercase tracking-tight">{error}</span>
+        </div>
+      )}
+
+      {showCropper && imageToCrop && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm mx-4 rounded-3xl shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-black text-slate-800 text-lg">Ajustar Imagen</h3>
+              <button type="button" onClick={handleCropCancel} className="p-2 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full">
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="relative w-full h-64 bg-slate-100 rounded-2xl overflow-hidden">
+              <Cropper
+                image={imageToCrop}
+                crop={crop}
+                zoom={zoom}
+                aspect={cropAspect}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                cropShape={cropShape}
+                showGrid={true}
+                onMediaLoaded={(mediaSize) => {
+                  if (defaultCropPosition === 'bottom') {
+                    setZoom(1.1);
+                    setCrop({ x: 0, y: -10 });
+                  }
+                }}
+              />
+              {/* Guía central vertical para encuadre */}
+              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] border-l-2 border-dashed border-white/60 drop-shadow-md pointer-events-none z-10" />
+            </div>
+
+            <div className="px-2">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+                <span className="text-[10px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCropCancel}
+                className="flex-1 bg-slate-100 text-slate-600 text-sm font-bold py-3 rounded-2xl hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCropSave}
+                className="flex-[2] bg-emerald-500 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                Aplicar y Subir
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

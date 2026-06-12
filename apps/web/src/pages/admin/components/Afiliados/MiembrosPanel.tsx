@@ -13,6 +13,8 @@ import {
   Briefcase, StickyNote, Globe, FileDown, Music2, Facebook, Instagram, Linkedin
 } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
+import Cropper from 'react-easy-crop'
+import getCroppedImg from '@/utils/cropImage'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 
 
@@ -47,6 +49,11 @@ export default function MiembrosPanel() {
   const [imageError, setImageError] = useState('')
   const [imageDragOver, setImageDragOver] = useState(false)
   const imageFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Estados para el recorte de imagen
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
@@ -96,6 +103,8 @@ export default function MiembrosPanel() {
     setImageEditKind(kind)
     setImageError('')
     setImageFile(null)
+    setCrop(kind === 'foto' ? { x: 0, y: -350 } : { x: 0, y: 0 })
+    setZoom(kind === 'foto' ? 1.1 : 1)
     setImagePreview(
       kind === 'logo'
         ? selected.empresa_logo_url || null
@@ -108,11 +117,14 @@ export default function MiembrosPanel() {
     setImageFile(null)
     setImagePreview(null)
     setImageError('')
+    setCroppedAreaPixels(null)
   }
 
   const handleImageFileChange = (file: File) => {
     setImageFile(file)
     setImageError('')
+    setCrop(imageEditKind === 'foto' ? { x: 0, y: -300 } : { x: 0, y: 0 })
+    setZoom(imageEditKind === 'foto' ? 1.1 : 1)
     const reader = new FileReader()
     reader.onload = (e) => setImagePreview(e.target?.result as string)
     reader.readAsDataURL(file)
@@ -125,12 +137,24 @@ export default function MiembrosPanel() {
     try {
       const isLogo = imageEditKind === 'logo'
       let finalUrl = imagePreview || (isLogo ? selected.empresa_logo_url : selected.foto_url) || ''
-      if (imageFile) {
+
+      if (imageFile && imagePreview && croppedAreaPixels) {
+        // Recortar la imagen antes de subirla
+        const croppedImageBlob = await getCroppedImg(imagePreview, croppedAreaPixels)
+        if (croppedImageBlob) {
+          const croppedFile = new File([croppedImageBlob], imageFile.name, { type: 'image/jpeg' })
+          finalUrl = await uploadFileSupabase(
+            croppedFile,
+            isLogo ? 'logos/empresas' : 'fotos/afiliados'
+          )
+        }
+      } else if (imageFile) {
         finalUrl = await uploadFileSupabase(
           imageFile,
           isLogo ? 'logos/empresas' : 'fotos/afiliados'
         )
       }
+
       const payload = isLogo ? { empresa_logo_url: finalUrl } : { foto_url: finalUrl }
       const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
@@ -148,6 +172,7 @@ export default function MiembrosPanel() {
         setImageError('Error al guardar en el servidor')
       }
     } catch (err: any) {
+      console.error('handleSaveImage error:', err)
       setImageError(err?.message || 'Error al subir la imagen')
     } finally {
       setImageUploading(false)
@@ -192,17 +217,17 @@ export default function MiembrosPanel() {
         } else if (searchField === 'codigo') {
           matchSearch = (item.codigo || '').toLowerCase().includes(s)
         } else { // nombre (inclusivo)
-          matchSearch = nombre.includes(s) || 
-                        razonSocial.includes(s) ||
-                        (item.nombres || '').toLowerCase().includes(s) || 
-                        (item.apellidos || '').toLowerCase().includes(s)
+          matchSearch = nombre.includes(s) ||
+            razonSocial.includes(s) ||
+            (item.nombres || '').toLowerCase().includes(s) ||
+            (item.apellidos || '').toLowerCase().includes(s)
         }
       }
 
-       let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
-       if (filterTipo === 'Agente Corporativo') {
-         matchTipo = item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
-       }
+      let matchTipo = filterTipo === 'Todos' || item.tipo_afiliado === filterTipo
+      if (filterTipo === 'Agente Corporativo') {
+        matchTipo = item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
+      }
 
       return matchSearch && matchTipo
     })
@@ -296,7 +321,7 @@ export default function MiembrosPanel() {
 
     try {
       const tipoFinal = newTipo;
-      
+
       // Basic validation
       if (!newForm.nombres?.trim()) errors.nombres = true
       if (!newForm.apellidos?.trim()) errors.apellidos = true
@@ -359,7 +384,7 @@ export default function MiembrosPanel() {
     { value: 'TSU', label: 'TSU' },
     { value: 'Nivel Profesional', label: 'Nivel Profesional' },
     { value: 'Postgrado', label: 'Postgrado' },
-    ];
+  ];
 
   return (
     <div className="flex h-full w-full bg-white overflow-hidden">
@@ -419,9 +444,8 @@ export default function MiembrosPanel() {
                             setSearchField(option.key);
                             setShowSearchDropdown(false);
                           }}
-                          className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors ${
-                            searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
-                          }`}
+                          className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors ${searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                            }`}
                         >
                           {option.label}
                         </button>
@@ -437,10 +461,9 @@ export default function MiembrosPanel() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder={`Buscar por ${
-                    searchField === 'nombre' ? 'nombre / representante' :
+                  placeholder={`Buscar por ${searchField === 'nombre' ? 'nombre / representante' :
                     searchField === 'id' ? 'cédula o RIF' : 'código'
-                  }...`}
+                    }...`}
                   className="w-full h-full pl-6 pr-8 bg-transparent text-xs font-semibold placeholder-slate-400 outline-none"
                 />
                 {search && (
@@ -488,11 +511,10 @@ export default function MiembrosPanel() {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className={`w-2 h-2 rounded-full ${
-                  filterTipo === 'Todos' ? 'bg-slate-400' :
+                <span className={`w-2 h-2 rounded-full ${filterTipo === 'Todos' ? 'bg-slate-400' :
                   filterTipo === 'Natural' ? 'bg-emerald-500' :
-                  filterTipo === 'Corporativo' ? 'bg-emerald-500' : 'bg-amber-500'
-                }`} />
+                    filterTipo === 'Corporativo' ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`} />
                 <ChevronDown size={14} className={`text-slate-400 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
               </div>
             </button>
@@ -514,21 +536,19 @@ export default function MiembrosPanel() {
                           setFilterTipo(f.id as any);
                           setShowFilterDropdown(false);
                         }}
-                        className={`w-full text-left px-2 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 flex items-center justify-between ${
-                          filterTipo === f.id
-                            ? f.id === 'Todos' ? 'bg-slate-800 text-white' : f.id === 'Natural' ? 'bg-emerald-600 text-white' : f.id === 'Corporativo' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
-                            : 'text-slate-600 hover:bg-slate-50'
-                        }`}
+                        className={`w-full text-left px-2 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-200 flex items-center justify-between ${filterTipo === f.id
+                          ? f.id === 'Todos' ? 'bg-slate-800 text-white' : f.id === 'Natural' ? 'bg-emerald-600 text-white' : f.id === 'Corporativo' ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                          : 'text-slate-600 hover:bg-slate-50'
+                          }`}
                       >
                         <span className="truncate mr-2">{f.label}</span>
                         {filterTipo === f.id ? (
                           <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
                         ) : (
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            f.id === 'Todos' ? 'bg-slate-300' :
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${f.id === 'Todos' ? 'bg-slate-300' :
                             f.id === 'Natural' ? 'bg-emerald-400' :
-                            f.id === 'Corporativo' ? 'bg-emerald-400' : 'bg-amber-400'
-                          }`} />
+                              f.id === 'Corporativo' ? 'bg-emerald-400' : 'bg-amber-400'
+                            }`} />
                         )}
                       </button>
                     ))}
@@ -559,13 +579,12 @@ export default function MiembrosPanel() {
                   </p>
 
                   <div className="flex items-center gap-2 mt-1">
-                     <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${
-                       item.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' : 
-                       item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                     }`}>
-                       {item.tipo_afiliado === 'Corporativo' ? 'Corporativos' : 
+                    <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${item.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
+                      item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                      {item.tipo_afiliado === 'Corporativo' ? 'Corporativos' :
                         item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Agentes Independientes'}
-                     </span>
+                    </span>
                     <span className="text-[10px] text-slate-400 font-medium">
                       {item.empresa_rif_numero ? formatRif(item.empresa_rif_tipo, item.empresa_rif_numero) : item.cedula}
                     </span>
@@ -639,10 +658,10 @@ export default function MiembrosPanel() {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+              <div className="flex flex-col items-center justify-center text-center gap-6">
                 {/* Avatar / Logo */}
                 {selected.tipo_afiliado === 'Corporativo' ? (
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center justify-center gap-3 shrink-0">
                     <div className="relative">
                       <div
                         className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
@@ -666,70 +685,75 @@ export default function MiembrosPanel() {
                     </div>
                     <div className="relative">
                       <div
-                        className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                        className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                         onClick={() => openImageEditor('foto')}
                         title="Haz clic para cambiar la foto del representante"
                       >
                         {selected.foto_url ? (
                           <img src={selected.foto_url} alt="Representante" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-sm font-black text-emerald-700 uppercase">
+                          <span className="text-2xl font-black text-emerald-700 uppercase">
                             {getInitials(selected.nombres, selected.apellidos)}
                           </span>
                         )}
                       </div>
                       <button
                         type="button"
-                        className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                        className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
                         onClick={() => openImageEditor('foto')}
                         title="Editar foto del representante"
                       >
-                        <Edit3 size={10} className="text-slate-500" />
+                        <Edit3 size={14} className="text-slate-500" />
                       </button>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider text-center mt-1.5 max-w-[4.5rem]">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-3">
                         Representante
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 flex justify-center">
                     <div
-                      className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                      className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                       onClick={() => openImageEditor('foto')}
                       title="Haz clic para cambiar la foto de perfil"
                     >
                       {selected.foto_url ? (
                         <img src={selected.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xl font-black text-emerald-600 uppercase tracking-tighter">
+                        <span className="text-2xl font-black text-emerald-600 uppercase tracking-tighter">
                           {getInitials(selected.nombres, selected.apellidos)}
                         </span>
                       )}
                     </div>
                     <button
                       type="button"
-                      className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                      className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
                       onClick={() => openImageEditor('foto')}
                       title="Editar foto de perfil"
                     >
-                      <Edit3 size={12} className="text-slate-500" />
+                      <Edit3 size={14} className="text-slate-500" />
                     </button>
                   </div>
                 )}
 
 
-                <div className="text-center sm:text-left space-y-1">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <div className="text-center space-y-1 w-full flex flex-col items-center">
+                  <div className="flex flex-col items-center justify-center gap-1.5">
                     <h2 className="text-2xl font-black text-slate-800 tracking-tight">
                       {/* nombre_completo es columna VIRTUAL GENERATED — se muestra, no se edita */}
                       {selected.tipo_afiliado === 'Corporativo' && selected.empresa_razon_social
-                        ? selected.empresa_razon_social
-                        : formatNombreCard(selected.nombre_completo)}
+                        ? (isEditing ? editForm.empresa_razon_social : selected.empresa_razon_social)
+                        : (isEditing ? `${editForm.nombres || ''} ${editForm.apellidos || ''}` : formatNombreCard(selected.nombre_completo))}
                     </h2>
+                    {selected.tipo_afiliado === 'Corporativo' && (
+                      <p className="text-sm font-bold text-slate-500">
+                        Representante: {isEditing ? `${editForm.nombres || ''} ${editForm.apellidos || ''}` : `${selected.nombres} ${selected.apellidos}`}
+                      </p>
+                    )}
                   </div>
 
                   {isEditing && (
-                    <div className="flex items-center gap-3 py-2">
+                    <div className="flex items-center justify-center gap-3 py-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estado en Directorio:</span>
                       <button
                         onClick={() => setEditForm({ ...editForm, activo: editForm.activo ? 0 : 1 })}
@@ -741,7 +765,7 @@ export default function MiembrosPanel() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-1">
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
                     <DataField
                       label="Código de Afiliado"
                       value={selected.codigo || 'Sin Código'}
@@ -749,10 +773,137 @@ export default function MiembrosPanel() {
                       fieldName="codigo"
                       form={editForm}
                       setForm={setEditForm}
-                      className="!bg-transparent !p-0 !border-none !text-slate-400 !font-bold !text-sm !uppercase !tracking-widest"
-labelClassName="hidden"
+                      className="!bg-transparent !p-0 !border-none !text-slate-400 !font-bold !text-sm !uppercase !tracking-widest text-center"
+                      labelClassName="hidden"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* ── SECCIÓN PERSONAL UNIFICADA ── */}
+              <div className="border-t border-gray-100 mt-8 pt-8 text-left">
+                <div className="flex items-center gap-3 border-b border-gray-50 pb-4 mb-6">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${(isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'bg-emerald-50 text-emerald-500' :
+                    ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-50 text-amber-500' :
+                      'bg-emerald-50 text-emerald-500'
+                    }`}>
+                    <UserIcon size={16} />
+                  </div>
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">
+                    {(isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'Representante Legal' :
+                      ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Información del Agente' :
+                        'Información Personal'}
+                  </h3>
+                </div>
+
+                {/* Datos en grid 3 columnas */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <DataField label="Nombres" value={selected.nombres} isEditing={isEditing} fieldName="nombres" form={editForm} setForm={setEditForm} />
+                  <DataField label="Apellidos" value={selected.apellidos} isEditing={isEditing} fieldName="apellidos" form={editForm} setForm={setEditForm} />
+                  <DataField label="Código de Afiliado" value={selected.codigo || 'No asignado'} isEditing={isEditing} fieldName="codigo" form={editForm} setForm={setEditForm} />
+                  <DataField label="Correo Electrónico" value={selected.email} isEditing={isEditing} fieldName="email" form={editForm} setForm={setEditForm} />
+                  <DataField label="Teléfono" value={selected.telefono || 'Sin teléfono'} isEditing={isEditing} fieldName="telefono" form={editForm} setForm={setEditForm} />
+                  <DataField label="Dirección" value={selected.direccion || 'Sin dirección'} isEditing={isEditing} fieldName="direccion" form={editForm} setForm={setEditForm} />
+                  <DataField label="Fecha de Nacimiento" value={selected.fecha_nacimiento || 'N/A'} isEditing={isEditing} fieldName="fecha_nacimiento" form={editForm} setForm={setEditForm} type="date" />
+                  <DataField label="Nivel Académico" value={selected.nivel_academico || 'No especificado'} isEditing={isEditing} fieldName="nivel_academico" form={editForm} setForm={setEditForm} type="select" options={ACADEMIC_OPTIONS} />
+                  <DataField label="Profesión / Especialidad" value={selected.profesion || 'No especificada'} isEditing={isEditing} fieldName="profesion" form={editForm} setForm={setEditForm} />
+                </div>
+
+                {/* Cédula con editor de prefijo */}
+                <div className="space-y-1 mt-6">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula</label>
+                  {isEditing ? (
+                    <div className="flex gap-2 max-w-xs">
+                      <div className="relative">
+                        <select
+                          className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                          value={editForm.cedula?.split('-')[0] || 'V'}
+                          onChange={(e) => {
+                            const parts = (editForm.cedula || '').split('-');
+                            const rest = parts.slice(1).join('-');
+                            setEditForm({ ...editForm, cedula: `${e.target.value}-${rest}` })
+                          }}
+                        >
+                          {ID_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                      <input
+                        type="text"
+                        className="flex-1 bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                        value={(editForm.cedula || '').split('-').slice(1).join('-')}
+                        onChange={(e) => {
+                          const pre = (editForm.cedula || '').split('-')[0] || 'V'
+                          setEditForm({ ...editForm, cedula: `${pre}-${e.target.value}` })
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 w-fit">
+                      {selected.cedula}
+                    </p>
+                  )}
+                </div>
+
+                {/* Tipo de Afiliación + Vinculación empresa para Agentes */}
+                <div className="p-4 bg-slate-50 rounded-2xl space-y-3 mt-6">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Afiliación</p>
+                    {isEditing ? (
+                      <div className="relative">
+                        <select
+                          className="text-[10px] font-black uppercase px-2 py-1 pr-6 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10 appearance-none cursor-pointer"
+                          value={editForm.tipo_afiliado}
+                          onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
+                        >
+                          <option value="Natural">Agente Independiente</option>
+                          <option value="Corporativo">Corporativo</option>
+                          <option value="Agente Corporativo">Agente Corporativo</option>
+                        </select>
+                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                    ) : (
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
+                        (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                        {selected.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
+                          (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Agente Corporativo' : 'Agente Independiente'}
+                      </span>
+                    )}
+                  </div>
+
+                  {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
+                    <div className="pt-2 border-t border-gray-200 space-y-2">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
+                      {isEditing ? (
+                        <div className="relative">
+                          <select
+                            className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                            value={editForm.id_empresa || ''}
+                            onChange={(e) => setEditForm({ ...editForm, id_empresa: e.target.value ? Number(e.target.value) : null })}
+                          >
+                            <option value="">Sin vinculación</option>
+                            {companies.map(c => (
+                              <option key={c.id_afiliado} value={c.id_afiliado}>
+                                {c.empresa_razon_social} (RIF: {c.empresa_rif_numero})
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+                      ) : selected.id_empresa ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <Building2 size={14} className="text-emerald-500" />
+                            <span className="text-xs font-bold text-slate-700">{selected.empresa_razon_social}</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-medium">RIF: {selected.empresa_rif_numero}</p>
+                        </>
+                      ) : (
+                        <p className="text-xs font-bold text-slate-400 italic">No vinculado</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -779,137 +930,6 @@ labelClassName="hidden"
                   </div>
                 </div>
               )}
-
-              {/* ── SECCIÓN PERSONAL: Representante Legal / Agente / Info Personal ── */}
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                      (isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'bg-emerald-50 text-emerald-500' :
-                      ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-50 text-amber-500' :
-                      'bg-emerald-50 text-emerald-500'
-                    }`}>
-                      <UserIcon size={16} />
-                    </div>
-                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">
-                      {(isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Corporativo' ? 'Representante Legal' :
-                       ((isEditing ? editForm.tipo_afiliado : selected.tipo_afiliado) === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Información del Agente' :
-                       'Información Personal'}
-                    </h3>
-                  </div>
-
-                  {/* Datos en grid 3 columnas */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <DataField label="Nombres" value={selected.nombres} isEditing={isEditing} fieldName="nombres" form={editForm} setForm={setEditForm} />
-                    <DataField label="Apellidos" value={selected.apellidos} isEditing={isEditing} fieldName="apellidos" form={editForm} setForm={setEditForm} />
-                    <DataField label="Código de Afiliado" value={selected.codigo || 'No asignado'} isEditing={isEditing} fieldName="codigo" form={editForm} setForm={setEditForm} />
-                    <DataField label="Correo Electrónico" value={selected.email} isEditing={isEditing} fieldName="email" form={editForm} setForm={setEditForm} />
-                    <DataField label="Teléfono" value={selected.telefono || 'Sin teléfono'} isEditing={isEditing} fieldName="telefono" form={editForm} setForm={setEditForm} />
-                    <DataField label="Dirección" value={selected.direccion || 'Sin dirección'} isEditing={isEditing} fieldName="direccion" form={editForm} setForm={setEditForm} />
-                    <DataField label="Fecha de Nacimiento" value={selected.fecha_nacimiento || 'N/A'} isEditing={isEditing} fieldName="fecha_nacimiento" form={editForm} setForm={setEditForm} type="date" />
-                    <DataField label="Nivel Académico" value={selected.nivel_academico || 'No especificado'} isEditing={isEditing} fieldName="nivel_academico" form={editForm} setForm={setEditForm} type="select" options={ACADEMIC_OPTIONS} />
-                    <DataField label="Profesión / Especialidad" value={selected.profesion || 'No especificada'} isEditing={isEditing} fieldName="profesion" form={editForm} setForm={setEditForm} />
-                  </div>
-
-                  {/* Cédula con editor de prefijo */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula</label>
-                    {isEditing ? (
-                      <div className="flex gap-2 max-w-xs">
-                        <div className="relative">
-                          <select
-                            className="w-20 bg-slate-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                            value={editForm.cedula?.split('-')[0] || 'V'}
-                            onChange={(e) => {
-                              const parts = (editForm.cedula || '').split('-');
-                              const rest = parts.slice(1).join('-');
-                              setEditForm({ ...editForm, cedula: `${e.target.value}-${rest}` })
-                            }}
-                          >
-                            {ID_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
-                          </select>
-                          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        </div>
-                        <input
-                          type="text"
-                          className="flex-1 bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                          value={(editForm.cedula || '').split('-').slice(1).join('-')}
-                          onChange={(e) => {
-                            const pre = (editForm.cedula || '').split('-')[0] || 'V'
-                            setEditForm({ ...editForm, cedula: `${pre}-${e.target.value}` })
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 w-fit">
-                        {selected.cedula}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Tipo de Afiliación + Vinculación empresa para Agentes */}
-                  <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Afiliación</p>
-                      {isEditing ? (
-                        <div className="relative">
-                          <select
-                            className="text-[10px] font-black uppercase px-2 py-1 pr-6 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10 appearance-none cursor-pointer"
-                            value={editForm.tipo_afiliado}
-                            onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
-                          >
-                            <option value="Natural">Agente Independiente</option>
-                            <option value="Corporativo">Corporativo</option>
-                            <option value="Agente Corporativo">Agente Corporativo</option>
-                          </select>
-                          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        </div>
-                      ) : (
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
-                          selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
-                          (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {selected.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
-                           (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Agente Corporativo' : 'Agente Independiente'}
-                        </span>
-                      )}
-                    </div>
-
-                    {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
-                      <div className="pt-2 border-t border-gray-200 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
-                        {isEditing ? (
-                          <div className="relative">
-                            <select
-                              className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
-                              value={editForm.id_empresa || ''}
-                              onChange={(e) => setEditForm({ ...editForm, id_empresa: e.target.value ? Number(e.target.value) : null })}
-                            >
-                              <option value="">Sin vinculación</option>
-                              {companies.map(c => (
-                                <option key={c.id_afiliado} value={c.id_afiliado}>
-                                  {c.empresa_razon_social} (RIF: {c.empresa_rif_numero})
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                          </div>
-                        ) : selected.id_empresa ? (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <Building2 size={14} className="text-emerald-500" />
-                              <span className="text-xs font-bold text-slate-700">{selected.empresa_razon_social}</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium">RIF: {selected.empresa_rif_numero}</p>
-                          </>
-                        ) : (
-                          <p className="text-xs font-bold text-slate-400 italic">No vinculado</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* ── SECCIÓN: REDES SOCIALES ── */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-4">
@@ -963,12 +983,11 @@ labelClassName="hidden"
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   ) : (
-                    <p className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${
-                      selected.estatus === 'Afiliado' ? 'bg-emerald-100 text-emerald-700' :
+                    <p className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${selected.estatus === 'Afiliado' ? 'bg-emerald-100 text-emerald-700' :
                       selected.estatus === 'Moroso' ? 'bg-amber-100 text-amber-700' :
-                      selected.estatus === 'Suspendido' || selected.estatus === 'Rechazado' ? 'bg-rose-100 text-rose-700' :
-                      'bg-slate-100 text-slate-600'
-                    }`}>
+                        selected.estatus === 'Suspendido' || selected.estatus === 'Rechazado' ? 'bg-rose-100 text-rose-700' :
+                          'bg-slate-100 text-slate-600'
+                      }`}>
                       {selected.estatus}
                     </p>
                   )}
@@ -985,7 +1004,7 @@ labelClassName="hidden"
                           value={editForm.empresa_rif_tipo || 'J'}
                           onChange={(e) => setEditForm({ ...editForm, empresa_rif_tipo: e.target.value })}
                         >
-                          {['J','G','P','V','E'].map(p => <option key={p} value={p}>{p}</option>)}
+                          {['J', 'G', 'P', 'V', 'E'].map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                         <input
                           type="text"
@@ -1048,10 +1067,10 @@ labelClassName="hidden"
                 )}
                 {!isEditing && (
                   <div className="flex gap-3 flex-wrap">
-                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${ selected.inscripcion_pagada ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${selected.inscripcion_pagada ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {selected.inscripcion_pagada ? '✓' : '✗'} Inscripción Pagada
                     </span>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${ selected.cibir_convalidado ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${selected.cibir_convalidado ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {selected.cibir_convalidado ? '✓' : '✗'} CIBIR Convalidado
                     </span>
                   </div>
@@ -1156,20 +1175,20 @@ labelClassName="hidden"
 
                   <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} isRequired hasError={formErrors.nombres} />
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} isRequired hasError={formErrors.apellidos} />
-                  
+
                   <div className="space-y-1.5">
                     <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${formErrors.cedula ? 'text-red-500' : 'text-slate-400'}`}>
                       {isNewCorporativo ? "Cédula del representante" : "Cédula"} <span className="text-emerald-500">*</span>
                     </label>
                     <div className="flex gap-2">
-                      <select 
+                      <select
                         className={`w-20 bg-slate-50 border rounded-2xl px-3 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
                         value={newForm.cedula_tipo || 'V'}
                         onChange={(e) => setNewForm({ ...newForm, cedula_tipo: e.target.value })}
                       >
                         {['V', 'E', 'P'].map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
-                      <input 
+                      <input
                         className={`flex-1 bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
                         placeholder="12345678"
                         value={newForm.cedula || ''}
@@ -1202,7 +1221,7 @@ labelClassName="hidden"
                   </div>
                   <DataInput label="Código de Afiliado (opcional)" placeholder="Dejar en blanco para autogenerar" value={newForm.codigo || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo: v })} />
                 </div>
-                
+
                 {/* Redes Sociales del Individuo */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Personal)</p>
@@ -1265,7 +1284,7 @@ labelClassName="hidden"
                       <DataInput label="Dirección fiscal o de oficina" placeholder="Av. Principal..." value={newForm.empresa_direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_direccion: v })} />
                     </div>
                   </div>
-                  
+
                   <div className="mt-4 pt-4 border-t border-emerald-100/50">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Empresa)</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1372,10 +1391,9 @@ labelClassName="hidden"
             </div>
 
             <div
-              className={`relative w-full h-36 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
-                imageDragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
-              }`}
-              onClick={() => imageFileInputRef.current?.click()}
+              className={`relative w-full h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden transition-all ${imageDragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
+                }`}
+              onClick={() => !imagePreview && imageFileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setImageDragOver(true) }}
               onDragLeave={() => setImageDragOver(false)}
               onDrop={(e) => {
@@ -1386,11 +1404,27 @@ labelClassName="hidden"
               }}
             >
               {imagePreview ? (
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className={`max-h-full max-w-full p-3 ${imageEditKind === 'foto' ? 'object-cover rounded-xl w-full h-full' : 'object-contain'}`}
-                />
+                <div className="relative w-full h-full">
+                  <Cropper
+                    image={imagePreview}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={imageEditKind === 'foto' ? 4 / 5 : 1 / 1}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                    cropShape="rect"
+                    showGrid={true}
+                    onMediaLoaded={(mediaSize) => {
+                      if (imageEditKind === 'foto') {
+                        setZoom(1.1)
+                        setCrop({ x: 0, y: -10 })
+                      }
+                    }}
+                  />
+                  {/* Guía central vertical para encuadre */}
+                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] border-l-2 border-dashed border-white/60 drop-shadow-md pointer-events-none z-10" />
+                </div>
               ) : (
                 <>
                   <ImageIcon size={28} className="text-slate-300" />
@@ -1414,13 +1448,32 @@ labelClassName="hidden"
             </div>
 
             {imagePreview && (
-              <button
-                type="button"
-                onClick={() => { setImagePreview(null); setImageFile(null) }}
-                className="w-full text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-1"
-              >
-                <X size={10} /> Quitar imagen
-              </button>
+              <div className="space-y-4">
+                <div className="px-2">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+                    <span className="text-[10px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    value={zoom}
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    aria-labelledby="Zoom"
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setImagePreview(null); setImageFile(null); setCroppedAreaPixels(null) }}
+                  className="w-full text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-1"
+                >
+                  <X size={10} /> Cambiar imagen
+                </button>
+              </div>
             )}
 
             {imageError && (
@@ -1513,15 +1566,13 @@ function FormSection({
   const isEmerald = variant === 'emerald'
   return (
     <section
-      className={`rounded-2xl border p-5 space-y-4 ${
-        isEmerald ? 'bg-emerald-50/40 border-emerald-100' : 'bg-slate-50/50 border-gray-100'
-      }`}
+      className={`rounded-2xl border p-5 space-y-4 ${isEmerald ? 'bg-emerald-50/40 border-emerald-100' : 'bg-slate-50/50 border-gray-100'
+        }`}
     >
       <div className="flex items-start gap-3 pb-3 border-b border-gray-100/80">
         <div
-          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-            isEmerald ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-400 border border-gray-100'
-          }`}
+          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isEmerald ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-slate-400 border border-gray-100'
+            }`}
         >
           {icon}
         </div>
@@ -1544,11 +1595,10 @@ function DataInput({ label, placeholder, value, onChange, type = 'text', isRequi
       <input
         type={type}
         placeholder={placeholder}
-        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${
-          hasError 
-            ? 'border-red-500 ring-4 ring-red-500/10 focus:ring-red-500/20' 
-            : 'border-gray-100 focus:ring-emerald-500/10 focus:border-emerald-500'
-        }`}
+        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${hasError
+          ? 'border-red-500 ring-4 ring-red-500/10 focus:ring-red-500/20'
+          : 'border-gray-100 focus:ring-emerald-500/10 focus:border-emerald-500'
+          }`}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
       />
