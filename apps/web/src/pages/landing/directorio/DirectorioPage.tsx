@@ -14,10 +14,7 @@ const DirectorioPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  });
+  const [darkMode, setDarkMode] = useState(false);
 
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
   const [visibleCount, setVisibleCount] = useState(30);
@@ -83,7 +80,7 @@ const DirectorioPage = () => {
   }, []);
 
   const fuse = useMemo(() => {
-    let keys = ['nombre_completo'];
+    let keys = ['nombre_completo', 'representante_nombre', 'nombres', 'apellidos'];
     if (searchField === 'cedula') {
       keys = ['cedula', 'empresa_rif_numero'];
     } else if (searchField === 'codigo') {

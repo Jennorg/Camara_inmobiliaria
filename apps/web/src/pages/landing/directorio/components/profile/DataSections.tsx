@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, Briefcase, User, Building2, Mail, Phone, Globe, MapPin } from 'lucide-react';
+import { GraduationCap, Briefcase, User, Building2, Mail, Phone, Globe, MapPin, IdCard, FileText } from 'lucide-react';
 import { AfiliadoData } from '../AfiliadoCard';
 import { InfoCard } from './InfoCard';
 import { formatRif } from '@/utils/formatters';
@@ -25,7 +25,7 @@ export const DataSections = ({
   const renderDatosSections = () => (
     <div className="space-y-8 w-full">
       {showEmpresaSection && (
-        <section className="bg-white dark:bg-[#04432f]/50 rounded-[2rem] p-6 md:p-8 shadow-sm border border-slate-200 dark:border-emerald-500/10">
+        <section className="bg-white dark:bg-[#04432f]/50 rounded-[2rem] p-6 md:p-8 shadow-sm border border-slate-200/50 dark:border-emerald-500/10">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center">
               <Building2 size={14} className="text-emerald-500" />
@@ -33,15 +33,16 @@ export const DataSections = ({
             <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Información de la Empresa</h3>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+          {/* Grid de campos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 w-full text-left">
             {afiliado.empresa_rif_numero && (
-              <InfoCard icon={Globe} label="RIF" variant="compact">
+              <InfoCard icon={FileText} label="RIF" variant="compact">
                 {formatRif(afiliado.empresa_rif_tipo || 'J', afiliado.empresa_rif_numero)}
               </InfoCard>
             )}
-              <InfoCard icon={User} label="Código de Afiliado" variant="compact">
-                {afiliado.codigo || 'En proceso'}
-              </InfoCard>
+            <InfoCard icon={User} label="Código de Afiliado" variant="compact">
+              {afiliado.codigo || 'En proceso'}
+            </InfoCard>
             {(afiliado.empresa_email || (isCorporativo && afiliado.email)) && (
               <InfoCard icon={Mail} label="Correo" variant="compact">
                 <a href={`mailto:${afiliado.empresa_email || afiliado.email}`} className="hover:underline">
@@ -73,8 +74,13 @@ export const DataSections = ({
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Representante Legal</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                 {afiliado.cedula && (
-                  <InfoCard icon={Globe} label="Cédula" variant="compact">
+                  <InfoCard icon={IdCard} label="Cédula" variant="compact">
                     {afiliado.cedula}
+                  </InfoCard>
+                )}
+                {afiliado.profesion && (
+                  <InfoCard icon={Briefcase} label="Especialidad / Profesión" variant="compact">
+                    {afiliado.profesion}
                   </InfoCard>
                 )}
                 {afiliado.email && (
@@ -110,8 +116,13 @@ export const DataSections = ({
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
             {afiliado.cedula && (
-              <InfoCard icon={Globe} label="Cédula" variant="compact">
+              <InfoCard icon={IdCard} label="Cédula" variant="compact">
                 {afiliado.cedula}
+              </InfoCard>
+            )}
+            {afiliado.profesion && (
+              <InfoCard icon={Briefcase} label="Especialidad / Profesión" variant="compact">
+                {afiliado.profesion}
               </InfoCard>
             )}
             {!isCorporativo && (

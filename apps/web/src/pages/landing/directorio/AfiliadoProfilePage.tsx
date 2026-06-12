@@ -94,24 +94,21 @@ const AfiliadoProfilePage = () => {
         )}
 
         {/* 3. Perfil académico y descripción */}
-        {!hasOrganigram && (
+        {/* <div className="max-w-5xl mx-auto w-full">
           <ProfileMainContent afiliado={afiliado} />
-        )}
-        {hasOrganigram && (afiliado.nivel_academico || afiliado.profesion || afiliado.descripcion || afiliado.notas) && (
-          <div className="max-w-4xl mx-auto w-full">
-            <ProfileMainContent afiliado={afiliado} />
-          </div>
-        )}
+        </div> */}
 
-        {/* 3. Data Section (Bottom, Full Width, Compact) */}
-        <DataSections 
-          afiliado={afiliado}
-          isCorporativo={isCorporativo}
-          isRepMode={isRepMode}
-          ubicacionTexto={ubicacionTexto}
-          showEmpresaSection={showEmpresaSection}
-          showAfiliadoSection={showAfiliadoSection}
-        />
+        {/* 4. Data Section (Bottom, Full Width, Compact) */}
+        <div className="w-full">
+          <DataSections 
+            afiliado={afiliado}
+            isCorporativo={isCorporativo}
+            isRepMode={isRepMode}
+            ubicacionTexto={ubicacionTexto}
+            showEmpresaSection={showEmpresaSection}
+            showAfiliadoSection={showAfiliadoSection}
+          />
+        </div>
       </main>
 
       <Footer />

@@ -1,14 +1,13 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, MapPin, User, 
-  Globe, Instagram, Linkedin, 
-  Facebook, GraduationCap, Loader2, Twitter, 
-  Link2, Briefcase, FileText, Building2, Music2 
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Mail, Phone, MapPin, User, Globe, Instagram, Linkedin, Facebook,
+  GraduationCap, Briefcase, Building2, Share2, Award, CheckCircle,
+  Sparkles, MessageSquare, Download, CreditCard, X, ShieldCheck
 } from 'lucide-react';
 import { formatNombreCard, getInitials, formatRif } from '@/utils/formatters';
 import { AfiliadoData } from '../AfiliadoCard';
 import logoCibir from '@/assets/Logo3.png';
-import { UseAfiliadoProfileResult } from './useAfiliadoProfile';
 
 interface ProfileHeroProps {
   afiliado: AfiliadoData;
@@ -21,147 +20,264 @@ interface ProfileHeroProps {
 
 const XIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z" />
   </svg>
 );
 
 const TikTokIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.14-.1-.27-.2-.4-.31v4.99c0 .24-.01.48-.03.71-.11 2.53-1.44 4.81-3.66 6.03-2.12 1.19-4.81 1.25-6.99.14-2.16-1.07-3.66-3.23-3.92-5.63-.33-2.43.74-4.99 2.82-6.28 1.34-.84 2.97-1.18 4.54-.93V11.1c-1-.22-2.11-.08-3 .42-.9.5-1.52 1.45-1.58 2.47-.07 1.16.51 2.33 1.51 2.89 1 .58 2.34.5 3.24-.22.6-.48.92-1.22.92-1.99V0z"/>
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.14-.1-.27-.2-.4-.31v4.99c0 .24-.01.48-.03.71-.11 2.53-1.44 4.81-3.66 6.03-2.12 1.19-4.81 1.25-6.99.14-2.16-1.07-3.66-3.23-3.92-5.63-.33-2.43.74-4.99 2.82-6.28 1.34-.84 2.97-1.18 4.54-.93V11.1c-1-.22-2.11-.08-3 .42-.9.5-1.52 1.45-1.58 2.47-.07 1.16.51 2.33 1.51 2.89 1 .58 2.34.5 3.24-.22.6-.48.92-1.22.92-1.99V0z" />
   </svg>
 );
 
-export const ProfileHero = ({ 
-  afiliado, 
-  isRepMode, 
-  isCorporativo, 
-  displayEmblem, 
-  companyLogo, 
-  ubicacionTexto 
+export const ProfileHero = ({
+  afiliado,
+  isRepMode,
+  isCorporativo,
+  displayEmblem,
+  companyLogo,
+  ubicacionTexto
 }: ProfileHeroProps) => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [showIdModal, setShowIdModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const yearsExp = afiliado.anos_servicio || (afiliado.ano_inicio_servicio ? (new Date().getFullYear() - afiliado.ano_inicio_servicio) : null) || 0;
+
+  const phoneForWa = (isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono) || '';
+  const cleanPhone = phoneForWa.replace(/[^0-9]/g, '');
+  const waLink = cleanPhone ? `https://wa.me/${cleanPhone}` : null;
+
+  const actualCompanyLogo = companyLogo || afiliado.empresa_logo_url || null;
+  const logoToShow = isCorporativo ? actualCompanyLogo : logoCibir;
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Perfil de ${afiliado.nombres} ${afiliado.apellidos}`,
+          text: `Conoce el perfil profesional de ${afiliado.nombres} ${afiliado.apellidos} en la Cámara Inmobiliaria de Bolívar.`,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  };
+
+  const downloadVCard = () => {
+    const vcardData = `BEGIN:VCARD
+VERSION:3.0
+FN:${afiliado.nombres} ${afiliado.apellidos}
+ORG:${afiliado.empresa_razon_social || 'Cámara Inmobiliaria de Bolívar'}
+TITLE:${isCorporativo ? 'Representante Legal' : afiliado.profesion || 'Asesor Inmobiliario'}
+TEL;TYPE=CELL:${isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono || ''}
+EMAIL;TYPE=PREF,INTERNET:${isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email || ''}
+URL:${isCorporativo ? afiliado.empresa_website || afiliado.website || '' : afiliado.website || ''}
+ADR;TYPE=WORK:;;${afiliado.direccion || ''};;;;
+END:VCARD`;
+
+    const blob = new Blob([vcardData], { type: 'text/vcard;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${afiliado.nombres}_${afiliado.apellidos}.vcf`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-[#0c121f] via-[#101524] to-[#070b12] text-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-white/5 max-w-4xl mx-auto">
-      {/* Background ambient glowing lights */}
-      <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]" />
+    <div className="w-full">
+      {/* ── CARD PRINCIPAL DE PERFIL ── */}
+      <div className="relative overflow-hidden bg-white text-slate-800 rounded-[2.5rem] shadow-xl border border-slate-200/60 flex flex-col lg:flex-row min-h-[480px]">
 
-      <div className="relative flex flex-col items-center">
-        {/* Center Company Logo / CIBIR Emblem */}
-        <div className="flex justify-center mb-8">
-          <div className={`flex items-center justify-center rounded-2xl p-4 ${isCorporativo && companyLogo ? 'bg-white' : ''}`}>
+        {/* LADO IZQUIERDO: Foto del representante */}
+        <div className="w-full lg:w-[40%] bg-slate-900 relative shrink-0 overflow-hidden flex items-stretch">
+          {afiliado.foto_url ? (
             <img
-              src={displayEmblem}
-              alt={isCorporativo ? `Logo de ${afiliado.empresa_razon_social || 'empresa'}` : 'CIBIR'}
-              className="max-h-36 md:max-h-44 max-w-[280px] object-contain"
+              src={afiliado.foto_url}
+              alt={`Foto de ${afiliado.nombres}`}
+              className="w-full h-full object-cover min-h-[350px] lg:min-h-full transition-transform duration-700 hover:scale-105 relative z-0"
             />
-          </div>
+          ) : (
+            <div className="w-full h-full min-h-[350px] lg:min-h-full flex items-center justify-center bg-gradient-to-br from-emerald-800 to-emerald-950 relative z-0">
+              <span className="text-white font-black text-6xl uppercase tracking-tighter">
+                {getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Company Name & RIF */}
-        {(isCorporativo || afiliado.empresa_razon_social) ? (
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-4xl font-black tracking-wide uppercase">
-              {afiliado.empresa_razon_social || afiliado.razon_social}
-            </h2>
-            {(afiliado.empresa_rif_numero || afiliado.cedula) && (
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2">
-                RIF: {formatRif(afiliado.empresa_rif_tipo || 'J', afiliado.empresa_rif_numero || '')}
+        {/* LADO DERECHO: Detalles e información */}
+        <div className="w-full lg:w-[60%] p-8 md:p-10 flex flex-col justify-between gap-6 text-left">
+
+          {/* Encabezado e identificación */}
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-start md:items-center justify-between gap-4 mt-1">
+              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight uppercase leading-tight">
+                {formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+              </h1>
+              <span className="shrink-0 inline-flex items-center text-[9px] font-black tracking-widest text-emerald-700 bg-emerald-100/60 px-3 py-1.5 rounded-md uppercase">
+                {isCorporativo ? 'MIEMBRO CORPORATIVO' : 'ASESOR INMOBILIARIO'}
+              </span>
+            </div>
+
+            {/* Subtítulo: Representante Legal de [Logo] [Empresa] */}
+            {isCorporativo ? (
+              <div className="flex items-center gap-2 mt-2 flex-wrap text-slate-500 font-bold text-xs uppercase tracking-wider">
+                <span>Representante Legal de</span>
+                <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/50 px-2.5 py-1 rounded-lg">
+                  {actualCompanyLogo && (
+                    <img src={actualCompanyLogo} alt="Logo" className="w-4 h-4 object-contain shrink-0" />
+                  )}
+                  <span className="text-slate-700 font-black">
+                    {afiliado.empresa_razon_social || afiliado.razon_social}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-500 font-bold text-xs uppercase tracking-wider mt-2">
+                {afiliado.profesion || 'Asesor Inmobiliario Independiente'}
               </p>
             )}
-          </div>
-        ) : (
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-black tracking-wide uppercase text-slate-300">
-              Cámara Inmobiliaria de Bolívar
-            </h2>
-            <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest mt-2">
-              Afiliado Activo Independiente
-            </p>
-          </div>
-        )}
 
-        {/* Bottom Row: Representative, Social Icons, Location */}
-        <div className="w-full flex flex-col md:flex-row items-center justify-between gap-6 mt-4 pt-8 border-t border-white/10">
-          {/* Representative / Member Info */}
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-[3px] border-white dark:border-[#070b12] shadow-xl shrink-0 bg-slate-900 flex items-center justify-center">
-              {afiliado.foto_url ? (
-                <img
-                  src={afiliado.foto_url}
-                  alt={`Foto de ${formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}`}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-black text-2xl uppercase tracking-tighter">
-                  {getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+            <div className="border-b border-slate-100 my-4 w-full" />
+
+            <div className="space-y-4">
+              {afiliado.nivel_academico && !afiliado.nivel_academico.toLowerCase().includes('bachiller') && (
+                <p className="text-emerald-600 font-black text-xs uppercase tracking-[0.2em]">
+                  {afiliado.nivel_academico}
+                </p>
+              )}
+              
+              <p className="text-slate-500 text-sm font-semibold leading-relaxed max-w-xl">
+                {afiliado.descripcion || afiliado.notas || (isCorporativo ? (
+                  `Representante legal y asesor verificado de la empresa afiliada a la Cámara Inmobiliaria del Estado Bolívar.`
+                ) : (
+                  `Profesional inmobiliario registrado y solvente en la Cámara Inmobiliaria del Estado Bolívar.`
+                ))}
+              </p>
+            </div>
+          </div>
+
+          {/* Logo y Código apilados y centrados (Más Grandes) */}
+          {(logoToShow || afiliado.codigo) && (
+            <div className="flex flex-col items-center gap-4 w-full text-center">
+              {logoToShow && (
+                <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-3xl bg-white border border-slate-200/60 shadow-md flex items-center justify-center p-5 shrink-0 transition-transform hover:scale-105 duration-500">
+                  <img
+                    src={logoToShow}
+                    alt={isCorporativo ? `Logo de ${afiliado.empresa_razon_social || afiliado.razon_social}` : 'Cámara Inmobiliaria'}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              )}
+              {afiliado.codigo && (
+                <span className="shrink-0 inline-flex items-center text-[10px] font-black tracking-[0.2em] text-emerald-700 bg-emerald-100/60 px-4 py-2 rounded-md uppercase">
+                  CÓDIGO: {afiliado.codigo}
                 </span>
               )}
             </div>
-            <div className="text-center md:text-left">
-              <h3 className="text-base md:text-lg font-black tracking-wide uppercase leading-tight">
-                {formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
-              </h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                {isCorporativo ? 'Representante Legal' : afiliado.profesion || 'Agente Independiente'}
-              </p>
-              
-              {/* Location Pin */}
-              <div className="flex items-center justify-center md:justify-start gap-1.5 text-xs text-slate-400 mt-2">
-                <MapPin size={12} className="text-emerald-500 shrink-0" />
-                <span>{ubicacionTexto}</span>
-              </div>
-            </div>
-          </div>
+          )}
 
-           <div className="flex items-center gap-3">
+          {/* Pie de la tarjeta: Iconos de contacto centrados */}
+          <div className="flex items-center justify-center gap-3.5 flex-wrap w-full mt-2 pt-6 border-t border-slate-100">
+            {waLink && (
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#25D366] hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="WhatsApp"
+              >
+                <MessageSquare size={18} />
+              </a>
+            )}
             {(isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email) && (
-              <a href={`mailto:${isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email}`} className="w-10 h-10 rounded-full bg-white/10 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title={isCorporativo ? "Correo de la Empresa" : "Correo"}>
-                <Mail size={16} />
+              <a
+                href={`mailto:${isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email}`}
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title={isCorporativo ? "Correo de la Empresa" : "Correo"}
+              >
+                <Mail size={18} />
               </a>
             )}
             {afiliado.linkedin && (
-              <a href={afiliado.linkedin} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="LinkedIn">
-                <Linkedin size={16} />
+              <a
+                href={afiliado.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="LinkedIn"
+              >
+                <Linkedin size={18} />
               </a>
             )}
             {afiliado.instagram && (
-              <a href={afiliado.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Instagram">
-                <Instagram size={16} />
+              <a
+                href={afiliado.instagram.startsWith('http') ? afiliado.instagram : `https://instagram.com/${afiliado.instagram.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="Instagram"
+              >
+                <Instagram size={18} />
               </a>
             )}
             {afiliado.facebook && (
-              <a href={afiliado.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#1877F2] hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Facebook">
-                <Facebook size={16} />
+              <a
+                href={afiliado.facebook.startsWith('http') ? afiliado.facebook : `https://facebook.com/${afiliado.facebook}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#1877F2] hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="Facebook"
+              >
+                <Facebook size={18} />
               </a>
             )}
             {afiliado.twitter && (
-              <a href={afiliado.twitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="X">
-                <XIcon size={16} />
+              <a
+                href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="X"
+              >
+                <XIcon size={18} />
               </a>
             )}
             {afiliado.tiktok && (
-              <a href={afiliado.tiktok} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="TikTok">
-                <TikTokIcon size={16} />
+              <a
+                href={afiliado.tiktok}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="TikTok"
+              >
+                <TikTokIcon size={18} />
               </a>
             )}
             {(afiliado.website || (isCorporativo && afiliado.empresa_website)) && (
-              <a href={isCorporativo ? (afiliado.empresa_website || afiliado.website) : afiliado.website} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title="Sitio Web">
-                <Globe size={16} />
-              </a>
-            )}
-            {(isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono) && (
-              <a href={`https://wa.me/${(isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono)!.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 hover:bg-[#25D366] hover:text-white transition-all flex items-center justify-center border border-white/5 text-slate-300" title={isCorporativo ? "WhatsApp de la Empresa" : "WhatsApp"}>
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.967C16.528 3.973 14.077 2.945 11.46 2.945c-5.447 0-9.873 4.37-9.877 9.799-.001 1.778.474 3.51 1.378 5.028l-.972 3.548 3.658-.962zm11.786-6.84c-.273-.137-1.616-.797-1.87-.89-.253-.093-.438-.137-.622.137-.184.273-.713.89-.873 1.072-.16.182-.32.205-.593.068-.273-.137-1.155-.426-2.2-1.357-.813-.725-1.36-1.62-1.52-1.894-.16-.273-.017-.42.12-.557.123-.124.273-.32.41-.48.136-.16.182-.273.273-.455.09-.182.046-.341-.023-.48-.068-.137-.622-1.502-.852-2.053-.224-.544-.45-.468-.621-.477-.16-.008-.344-.01-.529-.01-.184 0-.483.07-.736.342-.253.273-.966.945-.966 2.304 0 1.358.988 2.67 1.103 2.828.115.158 1.944 2.97 4.71 4.164.658.284 1.172.453 1.573.58.66.21 1.26.18 1.734.11.53-.08 1.616-.66 1.843-1.298.227-.638.227-1.185.159-1.298-.068-.113-.253-.182-.527-.32z"/>
-                </svg>
+              <a
+                href={isCorporativo ? (afiliado.empresa_website || afiliado.website) : afiliado.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                title="Sitio Web"
+              >
+                <Globe size={18} />
               </a>
             )}
           </div>
+
         </div>
       </div>
     </div>
   );
 };
+
