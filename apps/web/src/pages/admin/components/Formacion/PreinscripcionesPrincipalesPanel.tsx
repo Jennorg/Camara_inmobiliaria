@@ -274,6 +274,31 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch (e: any) { setError(e.message) }
   }
 
+  const cambiarEtapa = async (idInscripcion: number, etapa: number, labelEtapa: string) => {
+    const result = await Swal.fire({
+      title: `¿Mover a "${labelEtapa}"?`,
+      text: 'El estado del trámite se actualizará manualmente. Esta acción puede enviar notificaciones al aspirante.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#059669',
+      confirmButtonText: 'Sí, cambiar etapa',
+      cancelButtonText: 'Cancelar'
+    })
+    if (!result.isConfirmed) return
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${idInscripcion}/cambiar-etapa`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ etapa }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la etapa')
+      await fetchData()
+    } catch (e: any) {
+      Swal.fire({ title: 'Error', text: e.message, icon: 'error' })
+    }
+  }
+
   const rechazar = async (id: number) => {
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/rechazar`, {
@@ -505,13 +530,28 @@ export default function PreinscripcionesPrincipalesPanel({
                     {AFILIACION_STEPS_FLOW.map((step, idx) => {
                       const isCompleted = idx < activeIndex;
                       const isCurrent = idx === activeIndex;
+                      const isClickable = !isCurrent;
                       const StepIcon = step.icon;
                       return (
-                        <div key={idx} className="flex flex-col items-center relative z-10 group gap-1.5">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isCompleted ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-110' : 'bg-white text-slate-300 border-2 border-slate-100'}`}>
+                        <div
+                          key={idx}
+                          className={`flex flex-col items-center relative z-10 gap-1.5 group ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                          title={isClickable ? `Mover a: ${step.label}` : step.label}
+                          onClick={isClickable ? () => cambiarEtapa(selected.id_inscripcion, idx, step.label) : undefined}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all
+                            ${isCompleted
+                              ? 'bg-emerald-500 text-white group-hover:bg-emerald-400 group-hover:scale-110'
+                              : isCurrent
+                                ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-110'
+                                : 'bg-white text-slate-300 border-2 border-slate-100 group-hover:border-emerald-300 group-hover:text-emerald-400 group-hover:scale-110'
+                            }`}>
                             {isCompleted ? <Check className="w-4 h-4" strokeWidth={3} /> : <StepIcon className="w-4 h-4" />}
                           </div>
-                          <span className={`text-[8px] font-black tracking-tighter uppercase ${isCurrent ? 'text-emerald-600' : 'text-slate-300'}`}>{step.labelShort}</span>
+                          <span className={`text-[8px] font-black tracking-tighter uppercase transition-colors
+                            ${isCurrent ? 'text-emerald-600' : isCompleted ? 'text-emerald-400 group-hover:text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
+                            {step.labelShort}
+                          </span>
                         </div>
                       )
                     })}
@@ -675,7 +715,10 @@ export default function PreinscripcionesPrincipalesPanel({
                     {selected.programa_codigo === 'AFILIACION' ? (
                       <>
                         {selected.apto_acreditacion ? (
-                          <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200">Aprobar Directo</button>
+                          <>
+                            <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200">Aprobar Directo</button>
+                            <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
+                          </>
                         ) : (
                           <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
                         )}
