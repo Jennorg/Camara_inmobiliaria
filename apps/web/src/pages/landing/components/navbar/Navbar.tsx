@@ -68,7 +68,7 @@ const Navbar = ({
                 setDarkMode(nextMode);
                 localStorage.setItem('darkMode', JSON.stringify(nextMode));
               }}
-              className={`p-2 rounded-full transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-emerald-50"}`}
+              className={`hidden p-2 rounded-full transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-emerald-50"}`}
             >
               {darkMode ? <Sun size={20} className="text-amber-400" /> : <Moon size={20} className="text-emerald-700" />}
             </button>

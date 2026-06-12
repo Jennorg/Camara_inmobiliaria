@@ -17,10 +17,7 @@ function isImageUrl(url: string): boolean {
 }
 
 export default function Comerciales() {
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  })
+  const [darkMode, setDarkMode] = useState(false)
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ConvenioPublico[]>([])
   const [error, setError] = useState<string | null>(null)

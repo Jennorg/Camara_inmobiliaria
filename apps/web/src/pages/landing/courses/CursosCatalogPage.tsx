@@ -19,10 +19,7 @@ interface CursoDB {
 /** Catálogo público de cursos/talleres (`/cursos`, `/talleres`). */
 export default function CursosCatalogPage() {
   const navigate = useNavigate()
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  })
+  const [darkMode, setDarkMode] = useState(false)
   const [cursos, setCursos] = useState<CursoDB[]>([])
   const [loading, setLoading] = useState(true)
 

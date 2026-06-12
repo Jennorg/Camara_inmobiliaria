@@ -37,10 +37,7 @@ const HitoHistoria = ({ año, titulo, descripcion, index }: { año: string, titu
 }
 
 export default function Historia() {
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  })
+  const [darkMode, setDarkMode] = useState(false)
   const navigate = useNavigate()
   const [hitos, setHitos] = useState<{ año: string, titulo: string, descripcion: string }[]>([])
 

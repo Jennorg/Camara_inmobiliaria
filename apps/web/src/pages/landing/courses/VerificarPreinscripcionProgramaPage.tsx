@@ -50,10 +50,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   const [status, setStatus] = useState<'loading' | 'verifying' | 'form' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('Verificando tu enlace...')
   const [userData, setUserData] = useState<any>(null)
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  })
+  const [darkMode, setDarkMode] = useState(false)
   const [showNivelDropdown, setShowNivelDropdown] = useState(false)
 
   // Form state

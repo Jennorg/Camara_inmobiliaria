@@ -40,10 +40,7 @@ const CATEGORY_MAP: Record<string, { label: string; subtitle: string }> = {
 
 export default function MarcoLegalPage() {
   const { category } = useParams<{ category: string }>()
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  })
+  const [darkMode, setDarkMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<NormativaPublic[]>([])
   const [error, setError] = useState<string | null>(null)

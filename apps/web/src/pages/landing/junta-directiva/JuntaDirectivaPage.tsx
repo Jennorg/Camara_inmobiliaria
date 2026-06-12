@@ -88,10 +88,7 @@ const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: s
 }
 
 export default function EquipoDirectivo() {
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  })
+  const [darkMode, setDarkMode] = useState(false)
   const [directiva, setDirectiva] = useState<MiembroDirectiva[]>(() => readCache() ?? [])
   const [loading, setLoading] = useState(directiva.length === 0)
 

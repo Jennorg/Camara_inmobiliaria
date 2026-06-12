@@ -19,10 +19,7 @@ const useScrollReveal = () => {
 }
 
 export default function CodigoEtica() {
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  });
+  const [darkMode, setDarkMode] = useState(false);
   const setReveal = useScrollReveal();
 
   const principios = [

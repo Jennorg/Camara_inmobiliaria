@@ -52,10 +52,7 @@ const MODULES: ProgramModule[] = [
 
 export default function PreaniPage() {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem('darkMode')
-    return stored ? JSON.parse(stored) : false
-  });
+  const [darkMode, setDarkMode] = useState(false);
   const setRevealEstudiosa = useScrollReveal();
   const setRevealEstudioso = useScrollReveal();
 
