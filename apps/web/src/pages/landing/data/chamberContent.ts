@@ -134,7 +134,7 @@ export const CONVENIOS_COMERCIALES: ChamberPageData = {
   blocks: [
     {
       heading: 'Red de Alianzas',
-      body: 'Mantenemos convenios de descuento y trato preferencial para nuestros afiliados solventes en distintos rubros comerciales.',
+      body: 'Mantenemos convenios de descuento y trato preferencial para nuestros afiliados en distintos rubros comerciales.',
       list: [
         'Plataformas Fintech e Instituciones Bancarias.',
         'Agencias de Seguros de Salud y Patrimoniales.',

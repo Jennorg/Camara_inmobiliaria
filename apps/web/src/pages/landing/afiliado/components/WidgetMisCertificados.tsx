@@ -28,7 +28,7 @@ const WidgetMisCertificados: React.FC = () => {
   const [rows, setRows] = useState<CertRow[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
-  
+
   const [afiliadoData, setAfiliadoData] = useState<any | null>(null)
   const [loadingAfi, setLoadingAfi] = useState(false)
 
@@ -63,7 +63,7 @@ const WidgetMisCertificados: React.FC = () => {
             setAfiliadoData(j.data)
           }
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingAfi(false))
     }
   }, [token, user?.id_afiliado])
@@ -71,7 +71,7 @@ const WidgetMisCertificados: React.FC = () => {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
   const copiar = (text: string) => {
-    void navigator.clipboard.writeText(text).catch(() => {})
+    void navigator.clipboard.writeText(text).catch(() => { })
   }
 
   const abrirPublico = (codigo: string) => {
@@ -107,10 +107,10 @@ const WidgetMisCertificados: React.FC = () => {
                 </span>
               </div>
               <h4 className="font-extrabold text-base text-emerald-950">
-                Certificado de Afiliación Gremial
+                Certificado de Afiliación
               </h4>
               <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                Como miembro solvente y registrado en la Cámara Inmobiliaria del Estado Bolívar, dispones de tu certificado de afiliación digital y público.
+                Como miembro registrado en la Cámara Inmobiliaria del Estado Bolívar, dispones de tu certificado de afiliación digital y público.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-auto">
@@ -188,11 +188,10 @@ const WidgetMisCertificados: React.FC = () => {
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span
-                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                          vigente
+                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${vigente
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                             : 'border-amber-200 bg-amber-50 text-amber-800'
-                        }`}
+                          }`}
                       >
                         {vigente ? 'Vigente' : 'No vigente'}
                       </span>
