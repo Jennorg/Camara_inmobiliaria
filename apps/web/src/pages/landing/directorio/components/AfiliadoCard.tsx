@@ -23,9 +23,9 @@ const TikTokIcon = ({ size = 12 }: { size?: number }) => (
 function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
   if (isCorpView) {
     const url = afiliado.foto_url || afiliado.empresa_logo_url || null;
-    return { url, isLogo: !afiliado.foto_url && !!afiliado.empresa_logo_url };
+    return { url };
   }
-  return { url: afiliado.foto_url || null, isLogo: false };
+  return { url: afiliado.foto_url || null };
 }
 
 function CardImage({
@@ -37,14 +37,12 @@ function CardImage({
   isCorpView: boolean;
   size?: 'default' | 'mini';
 }) {
-  const { url, isLogo } = getCardImage(afiliado, isCorpView);
+  const { url } = getCardImage(afiliado, isCorpView);
+  const isLogo = !afiliado.foto_url && !!afiliado.empresa_logo_url;
   const initials = getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos);
   const alt = isCorpView
     ? (isLogo ? `Logo de ${afiliado.empresa_razon_social || afiliado.nombre_completo}` : `Foto del representante de ${afiliado.empresa_razon_social || afiliado.nombre_completo}`)
     : `Foto de ${afiliado.nombre_completo}`;
-
-  // Para corporativos con foto de representante, mostrar el logo de la empresa como un overlay circular
-  const showLogoOverlay = isCorpView && !!afiliado.foto_url && !!afiliado.empresa_logo_url;
 
   if (size === 'mini') {
     return (
@@ -74,19 +72,6 @@ function CardImage({
           />
         ) : (
           <span className="text-white font-black text-3xl uppercase tracking-tighter">{initials}</span>
-        )}
-
-        {showLogoOverlay && (
-          <div
-            className="absolute top-3 right-3 w-16 h-16 rounded-full border-2 border-emerald-500 bg-white p-1.5 overflow-hidden shadow-lg z-20 group-hover:scale-110 transition-transform duration-500 flex items-center justify-center"
-            title={`Empresa: ${afiliado.empresa_razon_social || ''}`}
-          >
-            <img
-              src={afiliado.empresa_logo_url || undefined}
-              alt={`Logo de ${afiliado.empresa_razon_social || ''}`}
-              className="w-full h-full object-contain"
-            />
-          </div>
         )}
       </div>
     </div>
