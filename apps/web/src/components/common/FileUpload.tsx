@@ -147,9 +147,9 @@ export default function FileUpload({
     if (!imageToCrop || !croppedAreaPixels || !file) return;
     
     try {
-      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels, 0, { horizontal: false, vertical: false }, file.type);
       if (croppedImageBlob) {
-        const croppedFile = new File([croppedImageBlob], file.name, { type: 'image/jpeg' });
+        const croppedFile = new File([croppedImageBlob], file.name, { type: file.type });
         setShowCropper(false);
         setImageToCrop(null);
         await startUpload(croppedFile);
