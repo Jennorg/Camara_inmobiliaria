@@ -18,7 +18,7 @@ async function sendResendEmail(params: any) {
     console.log('---------------------')
     return { data: { id: 'mock-id' }, error: null }
   }
-  
+
   if (!env.RESEND_API_KEY || env.RESEND_API_KEY === 're_123') {
     console.warn('[EMAIL] No hay una API KEY de Resend válida configurada.')
     return { data: null, error: { message: 'Missing API Key' } }
@@ -26,6 +26,32 @@ async function sendResendEmail(params: any) {
 
   return await resend.emails.send(params)
 }
+
+/**
+ * Wrapper para enviar correos por lote con Resend.
+ */
+async function sendResendEmailBatch(emails: any[]) {
+  if (env.NODE_ENV === 'development') {
+    console.log('--- [MOCK EMAIL BATCH] ---')
+    console.log(`Cantidad: ${emails.length} correos`)
+    for (const email of emails) {
+      console.log(`  Para: ${email.to} | Asunto: ${email.subject}`)
+    }
+    console.log('---------------------------')
+    return { data: emails.map((_, i) => ({ id: `mock-batch-id-${i}` })), error: null }
+  }
+
+  if (!env.RESEND_API_KEY || env.RESEND_API_KEY === 're_123') {
+    console.warn('[EMAIL] No hay una API KEY de Resend válida configurada.')
+    return { data: null, error: { message: 'Missing API Key' } }
+  }
+
+  return await resend.batch.send(emails)
+}
+
+const logoUrl = env.SUPABASE_URL
+  ? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/public-docs/Logo.png`
+  : 'https://gmhybfyxcbfhcaugtvlx.supabase.co/storage/v1/object/public/public-docs/Logo.png';
 
 /** Template base profesional */
 const renderEmailTemplate = (content: string, title?: string) => `
@@ -59,6 +85,9 @@ const renderEmailTemplate = (content: string, title?: string) => `
       <div class="container">
         <div class="card">
           <div class="header">
+            <div style="margin-bottom: 0px; text-align: center;">
+              <img src="${logoUrl}" alt="Logo" style="height: 120px; width: auto; display: inline-block; vertical-align: middle;" />
+            </div>
             <h1>Cámara Inmobiliaria</h1>
             <div style="color: #6ee7b7; font-size: 10px; font-weight: 700; margin-top: 4px;">ESTADO BOLÍVAR</div>
           </div>
@@ -112,7 +141,7 @@ export const enviarCorreoInvitacionCorporativa = async (params: {
 }) => {
   const { nombre, emailOriginal, nombreEmpresa, token } = params
   const enlaceVerificacion = `${env.APP_URL}/cursos/verificar?token=${token}`
-  
+
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
@@ -145,7 +174,7 @@ export const enviarCorreoConfirmacionPreinscripcionPrograma = async (params: {
 }) => {
   const { nombre, emailOriginal, programaCodigo, token } = params
   const enlace = `${env.APP_URL.replace(/\/$/, '')}/cursos/verificar?token=${token}`
-  
+
   const esAfiliacion = programaCodigo === 'AFILIACION'
   const accion = esAfiliacion ? 'solicitar tu afiliación a la' : `preinscribirte al programa <strong>${programaCodigo}</strong> de la`
   const subject = esAfiliacion ? 'Confirma tu solicitud de afiliación' : `Confirma tu preinscripción — ${programaCodigo}`
@@ -277,7 +306,7 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
 }) => {
   const { nombre, emailOriginal, programaCodigo, token } = params
   const enlaceSetup = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
-  
+
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
@@ -310,7 +339,7 @@ export const enviarCorreoAprobacionEstudiante = async (params: {
 }) => {
   const { nombre, emailOriginal, programaCodigo, entrevistaFecha, entrevistaHora, entrevistaLugar, token } = params
   const enlaceSetup = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : null
-  
+
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
@@ -340,7 +369,7 @@ export const enviarCorreoInvitacionCibir = async (params: {
 }) => {
   const { nombre, emailOriginal, token } = params
   const enlacePortal = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
-  
+
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
@@ -467,6 +496,48 @@ export const enviarCorreoOnboardingMasivo = async (nombre: string, emailOriginal
     `, 'Mejora Continua')
   })
   if (error) { console.error('enviarCorreoOnboardingMasivo:', error); throw error }
+  return data
+}
+
+/** Envia correos de Onboarding Masivo en lote (Batch) */
+export const enviarCorreoOnboardingMasivoBatch = async (
+  destinatarios: Array<{ nombre: string; emailDestino: string; token: string }>
+) => {
+  const emails = destinatarios.map(d => {
+    const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${d.token}`
+    return {
+      from: DEFAULT_FROM,
+      to: d.emailDestino,
+      subject: 'Acceso a tu nuevo Portal — Cámara Inmobiliaria de Bolívar',
+      html: renderEmailTemplate(`
+        <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Estimado(a), ${d.nombre}!</h2>
+        <p>En la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>, nos mantenemos en un proceso de mejora continua para ofrecerle las mejores herramientas y servicios que fortalezcan su ejercicio profesional.</p>
+        
+        <p>Como parte de esta evolución, nos complace informarle que ya tiene a su disposición nuestro nuevo <strong>Portal Digital</strong>. Dado que usted ya es un miembro activo y valorado de nuestra Cámara, hemos pre-configurado su cuenta para que pueda acceder de forma inmediata.</p>
+        
+        <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
+          <p style="margin-top: 0; font-weight: 700; color: #065f46;">Activa tu acceso como Afiliado</p>
+          <p>Para comenzar a utilizar el sistema, gestionar sus certificados y acceder a contenido exclusivo, solo debe establecer su contraseña de seguridad haciendo clic en el siguiente botón:</p>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="${enlaceSetup}" class="btn">Activar mi Acceso</a>
+          </div>
+        </div>
+        
+        <p style="font-size: 14px; color: #6b7280;">
+          Su nombre de usuario será su correo electrónico: <strong>${d.emailDestino}</strong>. Este enlace de activación es personal y garantiza la seguridad de su cuenta.
+        </p>
+        
+        <div class="divider"></div>
+        <p style="font-size: 13px; color: #94a3b8; text-align: center;">Es un honor contar con su participación en esta nueva etapa tecnológica de nuestra institución.</p>
+      `, 'Mejora Continua')
+    }
+  })
+
+  const { data, error } = await sendResendEmailBatch(emails)
+  if (error) {
+    console.error('enviarCorreoOnboardingMasivoBatch:', error)
+    throw error
+  }
   return data
 }
 
