@@ -48,7 +48,7 @@ interface ProfileFormData {
 }
 
 const SettingsPanel = () => {
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('personal');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -294,7 +294,7 @@ const SettingsPanel = () => {
             <div className="space-y-6">
               <HeaderSection title="Información Personal" subtitle="Datos básicos que te identifican como miembro." />
               
-              <div className="flex justify-center py-4">
+              <div className="flex flex-col items-center gap-3 py-4">
                 <FileUpload
                   label="Foto de Perfil"
                   accept="image/*"
@@ -306,8 +306,13 @@ const SettingsPanel = () => {
                   defaultCropPosition="bottom"
                   onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
                   onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
+                  disabled={!isAdmin}
                 />
-
+                {!isAdmin && (
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center max-w-xs">
+                    Solo lectura: Para cambiar tu foto de perfil, contacta a la Cámara.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -407,7 +412,7 @@ const SettingsPanel = () => {
                   folder="logos"
                   initialUrl={formData.empresa_logo_url}
                   enableCrop
-                  cropAspect={1}
+                  cropAspect={16 / 9}
                   cropShape="rect"
                   onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
                   onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}

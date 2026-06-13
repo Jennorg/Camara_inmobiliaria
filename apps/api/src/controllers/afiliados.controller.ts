@@ -1149,7 +1149,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     // Campos permitidos por entidad
     const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
-    const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo', 'id_empresa', 'activo'];
+    const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo', 'id_empresa', 'activo', 'foto_url'];
     const afiliadoFields = [
       'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
       'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio', 'descripcion'
