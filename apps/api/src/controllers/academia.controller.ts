@@ -1872,8 +1872,10 @@ async function promocionarYVincularAfiliado(
   const user = userRes.rows[0] as any
   const userId = user.id
 
-  // 3. Generar el código correlativo de Afiliado usando el helper
-  const nextCode = await obtenerSiguienteCodigoAfiliado()
+  // 3. Generar el código correlativo de Afiliado usando el helper (solo si es Afiliado aprobado)
+  const isTargetAfiliado = targetStatus === 'Afiliado'
+  const nextCode = isTargetAfiliado ? await obtenerSiguienteCodigoAfiliado() : null
+  const fechaAfiliacionVal = isTargetAfiliado ? now : null
 
   const convalidadoVal = ['Afiliado', '6_INSCRIPCION'].includes(targetStatus) ? 1 : 0
 
@@ -1900,13 +1902,13 @@ async function promocionarYVincularAfiliado(
       est.id_empresa,
       targetStatus,
       nextCode,
-      now,
+      fechaAfiliacionVal,
       now,
       userId,
       convalidadoVal,
       targetStatus,
       nextCode,
-      now,
+      fechaAfiliacionVal,
       userId,
       convalidadoVal
     ]
