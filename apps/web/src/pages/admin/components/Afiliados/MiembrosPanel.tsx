@@ -140,9 +140,15 @@ export default function MiembrosPanel() {
 
       if (imageFile && imagePreview && croppedAreaPixels) {
         // Recortar la imagen antes de subirla
-        const croppedImageBlob = await getCroppedImg(imagePreview, croppedAreaPixels)
+        const croppedImageBlob = await getCroppedImg(
+          imagePreview,
+          croppedAreaPixels,
+          0,
+          { horizontal: false, vertical: false },
+          imageFile.type
+        )
         if (croppedImageBlob) {
-          const croppedFile = new File([croppedImageBlob], imageFile.name, { type: 'image/jpeg' })
+          const croppedFile = new File([croppedImageBlob], imageFile.name, { type: imageFile.type })
           finalUrl = await uploadFileSupabase(
             croppedFile,
             isLogo ? 'logos/empresas' : 'fotos/afiliados'
@@ -174,6 +180,38 @@ export default function MiembrosPanel() {
     } catch (err: any) {
       console.error('handleSaveImage error:', err)
       setImageError(err?.message || 'Error al subir la imagen')
+    } finally {
+      setImageUploading(false)
+    }
+  }
+
+  const handleDeleteImage = async () => {
+    if (!selected || !imageEditKind) return
+    const isLogo = imageEditKind === 'logo'
+    if (!confirm(`¿Estás seguro de eliminar el ${isLogo ? 'logo' : 'foto'} actual?`)) return
+    
+    setImageUploading(true)
+    setImageError('')
+    try {
+      const payload = isLogo ? { empresa_logo_url: null } : { foto_url: null }
+      const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        const updated = isLogo
+          ? { ...selected, empresa_logo_url: null }
+          : { ...selected, foto_url: null }
+        setSelected(updated)
+        setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
+        closeImageEditor()
+      } else {
+        setImageError('Error al eliminar en el servidor')
+      }
+    } catch (err: any) {
+      console.error('handleDeleteImage error:', err)
+      setImageError(err?.message || 'Error al eliminar la imagen')
     } finally {
       setImageUploading(false)
     }
@@ -211,16 +249,21 @@ export default function MiembrosPanel() {
       const s = search.toLowerCase()
 
       let matchSearch = true
-      if (s) {
+      if (s.trim()) {
+        const terms = s.trim().split(/\s+/)
         if (searchField === 'id') {
-          matchSearch = cedula.includes(s) || rif.includes(s)
+          matchSearch = terms.every(term => cedula.includes(term) || rif.includes(term))
         } else if (searchField === 'codigo') {
-          matchSearch = (item.codigo || '').toLowerCase().includes(s)
+          matchSearch = terms.every(term => (item.codigo || '').toLowerCase().includes(term))
         } else { // nombre (inclusivo)
-          matchSearch = nombre.includes(s) ||
-            razonSocial.includes(s) ||
-            (item.nombres || '').toLowerCase().includes(s) ||
-            (item.apellidos || '').toLowerCase().includes(s)
+          const repNombre = (item.representante_nombre || (item.nombres && item.apellidos ? `${item.nombres} ${item.apellidos}` : '') || '').toLowerCase()
+          matchSearch = terms.every(term => 
+            nombre.includes(term) ||
+            razonSocial.includes(term) ||
+            repNombre.includes(term) ||
+            (item.nombres || '').toLowerCase().includes(term) ||
+            (item.apellidos || '').toLowerCase().includes(term)
+          )
         }
       }
 
@@ -1409,7 +1452,7 @@ export default function MiembrosPanel() {
                     image={imagePreview}
                     crop={crop}
                     zoom={zoom}
-                    aspect={imageEditKind === 'foto' ? 4 / 5 : 1 / 1}
+                    aspect={imageEditKind === 'foto' ? 4 / 5 : 16 / 9}
                     onCropChange={setCrop}
                     onZoomChange={setZoom}
                     onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
@@ -1478,6 +1521,18 @@ export default function MiembrosPanel() {
 
             {imageError && (
               <p className="text-xs font-bold text-rose-500 text-center">{imageError}</p>
+            )}
+
+            {((imageEditKind === 'logo' && selected.empresa_logo_url) || (imageEditKind === 'foto' && selected.foto_url)) && (
+              <button
+                type="button"
+                onClick={handleDeleteImage}
+                disabled={imageUploading}
+                className="w-full bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold py-2.5 rounded-2xl transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Trash2 size={12} />
+                {imageEditKind === 'logo' ? 'Eliminar Logo actual' : 'Eliminar Foto actual'}
+              </button>
             )}
 
             <div className="flex gap-3 pt-1">
