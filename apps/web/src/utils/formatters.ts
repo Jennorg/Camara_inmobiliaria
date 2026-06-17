@@ -90,3 +90,34 @@ export const formatRif = (tipo?: string | null, numero?: string | null): string 
 
   return `${tipoUpper}-${numero}`;
 };
+
+/**
+ * Formatea un número de teléfono para redireccionar a WhatsApp (wa.me)
+ * Asegura que tenga el código de país (58 para Venezuela por defecto)
+ * y elimina caracteres no numéricos y el cero inicial.
+ */
+export const formatWhatsAppUrl = (phone: string | null | undefined, text?: string): string => {
+  if (!phone) return '#';
+  
+  // Limpiar caracteres no numéricos
+  let cleaned = phone.replace(/\D/g, '');
+  
+  if (!cleaned) return '#';
+  
+  // Si empieza con 0, ej: 04141234567 -> quitar el 0 y poner 58
+  if (cleaned.startsWith('0')) {
+    cleaned = '58' + cleaned.slice(1);
+  } else if (!cleaned.startsWith('58')) {
+    // Si no empieza con 58, y tiene 10 dígitos (ej: 4141234567), anteponer 58
+    if (cleaned.length === 10) {
+      cleaned = '58' + cleaned;
+    }
+  }
+  
+  const baseUrl = `https://wa.me/${cleaned}`;
+  if (text) {
+    return `${baseUrl}?text=${encodeURIComponent(text)}`;
+  }
+  return baseUrl;
+};
+

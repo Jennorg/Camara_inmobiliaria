@@ -28,6 +28,23 @@ const AfiliadoProfilePage = () => {
     ubicacionTexto,
   } = useAfiliadoProfile();
 
+  React.useEffect(() => {
+    // Solo interceptar en vista móvil
+    if (window.innerWidth >= 768) return;
+
+    // Insertar estado ficticio en el historial para capturar el botón/gesto de atrás
+    window.history.pushState(null, '', window.location.href);
+
+    const handlePopState = () => {
+      navigate('/miembros', { replace: true });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [navigate, id]);
+
   const darkMode = false;
 
   if (loading) {
