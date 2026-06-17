@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { FileText } from 'lucide-react'
 import bgBolivar from '@/assets/Pzo.jpg'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
@@ -12,11 +13,6 @@ interface NormativaPublic {
   url_archivo: string
   categoria: string | null
   orden: number
-}
-
-function buildPdfPreviewUrl(url: string): string {
-  const separator = url.includes('#') ? '&' : '#'
-  return `${url}${separator}page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`
 }
 
 const CATEGORY_MAP: Record<string, { label: string; subtitle: string }> = {
@@ -132,15 +128,8 @@ export default function MarcoLegalPage() {
                   </div>
 
                   <div className="flex flex-col flex-grow gap-3">
-                    <div className="w-full h-40 rounded-2xl bg-slate-50 border-2 border-slate-100 overflow-hidden shrink-0 group-hover:border-emerald-200 transition-colors shadow-inner">
-                      <iframe
-                        src={buildPdfPreviewUrl(item.url_archivo)}
-                        title={`Vista previa de ${item.titulo}`}
-                        className="w-[calc(100%+40px)] h-[calc(100%+80px)] -mt-[56px] -ml-[20px] pointer-events-none bg-white"
-                        scrolling="no"
-                        frameBorder="0"
-                        loading="lazy"
-                      />
+                    <div className="w-full h-40 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center shrink-0 group-hover:border-emerald-200 transition-colors shadow-inner">
+                      <FileText className="w-16 h-16 text-emerald-600 opacity-20 group-hover:opacity-40 transition-opacity" />
                     </div>
                     <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-800 tracking-tight group-hover:text-[#022c22] transition-colors leading-snug">
                       {item.titulo}

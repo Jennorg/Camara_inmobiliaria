@@ -620,7 +620,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
       if (afiliado.email) {
         const resetToken = randomUUID();
         const expiracion = new Date();
-        expiracion.setHours(expiracion.getHours() + 48);
+        expiracion.setDate(expiracion.getDate() + 7);
         const expStr = expiracion.toISOString();
 
         // Crear el usuario en estado "por configurar" (password aleatorio inútil)

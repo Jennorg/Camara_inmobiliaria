@@ -87,7 +87,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
       const msg = err instanceof Error ? err.message : 'Error al registrar'
       setErrorMsg(
         msg === 'Failed to fetch'
-          ? 'No se pudo conectar con el servidor. Revise VITE_API_URL (sin barra final) y CORS en la API.'
+          ? 'No se pudo establecer conexión con el servidor. Por favor, compruebe su conexión a internet e inténtelo de nuevo.'
           : msg
       )
     } finally {
