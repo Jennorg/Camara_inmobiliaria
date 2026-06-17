@@ -29,7 +29,7 @@ export default function ForgotPasswordModal({ onClose }: { onClose: () => void }
 
       setStep('done')
     } catch {
-      setError('Error de red. Intenta de nuevo.')
+      setError('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.')
     } finally {
       setLoading(false)
     }

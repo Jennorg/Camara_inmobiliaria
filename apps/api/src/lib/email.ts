@@ -218,7 +218,7 @@ export const enviarCorreoAprobacion = async (nombre: string, emailOriginal: stri
           <a href="${enlaceSetup}" class="btn">Establecer mi Contraseña</a>
         </div>
       </div>
-      <p style="font-size: 13px; color: #6b7280; text-align: center;">Este enlace tiene una validez de 48 horas por motivos de seguridad.</p>
+      <p style="font-size: 13px; color: #6b7280; text-align: center;">Este enlace tiene una validez de 7 días por motivos de seguridad.</p>
     `, 'Afiliación Aprobada')
   })
   if (error) { console.error('enviarCorreoAprobacion:', error); throw error }
@@ -235,7 +235,7 @@ export const enviarCorreoResetAdmin = async (nombre: string, emailOriginal: stri
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">Hola, ${nombre}</h2>
       <p>Un administrador ha iniciado un restablecimiento de contraseña para tu cuenta (<em>${emailOriginal}</em>).</p>
-      <p>Haz clic en el botón inferior para crear tu nueva contraseña. El enlace es válido por <strong>24 horas</strong>.</p>
+      <p>Haz clic en el botón inferior para crear tu nueva contraseña. El enlace es válido por <strong>7 días</strong>.</p>
       <div style="text-align: center; margin: 40px 0;">
         <a href="${enlace}" class="btn">Restablecer Contraseña</a>
       </div>

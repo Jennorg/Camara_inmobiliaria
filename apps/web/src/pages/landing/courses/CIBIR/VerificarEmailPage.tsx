@@ -12,7 +12,7 @@ const VerificarEmailPage = () => {
   useEffect(() => {
     if (!token) {
       setStatus('error');
-      setMessage('No se encontró el token de verificación en la URL.');
+      setMessage('El enlace de verificación de correo es incorrecto o está incompleto.');
       return;
     }
 
@@ -33,11 +33,15 @@ const VerificarEmailPage = () => {
           setMessage(data.message || 'Correo verificado y candidato registrado exitosamente.');
         } else {
           setStatus('error');
-          setMessage(data.message || 'Error al verificar el correo.');
+          let errMsg = data.message || 'Error al verificar el correo.';
+          if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
+            errMsg = 'El enlace de verificación no es válido o ha caducado. Por favor, realiza tu registro nuevamente.';
+          }
+          setMessage(errMsg);
         }
       } catch (error) {
         setStatus('error');
-        setMessage('Ocurrió un error de conexión con el servidor. Intenta nuevamente.');
+        setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.');
       }
     };
 

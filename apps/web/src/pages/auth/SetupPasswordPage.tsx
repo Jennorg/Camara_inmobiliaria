@@ -32,7 +32,7 @@ export default function SetupPasswordPage() {
   useEffect(() => {
     if (!token) {
       setStatus('error');
-      setMessage('El enlace no es válido o ha expirado.');
+      setMessage('El enlace de acceso es incorrecto o ha caducado. Por favor, solicita una nueva invitación.');
     }
   }, [token]);
 
@@ -59,11 +59,15 @@ export default function SetupPasswordPage() {
         setMessage(successMsg);
       } else {
         setStatus('error');
-        setMessage(data.message || 'Error al procesar la solicitud.');
+        let errMsg = data.message || 'Error al procesar la solicitud.';
+        if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
+          errMsg = 'El enlace de activación no es válido, ya fue utilizado o ha caducado. Por favor, solicita una nueva invitación.';
+        }
+        setMessage(errMsg);
       }
     } catch (err) {
       setStatus('error');
-      setMessage('Error de conexión con el servidor.');
+      setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.');
     } finally {
       setLoading(false);
     }
