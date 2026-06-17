@@ -5,7 +5,7 @@ import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
-import { emitirComprobanteSiCompleto } from '../lib/certificados.js'
+import { emitirComprobanteSiCompleto, ensureCibirCertificate } from '../lib/certificados.js'
 import {
   enviarCorreoConfirmacionPreinscripcionPrograma,
   notificarAdminNuevaPreinscripcion,
@@ -1951,6 +1951,14 @@ async function promocionarYVincularAfiliado(
     sql: `UPDATE users SET roles = ?, actualizado_en = ? WHERE id = ?`,
     args: [JSON.stringify(roles), now, userId]
   })
+
+  if (insertedAfiliadoId) {
+    try {
+      await ensureCibirCertificate(Number(insertedAfiliadoId))
+    } catch (e) {
+      console.error('Error ensuring CIBIR certificate in convalidation:', e)
+    }
+  }
 
   return insertedAfiliadoId
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import logoImg from '@/assets/Logo2.png'
 import firmaFranciscoImg from '@/assets/firma-francisco.png'
+import firmaGracielaImg from '@/assets/firma-graciela-ledezma.png'
 
 export interface CertificadoProgramaViewProps {
   codigo: string
@@ -14,20 +15,19 @@ export interface CertificadoProgramaViewProps {
 }
 
 const PROGRAM_INFO: Record<string, { abbr: string; title: string }> = {
-  CIBIR: { abbr: 'CIBIR', title: 'CURSO INTRODUCTORIO A LOS BIENES RAÍCES' },
-  PEGI: { abbr: 'PEGI', title: 'PROGRAMA DE ESPECIALIZACIÓN EN GERENCIA INMOBILIARIA' },
-  PREANI: { abbr: 'PREANI', title: 'PROGRAMA DE ESTUDIOS AVANZADOS EN NEGOCIOS INMOBILIARIOS' },
-  PADI: { abbr: 'PADI', title: 'PROGRAMA AVANZADO EN DESARROLLO INMOBILIARIO' },
+  CIBIR: { abbr: 'CIBIR', title: 'CURSO INTRODUCTORIO\nA LOS BIENES RAÍCES' },
+  PEGI: { abbr: 'PEGI', title: 'PROGRAMA DE ESPECIALIZACIÓN\nEN GERENCIA INMOBILIARIA' },
+  PREANI: { abbr: 'PREANI', title: 'PROGRAMA DE ESTUDIOS AVANZADOS\nEN NEGOCIOS INMOBILIARIOS' },
+  PADI: { abbr: 'PADI', title: 'PROGRAMA AVANZADO\nEN DESARROLLO INMOBILIARIO' },
 }
 
 function formatFecha(iso: string): string {
   try {
     const d = new Date(iso)
     if (Number.isNaN(d.getTime())) return iso
-    return d.toLocaleDateString('es-VE', {
-      month: 'long',
-      year: 'numeric',
-    })
+    const month = d.toLocaleDateString('es-VE', { month: 'long' })
+    const year = d.getFullYear()
+    return `${month}, ${year}`
   } catch {
     return iso
   }
@@ -80,186 +80,210 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
       >
         <article
           id="certificate-print-area"
-          className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between p-12 select-none print:!transform-none shrink-0"
+          className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden select-none print:!transform-none shrink-0"
           style={{
-            backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop')`,
+            backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             transform: scale < 1 ? `scale(${scale})` : 'none',
             transformOrigin: 'top center',
           }}
         >
-      {/* ── BORDES DECORATIVOS ── */}
-      {/* Doble borde interno */}
-      <div className="absolute inset-4.5 border border-slate-300 pointer-events-none rounded-2xl" />
-      <div className="absolute inset-5 border-2 border-emerald-800/20 pointer-events-none rounded-2xl" />
+          {/* ── BORDES DECORATIVOS ── */}
+          {/* Borde negro fino perimetral */}
+          <div className="absolute inset-6 border border-slate-800/80 pointer-events-none rounded-none" />
 
-      {/* ── ESQUINA SUPERIOR IZQUIERDA: CÍRCULO CON LA LLAVE ── */}
-      <div className="absolute top-[-10px] left-[-10px] z-20 pointer-events-none">
-        <div className="relative w-48 h-48 overflow-hidden rounded-full border-[6px] border-amber-500 shadow-lg">
-          <img
-            src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=300&auto=format&fit=crop"
-            alt="Llaves"
-            className="w-full h-full object-cover scale-110 -translate-y-2"
+          {/* ── ESQUINA SUPERIOR IZQUIERDA: CÍRCULO CON LA LLAVE ── */}
+          <div className="absolute top-[-15px] left-[-15px] z-20 pointer-events-none">
+            <div className="relative w-44 h-44 overflow-hidden rounded-full border-[6px] border-[#cf9f2d] shadow-md bg-white">
+              <img
+                src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=300&auto=format&fit=crop"
+                alt="Llaves"
+                className="w-full h-full object-cover object-center"
+              />
+            </div>
+          </div>
+
+          {/* =========================================
+              ESQUINA SUPERIOR DERECHA (NUEVOS POLÍGONOS)
+          ========================================= */}
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ top: 0, right: 0, width: '40%', height: '50%', background: '#2F5496', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
           />
-        </div>
-      </div>
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ top: 0, right: 0, width: '25%', height: '35%', background: '#2E6F44', clipPath: 'polygon(100% 0, 30% 0, 100% 70%)' }}
+          />
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ top: 0, right: 0, width: '12%', height: '25%', background: '#F6A644', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
+          />
 
-      {/* ── ESQUINA SUPERIOR DERECHA: GEOMETRÍA VERDE/AMARILLA ── */}
-      <div
-        className="absolute top-0 right-0 w-[30%] h-[20%] opacity-95 pointer-events-none z-10"
-        style={{
-          background: 'linear-gradient(225deg, #022c22 35%, #047857 60%, #eab308 90%, transparent 90%)',
-          clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
-        }}
-      />
-      <div
-        className="absolute top-0 right-0 w-[32%] h-[22%] opacity-20 pointer-events-none"
-        style={{
-          background: 'linear-gradient(225deg, #eab308 50%, transparent 50%)',
-          clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
-        }}
-      />
+          {/* =========================================
+              ESQUINA INFERIOR DERECHA (NUEVOS POLÍGONOS)
+          ========================================= */}
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ bottom: 0, right: 0, width: '35%', height: '35%', background: '#F6A644', clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}
+          />
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ bottom: 0, right: 0, width: '20%', height: '25%', background: '#2F5496', clipPath: 'polygon(100% 100%, 100% 40%, 60% 100%)' }}
+          />
 
-      {/* ── ESQUINA INFERIOR IZQUIERDA: GEOMETRÍA VERDE OSCURO/DORADO ── */}
-      <div
-        className="absolute bottom-0 left-0 w-[25%] h-[22%] opacity-95 pointer-events-none z-10"
-        style={{
-          background: 'linear-gradient(45deg, #022c22 45%, #047857 70%, #eab308 90%, transparent 90%)',
-          clipPath: 'polygon(0 100%, 0 0, 100% 100%)',
-        }}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-[27%] h-[24%] opacity-25 pointer-events-none"
-        style={{
-          background: 'linear-gradient(45deg, #eab308 50%, transparent 50%)',
-          clipPath: 'polygon(0 100%, 0 0, 100% 100%)',
-        }}
-      />
+          {/* =========================================
+              ESQUINA INFERIOR IZQUIERDA (NUEVOS POLÍGONOS)
+          ========================================= */}
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ bottom: 0, left: 0, width: '45%', height: '45%', background: '#2E6F44', clipPath: 'polygon(0% 100%, 45% 100%, 0% 55%)' }}
+          />
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ bottom: 0, left: 0, width: '35%', height: '35%', background: '#2F5496', clipPath: 'polygon(0% 100%, 65% 100%, 25% 75%)' }}
+          />
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ bottom: 0, left: 0, width: '25%', height: '25%', background: '#F6A644', clipPath: 'polygon(0% 100%, 80% 100%, 0% 80%)' }}
+          />
 
-      {/* ── ESQUINA INFERIOR DERECHA: GEOMETRÍA VERDE Y DORADA ── */}
-      <div
-        className="absolute bottom-0 right-0 w-[25%] h-[22%] opacity-95 pointer-events-none z-10"
-        style={{
-          background: 'linear-gradient(315deg, #022c22 45%, #047857 70%, #eab308 90%, transparent 90%)',
-          clipPath: 'polygon(100% 100%, 100% 0, 0 100%)',
-        }}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-[27%] h-[24%] opacity-25 pointer-events-none"
-        style={{
-          background: 'linear-gradient(315deg, #eab308 50%, transparent 50%)',
-          clipPath: 'polygon(100% 100%, 100% 0, 0 100%)',
-        }}
-      />
+          {/* ── SEPARADOR HEADER ── */}
+          <div className="absolute top-[155px] left-[161px] right-[24px] border-b border-slate-800/80 pointer-events-none" />
 
-      {/* ── CONTENIDO DEL CERTIFICADO ── */}
-      {/* Header: Logo CIEBO e Info del Programa */}
-      <div className="relative z-10 flex items-center justify-between mt-4 pl-44 pr-36">
-        {/* Logo Cámara */}
-        <div className="flex items-center">
-          <img src={logoImg} className="h-34 w-auto drop-shadow-sm" alt="Logo CIEBO" />
-        </div>
-
-        {/* Info del Programa (CIBIR / PEGI / etc.) */}
-        <div className="text-right max-w-[280px]">
-          <h1 className="text-emerald-900 font-black uppercase text-4xl tracking-tighter leading-none font-sans">
-            {info.abbr}
-          </h1>
-          <div className="h-[2px] bg-amber-500 w-full my-1.5" />
-          <p className="text-emerald-950 font-black text-[9px] tracking-wide uppercase leading-tight font-sans">
-            {info.title}
-          </p>
-        </div>
-      </div>
-
-      {/* Cuerpo Central */}
-      <div className="relative z-10 flex flex-col items-center text-center my-auto px-16">
-        <h2 className="text-emerald-900 font-extrabold tracking-widest text-[16px] uppercase font-sans">
-          Cámara Inmobiliaria del Estado Bolívar
-        </h2>
-        <p className="text-slate-600 font-semibold text-[10px] tracking-widest uppercase mt-1.5 font-sans">
-          Otorga el presente certificado a:
-        </p>
-
-        {/* Nombre del Alumno */}
-        <h1 className="text-emerald-950 font-sans font-extrabold text-5xl my-4 tracking-tight drop-shadow-xs leading-none"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: 'italic' }}>
-          {titularNombre}
-        </h1>
-
-        {/* Cédula del Alumno */}
-        {cedula && (
-          <p className="text-emerald-900 font-bold text-lg tracking-widest font-mono border-b border-slate-300 pb-1.5 px-10 mb-4 min-w-[220px]">
-            C.I.: {cedula.replace(/\D/g, '').length >= 5 ? Number(cedula.replace(/\D/g, '')).toLocaleString('es-VE') : cedula}
-          </p>
-        )}
-
-        {/* Descripción de Aprobación */}
-        <p className="text-emerald-900 font-black text-[11px] tracking-wider uppercase max-w-[700px] leading-relaxed font-sans">
-          Por haber participado y aprobado satisfactoriamente los requisitos académicos del
-          <br />
-          <span className="text-emerald-950 font-extrabold text-xs tracking-widest">
-            {programaOCurso.toUpperCase()}
-          </span>
-        </p>
-      </div>
-
-      {/* Pie de Página: Firmas, QR y Fecha */}
-      <div className="relative z-10 grid grid-cols-3 items-end w-full px-12 pb-4">
-        {/* Firma Izquierda: Francisco Piñango */}
-        <div className="flex flex-col items-center justify-center">
-          <div className="relative w-48 h-12 flex items-center justify-center">
-            <img
-              src={firmaFranciscoImg}
-              className="absolute bottom-[-12px] h-28 w-auto object-contain select-none pointer-events-none max-w-none"
-              alt="Firma Francisco Piñango"
-            />
+          {/* ── CONTENIDO DEL CERTIFICADO ── */}
+          {/* Header Left: Logo Cámara */}
+          <div className="absolute top-[25
+          px] left-[190px] w-[280px] h-[140px] flex items-center justify-center z-10">
+            <img src={logoImg} className="h-[128px] w-auto object-contain drop-shadow-sm" alt="Logo CIEBO" />
           </div>
-          <div className="w-48 h-[1px] bg-slate-400 mb-1" />
-          <span className="text-[9px] font-black text-emerald-950 uppercase tracking-widest font-sans">
-            Francisco Piñango
-          </span>
-          <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-none">
-            Presidente de la Cámara
-            <br />
-            Inmobiliaria del Estado Bolívar
-          </span>
-        </div>
 
-        {/* Centro: QR y Fecha de Emisión */}
-        <div className="flex flex-col items-center justify-center pb-2">
-          <div className="bg-white p-1.5 rounded-xl shadow-xs border border-slate-200/50 mb-3">
-            <img
-              src={qrApiUrl}
-              className="h-20 w-20 object-contain"
-              alt="Código QR de Verificación"
-            />
+          {/* Header Right: Info del Programa (CIBIR) */}
+          <div className="absolute top-[32px] right-[110px] w-[280px] h-[110px] flex flex-col items-center justify-center font-sans z-10">
+            <h1 className="text-[#0f5431] font-black uppercase text-[42px] tracking-wider leading-none mb-1">
+              {info.abbr}
+            </h1>
+            <div className="w-full border-y border-[#0f5431]/60 py-1 px-2">
+              <p className="text-[#0f5431] font-extrabold text-[8.5px] tracking-wider uppercase leading-tight text-center">
+                {info.title.split('\n').map((line, idx) => (
+                  <React.Fragment key={idx}>
+                    {line}
+                    {idx < info.title.split('\n').length - 1 && <br />}
+                  </React.Fragment>
+                ))}
+              </p>
+            </div>
           </div>
-          <span className="text-[9px] font-black text-emerald-950 uppercase tracking-widest font-sans">
-            {formatFecha(fechaEmisionIso).toUpperCase()}
-          </span>
-        </div>
 
-        {/* Firma Derecha: Graciela Ledezma */}
-        <div className="flex flex-col items-center justify-center">
-          <span
-            className="text-slate-800 text-[2.5rem] leading-none mb-1 select-none pointer-events-none"
-            style={{ fontFamily: "'Alex Brush', cursive" }}
-          >
-            Graciela Ledezma
-          </span>
-          <div className="w-48 h-[1px] bg-slate-400 mb-1" />
-          <span className="text-[9px] font-black text-emerald-950 uppercase tracking-widest font-sans">
-            Graciela Ledezma
-          </span>
-          <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-none">
-            Directora de Formación
-          </span>
-        </div>
+          {/* Cuerpo Central */}
+          {/* Título de la Cámara */}
+          <div className="absolute top-[180px] left-[24px] right-[24px] flex flex-col items-center text-center font-sans z-10">
+            <h2 className="text-[#0f5431] font-black tracking-[0.12em] text-[28px] uppercase leading-[1.25]">
+              CAMARA INMOBILIARIA DEL
+              <br />
+              ESTADO BOLIVAR
+            </h2>
+          </div>
+
+          {/* Otorgamiento */}
+          <div className="absolute top-[265px] left-[24px] right-[24px] flex flex-col items-center text-center z-10">
+            <p className="text-[#0f2e59] font-black text-[12px] tracking-[0.2em] uppercase">
+              OTORGA EL PRESENTE CERTIFICADO A:
+            </p>
+          </div>
+
+          {/* Nombre del Alumno con su Línea */}
+          <div className="absolute top-[305px] left-[150px] right-[150px] flex flex-col items-center z-10">
+            <div className="w-full border-b border-slate-700/80 pb-1 flex flex-col items-center min-h-[55px] justify-end">
+              <span
+                className="text-4xl font-extrabold text-slate-900 px-4 text-center leading-none italic"
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+              >
+                {titularNombre}
+              </span>
+            </div>
+          </div>
+
+          {/* Cédula del Alumno */}
+          {cedula && (
+            <div className="absolute top-[368px] left-[24px] right-[24px] flex flex-col items-center text-center z-10">
+              <p className="text-[#0f2e59] font-bold text-xs tracking-widest font-mono">
+                C.I.: {cedula.replace(/\D/g, '').length >= 5 ? Number(cedula.replace(/\D/g, '')).toLocaleString('es-VE') : cedula}
+              </p>
+            </div>
+          )}
+
+          {/* Descripción de Aprobación */}
+          <div className="absolute top-[405px] left-[100px] right-[100px] flex flex-col items-center text-center font-sans z-10">
+            <p className="text-[#0f2e59] font-black text-[13px] tracking-[0.1em] uppercase leading-relaxed max-w-[650px]">
+              {programaCodigo.toUpperCase() === 'CIBIR' ? (
+                <>
+                  POR HABER PARTICIPADO EN EL CURSO CURSO INTRODUCTORIO A LOS
+                  <br />
+                  BIENES RAÍCES
+                </>
+              ) : (
+                `POR HABER PARTICIPADO EN EL ${programaOCurso.toUpperCase()}`
+              )}
+            </p>
+          </div>
+
+          {/* Pie de Página: Firmas, QR y Fecha */}
+          <div className="absolute bottom-[50px] left-[24px] right-[24px] h-[160px] grid grid-cols-3 items-end px-12 z-10">
+            {/* Firma Izquierda: Francisco Piñango */}
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-48 h-16 flex items-center justify-center">
+                <img
+                  src={firmaFranciscoImg}
+                  className="absolute bottom-[-8px] h-28 w-auto object-contain select-none pointer-events-none"
+                  alt="Firma Francisco Piñango"
+                />
+              </div>
+              <div className="w-48 h-[1px] bg-slate-800 mb-1.5" />
+              <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans">
+                FRANCISCO PIÑANGO
+              </span>
+              <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal">
+                PRESIDENTE DE LA CAMARA
+                <br />
+                INMOBILIARIA DEL ESTADO BOLIVAR
+              </span>
+            </div>
+
+            {/* Centro: QR y Fecha de Emisión */}
+            <div className="flex flex-col items-center justify-center pb-1">
+              <div className="bg-white p-1 rounded-lg shadow-sm border border-slate-200/50 mb-2">
+                <img
+                  src={qrApiUrl}
+                  className="h-[76px] w-[76px] object-contain"
+                  alt="Código QR de Verificación"
+                />
+              </div>
+              <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans">
+                {formatFecha(fechaEmisionIso).toUpperCase()}
+              </span>
+            </div>
+
+            {/* Firma Derecha: Graciela Ledezma */}
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-48 h-16 flex items-center justify-center">
+                <img
+                  src={firmaGracielaImg}
+                  className="absolute bottom-[-2px] h-[72px] w-auto object-contain select-none pointer-events-none"
+                  alt="Firma Graciela Ledezma"
+                />
+              </div>
+              <div className="w-48 h-[1px] bg-slate-800 mb-1.5" />
+              <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans">
+                GRACIELA LEDEZMA
+              </span>
+              <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal">
+                DIRECTORA DE FORMACIÓN
+              </span>
+            </div>
+          </div>
+        </article>
       </div>
-    </article>
-    </div>
     </div>
   )
 }

@@ -20,7 +20,7 @@ function tituloCertificado(r: CertRow): string {
 }
 
 function esVigente(r: CertRow): boolean {
-  return Number(r.completado) === 1 && r.inscripcion_estatus === 'Inscrito'
+  return Number(r.completado) === 1 && (r.inscripcion_estatus === 'Inscrito' || r.inscripcion_estatus === 'Pagado')
 }
 
 const WidgetMisCertificados: React.FC = () => {
@@ -60,6 +60,7 @@ const WidgetMisCertificados: React.FC = () => {
         .then((r) => r.json())
         .then((j) => {
           if (j.success && j.data) {
+            console.log('DEBUG: afiliadoData:', j.data);
             setAfiliadoData(j.data)
           }
         })
@@ -84,7 +85,12 @@ const WidgetMisCertificados: React.FC = () => {
     }
   }
 
-  const isAfiliadoActivo = !!user?.id_afiliado || user?.roles?.includes('afiliado') || afiliadoData?.estatus === 'Afiliado'
+  const isAfiliadoActivo = !!user?.id_afiliado || user?.roles?.includes('afiliado') || afiliadoData?.estatus === 'Afiliado';
+  const esCibirAprobado = afiliadoData?.cibir_convalidado === 1;
+  const mostrarWidget = isAfiliadoActivo || esCibirAprobado;
+  
+  console.log('DEBUG: isAfiliadoActivo:', isAfiliadoActivo, 'esCibirAprobado:', esCibirAprobado, 'mostrarWidget:', mostrarWidget);
+  
   const urlAfiliacion = user?.id_afiliado ? `${origin}/comprobante/afiliacion/${user.id_afiliado}` : ''
 
   return (
@@ -94,55 +100,64 @@ const WidgetMisCertificados: React.FC = () => {
       )}
 
       {/* Sección Certificado de Afiliación Gremial */}
-      {isAfiliadoActivo && (
+      {mostrarWidget && (
         <div className="mb-6 rounded-2xl border-2 border-emerald-200/80 bg-emerald-50/40 p-5 sm:p-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100/60 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-800">
-                  <ShieldCheck size={11} /> Miembro Activo
+                  <ShieldCheck size={11} /> {afiliadoData?.estatus === 'Afiliado' ? 'Miembro Activo' : 'CIBIR Aprobado'}
                 </span>
                 <span className="text-slate-400 text-xs font-bold font-mono">
-                  ID de Afiliado: #{afiliadoData?.codigo || user?.id_afiliado}
+                  ID: #{afiliadoData?.codigo || user?.id_afiliado}
                 </span>
               </div>
               <h4 className="font-extrabold text-base text-emerald-950">
                 Certificado de Afiliación
               </h4>
               <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                Como miembro registrado en la Cámara Inmobiliaria del Estado Bolívar, dispones de tu certificado de afiliación digital y público.
+                {afiliadoData?.estatus === 'Afiliado' 
+                  ? "Como miembro registrado en la Cámara Inmobiliaria del Estado Bolívar, dispones de tu certificado de afiliación digital y público."
+                  : "Has aprobado el programa CIBIR. Dispones de tu certificado digital y público."
+                }
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={abrirCertificadoAfiliacion}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-all shadow-xs cursor-pointer"
-              >
-                <ExternalLink size={14} />
-                Ver Certificado
-              </button>
-              <button
-                type="button"
-                onClick={() => copiar(urlAfiliacion)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer"
-              >
-                <Copy size={14} />
-                Copiar Enlace
-              </button>
+              {user?.id_afiliado && (
+                <>
+                  <button
+                    type="button"
+                    onClick={abrirCertificadoAfiliacion}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-all shadow-xs cursor-pointer"
+                  >
+                    <ExternalLink size={14} />
+                    Ver Certificado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copiar(urlAfiliacion)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer"
+                  >
+                    <Copy size={14} />
+                    Copiar Enlace
+                  </button>
+                </>
+              )}
             </div>
           </div>
-          <div className="mt-4 rounded-xl border border-dashed border-emerald-200 bg-white/90 px-3 py-2">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
-              Enlace de verificación pública
-            </p>
-            <p className="text-xs font-medium text-emerald-800 break-all leading-snug">{urlAfiliacion}</p>
-          </div>
+          {urlAfiliacion && (
+            <div className="mt-4 rounded-xl border border-dashed border-emerald-200 bg-white/90 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
+                Enlace de verificación pública
+              </p>
+              <p className="text-xs font-medium text-emerald-800 break-all leading-snug">{urlAfiliacion}</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Separador cuando hay tanto de afiliación como de cursos */}
-      {isAfiliadoActivo && rows.length > 0 && (
+      {mostrarWidget && rows.length > 0 && (
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center" aria-hidden="true">
             <div className="w-full border-t border-slate-200"></div>

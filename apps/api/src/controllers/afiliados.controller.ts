@@ -20,6 +20,7 @@ import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
 import bcrypt from 'bcryptjs';
 import { NotificationService } from '../services/notification.service.js';
+import { ensureCibirCertificate } from '../lib/certificados.js';
 
 /**
  * GET /api/afiliados/:id
@@ -38,6 +39,22 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
     if (idAfiliado == null && !userEmail) {
       res.json({ success: true, data: [] })
       return
+    }
+
+    if (idAfiliado != null) {
+      await ensureCibirCertificate(Number(idAfiliado))
+    } else if (userEmail) {
+      const afiRes = await db.execute({
+        sql: `SELECT a.id_afiliado FROM afiliados a
+              LEFT JOIN personas p ON a.id_persona = p.id
+              LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
+              WHERE LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ?`,
+        args: [userEmail, userEmail]
+      })
+      if (afiRes.rows.length > 0) {
+        const idAfi = (afiRes.rows[0] as any).id_afiliado
+        await ensureCibirCertificate(Number(idAfi))
+      }
     }
 
     const result = await db.execute({
@@ -788,6 +805,8 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
         AND a.activo = 1
         AND a.eliminado_en IS NULL
         AND p.eliminado_en IS NULL
+        AND p.foto_url IS NOT NULL
+        AND p.foto_url <> ''
     `
 
     let sql: string
@@ -1127,7 +1146,12 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
     }
 
-    return res.json({ success: true, data: result.rows[0] });
+    const afi = result.rows[0] as any;
+    if (Number(afi.cibir_convalidado) === 1) {
+      await ensureCibirCertificate(Number(id));
+    }
+
+    return res.json({ success: true, data: afi });
   } catch (error) {
     console.error('Error en updateEstatusAfiliado:', error);
     return res.status(500).json({ success: false, message: 'Error al actualizar estado' });

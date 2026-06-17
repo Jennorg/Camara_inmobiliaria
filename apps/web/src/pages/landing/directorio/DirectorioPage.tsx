@@ -110,6 +110,12 @@ const DirectorioPage = () => {
       });
     }
 
+    // Solo mostrar afiliados con foto (o logo si es corporativo)
+    base = base.filter(a => {
+      const isCorp = a.tipo_afiliado === 'Corporativo';
+      return isCorp ? !!(a.foto_url || a.empresa_logo_url) : !!a.foto_url;
+    });
+
     // Ordenar por código (codigo) de forma numérica. Items sin código van al final.
     return [...base].sort((a, b) => {
       const codeA = a.codigo ? parseInt(a.codigo, 10) : Infinity;

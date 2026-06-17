@@ -247,7 +247,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
             {/* ── CONTENIDO DEL CERTIFICADO ── */}
             {/* Header del Certificado */}
             <div className="relative z-10 flex flex-col items-center text-center mt-2">
-              <img src={logoImg} className="h-26 w-auto mb-2 drop-shadow-sm" alt="Logo CIEBO" />
+              <img src={logoImg} className="h-34 w-auto mb-2 drop-shadow-sm" alt="Logo CIEBO" />
               <h2 className="text-emerald-950 font-bold uppercase tracking-[0.2em] text-xs font-sans">
                 Cámara Inmobiliaria
               </h2>
