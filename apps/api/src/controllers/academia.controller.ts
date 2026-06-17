@@ -2018,7 +2018,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       if (!existingUser) {
         shouldSendToken = true
         const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
+        expiracion.setDate(expiracion.getDate() + 7)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
         const tokenHash = sha256(tokenToUse)
 
@@ -2030,7 +2030,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       } else if (existingUser.reset_token_hash) {
         shouldSendToken = true
         const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
+        expiracion.setDate(expiracion.getDate() + 7)
         const tokenHash = sha256(tokenToUse)
 
         await db.execute({
@@ -2151,7 +2151,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       if (!existingUser) {
         shouldSendToken = true
         const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
+        expiracion.setDate(expiracion.getDate() + 7)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
         const tokenHash = sha256(tokenToUse)
 
@@ -2166,7 +2166,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
         // Si el usuario existe pero tiene un token pendiente (no ha establecido contraseña)
         shouldSendToken = true
         const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
+        expiracion.setDate(expiracion.getDate() + 7)
         const tokenHash = sha256(tokenToUse)
 
         await db.execute({
@@ -2298,7 +2298,7 @@ export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Respo
       if (!existingUser) {
         shouldSendToken = true
         const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
+        expiracion.setDate(expiracion.getDate() + 7)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
         const tokenHash = sha256(tokenToUse)
 
@@ -2313,7 +2313,7 @@ export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Respo
         // Si el usuario existe pero tiene un token pendiente (no ha establecido contraseña)
         shouldSendToken = true
         const expiracion = new Date()
-        expiracion.setHours(expiracion.getHours() + 48)
+        expiracion.setDate(expiracion.getDate() + 7)
         const tokenHash = sha256(tokenToUse)
 
         await db.execute({
@@ -2810,7 +2810,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
           shouldSendToken = true
           tokenToUse = randomUUID()
           const expiracion = new Date()
-          expiracion.setHours(expiracion.getHours() + 48)
+          expiracion.setDate(expiracion.getDate() + 7)
           const placeholderPass = await bcrypt.hash(randomUUID(), 10)
           const tokenHash = sha256(tokenToUse)
 
@@ -2827,7 +2827,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
           shouldSendToken = true
           tokenToUse = randomUUID()
           const expiracion = new Date()
-          expiracion.setHours(expiracion.getHours() + 48)
+          expiracion.setDate(expiracion.getDate() + 7)
           const tokenHash = sha256(tokenToUse)
 
           await db.execute({

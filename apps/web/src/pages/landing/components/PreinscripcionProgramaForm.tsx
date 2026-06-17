@@ -175,7 +175,11 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
 
       setSubmitted(true)
     } catch (err: any) {
-      setErrorMsg(err.message)
+      let msg = err.message || 'Error al procesar el registro.'
+      if (msg === 'Failed to fetch') {
+        msg = 'No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.'
+      }
+      setErrorMsg(msg)
     } finally {
       setLoading(false)
     }

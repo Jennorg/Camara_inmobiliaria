@@ -290,11 +290,15 @@ export default function VerificarPreinscripcionProgramaPage() {
           setStatus('form')
         } else {
           setStatus('error')
-          setMessage(json.message || 'Token inválido o sesión expirada.')
+          let errMsg = json.message || 'El enlace de acceso no es válido o ha caducado.'
+          if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
+            errMsg = 'El enlace de acceso no es válido, ya fue utilizado o ha caducado. Por favor, solicita uno nuevo al administrador de la Cámara.'
+          }
+          setMessage(errMsg)
         }
       } catch {
         setStatus('error')
-        setMessage('Error de conexión.')
+        setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.')
       }
     }
     verificarToken()
@@ -370,8 +374,18 @@ export default function VerificarPreinscripcionProgramaPage() {
         clearProgress()  // Limpiar progreso guardado al enviar exitosamente
         setStatus('success')
       }
-      else { setStatus('error'); setMessage(json.message); }
-    } catch { setStatus('error'); setMessage('Error de conexión.'); }
+      else {
+        setStatus('error');
+        let errMsg = json.message || 'Error al procesar la solicitud.';
+        if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
+          errMsg = 'El enlace de acceso no es válido, ya fue utilizado o ha caducado. Por favor, solicita uno nuevo al administrador de la Cámara.'
+        }
+        setMessage(errMsg);
+      }
+    } catch {
+      setStatus('error');
+      setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.');
+    }
     finally { setSubmitLoading(false); }
   }
 
