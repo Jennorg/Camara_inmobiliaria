@@ -3,7 +3,8 @@ import {
   buscarAfiliadosPublic, 
   getAfiliadoPublicById,
   publicValidarInvitacion, 
-  publicRegistrarPorInvitacion 
+  publicRegistrarPorInvitacion,
+  publicListEmpresas
 } from '../controllers/afiliados.controller.js';
 import { 
   publicPreinscribirProgramaPrincipal, 
@@ -17,6 +18,9 @@ import { publicGetComprobanteByCodigo } from '../controllers/certificados.contro
 import { presignUpload } from '../controllers/uploads.controller.js';
 
 const router = Router();
+
+// GET /api/public/empresas
+router.get('/empresas', publicListEmpresas);
 
 // GET /api/public/afiliados/buscar
 router.get('/afiliados/buscar', buscarAfiliadosPublic);

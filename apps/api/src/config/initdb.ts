@@ -538,7 +538,27 @@ const statements = [
     creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
   )`,
   `CREATE INDEX IF NOT EXISTS idx_user_refresh_tokens_hash ON user_refresh_tokens(token_hash)`,
-  `CREATE INDEX IF NOT EXISTS idx_user_refresh_tokens_user ON user_refresh_tokens(id_user)`
+  `CREATE INDEX IF NOT EXISTS idx_user_refresh_tokens_user ON user_refresh_tokens(id_user)`,
+
+  // ===========================================================
+  // SOLICITUDES DE CAMBIO DE ESTADO
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS solicitudes_cambio_estado (
+    id_solicitud           INTEGER     PRIMARY KEY AUTOINCREMENT,
+    id_afiliado            INTEGER     NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    tipo_actual            TEXT        NOT NULL CHECK (tipo_actual IN ('Natural','Corporativo','Agente Corporativo')),
+    tipo_solicitado        TEXT        NOT NULL CHECK (tipo_solicitado IN ('Natural','Corporativo','Agente Corporativo')),
+    id_empresa_solicitada  INTEGER     REFERENCES empresas(id_empresa) ON DELETE SET NULL,
+    datos_empresa          TEXT        DEFAULT '{}',
+    documentos_empresa     TEXT        DEFAULT '[]',
+    estatus                TEXT        NOT NULL DEFAULT 'Pendiente_Admin'
+                                       CHECK (estatus IN ('Pendiente_Empresa', 'Pendiente_Admin', 'Aprobado', 'Rechazado_Empresa', 'Rechazado_Admin')),
+    observaciones_empresa  TEXT,
+    observaciones_admin    TEXT,
+    creado_en              TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    actualizado_en         TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_solicitudes_cambio_afiliado ON solicitudes_cambio_estado(id_afiliado)`
 ]
 
 async function run() {

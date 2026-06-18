@@ -1,5 +1,15 @@
 import { Router } from 'express';
-import { registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, establecerAccesoPanel, aprobarAfiliadoCorporativo, rechazarAfiliadoCorporativo, crearSolicitudAgenteCorporativo, listarIndependientesDisponibles, vincularAfiliadoIndependiente } from '../controllers/afiliados.controller.js';
+import { 
+  registerAfiliado, getAfiliados, getAfiliadoById, getMisCertificados, getMisCursos, aprobarAfiliado, 
+  getSolicitudesCibir, rechazarAfiliado, verificarEmail, formalizarInscripcion, updateEstatusAfiliado, 
+  updateAfiliado, generarInvitacionCorporativa, listarInvitacionesCorporativas, revocarInvitacionCorporativa, 
+  listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, 
+  establecerAccesoPanel, aprobarAfiliadoCorporativo, rechazarAfiliadoCorporativo, crearSolicitudAgenteCorporativo, 
+  listarIndependientesDisponibles, vincularAfiliadoIndependiente,
+  crearSolicitudCambio, getMiSolicitudCambio, listarSolicitudesCambioEmpresa,
+  resolverSolicitudCambioEmpresa, listarSolicitudesCambioAdmin, resolverSolicitudCambioAdmin,
+  cambiarMembresiaDirectoAdmin
+} from '../controllers/afiliados.controller.js';
 import { requireAuth, requireRole, enrichUser } from '../middlewares/auth.middleware.js';
 
 const router = Router();
@@ -82,6 +92,28 @@ router.get('/:id/independientes-disponibles', requireAuth, enrichUser, listarInd
 
 // POST /api/afiliados/:id/afiliados-corp/vincular — Vincula directamente un afiliado independiente como agente corporativo
 router.post('/:id/afiliados-corp/vincular', requireAuth, enrichUser, vincularAfiliadoIndependiente);
+
+// ── Solicitudes de Cambio de Estado / Membresía ───────────────────────────────────────────
+// POST /api/afiliados/me/solicitud-cambio — Crear solicitud de cambio de estado
+router.post('/me/solicitud-cambio', requireAuth, enrichUser, crearSolicitudCambio);
+
+// GET /api/afiliados/me/solicitud-cambio — Obtener solicitud activa del usuario
+router.get('/me/solicitud-cambio', requireAuth, enrichUser, getMiSolicitudCambio);
+
+// GET /api/afiliados/empresa/solicitudes-cambio — Lista solicitudes de Agente Corp pendientes para esta empresa
+router.get('/empresa/solicitudes-cambio', requireAuth, enrichUser, listarSolicitudesCambioEmpresa);
+
+// POST /api/afiliados/empresa/solicitudes-cambio/:id/resolver — Aprobar o rechazar solicitud como empresa
+router.post('/empresa/solicitudes-cambio/:id/resolver', requireAuth, enrichUser, resolverSolicitudCambioEmpresa);
+
+// GET /api/afiliados/admin/solicitudes-cambio — Listar todas las solicitudes pendientes de Admin
+router.get('/admin/solicitudes-cambio', requireAuth, requireRole('admin', 'super_admin'), listarSolicitudesCambioAdmin);
+
+// POST /api/afiliados/admin/solicitudes-cambio/:id/resolver — Aprobar o rechazar solicitud como Admin
+router.post('/admin/solicitudes-cambio/:id/resolver', requireAuth, requireRole('admin', 'super_admin'), resolverSolicitudCambioAdmin);
+
+// POST /api/afiliados/admin/:id/cambiar-membresia — Cambiar membresía directamente desde admin
+router.post('/admin/:id/cambiar-membresia', requireAuth, requireRole('admin', 'super_admin'), cambiarMembresiaDirectoAdmin);
 
 export { router as afiliadosRoutes };
 
