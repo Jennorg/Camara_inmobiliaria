@@ -168,14 +168,6 @@ END:VCARD`;
                   {afiliado.nivel_academico}
                 </p>
               )}
-
-              <p className="text-slate-500 text-sm font-semibold leading-relaxed max-w-xl">
-                {afiliado.descripcion || afiliado.notas || (isCorporativo ? (
-                  `Representante legal y asesor verificado de la empresa afiliada a la Cámara Inmobiliaria del Estado Bolívar.`
-                ) : (
-                  `Profesional inmobiliario registrado en la Cámara Inmobiliaria del Estado Bolívar.`
-                ))}
-              </p>
             </div>
           </div>
 

@@ -35,6 +35,7 @@ import WidgetExpediente from '@/pages/landing/afiliado/components/WidgetExpedien
 import WidgetSolicitudAfiliacion from '@/pages/landing/afiliado/components/WidgetSolicitudAfiliacion';
 import WidgetGestionAfiliadosCorp from '@/pages/landing/afiliado/components/WidgetGestionAfiliadosCorp';
 import AdminMisAgentesPanel from '@/pages/admin/components/Afiliados/AdminMisAgentesPanel';
+import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel';
 
 // Componentes Administrativos
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel';
@@ -66,6 +67,7 @@ const NAV_AFILIADO = [
 
 const NAV_ADMIN_CORE = [
   { icon: Users, label: 'Directorio de Miembros' },
+  { icon: ClipboardList, label: 'Solicitudes de Cambio' },
   { icon: ShieldCheck, label: 'Control de Acceso' },
   { icon: ClipboardList, label: 'Preinscripciones' },
   { icon: BookOpen, label: 'Gestión de Formación' },
@@ -352,6 +354,7 @@ const PanelPage = () => {
     if (!isAdmin) return null;
 
     if (activeTab === 'Directorio de Miembros') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><MiembrosPanel /></div>;
+    if (activeTab === 'Solicitudes de Cambio') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><AfiliadosPanel defaultViewMode="solicitudes" /></div>;
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;
     if (activeTab === 'Preinscripciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><PreinscripcionesPrincipalesPanel /></div>;
     if (activeTab === 'Administradores') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs p-6 overflow-hidden"><SuperAdminUsersPanel /></div>;
@@ -381,7 +384,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Administradores', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Solicitudes de Cambio', 'Control de Acceso', 'Preinscripciones', 'Administradores', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>

@@ -4,6 +4,8 @@ import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 
+import WidgetSolicitudCambioEstado from './WidgetSolicitudCambioEstado';
+
 interface Documento {
   id_documento: number;
   tipo_doc: string;
@@ -61,75 +63,79 @@ const WidgetExpediente = () => {
 
   if (loading) {
     return (
-      <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación cargada en el sistema">
-        <div className="flex justify-center py-12">
-          <Loader2 className="animate-spin text-emerald-600" size={32} />
-        </div>
-      </DashboardCard>
-    );
-  }
-
-  if (documentos.length === 0) {
-    return (
-      <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación cargada en el sistema">
-        <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500 bg-white border border-gray-100 rounded-2xl">
-          <FileBox size={48} className="text-gray-200 mb-4" />
-          <p className="font-medium text-lg">No hay documentos cargados.</p>
-          <p className="text-sm mt-1">Aquí aparecerán tus títulos, CV y otros requisitos una vez los subas en una inscripción.</p>
-        </div>
-      </DashboardCard>
+      <div className="space-y-6">
+        <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación cargada en el sistema">
+          <div className="flex justify-center py-12">
+            <Loader2 className="animate-spin text-emerald-600" size={32} />
+          </div>
+        </DashboardCard>
+        <WidgetSolicitudCambioEstado />
+      </div>
     );
   }
 
   return (
-    <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación académica y legal cargada">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {documentos.map((doc) => {
-          const Icon = getFileIcon(doc.url);
-          const label = TIPO_LABELS[doc.tipo_doc] || doc.tipo_doc;
-          const date = new Date(doc.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    <div className="space-y-6">
+      {documentos.length === 0 ? (
+        <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación cargada en el sistema">
+          <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500 bg-white border border-gray-100 rounded-2xl">
+            <FileBox size={48} className="text-gray-200 mb-4" />
+            <p className="font-medium text-lg">No hay documentos cargados.</p>
+            <p className="text-sm mt-1">Aquí aparecerán tus títulos, CV y otros requisitos una vez los subas en una inscripción.</p>
+          </div>
+        </DashboardCard>
+      ) : (
+        <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación académica y legal cargada">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {documentos.map((doc) => {
+              const Icon = getFileIcon(doc.url);
+              const label = TIPO_LABELS[doc.tipo_doc] || doc.tipo_doc;
+              const date = new Date(doc.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
-          return (
-            <div 
-              key={doc.id_documento}
-              className="group relative flex items-center gap-4 p-4 bg-gray-50/50 hover:bg-white border border-gray-100 rounded-2xl transition-all hover:shadow-md hover:border-emerald-100"
-            >
-              <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-emerald-600 shadow-xs border border-gray-100 group-hover:scale-110 transition-transform">
-                <Icon size={24} />
-              </div>
+              return (
+                <div 
+                  key={doc.id_documento}
+                  className="group relative flex items-center gap-4 p-4 bg-gray-50/50 hover:bg-white border border-gray-100 rounded-2xl transition-all hover:shadow-md hover:border-emerald-100"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-emerald-600 shadow-xs border border-gray-100 group-hover:scale-110 transition-transform">
+                    <Icon size={24} />
+                  </div>
 
-              <div className="flex-grow min-w-0">
-                <h4 className="text-sm font-black text-gray-900 truncate uppercase tracking-tight">{label}</h4>
-                <div className="flex items-center gap-2 mt-1 text-[10px] font-bold text-gray-400">
-                  <Calendar size={12} className="shrink-0" />
-                  <span>Cargado el {date}</span>
+                  <div className="flex-grow min-w-0">
+                    <h4 className="text-sm font-black text-gray-900 truncate uppercase tracking-tight">{label}</h4>
+                    <div className="flex items-center gap-2 mt-1 text-[10px] font-bold text-gray-400">
+                      <Calendar size={12} className="shrink-0" />
+                      <span>Cargado el {date}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 shrink-0">
+                    <a 
+                      href={doc.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-all"
+                      title="Ver documento"
+                    >
+                      <ExternalLink size={16} />
+                    </a>
+                    <a 
+                      href={doc.url} 
+                      download
+                      className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-all"
+                      title="Descargar"
+                    >
+                      <Download size={16} />
+                    </a>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex gap-2 shrink-0">
-                <a 
-                  href={doc.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-all"
-                  title="Ver documento"
-                >
-                  <ExternalLink size={16} />
-                </a>
-                <a 
-                  href={doc.url} 
-                  download
-                  className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-all"
-                  title="Descargar"
-                >
-                  <Download size={16} />
-                </a>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </DashboardCard>
+              );
+            })}
+          </div>
+        </DashboardCard>
+      )}
+      <WidgetSolicitudCambioEstado />
+    </div>
   );
 };
 

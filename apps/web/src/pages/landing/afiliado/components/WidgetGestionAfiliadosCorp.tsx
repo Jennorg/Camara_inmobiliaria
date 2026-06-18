@@ -20,7 +20,8 @@ import {
   Mail,
   Search,
   UserCheck,
-  Phone
+  Phone,
+  ClipboardList
 } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
@@ -64,7 +65,7 @@ interface AfiliadoIndependiente {
 
 const BOX_H = 'h-[58px]';
 
-type ActiveTab = 'agentes' | 'links' | 'vincular';
+type ActiveTab = 'agentes' | 'links' | 'vincular' | 'solicitudes';
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -79,6 +80,7 @@ export default function WidgetGestionAfiliadosCorp() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('agentes');
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([]);
   const [miembros, setMiembros] = useState<AfiliadoMiembro[]>([]);
+  const [solicitudesCambio, setSolicitudesCambio] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -133,25 +135,53 @@ export default function WidgetGestionAfiliadosCorp() {
         return;
       }
 
-      const [resInv, resMbr] = await Promise.all([
+      const [resInv, resMbr, resSol] = await Promise.all([
         fetch(`${API_URL}/api/afiliados/${companyId}/invitaciones`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/afiliados/empresa/solicitudes-cambio`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
       const dataInv = await resInv.json();
       const dataMbr = await resMbr.json();
+      const dataSol = await resSol.json();
 
       if (dataInv.success) setInvitaciones(dataInv.data);
       if (dataMbr.success) setMiembros(dataMbr.data);
+      if (dataSol.success) setSolicitudesCambio(dataSol.data);
     } catch (err) {
       console.error(err);
       toastError('Error al cargar datos', 'Error al cargar datos de gestión corporativa.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResolveSolicitudCambio = async (idSolicitud: number, aprobado: boolean) => {
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/empresa/solicitudes-cambio/${idSolicitud}/resolver`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ aprobado, observaciones: aprobado ? 'Aprobado por representante' : 'Rechazado por representante' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toastSuccess(aprobado ? 'Solicitud aprobada' : 'Solicitud rechazada', data.message);
+        fetchData();
+      } else {
+        toastError('Error al procesar', data.message || 'No se pudo procesar la solicitud.');
+      }
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión a internet e intenta de nuevo.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -431,6 +461,7 @@ export default function WidgetGestionAfiliadosCorp() {
           { key: 'agentes', label: 'Mis Agentes', icon: Users, count: miembrosVinculados.length },
           { key: 'links', label: 'Links', icon: LinkIcon, count: invitaciones.filter(i => i.activo).length },
           { key: 'vincular', label: 'Vincular Afiliado', icon: UserCheck },
+          { key: 'solicitudes', label: 'Solicitudes de Ingreso', icon: ClipboardList, count: solicitudesCambio.length },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -778,6 +809,68 @@ export default function WidgetGestionAfiliadosCorp() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: Solicitudes de Ingreso ─────────────────────────────────────────── */}
+      {activeTab === 'solicitudes' && (
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+              <UserPlus size={14} className="text-emerald-500" />
+              Solicitudes de Vinculación de Agentes
+            </h3>
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+              {solicitudesCambio.length} Pendientes
+            </span>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {solicitudesCambio.length === 0 ? (
+              <div className="p-12 text-center text-gray-400 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-widest">No hay solicitudes pendientes</p>
+                <p className="text-[10px] font-medium leading-relaxed">Las solicitudes de afiliados que quieren unirse como agentes aparecerán aquí.</p>
+              </div>
+            ) : (
+              solicitudesCambio.map((sol) => (
+                <div key={sol.id_solicitud} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs shrink-0">
+                      {getInitials(sol.afiliado_nombre || '', '')}
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
+                        {sol.afiliado_nombre}
+                      </p>
+                      <p className="text-[10px] font-medium text-gray-500">{sol.afiliado_email} • {sol.afiliado_telefono || 'sin teléfono'}</p>
+                      <p className="text-[10px] text-gray-400 font-bold">
+                        C.I. / RIF: {sol.afiliado_cedula || '—'} • Envío: {new Date(sol.creado_en).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      onClick={() => handleResolveSolicitudCambio(sol.id_solicitud, true)}
+                      disabled={actionLoading}
+                      className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                    >
+                      <Check size={12} strokeWidth={3} />
+                      Aprobar
+                    </button>
+                    <button
+                      onClick={() => handleResolveSolicitudCambio(sol.id_solicitud, false)}
+                      disabled={actionLoading}
+                      className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                    >
+                      <X size={12} strokeWidth={3} />
+                      Rechazar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

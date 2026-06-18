@@ -16,6 +16,7 @@ import WidgetNotificaciones from '@/pages/landing/afiliado/components/WidgetNoti
 import WidgetAcademico from '@/pages/landing/afiliado/components/WidgetAcademico';
 import WidgetFormalizarInscripcion from '@/pages/landing/afiliado/components/WidgetFormalizarInscripcion';
 import AffiliationTimeline from '@/pages/landing/afiliado/components/AffiliationTimeline';
+import WidgetExpediente from '@/pages/landing/afiliado/components/WidgetExpediente';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import { formatNombreCard } from '@/utils/formatters';
@@ -135,8 +136,8 @@ const AfiliadoPage = () => {
             )}
 
             {activeTab === 'Mi Expediente' && (
-              <div className="col-span-1 lg:col-span-3 text-center py-10 opacity-60 font-bold uppercase tracking-widest text-sm">
-                En construcción: Mi Expediente
+              <div className="col-span-1 lg:col-span-3">
+                <WidgetExpediente />
               </div>
             )}
           </div>
