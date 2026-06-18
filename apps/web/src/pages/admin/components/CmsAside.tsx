@@ -186,6 +186,7 @@ const NAV_MAIN: NavGroup[] = [
   { id: 'preinscripciones', label: 'Preinscripciones', icon: icons.solicitudes },
   { id: 'media', label: 'Medios', icon: icons.media },
   { id: 'afiliados', label: 'Afiliados', icon: icons.users },
+  { id: 'solicitudes_cambio', label: 'Solicitudes Cambio', icon: icons.solicitudes },
   { id: 'estudiantes', label: 'Estudiantes', icon: icons.formacion },
   { id: 'users', label: 'Usuarios', icon: icons.users },
   { id: 'admin_users', label: 'Administradores', icon: icons.admin_users },

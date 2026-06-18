@@ -3,11 +3,12 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
-import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check } from 'lucide-react'
+import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check, CheckCircle } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 import Swal from 'sweetalert2'
+import FileUpload from '@/components/common/FileUpload'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -50,7 +51,11 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
   )
 }
 
-export default function AfiliadosPanel() {
+interface AfiliadosPanelProps {
+  defaultViewMode?: 'list' | 'solicitudes'
+}
+
+export default function AfiliadosPanel({ defaultViewMode = 'list' }: AfiliadosPanelProps) {
   const { token } = useAuth()
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
@@ -67,6 +72,121 @@ export default function AfiliadosPanel() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
 
+  // Cambio de Estado solicitudes
+  const [viewMode, setViewMode] = useState<'list' | 'solicitudes'>(defaultViewMode)
+  const [solicitudes, setSolicitudes] = useState<any[]>([])
+  const [selectedSolicitud, setSelectedSolicitud] = useState<any | null>(null)
+  const [adminObservaciones, setAdminObservaciones] = useState('')
+
+  // Cambio directo por administrador
+  const [showChangeTypeModal, setShowChangeTypeModal] = useState(false)
+  const [pendingNewType, setPendingNewType] = useState<'Natural' | 'Corporativo' | 'Agente Corporativo' | ''>('')
+  const [empresas, setEmpresas] = useState<any[]>([])
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState('')
+  const [razonSocial, setRazonSocial] = useState('')
+  const [rifTipo, setRifTipo] = useState('J')
+  const [rifNumero, setRifNumero] = useState('')
+  const [emailEmpresa, setEmailEmpresa] = useState('')
+  const [telefonoEmpresa, setTelefonoEmpresa] = useState('')
+  const [direccionEmpresa, setDireccionEmpresa] = useState('')
+  const [websiteEmpresa, setWebsiteEmpresa] = useState('')
+  const [urlRegistro, setUrlRegistro] = useState('')
+  const [urlRif, setUrlRif] = useState('')
+  const [nombreRegistro, setNombreRegistro] = useState('')
+  const [nombreRif, setNombreRif] = useState('')
+  const [submittingChangeType, setSubmittingChangeType] = useState(false)
+
+  const fetchEmpresas = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/public/empresas`)
+      const json = await res.json()
+      if (json.success) setEmpresas(json.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const handleDropdownTypeChange = (newType: string) => {
+    if (!selected) return
+    if (newType === selected.tipo_afiliado) return
+
+    setPendingNewType(newType as any)
+    if (newType === 'Natural') {
+      confirmNaturalTransition()
+    } else {
+      fetchEmpresas()
+      setShowChangeTypeModal(true)
+    }
+  }
+
+  const confirmNaturalTransition = async () => {
+    if (!selected) return
+    const displayName = formatNombreCard(selected.nombre_completo)
+    const result = await Swal.fire({
+      title: '¿Cambiar a Agente Independiente?',
+      text: `¿Estás seguro de convertir a ${displayName} en Agente Independiente (Natural)? Se romperá cualquier vínculo con su empresa actual.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cambiar',
+      cancelButtonText: 'Cancelar'
+    })
+
+    if (result.isConfirmed) {
+      await executeDirectTypeChange('Natural')
+    }
+  }
+
+  const executeDirectTypeChange = async (type: string, additionalData: any = {}) => {
+    if (!selected) return
+    setSubmittingChangeType(true)
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/admin/${selected.id_afiliado}/cambiar-membresia`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo_destino: type,
+          ...additionalData
+        })
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        Swal.fire({
+          title: '¡Cambiado!',
+          text: json.message || 'Membresía actualizada con éxito.',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        })
+        setShowChangeTypeModal(false)
+        // Reset states
+        setSelectedEmpresaId('')
+        setRazonSocial('')
+        setRifNumero('')
+        setEmailEmpresa('')
+        setTelefonoEmpresa('')
+        setDireccionEmpresa('')
+        setWebsiteEmpresa('')
+        setUrlRegistro('')
+        setUrlRif('')
+        setNombreRegistro('')
+        setNombreRif('')
+        // Reload details and list
+        await loadDetail(selected.id_afiliado)
+        await load()
+      } else {
+        Swal.fire('Error', json.message || 'No se pudo realizar el cambio.', 'error')
+      }
+    } catch (err) {
+      Swal.fire('Error de conexión', 'No se pudo establecer comunicación con el servidor.', 'error')
+    } finally {
+      setSubmittingChangeType(false)
+    }
+  }
+
+  useEffect(() => {
+    setViewMode(defaultViewMode)
+    setSelected(null)
+    setSelectedSolicitud(null)
+  }, [defaultViewMode])
+
   const load = async () => {
     setLoading(true)
     setError('')
@@ -82,6 +202,21 @@ export default function AfiliadosPanel() {
     } catch (e: unknown) {
       const err = e as Error
       setError(err.message || 'Error inesperado')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadSolicitudes = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, { headers: authHeaders })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando solicitudes de cambio')
+      setSolicitudes(json.data)
+    } catch (e: any) {
+      setError(e.message || 'Error inesperado')
     } finally {
       setLoading(false)
     }
@@ -118,8 +253,47 @@ export default function AfiliadosPanel() {
     } catch (err) { console.error(err) }
   }
 
-  useEffect(() => { load() }, []) // initial
-  useEffect(() => { load() }, [estatus, filterTipo]) // reload on filter
+  const resolverSolicitud = async (id: number, aprobado: boolean) => {
+    setError('')
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio/${id}/resolver`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aprobado, observaciones: adminObservaciones })
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al resolver la solicitud')
+      
+      Swal.fire({
+        title: aprobado ? '¡Aprobada!' : '¡Rechazada!',
+        text: aprobado ? 'La solicitud ha sido aprobada y los cambios se aplicaron exitosamente.' : 'La solicitud ha sido rechazada.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+      
+      setAdminObservaciones('')
+      setSelectedSolicitud(null)
+      await loadSolicitudes()
+      await load()
+    } catch (e: any) {
+      setError(e.message || 'Error al resolver la solicitud')
+    }
+  }
+
+  useEffect(() => {
+    if (viewMode === 'list') {
+      load()
+    } else {
+      loadSolicitudes()
+    }
+  }, [viewMode]) // initial & viewMode toggles
+
+  useEffect(() => {
+    if (viewMode === 'list') {
+      load()
+    }
+  }, [estatus, filterTipo]) // reload on filter only in list mode
 
   const procesar = async (id: number, action: 'aprobar' | 'rechazar') => {
     setError('')
@@ -140,64 +314,108 @@ export default function AfiliadosPanel() {
       {/* List */}
       <div className="flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0">
         <div className="p-4 border-b border-gray-100 space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800">Afiliados (CIBIR)</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Gestión de candidatos, aprobaciones y estatus.</p>
-            </div>
+          {/* viewMode Tabs */}
+          <div className="flex gap-1 p-1 bg-slate-100/70 rounded-xl">
             <button
               type="button"
-              onClick={() => setShowExportModal(true)}
-              title="Exportar listado en PDF"
-              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+              onClick={() => { setViewMode('list'); setSelected(null); setSelectedSolicitud(null); }}
+              className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+              }`}
             >
-              <FileDown size={14} />
-              PDF
+              Afiliados CIBIR
+            </button>
+            <button
+              type="button"
+              onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
+              className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Solicitudes Cambio
+              {solicitudes.length > 0 && (
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black scale-90">
+                  {solicitudes.length}
+                </span>
+              )}
             </button>
           </div>
-          
-          <div className="flex flex-col gap-2">
-            <select
-              value={estatus}
-              onChange={(e) => setEstatus(e.target.value as any)}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-bold text-slate-700 bg-slate-50"
-            >
-              <option value="Todos">Todos los estados</option>
-              <optgroup label="Proceso de Afiliación">
-                <option value="1_PREINSCRIPCION">1. Preinscripción</option>
-                <option value="2_EXPEDIENTE">2. Expediente</option>
-                <option value="3_ENTREVISTA">3. Entrevista</option>
-                <option value="4_VERIFICACION">4. Verificación</option>
-                <option value="5_CIBIR">5. CIBIR</option>
-                <option value="6_INSCRIPCION">6. Inscripción</option>
-              </optgroup>
-              <optgroup label="Estados Finales">
-                <option value="Afiliado">Afiliado (CIBIR)</option>
-                <option value="Moroso">Moroso</option>
-                <option value="Suspendido">Suspendido</option>
-                <option value="Rechazado">Rechazado</option>
-              </optgroup>
-            </select>
 
-            <div className="flex gap-2">
-              <select
-                value={filterTipo}
-                onChange={(e) => setFilterTipo(e.target.value as any)}
-                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-bold text-slate-700 bg-slate-50"
-              >
-                <option value="Todos">Todos los tipos</option>
-                <option value="Natural">Agentes Independientes</option>
-                <option value="Agente Corporativo">Agentes Corporativos</option>
-                <option value="Corporativo">Corporativos</option>
-              </select>
+          {viewMode === 'list' ? (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Listado General</h3>
+                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">Manejo de candidatos, aprobaciones y estatus.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(true)}
+                  title="Exportar listado en PDF"
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+                >
+                  <FileDown size={14} />
+                  PDF
+                </button>
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <select
+                  value={estatus}
+                  onChange={(e) => setEstatus(e.target.value as any)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-bold text-slate-700 bg-slate-50"
+                >
+                  <option value="Todos">Todos los estados</option>
+                  <optgroup label="Proceso de Afiliación">
+                    <option value="1_PREINSCRIPCION">1. Preinscripción</option>
+                    <option value="2_EXPEDIENTE">2. Expediente</option>
+                    <option value="3_ENTREVISTA">3. Entrevista</option>
+                    <option value="4_VERIFICACION">4. Verificación</option>
+                    <option value="5_CIBIR">5. CIBIR</option>
+                    <option value="6_INSCRIPCION">6. Inscripción</option>
+                  </optgroup>
+                  <optgroup label="Estados Finales">
+                    <option value="Afiliado">Afiliado (CIBIR)</option>
+                    <option value="Moroso">Moroso</option>
+                    <option value="Suspendido">Suspendido</option>
+                    <option value="Rechazado">Rechazado</option>
+                  </optgroup>
+                </select>
+
+                <div className="flex gap-2">
+                  <select
+                    value={filterTipo}
+                    onChange={(e) => setFilterTipo(e.target.value as any)}
+                    className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-bold text-slate-700 bg-slate-50"
+                  >
+                    <option value="Todos">Todos los tipos</option>
+                    <option value="Natural">Agentes Independientes</option>
+                    <option value="Agente Corporativo">Agentes Corporativos</option>
+                    <option value="Corporativo">Corporativos</option>
+                  </select>
+                  <button
+                    onClick={load}
+                    className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold hover:bg-slate-200 transition-colors"
+                  >
+                    Refrescar
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Solicitudes pendientes</h3>
+                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Cambios de membresía que requieren aprobación.</p>
+              </div>
               <button
-                onClick={load}
-                className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold hover:bg-slate-200 transition-colors"
+                onClick={loadSolicitudes}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors"
               >
                 Refrescar
               </button>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
@@ -205,48 +423,239 @@ export default function AfiliadosPanel() {
             <div className="p-4 text-center text-xs text-slate-400 font-semibold uppercase tracking-widest mt-10">Cargando...</div>
           ) : error ? (
             <div className="p-4 text-center text-xs text-red-500 mt-10">{error}</div>
-          ) : items.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400 mt-10">Sin resultados.</div>
-          ) : (
-            items.map(a => (
-              <button
-                key={a.id_afiliado}
-                onClick={() => loadDetail(a.id_afiliado)}
-                className={['w-full text-left px-4 py-3.5 transition-colors flex flex-col gap-1',
-                  selected?.id_afiliado === a.id_afiliado ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
-                ].join(' ')}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold text-slate-800">{a.nombre_completo}</span>
+          ) : viewMode === 'list' ? (
+            items.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400 mt-10">Sin resultados.</div>
+            ) : (
+              items.map(a => (
+                <button
+                  key={a.id_afiliado}
+                  onClick={() => loadDetail(a.id_afiliado)}
+                  className={['w-full text-left px-4 py-3.5 transition-colors flex flex-col gap-1',
+                    selected?.id_afiliado === a.id_afiliado ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
+                  ].join(' ')}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-semibold text-slate-800">{a.nombre_completo}</span>
 
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${
-                      a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
-                      a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'text-amber-500' :
-                      'text-blue-500'
-                    }`}>
-                      {a.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
-                       a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'Agente Corporativo' :
-                       'Agente Independiente'}
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${
+                        a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
+                        a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'text-amber-500' :
+                        'text-blue-500'
+                      }`}>
+                        {a.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
+                         a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'Agente Corporativo' :
+                         'Agente Independiente'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+                      {a.estatus.replace(/_/g, ' ')}
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
-                    {a.estatus.replace(/_/g, ' ')}
+                  <span className="text-xs text-slate-400 truncate">{a.email}</span>
+                  <span className="text-[10px] text-slate-300">
+                    #{a.id_afiliado} · {a.codigo || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
                   </span>
-                </div>
-                <span className="text-xs text-slate-400 truncate">{a.email}</span>
-                <span className="text-[10px] text-slate-300">
-                  #{a.id_afiliado} · {a.codigo || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
-                </span>
-              </button>
-            ))
+                </button>
+              ))
+            )
+          ) : (
+            solicitudes.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400 mt-10">No hay solicitudes pendientes.</div>
+            ) : (
+              solicitudes.map(s => (
+                <button
+                  key={s.id_solicitud}
+                  onClick={() => setSelectedSolicitud(s)}
+                  className={['w-full text-left px-4 py-3.5 transition-colors flex flex-col gap-1',
+                    selectedSolicitud?.id_solicitud === s.id_solicitud ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
+                  ].join(' ')}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-semibold text-slate-800">{s.afiliado_nombre}</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">
+                        {s.tipo_actual} ➔ {s.tipo_solicitado}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 whitespace-nowrap">
+                      Por Cámara
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-400 truncate">{s.afiliado_email}</span>
+                  <span className="text-[10px] text-slate-300">
+                    Solicitud #{s.id_solicitud} · {new Date(s.creado_en).toLocaleDateString('es-ES')}
+                  </span>
+                </button>
+              ))
+            )
           )}
         </div>
       </div>
 
       {/* Detail */}
       <div className="bg-gray-50 overflow-hidden relative min-h-0 hidden sm:block">
-        {!selected ? (
+        {viewMode === 'solicitudes' ? (
+          !selectedSolicitud ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-300">
+              <p className="text-sm font-medium">Selecciona una solicitud</p>
+            </div>
+          ) : detailLoading ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-300">
+              <p className="text-sm font-medium">Cargando detalle...</p>
+            </div>
+          ) : (
+            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 space-y-6">
+              {/* Header */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-1.5 shadow-sm">
+                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 w-fit">
+                  {selectedSolicitud.tipo_actual} ➔ {selectedSolicitud.tipo_solicitado}
+                </span>
+                <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                  Solicitud de: {selectedSolicitud.afiliado_nombre}
+                </h3>
+                <p className="text-xs text-slate-400">{selectedSolicitud.afiliado_email} • {selectedSolicitud.afiliado_telefono || 'sin teléfono'}</p>
+                <p className="text-[10px] text-slate-400 font-bold mt-1">
+                  Enviada el: {new Date(selectedSolicitud.creado_en).toLocaleString('es-ES')}
+                </p>
+              </div>
+
+              {/* Conditional Info based on requested type */}
+              {selectedSolicitud.tipo_solicitado === 'Corporativo' && (
+                <>
+                  {/* Company Info */}
+                  <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Datos de la Empresa</h4>
+                    {(() => {
+                      try {
+                        const datos = JSON.parse(selectedSolicitud.datos_empresa || '{}');
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-600">
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Razón Social</span>
+                              <span className="text-slate-800 font-bold">{datos.razon_social || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">RIF</span>
+                              <span className="text-slate-800 font-bold">{datos.rif_tipo}-{datos.rif_numero || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Email</span>
+                              <span className="text-slate-800 font-bold">{datos.email || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Teléfono</span>
+                              <span className="text-slate-800 font-bold">{datos.telefono || '—'}</span>
+                            </div>
+                            <div className="col-span-full">
+                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Dirección</span>
+                              <span className="text-slate-800 font-bold leading-normal">{datos.direccion || '—'}</span>
+                            </div>
+                            {datos.website && (
+                              <div className="col-span-full">
+                                <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Sitio Web</span>
+                                <a href={datos.website.startsWith('http') ? datos.website : `https://${datos.website}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline font-bold">
+                                  {datos.website}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } catch {
+                        return <p className="text-xs text-red-500 font-bold">Error al parsear datos de empresa</p>;
+                      }
+                    })()}
+                  </div>
+
+                  {/* Company Documents */}
+                  <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentos de la Empresa</h4>
+                    {(() => {
+                      try {
+                        const docs = JSON.parse(selectedSolicitud.documentos_empresa || '[]');
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {docs.map((doc: any, i: number) => (
+                              <DocLink 
+                                key={i}
+                                label={doc.tipo_doc.replace(/_/g, ' ')}
+                                url={doc.url}
+                                detail={doc.nombre_archivo}
+                                compact
+                              />
+                            ))}
+                          </div>
+                        );
+                      } catch {
+                        return <p className="text-xs text-red-500 font-bold">Error al parsear documentos</p>;
+                      }
+                    })()}
+                  </div>
+                </>
+              )}
+
+              {selectedSolicitud.tipo_solicitado === 'Agente Corporativo' && (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-2 shadow-sm">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Empresa Solicitada</h4>
+                  <p className="text-xs font-semibold text-slate-800">
+                    El afiliado solicita afiliarse como Agente Corporativo a la empresa:
+                  </p>
+                  <p className="text-sm font-bold text-emerald-600">
+                    {selectedSolicitud.empresa_solicitada_nombre || '—'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-lg p-2.5 mt-2 flex items-center gap-1.5">
+                    <CheckCircle size={12} className="text-emerald-500 shrink-0" />
+                    Aprobado previamente por el representante legal de la empresa.
+                  </p>
+                </div>
+              )}
+
+              {selectedSolicitud.tipo_solicitado === 'Natural' && (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-2 shadow-sm">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Detalles de Solicitud</h4>
+                  <p className="text-xs font-semibold text-slate-800">
+                    El afiliado solicita pasar a ser Agente Independiente (Natural).
+                  </p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                    Al aprobarse, se romperá su vínculo actual con cualquier empresa registrada y se actualizará su tipo de afiliación.
+                  </p>
+                </div>
+              )}
+
+              {/* Resolver Action */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Resolver Solicitud (Administración)</h4>
+                
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Observaciones / Comentarios</label>
+                  <textarea 
+                    value={adminObservaciones}
+                    onChange={(e) => setAdminObservaciones(e.target.value)}
+                    placeholder="Escribe comentarios, justificaciones de aprobación o motivos del rechazo..."
+                    rows={3}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:bg-white resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2 border-t border-slate-50">
+                  <button
+                    onClick={() => resolverSolicitud(selectedSolicitud.id_solicitud, true)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-xs font-black uppercase tracking-wider hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-all hover:-translate-y-0.5"
+                  >
+                    Aprobar Cambio
+                  </button>
+                  <button
+                    onClick={() => resolverSolicitud(selectedSolicitud.id_solicitud, false)}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-50 text-rose-500 text-xs font-black uppercase tracking-wider hover:bg-rose-100 transition-colors"
+                  >
+                    Rechazar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        ) : !selected ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-300">
             <p className="text-sm font-medium">Selecciona un afiliado</p>
           </div>
@@ -262,7 +671,7 @@ export default function AfiliadosPanel() {
                   <div className="flex items-center gap-2 mb-1">
                     <select
                       value={selected.tipo_afiliado}
-                      onChange={(e) => updateField('tipo_afiliado', e.target.value)}
+                      onChange={(e) => handleDropdownTypeChange(e.target.value)}
                       className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-slate-100 text-slate-500 border-none focus:ring-0 cursor-pointer"
                     >
                       <option value="Natural">Agente Independiente</option>
@@ -561,26 +970,74 @@ export default function AfiliadosPanel() {
             </div>
 
             {/* Documentation Section */}
-            {selected.documentos && selected.documentos.length > 0 && (
+            {((selected.documentos && selected.documentos.length > 0) || selected.tipo_afiliado === 'Corporativo') && (
               <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentación Adjunta</h4>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
-                    {selected.documentos.length} archivos
-                  </span>
+                  {selected.documentos && selected.documentos.length > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                      {selected.documentos.length} archivos
+                    </span>
+                  )}
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {selected.documentos.map((doc: any) => (
-                    <DocLink 
-                      key={doc.id_documento} 
-                      label={doc.tipo_doc.replace(/_/g, ' ')} 
-                      url={doc.url} 
-                      detail={doc.nombre_archivo}
-                      compact 
-                    />
-                  ))}
-                </div>
+                {selected.documentos && selected.documentos.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selected.documentos.map((doc: any) => (
+                      <DocLink 
+                        key={doc.id_documento} 
+                        label={doc.tipo_doc.replace(/_/g, ' ')} 
+                        url={doc.url} 
+                        detail={doc.nombre_archivo}
+                        compact 
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {selected.tipo_afiliado === 'Corporativo' && (
+                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                    <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-bold">
+                      Cargar/Actualizar Soportes de la Empresa
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FileUpload 
+                        label="Registro Mercantil"
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        initialUrl={selected.documentos?.find((d: any) => d.tipo_doc === 'registro_mercantil')?.url}
+                        initialFileName={selected.documentos?.find((d: any) => d.tipo_doc === 'registro_mercantil')?.nombre_archivo}
+                        onUploadSuccess={(url, name) => {
+                          updateField('documentos' as any, [
+                            { tipo_doc: 'registro_mercantil', url, nombre_archivo: name || 'Registro_Mercantil.pdf' }
+                          ])
+                        }}
+                        onClear={() => {
+                          updateField('documentos' as any, [
+                            { tipo_doc: 'registro_mercantil', url: '', nombre_archivo: '' }
+                          ])
+                        }}
+                      />
+                      <FileUpload 
+                        label="RIF de la Empresa"
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        initialUrl={selected.documentos?.find((d: any) => d.tipo_doc === 'rif_empresa')?.url}
+                        initialFileName={selected.documentos?.find((d: any) => d.tipo_doc === 'rif_empresa')?.nombre_archivo}
+                        onUploadSuccess={(url, name) => {
+                          updateField('documentos' as any, [
+                            { tipo_doc: 'rif_empresa', url, nombre_archivo: name || 'RIF_Empresa.pdf' }
+                          ])
+                        }}
+                        onClear={() => {
+                          updateField('documentos' as any, [
+                            { tipo_doc: 'rif_empresa', url: '', nombre_archivo: '' }
+                          ])
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -668,6 +1125,224 @@ export default function AfiliadosPanel() {
           tipo: filterTipo as ExportTipoFilter,
         }}
       />
+
+      {showChangeTypeModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowChangeTypeModal(false)} />
+          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
+                  Cambiar Tipo de Membresía
+                </h3>
+                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                  Mover a {selected ? formatNombreCard(selected.nombre_completo) : ''} a la membresía: {pendingNewType}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowChangeTypeModal(false)} 
+                className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {pendingNewType === 'Agente Corporativo' && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Seleccionar Empresa Destino
+                    </label>
+                    <select
+                      value={selectedEmpresaId}
+                      onChange={e => setSelectedEmpresaId(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:bg-white transition-colors"
+                    >
+                      <option value="">-- Selecciona una empresa --</option>
+                      {empresas.map(emp => (
+                        <option key={emp.id_empresa} value={emp.id_empresa}>
+                          {emp.razon_social} ({emp.rif_tipo}-{emp.rif_numero})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {pendingNewType === 'Corporativo' && (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                      Información de la Nueva Empresa
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="col-span-full flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
+                        <input 
+                          type="text" 
+                          value={razonSocial}
+                          onChange={e => setRazonSocial(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="Nombre comercial de la inmobiliaria"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
+                        <select 
+                          value={rifTipo}
+                          onChange={e => setRifTipo(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                        >
+                          <option value="J">J (Jurídico)</option>
+                          <option value="G">G (Gubernamental)</option>
+                          <option value="P">P (Persona Firma Personal)</option>
+                          <option value="V">V (Venezolano)</option>
+                          <option value="E">E (Extranjero)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
+                        <input 
+                          type="text" 
+                          value={rifNumero}
+                          onChange={e => setRifNumero(e.target.value.replace(/\D/g, ''))}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="123456789"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
+                        <input 
+                          type="email" 
+                          value={emailEmpresa}
+                          onChange={e => setEmailEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="contacto@empresa.com"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
+                        <input 
+                          type="text" 
+                          value={telefonoEmpresa}
+                          onChange={e => setTelefonoEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="+58 212 555-5555"
+                        />
+                      </div>
+
+                      <div className="col-span-full flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
+                        <textarea 
+                          rows={2}
+                          value={direccionEmpresa}
+                          onChange={e => setDireccionEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white resize-none"
+                          placeholder="Dirección exacta..."
+                        />
+                      </div>
+
+                      <div className="col-span-full flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
+                        <input 
+                          type="text" 
+                          value={websiteEmpresa}
+                          onChange={e => setWebsiteEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="www.tuempresa.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                      Documentación de la Empresa
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FileUpload 
+                        label="Registro Mercantil"
+                        required
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        onUploadSuccess={(url, name) => {
+                          setUrlRegistro(url);
+                          setNombreRegistro(name || 'Registro_Mercantil.pdf');
+                        }}
+                        onClear={() => {
+                          setUrlRegistro('');
+                          setNombreRegistro('');
+                        }}
+                      />
+                      <FileUpload 
+                        label="RIF de la Empresa"
+                        required
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        onUploadSuccess={(url, name) => {
+                          setUrlRif(url);
+                          setNombreRif(name || 'RIF_Empresa.pdf');
+                        }}
+                        onClear={() => {
+                          setUrlRif('');
+                          setNombreRif('');
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button 
+                type="button" 
+                onClick={() => setShowChangeTypeModal(false)} 
+                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                disabled={
+                  submittingChangeType ||
+                  (pendingNewType === 'Agente Corporativo' && !selectedEmpresaId) ||
+                  (pendingNewType === 'Corporativo' && (!razonSocial || !rifNumero || !emailEmpresa || !telefonoEmpresa || !urlRegistro || !urlRif))
+                }
+                onClick={() => {
+                  const data: any = {};
+                  if (pendingNewType === 'Agente Corporativo') {
+                    data.id_empresa_solicitada = Number(selectedEmpresaId);
+                  } else if (pendingNewType === 'Corporativo') {
+                    data.datos_empresa = {
+                      razon_social: razonSocial.trim(),
+                      rif_tipo: rifTipo,
+                      rif_numero: rifNumero.replace(/\D/g, ''),
+                      email: emailEmpresa.trim().toLowerCase(),
+                      telefono: telefonoEmpresa.trim(),
+                      direccion: direccionEmpresa.trim(),
+                      website: websiteEmpresa.trim()
+                    };
+                    data.documentos_empresa = [
+                      { tipo_doc: 'registro_mercantil', url: urlRegistro, nombre_archivo: nombreRegistro },
+                      { tipo_doc: 'rif_empresa', url: urlRif, nombre_archivo: nombreRif }
+                    ];
+                  }
+                  executeDirectTypeChange(pendingNewType, data);
+                }}
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+              >
+                {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
