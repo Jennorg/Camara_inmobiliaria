@@ -74,11 +74,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
     const passwordHash = await bcrypt.hash(password, 10)
     const rolesJson = JSON.stringify([rol])
+    const normalizedEmail = email.trim().toLowerCase()
 
     const result = await db.execute({
       sql: `INSERT INTO users (email, password_hash, roles)
             VALUES (?, ?, ?) RETURNING id, email, roles, activo, creado_en`,
-      args: [email, passwordHash, rolesJson],
+      args: [normalizedEmail, passwordHash, rolesJson],
     })
 
     const newUser = result.rows[0];

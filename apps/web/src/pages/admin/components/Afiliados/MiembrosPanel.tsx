@@ -16,9 +16,18 @@ import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/Expo
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/utils/cropImage'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
+import Swal from 'sweetalert2'
+import FileUpload from '@/components/common/FileUpload'
 
 
 const ID_PREFIXES = ['V', 'E', 'J', 'G', 'P']
+
+const cleanString = (str: string | null | undefined): string => {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
 
 export default function MiembrosPanel() {
   const { token } = useAuth()
@@ -57,6 +66,122 @@ export default function MiembrosPanel() {
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
+
+  // Cambio directo por administrador
+  const [showChangeTypeModal, setShowChangeTypeModal] = useState(false)
+  const [pendingNewType, setPendingNewType] = useState<'Natural' | 'Corporativo' | 'Agente Corporativo' | ''>('')
+  const [empresas, setEmpresas] = useState<any[]>([])
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState('')
+  const [razonSocial, setRazonSocial] = useState('')
+  const [rifTipo, setRifTipo] = useState('J')
+  const [rifNumero, setRifNumero] = useState('')
+  const [emailEmpresa, setEmailEmpresa] = useState('')
+  const [telefonoEmpresa, setTelefonoEmpresa] = useState('')
+  const [direccionEmpresa, setDireccionEmpresa] = useState('')
+  const [websiteEmpresa, setWebsiteEmpresa] = useState('')
+  const [urlRegistro, setUrlRegistro] = useState('')
+  const [urlRif, setUrlRif] = useState('')
+  const [nombreRegistro, setNombreRegistro] = useState('')
+  const [nombreRif, setNombreRif] = useState('')
+  const [submittingChangeType, setSubmittingChangeType] = useState(false)
+
+  const fetchEmpresas = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/public/empresas`)
+      const json = await res.json()
+      if (json.success) setEmpresas(json.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const handleDropdownTypeChange = (newType: string) => {
+    if (!selected) return
+    if (newType === selected.tipo_afiliado) return
+
+    setPendingNewType(newType as any)
+    if (newType === 'Natural') {
+      confirmNaturalTransition()
+    } else {
+      fetchEmpresas()
+      setShowChangeTypeModal(true)
+    }
+  }
+
+  const confirmNaturalTransition = async () => {
+    if (!selected) return
+    const displayName = formatNombreCard(selected.nombre_completo)
+    const result = await Swal.fire({
+      title: '¿Cambiar a Agente Independiente?',
+      text: `¿Estás seguro de convertir a ${displayName} en Agente Independiente (Natural)? Se romperá cualquier vínculo con su empresa actual.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cambiar',
+      cancelButtonText: 'Cancelar'
+    })
+
+    if (result.isConfirmed) {
+      await executeDirectTypeChange('Natural')
+    }
+  }
+
+  const executeDirectTypeChange = async (type: string, additionalData: any = {}) => {
+    if (!selected) return
+    setSubmittingChangeType(true)
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/admin/${selected.id_afiliado}/cambiar-membresia`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tipo_destino: type,
+          ...additionalData
+        })
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        Swal.fire({
+          title: '¡Cambiado!',
+          text: json.message || 'Membresía actualizada con éxito.',
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false
+        })
+        setShowChangeTypeModal(false)
+        setIsEditing(false)
+        // Reset states
+        setSelectedEmpresaId('')
+        setRazonSocial('')
+        setRifNumero('')
+        setEmailEmpresa('')
+        setTelefonoEmpresa('')
+        setDireccionEmpresa('')
+        setWebsiteEmpresa('')
+        setUrlRegistro('')
+        setUrlRif('')
+        setNombreRegistro('')
+        setNombreRif('')
+        
+        // Reload details and list
+        const resDetail = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        const jsonDetail = await resDetail.json()
+        if (jsonDetail.success) {
+          setSelected(jsonDetail.data)
+        }
+        await load()
+      } else {
+        Swal.fire('Error', json.message || 'No se pudo realizar el cambio.', 'error')
+      }
+    } catch (err) {
+      Swal.fire('Error de conexión', 'No se pudo establecer comunicación con el servidor.', 'error')
+    } finally {
+      setSubmittingChangeType(false)
+    }
+  }
   const [newForm, setNewForm] = useState<Partial<AfiliadoDTO>>({
     tipo_afiliado: 'Natural',
     estatus: 'Afiliado'
@@ -242,11 +367,11 @@ export default function MiembrosPanel() {
 
   const filteredItems = useMemo(() => {
     let result = items.filter(item => {
-      const nombre = (item.nombre_completo || '').toLowerCase()
-      const razonSocial = (item.empresa_razon_social || '').toLowerCase()
-      const cedula = (item.cedula || '').toLowerCase()
-      const rif = (item.empresa_rif_numero || '').toLowerCase()
-      const s = search.toLowerCase()
+      const nombre = cleanString(item.nombre_completo)
+      const razonSocial = cleanString(item.empresa_razon_social)
+      const cedula = cleanString(item.cedula)
+      const rif = cleanString(item.empresa_rif_numero)
+      const s = cleanString(search)
 
       let matchSearch = true
       if (s.trim()) {
@@ -254,15 +379,15 @@ export default function MiembrosPanel() {
         if (searchField === 'id') {
           matchSearch = terms.every(term => cedula.includes(term) || rif.includes(term))
         } else if (searchField === 'codigo') {
-          matchSearch = terms.every(term => (item.codigo || '').toLowerCase().includes(term))
+          matchSearch = terms.every(term => cleanString(item.codigo).includes(term))
         } else { // nombre (inclusivo)
-          const repNombre = (item.representante_nombre || (item.nombres && item.apellidos ? `${item.nombres} ${item.apellidos}` : '') || '').toLowerCase()
+          const repNombre = cleanString(item.representante_nombre || (item.nombres && item.apellidos ? `${item.nombres} ${item.apellidos}` : ''))
           matchSearch = terms.every(term => 
             nombre.includes(term) ||
             razonSocial.includes(term) ||
             repNombre.includes(term) ||
-            (item.nombres || '').toLowerCase().includes(term) ||
-            (item.apellidos || '').toLowerCase().includes(term)
+            cleanString(item.nombres).includes(term) ||
+            cleanString(item.apellidos).includes(term)
           )
         }
       }
@@ -455,9 +580,9 @@ export default function MiembrosPanel() {
           </div>
 
           <div className="flex gap-2">
-            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-8">
+            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-8 z-20">
               {/* Dropdown de criterio */}
-              <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
+              <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center z-10">
                 <button
                   type="button"
                   onClick={() => setShowSearchDropdown(!showSearchDropdown)}
@@ -550,7 +675,7 @@ export default function MiembrosPanel() {
               <div className="flex items-center gap-2 overflow-hidden">
                 <Filter size={14} className="text-slate-400 shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-widest truncate">
-                  Filtro: {filterTipo === 'Todos' ? 'Todos' : filterTipo === 'Natural' ? 'Agentes Independientes' : filterTipo === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Corporativos'}
+                  Filtro: {filterTipo === 'Todos' ? 'Todos' : filterTipo === 'Natural' ? 'Agente Independiente' : filterTipo === 'Agente Corporativo' ? 'Agente Corporativo' : 'Corporativo'}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
@@ -569,9 +694,9 @@ export default function MiembrosPanel() {
                   <div className="py-1">
                     {[
                       { id: 'Todos', label: 'Todos' },
-                      { id: 'Natural', label: 'Agentes Independientes' },
-                      { id: 'Corporativo', label: 'Corporativos' },
-                      { id: 'Agente Corporativo', label: 'Agentes Corporativos' },
+                      { id: 'Natural', label: 'Agente Independiente' },
+                      { id: 'Corporativo', label: 'Corporativo' },
+                      { id: 'Agente Corporativo', label: 'Agente Corporativo' },
                     ].map((f) => (
                       <button
                         key={f.id}
@@ -625,8 +750,8 @@ export default function MiembrosPanel() {
                     <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md ${item.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
                       item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                       }`}>
-                      {item.tipo_afiliado === 'Corporativo' ? 'Corporativos' :
-                        item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'Agentes Corporativos' : 'Agentes Independientes'}
+                      {item.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
+                        item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'Agente Corporativo' : 'Agente Independiente'}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
                       {item.empresa_rif_numero ? formatRif(item.empresa_rif_tipo, item.empresa_rif_numero) : item.cedula}
@@ -892,27 +1017,18 @@ export default function MiembrosPanel() {
                 <div className="p-4 bg-slate-50 rounded-2xl space-y-3 mt-6">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Afiliación</p>
-                    {isEditing ? (
-                      <div className="relative">
-                        <select
-                          className="text-[10px] font-black uppercase px-2 py-1 pr-6 rounded-md bg-white border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-500/10 appearance-none cursor-pointer"
-                          value={editForm.tipo_afiliado}
-                          onChange={(e) => setEditForm({ ...editForm, tipo_afiliado: e.target.value as any })}
-                        >
-                          <option value="Natural">Agente Independiente</option>
-                          <option value="Corporativo">Corporativo</option>
-                          <option value="Agente Corporativo">Agente Corporativo</option>
-                        </select>
-                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      </div>
-                    ) : (
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${selected.tipo_afiliado === 'Corporativo' ? 'bg-emerald-100 text-emerald-700' :
-                        (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                        {selected.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
-                          (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo') ? 'Agente Corporativo' : 'Agente Independiente'}
-                      </span>
-                    )}
+                    <div className="relative">
+                      <select
+                        className="text-[10px] font-black uppercase px-2 py-0.5 pr-6 rounded bg-slate-100 text-slate-500 border-none focus:ring-0 cursor-pointer appearance-none outline-none"
+                        value={isEditing ? (editForm.tipo_afiliado || selected.tipo_afiliado) : selected.tipo_afiliado}
+                        onChange={(e) => handleDropdownTypeChange(e.target.value)}
+                      >
+                        <option value="Natural">Agente Independiente</option>
+                        <option value="Corporativo">Corporativo</option>
+                        <option value="Agente Corporativo">Agente Corporativo</option>
+                      </select>
+                      <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
                   </div>
 
                   {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
@@ -1567,6 +1683,224 @@ export default function MiembrosPanel() {
           estatus: 'Afiliado',
         }}
       />
+
+      {showChangeTypeModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowChangeTypeModal(false)} />
+          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
+                  Cambiar Tipo de Membresía
+                </h3>
+                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                  Mover a {selected ? formatNombreCard(selected.nombre_completo) : ''} a la membresía: {pendingNewType}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowChangeTypeModal(false)} 
+                className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {pendingNewType === 'Agente Corporativo' && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      Seleccionar Empresa Destino
+                    </label>
+                    <select
+                      value={selectedEmpresaId}
+                      onChange={e => setSelectedEmpresaId(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:bg-white transition-colors"
+                    >
+                      <option value="">-- Selecciona una empresa --</option>
+                      {empresas.map(emp => (
+                        <option key={emp.id_empresa} value={emp.id_empresa}>
+                          {emp.razon_social} ({emp.rif_tipo}-{emp.rif_numero})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {pendingNewType === 'Corporativo' && (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                      Información de la Nueva Empresa
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="col-span-full flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
+                        <input 
+                          type="text" 
+                          value={razonSocial}
+                          onChange={e => setRazonSocial(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="Nombre comercial de la inmobiliaria"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
+                        <select 
+                          value={rifTipo}
+                          onChange={e => setRifTipo(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                        >
+                          <option value="J">J (Jurídico)</option>
+                          <option value="G">G (Gubernamental)</option>
+                          <option value="P">P (Persona Firma Personal)</option>
+                          <option value="V">V (Venezolano)</option>
+                          <option value="E">E (Extranjero)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
+                        <input 
+                          type="text" 
+                          value={rifNumero}
+                          onChange={e => setRifNumero(e.target.value.replace(/\D/g, ''))}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="123456789"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
+                        <input 
+                          type="email" 
+                          value={emailEmpresa}
+                          onChange={e => setEmailEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="contacto@empresa.com"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
+                        <input 
+                          type="text" 
+                          value={telefonoEmpresa}
+                          onChange={e => setTelefonoEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="+58 212 555-5555"
+                        />
+                      </div>
+
+                      <div className="col-span-full flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
+                        <textarea 
+                          rows={2}
+                          value={direccionEmpresa}
+                          onChange={e => setDireccionEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white resize-none"
+                          placeholder="Dirección exacta..."
+                        />
+                      </div>
+
+                      <div className="col-span-full flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
+                        <input 
+                          type="text" 
+                          value={websiteEmpresa}
+                          onChange={e => setWebsiteEmpresa(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
+                          placeholder="www.tuempresa.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                    <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                      Documentación de la Empresa
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FileUpload 
+                        label="Registro Mercantil"
+                        required
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        onUploadSuccess={(url, name) => {
+                          setUrlRegistro(url);
+                          setNombreRegistro(name || 'Registro_Mercantil.pdf');
+                        }}
+                        onClear={() => {
+                          setUrlRegistro('');
+                          setNombreRegistro('');
+                        }}
+                      />
+                      <FileUpload 
+                        label="RIF de la Empresa"
+                        required
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        onUploadSuccess={(url, name) => {
+                          setUrlRif(url);
+                          setNombreRif(name || 'RIF_Empresa.pdf');
+                        }}
+                        onClear={() => {
+                          setUrlRif('');
+                          setNombreRif('');
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button 
+                type="button" 
+                onClick={() => setShowChangeTypeModal(false)} 
+                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                disabled={
+                  submittingChangeType ||
+                  (pendingNewType === 'Agente Corporativo' && !selectedEmpresaId) ||
+                  (pendingNewType === 'Corporativo' && (!razonSocial || !rifNumero || !emailEmpresa || !telefonoEmpresa || !urlRegistro || !urlRif))
+                }
+                onClick={() => {
+                  const data: any = {};
+                  if (pendingNewType === 'Agente Corporativo') {
+                    data.id_empresa_solicitada = Number(selectedEmpresaId);
+                  } else if (pendingNewType === 'Corporativo') {
+                    data.datos_empresa = {
+                      razon_social: razonSocial.trim(),
+                      rif_tipo: rifTipo,
+                      rif_numero: rifNumero.replace(/\D/g, ''),
+                      email: emailEmpresa.trim().toLowerCase(),
+                      telefono: telefonoEmpresa.trim(),
+                      direccion: direccionEmpresa.trim(),
+                      website: websiteEmpresa.trim()
+                    };
+                    data.documentos_empresa = [
+                      { tipo_doc: 'registro_mercantil', url: urlRegistro, nombre_archivo: nombreRegistro },
+                      { tipo_doc: 'rif_empresa', url: urlRif, nombre_archivo: nombreRif }
+                    ];
+                  }
+                  executeDirectTypeChange(pendingNewType, data);
+                }}
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+              >
+                {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as Image
 import { API_URL } from '@/config/env';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
+import { compressImage } from '@/utils/imageCompressor';
 
 interface FileUploadProps {
   label: string;
@@ -61,12 +62,21 @@ export default function FileUpload({
   const startUpload = async (targetFile: File) => {
     setUploading(true);
     try {
+      let fileToUpload = targetFile;
+      if (targetFile.type.startsWith('image/')) {
+        try {
+          fileToUpload = await compressImage(targetFile, 1000, 0.82);
+        } catch (compressErr) {
+          console.error('Error compressing image before upload:', compressErr);
+        }
+      }
+
       // 1. Get presigned URL
       const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filename: targetFile.name,
+          filename: fileToUpload.name,
           folder,
         }),
       });
@@ -83,9 +93,9 @@ export default function FileUpload({
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': targetFile.type,
+          'Content-Type': fileToUpload.type,
         },
-        body: targetFile,
+        body: fileToUpload,
       });
 
       if (!uploadRes.ok) {
@@ -94,8 +104,8 @@ export default function FileUpload({
 
       // 3. Success
       setUploadedUrl(publicUrl);
-      setRestoredFileName(targetFile.name);
-      onUploadSuccess(publicUrl, targetFile.name);
+      setRestoredFileName(fileToUpload.name);
+      onUploadSuccess(publicUrl, fileToUpload.name);
     } catch (err: any) {
       console.error('FileUpload error:', err);
       setError(err.message || 'Error al subir el archivo');

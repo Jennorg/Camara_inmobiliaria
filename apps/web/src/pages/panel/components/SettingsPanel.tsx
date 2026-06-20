@@ -295,23 +295,30 @@ const SettingsPanel = () => {
               <HeaderSection title="Información Personal" subtitle="Datos básicos que te identifican como miembro." />
               
               <div className="flex flex-col items-center gap-3 py-4">
-                <FileUpload
-                  label="Foto de Perfil"
-                  accept="image/*"
-                  folder="fotos"
-                  initialUrl={formData.foto_url}
-                  enableCrop
-                  cropAspect={4 / 5}
-                  cropShape="rect"
-                  defaultCropPosition="bottom"
-                  onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
-                  onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
-                  disabled={!isAdmin}
-                />
-                {!isAdmin && (
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center max-w-xs">
-                    Solo lectura: Para cambiar tu foto de perfil, contacta a la Cámara.
-                  </p>
+                {formData.foto_url && (
+                  isAdmin ? (
+                    <FileUpload
+                      label="Foto de Perfil"
+                      accept="image/*"
+                      folder="fotos"
+                      initialUrl={formData.foto_url}
+                      enableCrop
+                      cropAspect={4 / 5}
+                      cropShape="rect"
+                      defaultCropPosition="bottom"
+                      onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
+                      onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Foto de Perfil
+                      </span>
+                      <div className="w-32 h-40 rounded-2xl overflow-hidden border-2 border-slate-100 dark:border-emerald-500/20 shadow-md bg-slate-50 flex items-center justify-center relative">
+                        <img src={formData.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
 

@@ -1,12 +1,44 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import Fuse from 'fuse.js';
-import { Search, MapPin, Building2, Filter, ChevronRight, ChevronDown, User, Star, ShieldCheck, Users, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Search, ChevronDown, Users, Loader2 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
-import { Link } from 'react-router-dom';
 import { API_URL } from '@/config/env';
+
+const PAGE_SIZE = 20;
+
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+/** Debounce hook: returns debounced value after `delay` ms of inactivity */
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+/** Skeleton card placeholder shown during loading */
+function SkeletonCard() {
+  return (
+    <div className="bg-white dark:bg-[#04432f] rounded-[1.25rem] overflow-hidden border border-slate-200 dark:border-emerald-500/20 shadow-sm animate-pulse">
+      <div className="w-full h-96 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 dark:from-[#04432f] dark:via-[#033d28] dark:to-[#04432f]" />
+      <div className="p-4 pt-5 pb-5 space-y-3">
+        <div className="h-5 bg-slate-200 dark:bg-emerald-900/40 rounded-lg w-3/4 mx-auto" />
+        <div className="h-3 bg-slate-100 dark:bg-emerald-900/20 rounded-lg w-1/2 mx-auto" />
+        <div className="h-3 bg-slate-100 dark:bg-emerald-900/20 rounded-lg w-1/3 mx-auto" />
+      </div>
+    </div>
+  );
+}
 
 const DirectorioPage = () => {
   const [afiliados, setAfiliados] = useState<AfiliadoData[]>([]);
@@ -15,18 +47,15 @@ const DirectorioPage = () => {
   const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
-  const [visibleCount, setVisibleCount] = useState(30);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  useEffect(() => {
-    setVisibleCount(30);
-  }, [searchQuery, filterType]);
+  const debouncedSearch = useDebounce(searchQuery, 350);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
@@ -46,78 +75,84 @@ const DirectorioPage = () => {
     scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
-    if (loading) return;
-    if (observer.current) observer.current.disconnect();
-
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        setVisibleCount(prev => prev + 30);
+  // ── Fetch all afiliados from the API on mount ───────────────────
+  const fetchAllAfiliados = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?limit=1000`);
+      const json = await res.json();
+      if (json.success) {
+        setAfiliados(json.data);
       }
-    }, { rootMargin: '300px' });
-
-    if (node) observer.current.observe(node);
-  }, [loading]);
-
-  useEffect(() => {
-    const fetchAfiliados = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/public/afiliados/buscar`);
-        const json = await res.json();
-        if (json.success) {
-          setAfiliados(json.data);
-        }
-      } catch (error) {
-        console.error('Error cargando el directorio:', error);
-      } finally {
-        setLoading(false);
-        // Force scroll to top after loading finishes and page grows
-        window.scrollTo(0, 0);
-      }
-    };
-    fetchAfiliados();
+    } catch (error) {
+      console.error('Error cargando el directorio:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fuse = useMemo(() => {
-    let keys = ['nombre_completo', 'representante_nombre', 'nombres', 'apellidos'];
-    if (searchField === 'cedula') {
-      keys = ['cedula', 'empresa_rif_numero'];
-    } else if (searchField === 'codigo') {
-      keys = ['codigo'];
-    }
-    return new Fuse(afiliados, {
-      keys,
-      threshold: 0.25, // Un poco más estricto para evitar ruido en códigos numéricos
-      ignoreLocation: true,
-      minMatchCharLength: 1
-    });
-  }, [afiliados, searchField]);
+  useEffect(() => {
+    fetchAllAfiliados();
+  }, [fetchAllAfiliados]);
+
+  // Reset local pagination when query or filter changes
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [debouncedSearch, filterType, searchField]);
+
+  const cleanString = (str: string): string => {
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  };
 
   const resultados = useMemo(() => {
-    const query = searchQuery.trim();
-    let base = query ? fuse.search(query).map(result => result.item) : afiliados;
+    const query = cleanString(searchQuery);
 
-    if (filterType !== 'Todos') {
-      base = base.filter(a => {
-        // Normalización extrema
-        const itemType = String(a.tipo_afiliado || 'Natural').toLowerCase().trim();
-        const targetType = String(filterType).toLowerCase().trim();
+    const filtered = afiliados.filter(item => {
+      // 1. Filtrar por tipo (filterType)
+      if (filterType !== 'Todos') {
+        const itemType = (item.tipo_afiliado || 'Natural').toLowerCase().trim();
+        const targetType = filterType.toLowerCase().trim();
         if (targetType === 'agente') {
-          return itemType === 'agente corporativo' || itemType === 'agente';
+          if (itemType !== 'agente corporativo' && itemType !== 'agente') {
+            return false;
+          }
+        } else if (itemType !== targetType) {
+          return false;
         }
-        return itemType === targetType;
-      });
-    }
+      }
 
-    // Solo mostrar afiliados con foto (o logo si es corporativo)
-    base = base.filter(a => {
-      const isCorp = a.tipo_afiliado === 'Corporativo';
-      return isCorp ? !!(a.foto_url || a.empresa_logo_url) : !!a.foto_url;
+      // 2. Filtrar por búsqueda
+      if (query) {
+        if (searchField === 'cedula') {
+          const digits = query.replace(/\D/g, '');
+          if (digits) {
+            const itemCed = item.cedula ? item.cedula.replace(/\D/g, '') : '';
+            const itemRif = item.empresa_rif_numero ? item.empresa_rif_numero.replace(/\D/g, '') : '';
+            return itemCed.includes(digits) || itemRif.includes(digits);
+          }
+          return true;
+        }
+
+        if (searchField === 'codigo') {
+          const itemCod = cleanString(item.codigo || '');
+          return itemCod.includes(query);
+        }
+
+        // Búsqueda por Nombre (default)
+        const nom = cleanString(item.nombre_completo || '');
+        const rep = cleanString(item.representante_nombre || '');
+        const emp = cleanString(item.empresa_razon_social || '');
+        return nom.includes(query) || rep.includes(query) || emp.includes(query);
+      }
+
+      return true;
     });
 
     // Ordenar por código (codigo) de forma numérica. Items sin código van al final.
-    return [...base].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const codeA = a.codigo ? parseInt(a.codigo, 10) : Infinity;
       const codeB = b.codigo ? parseInt(b.codigo, 10) : Infinity;
       if (isNaN(codeA) && isNaN(codeB)) return 0;
@@ -125,20 +160,22 @@ const DirectorioPage = () => {
       if (isNaN(codeB)) return -1;
       return codeA - codeB;
     });
-  }, [searchQuery, afiliados, fuse, filterType]);
+  }, [afiliados, searchQuery, filterType, searchField]);
 
-  // Depuración: contar tipos reales en la data
-  const stats = useMemo(() => {
-    const counts: Record<string, number> = { Natural: 0, Corporativo: 0, Agente: 0, Otros: 0 };
-    afiliados.forEach(a => {
-      const t = a.tipo_afiliado;
-      if (t === 'Natural') counts.Natural++;
-      else if (t === 'Corporativo') counts.Corporativo++;
-      else if (t === 'Agente Corporativo' || t === 'Agente') counts.Agente++;
-      else counts.Otros++;
-    });
-    return counts;
-  }, [afiliados]);
+  // ── Infinite scroll: load next page ───────────────────────────────
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && visibleCount < resultados.length) {
+        setVisibleCount(prev => prev + 20);
+      }
+    }, { rootMargin: '400px' });
+
+    if (node) observer.current.observe(node);
+  }, [loading, visibleCount, resultados.length]);
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
@@ -166,13 +203,13 @@ const DirectorioPage = () => {
 
             {/* Buscador y Filtros */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
-              <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg overflow-hidden h-[68px]">
+              <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg h-[68px] relative z-30">
                 {/* Selector de campo en el input */}
-                <div className="relative shrink-0 border-r border-slate-200/60 dark:border-emerald-500/20 h-full flex items-center">
+                <div className="relative shrink-0 border-r border-slate-200/60 dark:border-emerald-500/20 h-full flex items-center z-10">
                   <button
                     type="button"
                     onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                    className="flex items-center gap-1.5 px-6 h-full text-xs md:text-sm font-black uppercase tracking-wider text-slate-500 dark:text-emerald-100/60 hover:text-slate-800 dark:hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 sm:px-6 h-full text-xs md:text-sm font-black uppercase tracking-wider text-slate-500 dark:text-emerald-100/60 hover:text-slate-800 dark:hover:text-white transition-colors"
                   >
                     <span>
                       {searchField === 'nombre' && 'Nombre'}
@@ -231,9 +268,6 @@ const DirectorioPage = () => {
                         {filterType === 'Natural' ? 'Agentes Independientes' : filterType === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}
                       </span>
                     )}
-                    <span className="text-xs font-bold text-slate-500 dark:text-emerald-200 bg-slate-50 dark:bg-[#022c22] px-3 py-1.5 rounded-full border border-slate-200 dark:border-emerald-500/20">
-                      {resultados.length}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -266,14 +300,6 @@ const DirectorioPage = () => {
                     </button>
                   ))}
                 </div>
-
-                {/* Debug Info (Visible en desarrollo) */}
-                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[9px] font-bold text-slate-400 dark:text-emerald-500/40 uppercase tracking-tighter">
-                  <span>Ind: {stats.Natural}</span>
-                  <span>Corp: {stats.Corporativo}</span>
-                  <span>Agentes Corp: {stats.Agente}</span>
-                  {stats.Otros > 0 && <span className="text-amber-500">Sin tipo: {stats.Otros}</span>}
-                </div>
               </div>
             </div>
 
@@ -283,13 +309,21 @@ const DirectorioPage = () => {
         {/* Results Section */}
         <section className="max-w-[1600px] mx-auto px-6 pt-10 pb-16">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 opacity-50">
-              <Loader2 size={48} className="animate-spin text-emerald-600 mb-4" />
-              <p className="font-bold text-lg text-slate-500">Cargando directorio seguro...</p>
+            /* Skeleton grid while first page loads */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
           ) : resultados.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+              <div className={`grid grid-cols-1 ${
+                resultados.length === 1 ? 'max-w-sm mx-auto' :
+                resultados.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
+                resultados.length === 3 ? 'sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto' :
+                resultados.length === 4 ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto' :
+                'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full'
+              } gap-4 md:gap-6 justify-center`}>
                 {resultados.slice(0, visibleCount).map((afiliado) => (
                   <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
                 ))}

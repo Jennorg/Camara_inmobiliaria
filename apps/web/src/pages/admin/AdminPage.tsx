@@ -20,10 +20,6 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   cms_config: { title: 'Configuración de Contenido', subtitle: 'Textos fijos e imágenes de la Landing' },
   media: { title: 'Medios', subtitle: 'Gestionar archivos e imágenes' },
   afiliados: { title: 'Afiliados', subtitle: 'Gestión de candidatos y afiliados CIBIR' },
-  solicitudes_cambio: {
-    title: 'Solicitudes de Cambio',
-    subtitle: 'Aprobación o rechazo de cambios de tipo de membresía de afiliados',
-  },
   estudiantes: { title: 'Estudiantes', subtitle: 'Estudiantes regulares e inscripciones activas' },
   admin_users: { title: 'Administradores', subtitle: 'Cuentas con acceso al panel administrativo' },
   users: { title: 'Usuarios', subtitle: 'Cuentas de acceso al sistema' },

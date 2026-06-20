@@ -85,24 +85,30 @@ async function upsertEstudianteByEmail(params: {
   let idEmpresa: number | null = null
 
   if (razonSocial) {
+    const cleanedRif = (cedulaRif || '').replace(/\D/g, '');
     const resE = await db.execute({
-      sql: `SELECT id_empresa FROM empresas WHERE email = ? LIMIT 1`,
-      args: [email]
+      sql: `SELECT id_empresa FROM empresas WHERE email = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
+      args: [email, cleanedRif, cleanedRif]
     })
     if (resE.rows.length > 0) {
       idEmpresa = resE.rows[0].id_empresa as number
     } else {
-      const cleanedRif = (cedulaRif || '').replace(/\D/g, '') || `TEMP-J-${Date.now()}`;
+      const finalRif = cleanedRif || `TEMP-J-${Date.now()}`;
       const insE = await db.execute({
         sql: `INSERT INTO empresas (razon_social, rif_numero, email, telefono) VALUES (?, ?, ?, ?) RETURNING id_empresa`,
-        args: [razonSocial, cleanedRif, email, telefono || null]
+        args: [razonSocial, finalRif, email, telefono || null]
       })
       idEmpresa = insE.rows[0].id_empresa as number
     }
   } else {
+    const cedulaInput = String(cedulaRif || '').trim();
+    const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
+    const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
+    const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
+
     const resP = await db.execute({
-      sql: `SELECT id FROM personas WHERE email = ? LIMIT 1`,
-      args: [email]
+      sql: `SELECT id FROM personas WHERE email = ? OR (cedula = ? AND ? != '') LIMIT 1`,
+      args: [email, cedulaNumero, cedulaNumero]
     })
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number
@@ -123,14 +129,10 @@ async function upsertEstudianteByEmail(params: {
         })
       }
     } else {
-      const cedulaInput = String(cedulaRif || `TEMP-V-${Date.now()}`).trim();
-      const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
-      const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
-      const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
-
+      const finalCedulaNumero = cedulaNumero || `TEMP-V-${Date.now()}`;
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || '', apellidos || '', cedulaTipo, cedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
+        args: [nombres || '', apellidos || '', cedulaTipo, finalCedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -222,8 +224,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
 
   await db.execute({
     sql: `DELETE FROM verificaciones_preinscripciones
-          WHERE lower(trim(email)) = lower(trim(?)) AND programa_interes = ?`,
-    args: [email, programaCodigo],
+          WHERE (lower(trim(email)) = lower(trim(?)) OR (cedula = ? AND ? != '')) AND programa_interes = ?`,
+    args: [email, cleanedCedulaRif, cleanedCedulaRif, programaCodigo],
   })
 
   await db.execute({
@@ -338,41 +340,110 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       }
     }
 
-    // Si ya existe estudiante por email, lo buscamos para ver si ya tiene inscripción.
-    const existingEst = await db.execute({
-      sql: `SELECT e.id_estudiante 
-            FROM estudiantes e
+    // Si ya existe estudiante por email o cédula/RIF, lo buscamos para ver si ya tiene inscripción.
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
+    const existingInscripcion = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.estatus 
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
             LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
-            WHERE p.email = ? OR emp.email = ?
+            WHERE ic.programa_codigo = ? AND ic.id_curso IS NULL
+              AND (
+                p.email = ? OR emp.email = ? 
+                OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+              )
             LIMIT 1`,
-      args: [email, email]
+      args: [programaCodigo, email, email, cleanCed, cleanCed, cleanCed]
     })
 
-    if (existingEst.rows.length > 0) {
-      const id_estudiante = existingEst.rows[0].id_estudiante as number
-      const existing = await db.execute({
-        sql: `SELECT id_inscripcion, estatus FROM inscripciones_cursos
-              WHERE id_estudiante = ? AND programa_codigo = ? AND id_curso IS NULL
-              LIMIT 1`,
-        args: [id_estudiante, programaCodigo],
-      })
-      if (existing.rows.length > 0) {
-        const prev = existing.rows[0] as any
+    if (existingInscripcion.rows.length > 0) {
+      const prev = existingInscripcion.rows[0] as any
+      if (programaCodigo === 'AFILIACION') {
         if (prev.estatus === 'Preinscrito') {
           res.status(409).json({
             success: false,
-            message: `Ya tienes una solicitud de preinscripción al ${programaCodigo} en espera de aprobación.`,
+            message: 'Ya posees una solicitud de afiliación en proceso de revisión administrativa.',
           })
           return
         }
         if (prev.estatus === 'Inscrito') {
           res.status(409).json({
             success: false,
-            message: `Ya fuiste admitido al programa ${programaCodigo}.`,
+            message: 'Ya eres un miembro afiliado activo de la Cámara Inmobiliaria.',
           })
           return
         }
+        if (prev.estatus === 'Entrevista') {
+          res.status(409).json({
+            success: false,
+            message: 'Tu solicitud de afiliación se encuentra actualmente en fase de entrevista.',
+          })
+          return
+        }
+        res.status(409).json({
+          success: false,
+          message: `Ya tienes una solicitud de afiliación en estado "${prev.estatus}".`,
+        })
+        return
+      } else {
+        if (prev.estatus === 'Preinscrito') {
+          res.status(409).json({
+            success: false,
+            message: `Ya tienes una solicitud de preinscripción para el programa ${programaCodigo} en espera de revisión.`,
+          })
+          return
+        }
+        if (prev.estatus === 'Inscrito') {
+          res.status(409).json({
+            success: false,
+            message: `Ya te encuentras oficialmente inscrito y admitido en el programa ${programaCodigo}.`,
+          })
+          return
+        }
+        if (prev.estatus === 'Entrevista') {
+          res.status(409).json({
+            success: false,
+            message: `Tu postulación al programa ${programaCodigo} se encuentra en fase de entrevista.`,
+          })
+          return
+        }
+        res.status(409).json({
+          success: false,
+          message: `Ya tienes un registro para el programa ${programaCodigo} en estado "${prev.estatus}".`,
+        })
+        return
+      }
+    }
+
+    // --- RESTRICCIÓN DE CIBIR (SIN PREINSCRIPCIONES PENDIENTES) ---
+    if (programaCodigo === 'CIBIR') {
+      const pendingOther = await db.execute({
+        sql: `SELECT ic.id_inscripcion, ic.programa_codigo, c.nombre as curso_nombre, ic.estatus 
+              FROM inscripciones_cursos ic
+              JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+              LEFT JOIN personas p ON e.id_persona = p.id
+              LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+              LEFT JOIN cursos c ON ic.id_curso = c.id_curso
+              WHERE ic.estatus IN ('Preinscrito', 'Entrevista')
+                AND (
+                  p.email = ? OR emp.email = ? 
+                  OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+                )
+              LIMIT 1`,
+        args: [email, email, cleanCed, cleanCed, cleanCed]
+      })
+
+      if (pendingOther.rows.length > 0) {
+        const row = pendingOther.rows[0] as any
+        const targetName = row.programa_codigo === 'AFILIACION'
+          ? 'Afiliación'
+          : (row.programa_codigo || row.curso_nombre || 'otro programa/curso');
+        res.status(400).json({
+          success: false,
+          message: `No puedes preinscribirte al programa CIBIR porque tienes una solicitud de ${targetName} pendiente en estado "${row.estatus}". Por favor, espera a que finalice dicho proceso para postularte.`
+        })
+        return
       }
     }
 
@@ -721,11 +792,20 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     }
 
     // Si ya existe preinscripción/inscripción, marcar como éxito idempotente.
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
     const existing = await db.execute({
-      sql: `SELECT id_inscripcion, estatus FROM inscripciones_cursos
-            WHERE id_estudiante = ? AND programa_codigo = ? AND id_curso IS NULL
+      sql: `SELECT ic.id_inscripcion, ic.estatus 
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            WHERE ic.programa_codigo = ? AND ic.id_curso IS NULL
+              AND (
+                p.email = ? OR emp.email = ? 
+                OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+              )
             LIMIT 1`,
-      args: [id_estudiante, programaCodigo],
+      args: [programaCodigo, email, email, cleanCed, cleanCed, cleanCed],
     })
     if (existing.rows.length > 0) {
       await db.execute({
@@ -1162,7 +1242,38 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
 
-    // Upsert estudiante por email
+    // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
+    const existing = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.estatus 
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            WHERE ic.id_curso = ? 
+              AND (
+                p.email = ? OR emp.email = ? 
+                OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+              )
+            LIMIT 1`,
+      args: [idCurso, email, email, cleanCed, cleanCed, cleanCed],
+    })
+
+    if (existing.rows.length > 0) {
+      const prev = existing.rows[0] as any
+      if (prev.estatus === 'Preinscrito') {
+        res.status(409).json({ success: false, message: 'Ya has enviado una solicitud de preinscripción para este curso y se encuentra pendiente de aprobación.' })
+        return
+      }
+      if (prev.estatus === 'Inscrito') {
+        res.status(409).json({ success: false, message: 'Ya te encuentras formalmente inscrito y admitido en este curso.' })
+        return
+      }
+      res.status(409).json({ success: false, message: `Ya tienes una solicitud de inscripción para este curso en estado "${prev.estatus}".` })
+      return
+    }
+
+    // Upsert estudiante por email o cédula/RIF
     const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto,
       cedulaRif,
@@ -1170,26 +1281,6 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       telefono,
       tipo: 'Regular',
     })
-
-    // Verificar si ya tiene una inscripción a este curso
-    const existing = await db.execute({
-      sql: `SELECT id_inscripcion, estatus FROM inscripciones_cursos
-            WHERE id_estudiante = ? AND id_curso = ?
-            LIMIT 1`,
-      args: [id_estudiante, idCurso],
-    })
-
-    if (existing.rows.length > 0) {
-      const prev = existing.rows[0] as any
-      if (prev.estatus === 'Preinscrito') {
-        res.status(409).json({ success: false, message: 'Ya posees una solicitud de inscripción enviada para este curso.' })
-        return
-      }
-      if (prev.estatus === 'Inscrito') {
-        res.status(409).json({ success: false, message: 'Ya te encuentras formalmente inscrito en este curso.' })
-        return
-      }
-    }
 
     const now = new Date().toISOString()
     const result = await db.execute({
@@ -1718,6 +1809,37 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     }
     if ((curso.cupos_disponibles as number) <= 0) {
       res.status(400).json({ success: false, message: 'No hay cupos disponibles' })
+      return
+    }
+
+    // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
+    const existing = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.estatus 
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            WHERE ic.id_curso = ? 
+              AND (
+                p.email = ? OR emp.email = ? 
+                OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+              )
+            LIMIT 1`,
+      args: [idCurso, email, email, cleanCed, cleanCed, cleanCed],
+    })
+
+    if (existing.rows.length > 0) {
+      const prev = existing.rows[0] as any
+      if (prev.estatus === 'Inscrito') {
+        res.status(409).json({ success: false, message: 'El estudiante ya se encuentra oficialmente inscrito y admitido en este curso.' })
+        return
+      }
+      if (prev.estatus === 'Preinscrito') {
+        res.status(409).json({ success: false, message: 'El estudiante ya posee una solicitud de preinscripción registrada y pendiente de aprobación para este curso.' })
+        return
+      }
+      res.status(409).json({ success: false, message: `El estudiante ya tiene un registro en este curso en estado "${prev.estatus}".` })
       return
     }
 

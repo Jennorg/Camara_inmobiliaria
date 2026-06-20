@@ -86,7 +86,6 @@ const PANELS: Record<string, React.ReactNode> = {
   preinscripciones: <PreinscripcionesPrincipalesPanel />,
   media: <Placeholder title='Media Library' icon={icons.media} />,
   afiliados: <AfiliadosPanel />,
-  solicitudes_cambio: <AfiliadosPanel defaultViewMode="solicitudes" />,
   estudiantes: <EstudiantesRegularesPanel />,
   users: <UsersPanel />,
   admin_users: <SuperAdminUsersPanel />,

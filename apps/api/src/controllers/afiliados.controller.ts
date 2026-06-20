@@ -8,6 +8,17 @@ const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 const avatarFallback = (name: string) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=047857&color=fff&size=200`;
 
+const jsNormalize = (str: string): string => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+};
+
+const sqlNormalize = (expr: string): string => {
+  return `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(${expr}), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'Á', 'a'), 'É', 'e'), 'Í', 'i'), 'Ó', 'o'), 'Ú', 'u'), 'ñ', 'n'), 'Ñ', 'n')`;
+};
+
 import {
   enviarCorreoVerificacion,
   enviarCorreoAprobacion,
@@ -764,16 +775,24 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
 export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
   try {
     // ──────────────────────────────────────────────────────────────────────────
-    // Query params:
-    //   ?q=<digits>  → exact-match search value (stripped of non-digits)
-    //   ?tipo=cedula → match against personas.cedula  (all active affiliates)
-    //   ?tipo=rif    → match against empresas.rif_numero (Corporativos only)
+    // Query params (v2 — paginated):
+    //   ?page=1          → page number (default 1)
+    //   ?limit=20        → items per page (default 20, max 50)
+    //   ?search=texto    → fuzzy name search, or exact cedula/codigo/rif search
+    //   ?search_field=nombre|cedula|codigo  → what field to search on (default 'nombre')
+    //   ?tipo_afiliado=Natural|Corporativo|Agente  → filter by member type
     //
-    // When ?q is absent the full list is returned (backward compat for Fuse.js).
+    // Backward compat: ?q=&tipo= still works (redirected to new params)
     // ──────────────────────────────────────────────────────────────────────────
-    const rawQ  = String(req.query.q  ?? '').trim()
-    const tipo  = String(req.query.tipo ?? '').toLowerCase() // 'cedula' | 'rif' | ''
-    const q     = rawQ.replace(/\D/g, '') // only digits
+    const page  = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1)
+    const limit = Math.min(1000, Math.max(1, parseInt(String(req.query.limit ?? '20'), 10) || 20))
+    const offset = (page - 1) * limit
+
+    // Support both new and old param names
+    const search = String(req.query.search ?? req.query.q ?? '').trim()
+    const searchField = String(req.query.search_field ?? '').toLowerCase() || 
+                         (String(req.query.tipo ?? '').toLowerCase() === 'rif' ? 'cedula' : 'nombre')
+    const tipoAfiliado = String(req.query.tipo_afiliado ?? '').trim()
 
     const BASE_SELECT = `
       SELECT a.id_afiliado, a.id_empresa,
@@ -791,16 +810,21 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              e.logo_url as empresa_logo_url, e.website as empresa_website,
              p.email as email,
              e.email as empresa_email,
+             e.telefono as empresa_telefono,
+             p.telefono as telefono,
+             p.profesion as profesion,
              CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END as instagram,
              CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook')  ELSE NULL END as facebook,
              CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin')  ELSE NULL END as linkedin,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter')   ELSE NULL END as twitter
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter')   ELSE NULL END as twitter,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.tiktok')    ELSE NULL END as tiktok,
+             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.website')   ELSE NULL END as website
       FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
     `
 
-    const BASE_WHERE = `
+    let whereClauses = `
       WHERE a.estatus = 'Afiliado'
         AND a.activo = 1
         AND a.eliminado_en IS NULL
@@ -808,52 +832,56 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
         AND p.foto_url IS NOT NULL
         AND p.foto_url <> ''
     `
+    const args: any[] = []
 
-    let sql: string
-    let args: any[]
-
-    if (q && q.length >= 5) {
-      const upperTipo = tipo.toUpperCase()
-      if (['J', 'G', 'C'].includes(upperTipo)) {
-        // ── Búsqueda por RIF de empresa (Corporativos) ─────────────────
-        sql = `${BASE_SELECT} ${BASE_WHERE}
-               AND e.rif_numero = ?
-               AND UPPER(e.rif_tipo) = ?
-               LIMIT 5`
-        args = [q, upperTipo]
-      } else if (['V', 'E', 'P'].includes(upperTipo)) {
-        // ── Búsqueda por cédula personal (todos los afiliados activos) ─────────────
-        sql = `${BASE_SELECT} ${BASE_WHERE}
-               AND p.cedula = ?
-               AND UPPER(p.cedula_tipo) = ?
-               LIMIT 5`
-        args = [q, upperTipo]
+    // ── Filter by tipo_afiliado ─────────────────────────────────────
+    if (tipoAfiliado) {
+      if (tipoAfiliado.toLowerCase() === 'agente') {
+        whereClauses += ` AND (LOWER(a.tipo_afiliado) = 'agente corporativo' OR LOWER(a.tipo_afiliado) = 'agente')`
       } else {
-        // Fallback backward compatibility for 'cedula' or 'rif'
-        if (tipo === 'rif') {
-          sql = `${BASE_SELECT} ${BASE_WHERE}
-                 AND a.tipo_afiliado = 'Corporativo'
-                 AND e.rif_numero = ?
-                 LIMIT 5`
-          args = [q]
-        } else {
-          sql = `${BASE_SELECT} ${BASE_WHERE}
-                 AND p.cedula = ?
-                 LIMIT 5`
-          args = [q]
-        }
+        whereClauses += ` AND LOWER(a.tipo_afiliado) = ?`
+        args.push(tipoAfiliado.toLowerCase())
       }
-    } else {
-      // ── Sin q → lista completa para compatibilidad ──────────────────────
-      sql = `${BASE_SELECT} ${BASE_WHERE}
-             ORDER BY CASE WHEN a.estatus = 'Afiliado' THEN 0 ELSE 1 END ASC,
-                      CAST(a.codigo AS INTEGER) ASC`
-      args = []
     }
 
-    const result = await db.execute({ sql, args })
+    // ── Search ──────────────────────────────────────────────────────
+    if (search) {
+      if (searchField === 'cedula') {
+        // Match on cedula or RIF number digits
+        const digits = search.replace(/\D/g, '')
+        if (digits.length > 0) {
+          whereClauses += ` AND (p.cedula LIKE ? OR e.rif_numero LIKE ?)`
+          args.push(`%${digits}%`, `%${digits}%`)
+        }
+      } else if (searchField === 'codigo') {
+        // Match on affiliate code (case and accent insensitive)
+        whereClauses += ` AND ${sqlNormalize('a.codigo')} LIKE ?`
+        args.push(`%${jsNormalize(search)}%`)
+      } else {
+        // Fuzzy name search: split terms and match each with LIKE (case and accent insensitive)
+        const terms = search.split(/\s+/).filter(t => t.trim() !== '')
+        if (terms.length > 0) {
+          const nameExpr = `COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') || ' ' || COALESCE(e.razon_social, '')`
+          terms.forEach(term => {
+            whereClauses += ` AND ${sqlNormalize(nameExpr)} LIKE ?`
+            args.push(`%${jsNormalize(term)}%`)
+          })
+        }
+      }
+    }
 
-    console.log(`[DEBUG] buscarAfiliadosPublic: q="${q}" tipo="${tipo}" → ${result.rows.length} resultado(s)`)
+    const ORDER_BY = ` ORDER BY CAST(a.codigo AS INTEGER) ASC`
+
+    // ── Count total (for pagination metadata) ───────────────────────
+    const countSql = `SELECT COUNT(*) as total FROM afiliados a JOIN personas p ON a.id_persona = p.id LEFT JOIN empresas e ON a.id_empresa = e.id_empresa ${whereClauses}`
+    const countResult = await db.execute({ sql: countSql, args })
+    const total = Number((countResult.rows[0] as any)?.total ?? 0)
+
+    // ── Fetch page ──────────────────────────────────────────────────
+    const dataSql = `${BASE_SELECT} ${whereClauses} ${ORDER_BY} LIMIT ? OFFSET ?`
+    const result = await db.execute({ sql: dataSql, args: [...args, limit, offset] })
+
+    console.log(`[DEBUG] buscarAfiliadosPublic: search="${search}" field="${searchField}" tipo="${tipoAfiliado}" page=${page} limit=${limit} → ${result.rows.length}/${total}`)
 
     const mappedData = result.rows.map((row) => ({
       ...row,
@@ -863,11 +891,22 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
         linkedin:  row.linkedin  || '',
         facebook:  row.facebook  || '',
         twitter:   row.twitter   || '',
+        tiktok:    row.tiktok    || '',
         website:   row.website   || ''
       }
     }))
 
-    return res.status(200).json({ success: true, data: mappedData })
+    return res.status(200).json({
+      success: true,
+      data: mappedData,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: offset + result.rows.length < total
+      }
+    })
   } catch (error) {
     console.error('Error en buscarAfiliadosPublic:', error)
     return res.status(500).json({
@@ -876,6 +915,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     })
   }
 }
+
 
 
 export const getAfiliadoPublicById = async (req: Request, res: Response) => {
@@ -2351,7 +2391,7 @@ export const listarIndependientesDisponibles = async (req: Request, res: Respons
     if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
-    const busqueda = String(req.query.q || '').trim().toLowerCase()
+    const busqueda = String(req.query.q || '').trim()
     const searchField = String(req.query.field || '').trim().toLowerCase()
     let sql = `
       SELECT a.id_afiliado, a.codigo, a.estatus, a.tipo_afiliado, a.fecha_registro,
@@ -2365,16 +2405,16 @@ export const listarIndependientesDisponibles = async (req: Request, res: Respons
         AND p.email <> 'admin@ciebo.com'`
     const args: any[] = []
     if (busqueda) {
-      const like = '%' + busqueda + '%'
       if (searchField === 'cedula') {
-        sql += ` AND LOWER(p.cedula) LIKE ?`
-        args.push(like)
+        const digits = busqueda.replace(/\D/g, '')
+        sql += ` AND p.cedula LIKE ?`
+        args.push(`%${digits}%`)
       } else if (searchField === 'codigo') {
-        sql += ` AND LOWER(COALESCE(a.codigo,'')) LIKE ?`
-        args.push(like)
+        sql += ` AND ${sqlNormalize("COALESCE(a.codigo,'')")} LIKE ?`
+        args.push(`%${jsNormalize(busqueda)}%`)
       } else { // default to 'nombre'
-        sql += ` AND LOWER(COALESCE(p.nombres,'') || ' ' || COALESCE(p.apellidos,'')) LIKE ?`
-        args.push(like)
+        sql += ` AND ${sqlNormalize("COALESCE(p.nombres,'') || ' ' || COALESCE(p.apellidos,'')")} LIKE ?`
+        args.push(`%${jsNormalize(busqueda)}%`)
       }
     }
     sql += ' ORDER BY nombre_completo ASC LIMIT 50'
@@ -2513,8 +2553,8 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
     let finalDocumentosEmpresa = '[]';
 
     if (tipo_solicitado === 'Corporativo') {
-      if (!datos_empresa || !datos_empresa.razon_social || !datos_empresa.rif_numero || !datos_empresa.email) {
-        res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social, RIF, Email).' }); return;
+      if (!datos_empresa || !datos_empresa.razon_social || !datos_empresa.rif_numero || !datos_empresa.email || !datos_empresa.telefono) {
+        res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social, RIF, Email, Teléfono).' }); return;
       }
       const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
       const queryExistingRif = await db.execute({
@@ -2525,8 +2565,13 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
         res.status(400).json({ success: false, message: 'El RIF de la empresa ya se encuentra registrado.' }); return;
       }
 
-      if (!documentos_empresa || !Array.isArray(documentos_empresa) || documentos_empresa.length === 0) {
+      if (!documentos_empresa || !Array.isArray(documentos_empresa)) {
         res.status(400).json({ success: false, message: 'Debes cargar los documentos de la empresa.' }); return;
+      }
+      const hasRegistro = documentos_empresa.some((d: any) => d.tipo_doc === 'registro_mercantil' && d.url);
+      const hasRif = documentos_empresa.some((d: any) => d.tipo_doc === 'rif_empresa' && d.url);
+      if (!hasRegistro || !hasRif) {
+        res.status(400).json({ success: false, message: 'Debes cargar el Registro Mercantil y el RIF de la empresa.' }); return;
       }
       finalDatosEmpresa = JSON.stringify(datos_empresa);
       finalDocumentosEmpresa = JSON.stringify(documentos_empresa);
@@ -2845,8 +2890,8 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
     const now = new Date().toISOString();
 
     if (tipo_destino === 'Corporativo') {
-      if (!datos_empresa || !datos_empresa.razon_social || !datos_empresa.rif_numero || !datos_empresa.email) {
-        res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social, RIF, Email).' }); return;
+      if (!datos_empresa || !datos_empresa.razon_social || !datos_empresa.rif_numero || !datos_empresa.email || !datos_empresa.telefono) {
+        res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social, RIF, Email, Teléfono).' }); return;
       }
       const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
       const queryExistingRif = await db.execute({
@@ -2856,8 +2901,13 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
       if (queryExistingRif.rows.length > 0) {
         res.status(400).json({ success: false, message: 'El RIF de la empresa ya se encuentra registrado.' }); return;
       }
-      if (!documentos_empresa || !Array.isArray(documentos_empresa) || documentos_empresa.length === 0) {
+      if (!documentos_empresa || !Array.isArray(documentos_empresa)) {
         res.status(400).json({ success: false, message: 'Debes cargar los documentos de la empresa.' }); return;
+      }
+      const hasRegistro = documentos_empresa.some((d: any) => d.tipo_doc === 'registro_mercantil' && d.url);
+      const hasRif = documentos_empresa.some((d: any) => d.tipo_doc === 'rif_empresa' && d.url);
+      if (!hasRegistro || !hasRif) {
+        res.status(400).json({ success: false, message: 'Debes cargar el Registro Mercantil y el RIF de la empresa.' }); return;
       }
     } else if (tipo_destino === 'Agente Corporativo') {
       if (!id_empresa_solicitada) {

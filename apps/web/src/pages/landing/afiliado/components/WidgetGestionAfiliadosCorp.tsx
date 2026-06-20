@@ -680,12 +680,11 @@ export default function WidgetGestionAfiliadosCorp() {
             </div>
           </div>
 
-          {/* Buscador */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm">
             <div className="p-5 border-b border-gray-50">
-              <div className="relative flex items-center bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-400/10 transition-all h-12">
+              <div className="relative flex items-center bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-400/10 transition-all h-12 z-20">
                 {/* Dropdown de criterio */}
-                <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
+                <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center z-10">
                   <button
                     type="button"
                     onClick={() => setShowSearchDropdown(!showSearchDropdown)}

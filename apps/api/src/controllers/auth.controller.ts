@@ -77,8 +77,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Buscar usuario por email (incluyendo campo roles)
     const result = await db.execute({
-      sql: `SELECT id, email, password_hash, roles, activo FROM users WHERE email = ?`,
-      args: [email],
+      sql: `SELECT id, email, password_hash, roles, activo FROM users WHERE LOWER(email) = ?`,
+      args: [email.trim().toLowerCase()],
     })
 
     const user = result.rows[0]
@@ -197,7 +197,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     }
 
     const result = await db.execute({
-      sql: `SELECT id, email FROM users WHERE email = ? AND activo = 1`,
+      sql: `SELECT id, email FROM users WHERE LOWER(email) = ? AND activo = 1`,
       args: [email.trim().toLowerCase()],
     })
 

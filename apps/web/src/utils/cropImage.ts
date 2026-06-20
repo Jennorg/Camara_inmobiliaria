@@ -76,11 +76,26 @@ export default async function getCroppedImg(
     return null
   }
 
-  // Set the size of the cropped canvas
-  croppedCanvas.width = pixelCrop.width
-  croppedCanvas.height = pixelCrop.height
+  // Limit output dimensions to a maximum of 800px to optimize file size
+  let targetWidth = pixelCrop.width
+  let targetHeight = pixelCrop.height
+  const maxDimension = 800
 
-  // Draw the cropped image onto the new canvas
+  if (targetWidth > maxDimension || targetHeight > maxDimension) {
+    if (targetWidth > targetHeight) {
+      targetHeight = Math.round((targetHeight * maxDimension) / targetWidth)
+      targetWidth = maxDimension
+    } else {
+      targetWidth = Math.round((targetWidth * maxDimension) / targetHeight)
+      targetHeight = maxDimension
+    }
+  }
+
+  // Set the size of the cropped canvas
+  croppedCanvas.width = targetWidth
+  croppedCanvas.height = targetHeight
+
+  // Draw the cropped image onto the new canvas (resizing it)
   croppedCtx.drawImage(
     canvas,
     pixelCrop.x,
@@ -89,14 +104,16 @@ export default async function getCroppedImg(
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    targetWidth,
+    targetHeight
   )
 
-  // As a blob
+  // As a compressed blob
   return new Promise((resolve, reject) => {
+    const outputMimeType = mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
+    const quality = outputMimeType === 'image/jpeg' ? 0.82 : undefined;
     croppedCanvas.toBlob((file) => {
       resolve(file)
-    }, mimeType)
+    }, outputMimeType, quality)
   })
 }

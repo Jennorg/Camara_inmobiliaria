@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { API_URL } from '@/config/env'
+import { compressImage } from '@/utils/imageCompressor'
 
 export const API = API_URL
 
@@ -32,14 +33,24 @@ export const api = {
 
 
 export const uploadFileSupabase = async (file: File, folder: string): Promise<string> => {
+  // Compress image client-side if it is an image
+  let fileToUpload = file;
+  if (file.type.startsWith('image/')) {
+    try {
+      fileToUpload = await compressImage(file, 1000, 0.82);
+    } catch (compressErr) {
+      console.error('Error compressing image before upload:', compressErr);
+    }
+  }
+
   const presignRes = await fetch(`${API_URL}/api/cms/uploads/presign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      filename: file.name,
-      contentType: file.type || 'application/octet-stream',
+      filename: fileToUpload.name,
+      contentType: fileToUpload.type || 'application/octet-stream',
       folder,
     }),
   })
@@ -53,10 +64,10 @@ export const uploadFileSupabase = async (file: File, folder: string): Promise<st
   const putRes = await fetch(signedUploadUrl, {
     method: 'PUT',
     headers: {
-      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Type': fileToUpload.type || 'application/octet-stream',
       'x-upsert': 'false',
     },
-    body: file,
+    body: fileToUpload,
   })
   if (!putRes.ok) throw new Error('No se pudo subir el archivo a Supabase Storage')
 

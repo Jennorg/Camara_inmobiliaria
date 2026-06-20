@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Mail, Instagram, Linkedin, Facebook, Building2, User, Briefcase, Music2, Globe } from 'lucide-react';
 import { formatNombreCard, getInitials, formatWhatsAppUrl } from '@/utils/formatters';
 import { Link } from 'react-router-dom';
@@ -28,6 +28,13 @@ function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
   return { url: afiliado.foto_url || null };
 }
 
+/** Skeleton pulse placeholder shown while an image is loading */
+function ImageSkeleton() {
+  return (
+    <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 dark:from-[#04432f] dark:via-[#033d28] dark:to-[#04432f] animate-pulse" />
+  );
+}
+
 function CardImage({
   afiliado,
   isCorpView,
@@ -44,6 +51,8 @@ function CardImage({
     ? (isLogo ? `Logo de ${afiliado.empresa_razon_social || afiliado.nombre_completo}` : `Foto del representante de ${afiliado.empresa_razon_social || afiliado.nombre_completo}`)
     : `Foto de ${afiliado.nombre_completo}`;
 
+  const [loaded, setLoaded] = useState(false);
+
   if (size === 'mini') {
     return (
       <div
@@ -51,7 +60,19 @@ function CardImage({
           }`}
       >
         {url ? (
-          <img src={url} alt={alt} className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover'}`} />
+          <div className="relative w-full h-full">
+            <div className={`absolute inset-0 transition-opacity duration-500 ${loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <ImageSkeleton />
+            </div>
+            <img
+              src={url}
+              alt={alt}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setLoaded(true)}
+              className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover'} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            />
+          </div>
         ) : (
           <span className="text-white font-black text-sm uppercase tracking-tighter">{initials}</span>
         )}
@@ -65,11 +86,19 @@ function CardImage({
         className={`relative w-full h-full flex items-center justify-center ${isLogo ? 'bg-white p-8' : 'bg-[#022c22]'}`}
       >
         {url ? (
-          <img
-            src={url}
-            alt={alt}
-            className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover object-top'} group-hover:scale-105 transition-transform duration-500`}
-          />
+          <div className="relative w-full h-full">
+            <div className={`absolute inset-0 transition-opacity duration-500 ${loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <ImageSkeleton />
+            </div>
+            <img
+              src={url}
+              alt={alt}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setLoaded(true)}
+              className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover object-top'} group-hover:scale-105 transition-all duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            />
+          </div>
         ) : (
           <span className="text-white font-black text-3xl uppercase tracking-tighter">{initials}</span>
         )}

@@ -3,6 +3,7 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2 } from 'lucide-react'
 import Swal from 'sweetalert2'
+import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -51,6 +52,7 @@ export default function PreinscripcionesPrincipalesPanel({
   initialPrograma?: ProgramaCodigo | 'Todos'
 }) {
   const { token } = useAuth()
+  const [activeSubTab, setActiveSubTab] = useState<'programas' | 'solicitudes'>('programas')
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
   type UiEstatus = 'Todos' | 'Pendiente' | 'Entrevista' | 'Aprobado' | 'Rechazado'
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
@@ -365,7 +367,30 @@ export default function PreinscripcionesPrincipalesPanel({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-[340px_1fr] grid-rows-1 h-full w-full overflow-hidden relative">
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      {/* Sub-tab navigation */}
+      <div className="px-6 py-3 bg-white border-b border-gray-100 flex gap-4 shrink-0">
+        <button
+          onClick={() => setActiveSubTab('programas')}
+          className={`text-xs font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${
+            activeSubTab === 'programas' ? 'border-[#00D084] text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Inscripciones a Programas
+        </button>
+        <button
+          onClick={() => setActiveSubTab('solicitudes')}
+          className={`text-xs font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${
+            activeSubTab === 'solicitudes' ? 'border-[#00D084] text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          Solicitudes de Cambio
+        </button>
+      </div>
+
+      <div className="flex-1 min-h-0 relative">
+        {activeSubTab === 'programas' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-[340px_1fr] grid-rows-1 h-full w-full overflow-hidden absolute inset-0">
       {/* Listado lateral */}
       <div className={['flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0', selected ? 'hidden sm:flex' : 'flex'].join(' ')}>
         <div className="px-3 pt-3 pb-2 border-b border-gray-100 flex flex-col gap-2">
@@ -794,6 +819,13 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
         </div>
       )}
+          </div>
+        ) : (
+          <div className="absolute inset-0 bg-white">
+            <AfiliadosPanel defaultViewMode="solicitudes" />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
