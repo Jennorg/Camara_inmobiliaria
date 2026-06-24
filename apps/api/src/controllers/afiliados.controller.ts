@@ -391,7 +391,7 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     // Crear token de validación
     const token = randomUUID();
     const expiracion = new Date();
-    expiracion.setHours(expiracion.getHours() + 24);
+    expiracion.setDate(expiracion.getDate() + 30); // 30 días de validez
     const fechaExpiracionStr = expiracion.toISOString();
 
     // Insertar en tabla de verificaciones
@@ -680,7 +680,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
       if (afiliado.email) {
         const resetToken = randomUUID();
         const expiracion = new Date();
-        expiracion.setDate(expiracion.getDate() + 7);
+        expiracion.setDate(expiracion.getDate() + 30); // 30 días de validez
         const expStr = expiracion.toISOString();
 
         // Crear el usuario en estado "por configurar" (password aleatorio inútil)

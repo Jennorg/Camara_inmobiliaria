@@ -199,7 +199,7 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<vo
 
     const { randomBytes } = await import('crypto')
     const token = randomBytes(32).toString('hex')
-    const expira = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 días
+    const expira = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 días
 
     const tokenHash = sha256(token)
     await db.execute({

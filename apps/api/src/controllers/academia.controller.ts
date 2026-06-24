@@ -216,7 +216,7 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   } = params
 
   const expiracion = new Date()
-  expiracion.setHours(expiracion.getHours() + 24)
+  expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
   const fechaExpiracion = expiracion.toISOString()
   const token = randomUUID()
 
@@ -1631,7 +1631,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
     }
 
     const ver = await db.execute({
-      sql: `SELECT * FROM verificaciones_preinscripciones WHERE token_verificacion = ? LIMIT 1`,
+      sql: `SELECT token, email, data_json, fecha_expiracion, usado FROM tokens_accion WHERE token = ? AND tipo = 'preinscripcion' LIMIT 1`,
       args: [token],
     })
     if (ver.rows.length === 0) {
@@ -1639,13 +1639,24 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
       return
     }
 
-    const registro = ver.rows[0] as any
-    // El token expira por tiempo (24h)
-    const exp = new Date(String(registro.fecha_expiracion))
+    const tokenRow = ver.rows[0] as any
+
+    // Check if already used
+    if (tokenRow.usado === 1) {
+      res.status(400).json({ success: false, message: 'Este enlace de preinscripción ya fue utilizado.' })
+      return
+    }
+
+    // Check expiration
+    const exp = new Date(String(tokenRow.fecha_expiracion))
     if (exp < new Date()) {
       res.status(400).json({ success: false, message: 'El enlace de preinscripción ha expirado. Por favor, realiza la preinscripción nuevamente.' })
       return
     }
+
+    // Parse the data stored in data_json
+    const registro = JSON.parse(tokenRow.data_json || '{}')
+    registro.email = tokenRow.email
 
     const nombreCompleto = (
       registro.razon_social ||
@@ -1701,7 +1712,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
     res.cookie('auth_expediente', token, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000, // 24 horas
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
       sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/'
     })
@@ -2280,7 +2291,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
 
       if (shouldSendToken) {
         const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 7)
+        expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
         // clean up old tokens
         await db.execute({
           sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
@@ -2435,7 +2446,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
 
       if (shouldSendToken) {
         const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 7)
+        expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
         // clean up old tokens
         await db.execute({
           sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
@@ -2583,7 +2594,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
 
       if (shouldSendToken) {
         const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 7)
+        expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
         // clean up old tokens
         await db.execute({
           sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
@@ -3090,7 +3101,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
 
         if (shouldSendToken && tokenToUse) {
           const expiracion = new Date()
-          expiracion.setDate(expiracion.getDate() + 7)
+          expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
           
           await db.execute({
             sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,

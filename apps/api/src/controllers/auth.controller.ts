@@ -20,7 +20,7 @@ async function createRefreshTokenSession(userId: number): Promise<{ token: strin
   });
 
   const token = randomBytes(32).toString('hex');
-  const expira = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 dias
+  const expira = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 dias
   const tokenHash = sha256(token);
   
   await db.execute({
