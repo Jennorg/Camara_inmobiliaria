@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2 } from 'lucide-react'
+import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Award, Clock } from 'lucide-react'
 import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 
@@ -44,6 +44,9 @@ type Row = {
   estudiante_profesion?: string | null
   ano_inicio_servicio?: number | null
   apto_acreditacion?: number
+  completado?: number
+  num_modulos?: number
+  modulos_aprobados?: number
 }
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -54,18 +57,31 @@ export default function PreinscripcionesPrincipalesPanel({
   const { token } = useAuth()
   const [activeSubTab, setActiveSubTab] = useState<'programas' | 'solicitudes'>('programas')
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
-  type UiEstatus = 'Todos' | 'Pendiente' | 'Entrevista' | 'Aprobado' | 'Rechazado'
+  type UiEstatus = 'Todos' | 'Pendiente' | 'Entrevista' | 'Inscripción' | 'Rechazado'
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
   const [search, setSearch] = useState('')
   const [filtroAcreditacion, setFiltroAcreditacion] = useState<'todos' | 'apto' | 'no_apto'>('todos')
   const [rows, setRows] = useState<Row[]>([])
-  const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, Entrevista: 0, Aprobado: 0, Rechazado: 0 })
+  const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, Entrevista: 0, Inscripción: 0, Rechazado: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Row | null>(null)
   const [documentos, setDocumentos] = useState<{ id_documento: number; tipo_doc: string; url: string; nombre_archivo: string | null }[]>([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [toggleLoading, setToggleLoading] = useState(false)
+
+  // CIBIR Module states
+  const [modulos, setModulos] = useState<{
+    nombre_modulo: string;
+    profesor: string | null;
+    estatus: string;
+    aprobado_por: number | null;
+    fecha_evaluacion: string | null;
+    nota_admin: string | null;
+  }[]>([])
+  const [loadingModulos, setLoadingModulos] = useState(false)
+  const [evaluating, setEvaluating] = useState<string | null>(null)
+  const [completing, setCompleting] = useState(false)
 
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
@@ -90,7 +106,7 @@ export default function PreinscripcionesPrincipalesPanel({
       if (uiEstatus === 'Todos') qs.set('estatus', 'Todos')
       else if (uiEstatus === 'Pendiente') qs.set('estatus', 'Preinscrito')
       else if (uiEstatus === 'Entrevista') qs.set('estatus', 'Entrevista')
-      else if (uiEstatus === 'Aprobado') qs.set('estatus', 'Inscrito')
+      else if (uiEstatus === 'Inscripción') qs.set('estatus', 'Inscrito')
       else if (uiEstatus === 'Rechazado') qs.set('estatus', 'Rechazado')
 
       if (programa !== 'Todos') qs.set('programaCodigo', programa)
@@ -109,7 +125,7 @@ export default function PreinscripcionesPrincipalesPanel({
           Todos: json.meta.counts.Todos || 0,
           Pendiente: json.meta.counts.Pendiente || 0,
           Entrevista: json.meta.counts.Entrevista || 0,
-          Aprobado: json.meta.counts.Aprobado || 0,
+          Inscripción: json.meta.counts.Aprobado || 0,
           Rechazado: json.meta.counts.Rechazado || 0,
         })
       }
@@ -150,6 +166,234 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch { /* silencioso */ }
     finally { setLoadingDocs(false) }
   }
+
+  const fetchModulos = async (idInscripcion: number) => {
+    setLoadingModulos(true)
+    setModulos([])
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${idInscripcion}/modulos`, {
+        headers: { ...authHeaders }
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        setModulos(json.data.modulos)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingModulos(false)
+    }
+  }
+
+  const handleAprobarModulo = async (nombreModulo: string) => {
+    if (!selected) return
+    setEvaluating(nombreModulo)
+    try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Aprobando módulo',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
+
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos/${encodeURIComponent(nombreModulo)}/aprobar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders }
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al aprobar módulo')
+
+      Swal.fire({
+        title: '¡Módulo Aprobado!',
+        text: 'El estado del módulo ha sido actualizado.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      })
+      
+      await fetchData()
+      if (selected) {
+        await fetchModulos(selected.id_inscripcion)
+      }
+    } catch (e: any) {
+      Swal.fire('Error', e.message || 'No se pudo aprobar el módulo', 'error')
+    } finally {
+      setEvaluating(null)
+    }
+  }
+
+  const handleRechazarModulo = async (nombreModulo: string) => {
+    if (!selected) return
+
+    const { value: notaAdmin } = await Swal.fire({
+      title: 'Rechazar Módulo',
+      input: 'textarea',
+      inputLabel: 'Razón del rechazo (nota administrativa)',
+      inputPlaceholder: 'Escribe el motivo del rechazo aquí...',
+      inputAttributes: {
+        'aria-label': 'Escribe el motivo del rechazo aquí'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Rechazar módulo',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Cancelar'
+    })
+
+    if (notaAdmin === undefined) return // cancelado
+
+    setEvaluating(nombreModulo)
+    try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Rechazando módulo',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
+
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos/${encodeURIComponent(nombreModulo)}/rechazar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ notaAdmin })
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al rechazar módulo')
+
+      Swal.fire({
+        title: 'Módulo Rechazado',
+        text: 'El módulo ha sido rechazado correctamente.',
+        icon: 'warning',
+        timer: 1500,
+        showConfirmButton: false
+      })
+      
+      await fetchData()
+      if (selected) {
+        await fetchModulos(selected.id_inscripcion)
+      }
+    } catch (e: any) {
+      Swal.fire('Error', e.message || 'No se pudo rechazar el módulo', 'error')
+    } finally {
+      setEvaluating(null)
+    }
+  }
+
+  const handleAprobarTodos = async () => {
+    if (!selected) return
+
+    const result = await Swal.fire({
+      title: '¿Aprobar todos los módulos?',
+      text: `Esto marcará todos los módulos como "Aprobado" y completará la formación académica de ${selected.estudiante_nombre} automáticamente.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#00D084',
+      cancelButtonColor: '#cbd5e1',
+      confirmButtonText: 'Sí, aprobar todo',
+      cancelButtonText: 'Cancelar'
+    })
+
+    if (!result.isConfirmed) return
+
+    setCompleting(true)
+    try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Aprobando todos los módulos',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
+
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos/aprobar-todos`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders }
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo completar la aprobación masiva')
+
+      Swal.fire({
+        title: '¡Aprobación Completa!',
+        text: 'Todos los módulos han sido aprobados.',
+        icon: 'success',
+        timer: 2500,
+        showConfirmButton: false
+      })
+      await fetchData()
+      if (selected) {
+        await fetchModulos(selected.id_inscripcion)
+      }
+    } catch (e: any) {
+      Swal.fire('Error', e.message || 'No se pudo realizar la aprobación masiva', 'error')
+    } finally {
+      setCompleting(false)
+    }
+  }
+
+  const handleAprobarEtapaCibir = async () => {
+    if (!selected) return
+
+    const result = await Swal.fire({
+      title: '¿Aprobar CIBIR y Afiliar?',
+      text: `Esto aprobará todos los módulos del Programa CIBIR y moverá a ${selected.estudiante_nombre} a la etapa de Afiliado.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#00D084',
+      cancelButtonColor: '#cbd5e1',
+      confirmButtonText: 'Sí, aprobar',
+      cancelButtonText: 'Cancelar'
+    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Aprobando todos los módulos y cambiando etapa...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
+
+      // 1. Aprobar todos los módulos
+      const resModulos = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos/aprobar-todos`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders }
+      })
+      const jsonModulos = await resModulos.json()
+      if (!resModulos.ok || !jsonModulos.success) throw new Error(jsonModulos.message || 'No se pudieron aprobar los módulos')
+
+      // 2. Cambiar a etapa de Afiliación (6)
+      const resEtapa = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/cambiar-etapa`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ etapa: 6 }),
+      })
+      const jsonEtapa = await resEtapa.json()
+      if (!resEtapa.ok || !jsonEtapa.success) throw new Error(jsonEtapa.message || 'No se pudo cambiar la etapa')
+
+      Swal.fire({
+        title: '¡CIBIR Aprobado!',
+        text: 'Todos los módulos han sido aprobados y el aspirante ha sido afiliado.',
+        icon: 'success',
+        timer: 2500,
+        showConfirmButton: false
+      })
+
+      await fetchData()
+    } catch (e: any) {
+      Swal.fire('Error', e.message || 'No se pudo completar la aprobación de CIBIR', 'error')
+    }
+  }
+
+  useEffect(() => {
+    if (selected) {
+      const isCibir = selected.programa_codigo === 'CIBIR' || (selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '5_CIBIR')
+      if (isCibir) {
+        fetchModulos(selected.id_inscripcion)
+      } else {
+        setModulos([])
+      }
+    } else {
+      setModulos([])
+    }
+  }, [selected?.id_inscripcion, selected?.afiliado_estatus, token])
 
   useEffect(() => {
     fetchData()
@@ -353,17 +597,26 @@ export default function PreinscripcionesPrincipalesPanel({
     )
   }, [rows, search, filtroAcreditacion])
 
-  const mapStatusUI = (s: Estatus) => {
-    if (s === 'Preinscrito') return 'Pendiente'
-    if (s === 'Inscrito') return 'Aprobado'
-    return s
-  }
-  const getStatusStyles = (s: Estatus) => {
-    if (s === 'Preinscrito') return 'bg-amber-50 text-amber-600'
-    if (s === 'Entrevista') return 'bg-emerald-50 text-emerald-600'
-    if (s === 'Inscrito') return 'bg-emerald-50 text-emerald-600'
-    if (s === 'Rechazado') return 'bg-red-50 text-red-500'
-    return 'bg-slate-100 text-slate-500'
+  const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string) => {
+    if (afiliadoEstatus === 'Afiliado') {
+      return { label: 'Afiliado', styles: 'bg-emerald-50 text-emerald-600 border-emerald-100' }
+    }
+    if (afiliadoEstatus === '5_CIBIR') {
+      return { label: 'CIBIR', styles: 'bg-blue-50 text-blue-600 border-blue-100' }
+    }
+    if (estatus === 'Preinscrito') {
+      return { label: 'Pendiente', styles: 'bg-amber-50 text-amber-600 border-amber-100' }
+    }
+    if (estatus === 'Entrevista') {
+      return { label: 'Entrevista', styles: 'bg-emerald-50 text-emerald-600 border-emerald-100' }
+    }
+    if (estatus === 'Inscrito') {
+      return { label: 'Inscripción', styles: 'bg-blue-50 text-blue-600 border-blue-100' }
+    }
+    if (estatus === 'Rechazado') {
+      return { label: 'Rechazado', styles: 'bg-red-50 text-red-500 border-red-100' }
+    }
+    return { label: estatus, styles: 'bg-slate-100 text-slate-500 border-slate-200' }
   }
 
   return (
@@ -431,7 +684,7 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
 
           <div className="flex flex-wrap gap-1.5 mt-1">
-            {(['Todos', 'Pendiente', 'Entrevista', 'Aprobado', 'Rechazado'] as const).map(f => (
+            {(['Todos', 'Pendiente', 'Entrevista', 'Inscripción', 'Rechazado'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setUiEstatus(f)}
@@ -469,9 +722,14 @@ export default function PreinscripcionesPrincipalesPanel({
                   <span className={['text-sm font-semibold flex-1', selected?.id_inscripcion === r.id_inscripcion ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>
                     {r.estudiante_nombre}
                   </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusStyles(r.estatus)}`}>
-                    {mapStatusUI(r.estatus)}
-                  </span>
+                  {(() => {
+                    const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus)
+                    return (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
+                        {statusObj.label}
+                      </span>
+                    )
+                  })()}
                 </div>
                 <span className="text-xs text-slate-400 truncate">
                   {r.programa_codigo === 'AFILIACION' && r.afiliado_tipo ? (
@@ -513,15 +771,20 @@ export default function PreinscripcionesPrincipalesPanel({
                 )}
               </div>
               <div className="flex flex-col items-end gap-1">
-                <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider ${getStatusStyles(selected.estatus)}`}>
-                  {mapStatusUI(selected.estatus)}
-                </span>
+                {(() => {
+                  const statusObj = getStatusLabelAndStyles(selected.estatus, selected.afiliado_estatus)
+                  return (
+                    <span className={`text-[10px] font-black px-3 py-1.5 rounded-full border uppercase tracking-wider ${statusObj.styles}`}>
+                      {statusObj.label}
+                    </span>
+                  )
+                })()}
                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{selected.programa_codigo}</span>
               </div>
             </div>
 
             {/* Stepper de Progreso */}
-            {selected.programa_codigo === 'AFILIACION' && (() => {
+            {(selected.programa_codigo === 'AFILIACION' || selected.afiliado_estatus === '5_CIBIR') && (() => {
               const getActiveIndex = (est: string, aEst?: string) => {
                 if (aEst) {
                   switch (aEst) {
@@ -709,6 +972,131 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
             )}
 
+            {/* Módulos de la Formación CIBIR */}
+            {(selected.programa_codigo === 'CIBIR' || selected.afiliado_estatus === '5_CIBIR') && (
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-4 flex flex-col gap-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-50">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-emerald-600" />
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progreso por Módulos (CIBIR)</h4>
+                  </div>
+                  {Number(selected.completado) === 1 ? (
+                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                      Aprobado y Certificado
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleAprobarTodos}
+                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
+                    >
+                      Aprobar Todos
+                    </button>
+                  )}
+                </div>
+
+                {loadingModulos ? (
+                  <div className="py-8 flex flex-col items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cargando módulos...</span>
+                  </div>
+                ) : modulos.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No hay módulos configurados para este curso.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Barra de progreso global */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                        <span>Progreso del Estudiante</span>
+                        <span>
+                          {modulos.filter(m => m.estatus === 'Aprobado').length} / {modulos.length} Módulos
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-[#00D084] h-full transition-all duration-500" 
+                          style={{ width: `${(modulos.filter(m => m.estatus === 'Aprobado').length / modulos.length) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Listado de módulos individuales */}
+                    <div className="divide-y divide-slate-100">
+                      {modulos.map((mod) => {
+                        const isAprobado = mod.estatus === 'Aprobado';
+                        const isRechazado = mod.estatus === 'Rechazado';
+                        
+                        return (
+                          <div key={mod.nombre_modulo} className="py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between first:pt-0 last:pb-0">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-slate-800 break-words">{mod.nombre_modulo}</span>
+                                {mod.profesor && (
+                                  <span className="text-[10px] text-slate-500 font-semibold italic">
+                                    (Prof. {mod.profesor})
+                                  </span>
+                                )}
+                              </div>
+                              {isRechazado && mod.nota_admin && (
+                                <p className="text-[11px] text-red-500 font-semibold bg-red-50/50 p-2 rounded-lg border border-red-100/30 mt-1 max-w-lg">
+                                  <strong>Razón de Rechazo:</strong> {mod.nota_admin}
+                                </p>
+                              )}
+                              {isAprobado && mod.fecha_evaluacion && (
+                                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                  Aprobado el {new Date(mod.fecha_evaluacion).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                              {/* Badges */}
+                              {isAprobado && (
+                                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-wider border border-emerald-100 flex items-center gap-1">
+                                  <CheckCircle2 size={10} /> Aprobado
+                                </span>
+                              )}
+                              {isRechazado && (
+                                <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-500 text-[9px] font-black uppercase tracking-wider border border-rose-100 flex items-center gap-1">
+                                  Rechazado
+                                </span>
+                              )}
+                              {!isAprobado && !isRechazado && (
+                                <span className="px-2.5 py-1 rounded-full bg-slate-50 text-slate-400 text-[9px] font-black uppercase tracking-wider border border-slate-100 flex items-center gap-1">
+                                  Pendiente
+                                </span>
+                              )}
+
+                              {/* Acciones por módulo */}
+                              <div className="flex gap-1 ml-2">
+                                {!isAprobado && (
+                                  <button
+                                    onClick={() => handleAprobarModulo(mod.nombre_modulo)}
+                                    disabled={evaluating !== null}
+                                    className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
+                                  >
+                                    {evaluating === mod.nombre_modulo ? '...' : 'Aprobar'}
+                                  </button>
+                                )}
+                                {!isRechazado && (
+                                  <button
+                                    onClick={() => handleRechazarModulo(mod.nombre_modulo)}
+                                    disabled={evaluating !== null}
+                                    className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-rose-100 active:scale-95 disabled:opacity-50"
+                                  >
+                                    {evaluating === mod.nombre_modulo ? '...' : 'Rechazar'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Documentos */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-4">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Documentación Adjunta</span>
@@ -733,9 +1121,11 @@ export default function PreinscripcionesPrincipalesPanel({
             </div>
 
             {/* Acciones */}
-            {['Preinscrito', 'Entrevista'].includes(selected.estatus) && (
+            {((['Preinscrito', 'Entrevista'].includes(selected.estatus)) || 
+              (selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '6_INSCRIPCION') || 
+              (selected.afiliado_estatus === '5_CIBIR')) && (
               <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-3">
-                {selected.estatus === 'Preinscrito' && (
+                {selected.estatus === 'Preinscrito' && selected.afiliado_estatus !== '5_CIBIR' && (
                   <div className="flex gap-2">
                     {selected.programa_codigo === 'AFILIACION' ? (
                       <>
@@ -760,6 +1150,30 @@ export default function PreinscripcionesPrincipalesPanel({
                       <button onClick={() => setShowModalFinalizar(true)} className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[10px] font-black uppercase tracking-widest">Dar Veredicto</button>
                       <button onClick={() => setShowModalAgendar(true)} className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest">Reprogramar</button>
                     </div>
+                  </div>
+                )}
+                {selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '6_INSCRIPCION' && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de Inscripción</span>
+                    <button
+                      onClick={() => cambiarEtapa(selected.id_inscripcion, 6, 'Afiliación')}
+                      className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                      Finalizar y Afiliar
+                    </button>
+                  </div>
+                )}
+                {selected.afiliado_estatus === '5_CIBIR' && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
+                    <button
+                      onClick={handleAprobarEtapaCibir}
+                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                      Aprobar
+                    </button>
                   </div>
                 )}
               </div>

@@ -118,8 +118,16 @@ const WidgetMisCursos = () => {
                   <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Progreso de Módulos (CIBIR)</h5>
                   <div className="space-y-2">
                     {[1, 2, 3, 4, 5].map(moduloNum => {
-                      const modRecord = curso.modulos?.find(m => m.nombre_modulo === `Módulo ${moduloNum}`);
+                      const modRecord = curso.modulos?.find(m => m.nombre_modulo === `Módulo ${moduloNum}` || m.nombre_modulo.startsWith(`Módulo ${moduloNum}:`));
                       const isAprobado = modRecord?.estatus === 'aprobado';
+                      const cibirNombres = [
+                        'Negocio de Bienes Raíces',
+                        'Nociones Jurídicas',
+                        'Comercialización Inmobiliaria',
+                        'Hábitos y Buenas Prácticas',
+                        'Principios de Valoración'
+                      ];
+                      const nombreMostrar = modRecord?.nombre_modulo || `Módulo ${moduloNum}: ${cibirNombres[moduloNum - 1]}`;
                       return (
                         <div key={moduloNum} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-2">
@@ -129,7 +137,7 @@ const WidgetMisCursos = () => {
                               <Clock size={16} className="text-slate-300" />
                             )}
                             <span className={isAprobado ? 'text-slate-800 font-medium' : 'text-slate-400'}>
-                              Módulo {moduloNum}
+                              {nombreMostrar}
                             </span>
                           </div>
                           {isAprobado && modRecord?.fecha_evaluacion && (
