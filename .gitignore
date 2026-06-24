@@ -46,3 +46,14 @@ apps/api/src/config/send-invitacion-contrasena.ts
 
 # Temporary Data Extractions
 corporativos_asociacion.md
+
+# Temporary scripts
+apps/api/src/config/check-tokens.ts
+apps/api/src/config/search-preinscripciones.ts
+apps/api/src/config/verify-emails-are-affiliates.ts
+
+# Temporary JSON files
+/*.json
+!/package.json
+!/package-lock.json
+!/turbo.json
