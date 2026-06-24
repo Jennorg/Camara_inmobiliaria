@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle, Clock } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Award } from 'lucide-react';
 import { SkeletonCard } from '@/components/Skeleton';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 
-interface ModuloCibir {
-  modulo: number;
-  estatus: 'pendiente' | 'aprobado' | 'rechazado';
-  fecha_evaluacion: string;
+interface ModuloCurso {
+  nombre_modulo: string;
+  profesor?: string | null;
+  estatus: string;
+  fecha_evaluacion: string | null;
+  nota_admin?: string | null;
 }
 
 interface MiCurso {
@@ -17,11 +19,13 @@ interface MiCurso {
   tipo_inscripcion: string;
   estatus: string;
   estatus_academico: string;
+  completado: number;
   fecha_inscripcion: string;
   curso_nombre: string;
   nivel_academico: string | null;
   imagen_url: string | null;
-  modulos?: ModuloCibir[];
+  modulos?: ModuloCurso[];
+  num_modulos?: number;
 }
 
 const WidgetMisCursos = () => {
@@ -43,8 +47,7 @@ const WidgetMisCursos = () => {
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
-          // Filtrar los que no estén en estado 'Cancelado' o 'Rechazado' si así se desea
-          // En este caso, mostraremos todos o filtraremos según estatus general
+          // Excluir solo Cancelados y Rechazados
           const cursosActivos = json.data.filter((c: MiCurso) => c.estatus !== 'Cancelado' && c.estatus !== 'Rechazado');
           setCursos(cursosActivos);
         }
@@ -93,8 +96,8 @@ const WidgetMisCursos = () => {
               <div className="absolute top-3 right-3">
                 <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm backdrop-blur-md bg-white/90 ${
                   curso.estatus_academico === 'Aprobado' ? 'text-green-700' :
-                  curso.estatus_academico === 'Cursando' ? 'text-emerald-700' :
-                  curso.estatus_academico === 'Retirado' ? 'text-red-700' : 'text-slate-700'
+                  curso.estatus_academico === 'Finalizado' ? 'text-green-700' :
+                  curso.estatus_academico === 'Cursando' ? 'text-emerald-700' : 'text-slate-700'
                 }`}>
                   {curso.estatus_academico}
                 </span>
@@ -115,7 +118,7 @@ const WidgetMisCursos = () => {
                   <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Progreso de Módulos (CIBIR)</h5>
                   <div className="space-y-2">
                     {[1, 2, 3, 4, 5].map(moduloNum => {
-                      const modRecord = curso.modulos?.find(m => m.modulo === moduloNum);
+                      const modRecord = curso.modulos?.find(m => m.nombre_modulo === `Módulo ${moduloNum}`);
                       const isAprobado = modRecord?.estatus === 'aprobado';
                       return (
                         <div key={moduloNum} className="flex items-center justify-between text-sm">
@@ -137,6 +140,60 @@ const WidgetMisCursos = () => {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Lógica para Cursos con Módulos (no CIBIR) */}
+              {curso.programa_codigo !== 'CIBIR' && curso.modulos && curso.modulos.length > 0 && (
+                <div className="mt-auto pt-4 border-t border-gray-50">
+                  <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Progreso de Módulos</h5>
+                  <div className="space-y-2">
+                    {curso.modulos.map(mod => {
+                      const estatusLower = mod.estatus?.toLowerCase();
+                      const isAprobado = estatusLower === 'aprobado';
+                      const isRechazado = estatusLower === 'rechazado';
+                      return (
+                        <div key={mod.nombre_modulo} className="flex flex-col gap-1 text-sm border-b border-slate-50 last:border-b-0 pb-1.5 last:pb-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {isAprobado ? (
+                                <CheckCircle size={15} className="text-green-500 shrink-0" />
+                              ) : isRechazado ? (
+                                <span className="w-3.5 h-3.5 rounded-full bg-red-100 flex items-center justify-center text-red-500 font-black text-[9px] shrink-0 font-mono">!</span>
+                              ) : (
+                                <Clock size={15} className="text-slate-300 shrink-0" />
+                              )}
+                              <span className={[
+                                'text-xs truncate font-semibold',
+                                isAprobado ? 'text-slate-800' : isRechazado ? 'text-red-500 font-bold' : 'text-slate-400'
+                              ].join(' ')}>
+                                {mod.nombre_modulo} {mod.profesor ? `· Prof. ${mod.profesor}` : ''}
+                              </span>
+                            </div>
+                            {isAprobado && mod.fecha_evaluacion && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                {new Date(mod.fecha_evaluacion).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                          {isRechazado && mod.nota_admin && (
+                            <p className="text-[10px] text-red-400 italic pl-5 leading-tight">
+                              Nota: {mod.nota_admin}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {Number(curso.completado) === 1 && curso.programa_codigo !== 'CIBIR' && (
+                <div className="mt-auto pt-4 border-t border-emerald-50">
+                  <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+                    <Award size={13} className="shrink-0" />
+                    <p className="text-[11px] font-semibold">Curso aprobado · Ve a <strong>Mis Certificados</strong> para ver tu comprobante</p>
                   </div>
                 </div>
               )}

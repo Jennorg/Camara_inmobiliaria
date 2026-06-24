@@ -218,8 +218,8 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
     const tokenHash = sha256(token)
     await db.execute({
-      sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
-      args: [tokenHash, expira, new Date().toISOString(), user.id],
+      sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion) VALUES (?, 'reset_password', ?, 0, ?)`,
+      args: [tokenHash, user.email, expira],
     })
 
     const { enviarCorreoOlvideContrasena } = await import('../lib/email.js')
@@ -258,7 +258,7 @@ export const resetPasswordWithToken = async (req: Request, res: Response): Promi
     // SHA-256 del token crudo para buscar en la BD
     const tokenHash = sha256(token)
     const result = await db.execute({
-      sql: `SELECT id, email, reset_token_expira FROM users WHERE reset_token_hash = ?`,
+      sql: `SELECT email, fecha_expiracion FROM tokens_accion WHERE token = ? AND tipo = 'reset_password' AND usado = 0`,
       args: [tokenHash],
     })
 
@@ -267,23 +267,38 @@ export const resetPasswordWithToken = async (req: Request, res: Response): Promi
       return
     }
 
-    const user = result.rows[0] as any
-    if (new Date(user.reset_token_expira) < new Date()) {
+    const tokenData = result.rows[0] as any
+    if (new Date(tokenData.fecha_expiracion) < new Date()) {
       res.status(400).json({ success: false, message: 'El enlace ha expirado. Solicita un nuevo enlace.' })
       return
     }
 
+    const userResult = await db.execute({
+      sql: `SELECT id FROM users WHERE LOWER(email) = ?`,
+      args: [tokenData.email.toLowerCase()]
+    })
+    if (userResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Usuario no encontrado o inactivo.' })
+      return
+    }
+    const userId = userResult.rows[0].id
+
     const passwordHash = await bcrypt.hash(password, 10)
 
     await db.execute({
-      sql: `UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_token_expira = NULL, activo = 1, actualizado_en = ? WHERE id = ?`,
-      args: [passwordHash, new Date().toISOString(), user.id],
+      sql: `UPDATE users SET password_hash = ?, activo = 1, actualizado_en = ? WHERE id = ?`,
+      args: [passwordHash, new Date().toISOString(), userId],
+    })
+
+    await db.execute({
+      sql: `UPDATE tokens_accion SET usado = 1 WHERE token = ?`,
+      args: [tokenHash]
     })
 
     res.status(200).json({
       success: true,
       message: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.',
-      email: user.email
+      email: tokenData.email
     })
   } catch (error) {
     console.error('Error en resetPasswordWithToken:', error)
@@ -313,43 +328,51 @@ export const setupInitialPassword = async (req: Request, res: Response): Promise
     // SHA-256 del token crudo para buscar en la BD
     const tokenHash = sha256(token)
 
-    const resultFix = await db.execute({
-      sql: `SELECT id, email FROM users WHERE reset_token_hash = ?`,
+    const result = await db.execute({
+      sql: `SELECT email, fecha_expiracion FROM tokens_accion WHERE token = ? AND tipo = 'reset_password' AND usado = 0`,
       args: [tokenHash],
     })
 
-    const user = resultFix.rows[0]
-    if (!user) {
-      res.status(404).json({ success: false, message: 'Token inválido o no encontrado' })
+    if (result.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Token inválido, expirado o ya utilizado' })
       return
     }
 
-    // Verificar expiración (ISO compare)
-    const { id, email } = user as any
-    const userWithExp = await db.execute({
-      sql: `SELECT reset_token_expira FROM users WHERE id = ?`,
-      args: [id]
-    })
-    const exp = userWithExp.rows[0].reset_token_expira as string
-    if (new Date(exp) < new Date()) {
+    const tokenData = result.rows[0] as any
+    if (new Date(tokenData.fecha_expiracion) < new Date()) {
       res.status(400).json({ success: false, message: 'El enlace ha expirado. Contacta al administrador.' })
       return
     }
+
+    const userResult = await db.execute({
+      sql: `SELECT id FROM users WHERE LOWER(email) = ?`,
+      args: [tokenData.email.toLowerCase()]
+    })
+    if (userResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Usuario no encontrado' })
+      return
+    }
+    const userId = userResult.rows[0].id
 
     const passwordHash = await bcrypt.hash(password, 10)
 
     // Actualizar contraseña y limpiar token
     await db.execute({
       sql: `UPDATE users 
-            SET password_hash = ?, reset_token_hash = NULL, reset_token_expira = NULL, activo = 1, actualizado_en = ?
+            SET password_hash = ?, activo = 1, actualizado_en = ?
             WHERE id = ?`,
-      args: [passwordHash, new Date().toISOString(), id],
+      args: [passwordHash, new Date().toISOString(), userId],
+    })
+
+    await db.execute({
+      sql: `UPDATE tokens_accion SET usado = 1 WHERE token = ?`,
+      args: [tokenHash]
     })
 
     res.status(200).json({
       success: true,
       message: 'Contraseña establecida exitosamente. Ya puedes iniciar sesión.',
-      email
+      email: tokenData.email
     })
   } catch (error) {
     console.error('Error en setupInitialPassword:', error)

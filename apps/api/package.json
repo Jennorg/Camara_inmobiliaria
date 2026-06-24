@@ -11,6 +11,9 @@
     "check-types": "tsc --noEmit",
     "initdb": "tsx src/config/initdb.ts",
     "initdb:reset": "tsx src/config/initdb.ts --reset",
+    "db:backup": "tsx scratch/backup_db.ts",
+    "db:migrate": "tsx scratch/migrate_db.ts",
+    "db:verify": "tsx scratch/verify_migration.ts",
     "test": "vitest run"
   },
   "dependencies": {

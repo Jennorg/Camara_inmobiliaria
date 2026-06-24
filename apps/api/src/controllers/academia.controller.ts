@@ -5,6 +5,14 @@ import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
+const generateSlug = (str: string) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '') + '-' + Date.now();
+}
 import { emitirComprobanteSiCompleto, ensureCibirCertificate } from '../lib/certificados.js'
 import {
   enviarCorreoConfirmacionPreinscripcionPrograma,
@@ -223,33 +231,34 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   const repApellidos = repParts.length > 1 ? repParts.slice(repMid).join(' ') : ''
 
   await db.execute({
-    sql: `DELETE FROM verificaciones_preinscripciones
-          WHERE (lower(trim(email)) = lower(trim(?)) OR (cedula = ? AND ? != '')) AND programa_interes = ?`,
-    args: [email, cleanedCedulaRif, cleanedCedulaRif, programaCodigo],
+    sql: `DELETE FROM tokens_accion 
+          WHERE tipo = 'preinscripcion' AND (lower(trim(email)) = lower(trim(?)) OR (json_extract(data_json, '$.cedula') = ? AND ? != ''))`,
+    args: [email, cleanedCedulaRif, cleanedCedulaRif],
+  })
+
+  const dataJson = JSON.stringify({
+    nombres: nombres || null,
+    apellidos: apellidos || null,
+    cedula: cleanedCedulaRif || null,
+    telefono: telefono || null,
+    programa_interes: programaCodigo,
+    tipo_afiliado: tipoAfiliado || 'Natural',
+    nivel_academico: nivelProfesional || null,
+    profesion: profesion || null,
+    es_corredor_inmobiliario: esCorredorInmobiliario === null ? null : (esCorredorInmobiliario === 'si' || esCorredorInmobiliario === true ? 1 : 0),
+    razon_social: razonSocial ?? null,
+    representante_legal_nombres: repNombres || null,
+    representante_legal_apellidos: repApellidos || null,
+    representante_legal_cedula: cleanedCedulaRep ?? null,
+    representante_legal_email: emailRepresentante ?? null,
+    empresa_telefono: empresaTelefono ?? null,
+    id_empresa: id_empresa ?? null
   })
 
   await db.execute({
-    sql: `INSERT INTO verificaciones_preinscripciones (
-            token_verificacion, email, nombres, apellidos, cedula, telefono, 
-            programa_interes, tipo_afiliado, nivel_academico, profesion, es_corredor_inmobiliario,
-            razon_social, representante_legal_nombres, representante_legal_apellidos, 
-            representante_legal_cedula, representante_legal_email, 
-            empresa_telefono,
-            id_empresa, fecha_expiracion
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [
-      token, email, nombres || null, apellidos || null, cleanedCedulaRif || null, telefono || null,
-      programaCodigo, tipoAfiliado || 'Natural', nivelProfesional || null, profesion || null,
-      esCorredorInmobiliario === null ? null : (esCorredorInmobiliario === 'si' || esCorredorInmobiliario === true ? 1 : 0),
-      razonSocial ?? null,
-      repNombres || null,
-      repApellidos || null,
-      cleanedCedulaRep ?? null,
-      emailRepresentante ?? null,
-      empresaTelefono ?? null,
-      id_empresa ?? null,
-      fechaExpiracion
-    ],
+    sql: `INSERT INTO tokens_accion (token, tipo, email, data_json, usado, fecha_expiracion)
+          VALUES (?, 'preinscripcion', ?, ?, 0, ?)`,
+    args: [token, email, dataJson, fechaExpiracion],
   })
 
   return { token, fechaExpiracion }
@@ -622,7 +631,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     }
 
     const ver = await db.execute({
-      sql: `SELECT * FROM verificaciones_preinscripciones WHERE token_verificacion = ? LIMIT 1`,
+      sql: `SELECT token, email, data_json, fecha_expiracion FROM tokens_accion WHERE token = ? AND tipo = 'preinscripcion' AND usado = 0 LIMIT 1`,
       args: [token],
     })
     if (ver.rows.length === 0) {
@@ -630,19 +639,10 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       return
     }
 
-    const registro = ver.rows[0] as any
-    // El token no expira por tiempo; expira una vez enviado el formulario (al eliminarse de la BD)
-    /*
-    const exp = new Date(String(registro.fecha_expiracion))
-    if (exp < new Date()) {
-      await db.execute({
-        sql: `DELETE FROM verificaciones_preinscripciones WHERE token_verificacion = ?`,
-        args: [token],
-      })
-      res.status(400).json({ success: false, message: 'El token ha expirado. Debes solicitar una nueva preinscripción.' })
-      return
-    }
-    */
+    const tokenRow = ver.rows[0] as any
+    const registro = JSON.parse(tokenRow.data_json || '{}')
+    registro.email = tokenRow.email
+    registro.fecha_expiracion = tokenRow.fecha_expiracion
 
     const programaCodigo = normalizeProgramaCodigo(registro.programa_interes)
 
@@ -809,7 +809,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     })
     if (existing.rows.length > 0) {
       await db.execute({
-        sql: `DELETE FROM verificaciones_preinscripciones WHERE token_verificacion = ?`,
+        sql: `UPDATE tokens_accion SET usado = 1 WHERE token = ? AND tipo = 'preinscripcion'`,
         args: [token],
       })
       res.clearCookie('auth_expediente', {
@@ -841,13 +841,13 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     })
 
     await db.execute({
-      sql: `DELETE FROM verificaciones_preinscripciones WHERE token_verificacion = ?`,
+      sql: `UPDATE tokens_accion SET usado = 1 WHERE token = ? AND tipo = 'preinscripcion'`,
       args: [token],
     })
 
     // Acceso al portal (Usuario + Token) y correo de bienvenida se crean únicamente tras la aprobación administrativa.
 
-    // Guardar documentos en documentos_adjuntos
+    // Guardar documentos en documentos
     const docsToInsert: { tipo: string; url: string; nombre?: string; fecha?: string }[] = []
     try {
 
@@ -912,15 +912,15 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           'diplomado', 'otro_documento'
         ]
         await db.execute({
-          sql: `DELETE FROM documentos_adjuntos 
+          sql: `DELETE FROM documentos 
                 WHERE entidad_tipo = 'estudiante' AND entidad_id = ? 
-                AND tipo_doc IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                AND tipo_archivo IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [id_estudiante, ...tipos]
         })
 
         for (const doc of docsToInsert) {
           await db.execute({
-            sql: `INSERT INTO documentos_adjuntos (entidad_tipo, entidad_id, tipo_doc, url, nombre_archivo, fecha_documento)
+            sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
                   VALUES ('estudiante', ?, ?, ?, ?, ?)`,
             args: [id_estudiante, doc.tipo, doc.url, doc.nombre?.trim() || null, doc.fecha || null]
           })
@@ -1187,9 +1187,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 export const publicListCursos = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute({
-      sql: `SELECT c.*, i.nombre as instructor_nombre
+      sql: `SELECT c.*, NULL as instructor_nombre
             FROM cursos c
-            LEFT JOIN instructores i ON i.id_instructor = c.id_instructor
             WHERE c.estatus IN ('Abierto', 'Próximamente')
             ORDER BY c.id_curso DESC`,
       args: [],
@@ -1332,14 +1331,29 @@ export const adminListCursos = async (req: Request, res: Response): Promise<void
     const where = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : ''
 
     const result = await db.execute({
-      sql: `SELECT c.*, i.nombre as instructor_nombre
+      sql: `SELECT c.*, NULL as instructor_nombre
             FROM cursos c
-            LEFT JOIN instructores i ON i.id_instructor = c.id_instructor
             ${where}
             ORDER BY c.id_curso DESC`,
       args,
     })
-    res.json({ success: true, data: result.rows })
+
+    const courses = []
+    for (const r of result.rows) {
+      const modulosResult = await db.execute({
+        sql: `SELECT mc.nombre_modulo, mc.orden, mc.id_profesor,
+                     (p.nombres || ' ' || p.apellidos) AS profesor
+              FROM modulos_curso mc
+              LEFT JOIN profesores prof ON mc.id_profesor = prof.id_profesor
+              LEFT JOIN personas p ON prof.id_persona = p.id
+              WHERE mc.id_curso = ?
+              ORDER BY mc.orden ASC`,
+        args: [r.id_curso]
+      })
+      courses.push({ ...r, modulos: modulosResult.rows })
+    }
+
+    res.json({ success: true, data: courses })
   } catch (error) {
     console.error('adminListCursos:', error)
     res.status(500).json({ success: false, message: 'Error al obtener cursos' })
@@ -1354,20 +1368,22 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
   try {
     const {
       nombre,
+      titulo,
       descripcion,
-      programa_codigo,
-      nivel_academico,
+      contenido,
+      categoria,
+      modalidad,
       cupos_totales,
       fecha_inicio,
       fecha_fin,
-      precio,
       imagen_url,
+      banner_url,
       estatus,
-      id_instructor,
     } = req.body
 
-    if (!nombre || !cupos_totales) {
-      res.status(400).json({ success: false, message: 'nombre y cupos_totales son requeridos' })
+    const courseTitle = (titulo || nombre || '').trim()
+    if (!courseTitle || !cupos_totales) {
+      res.status(400).json({ success: false, message: 'titulo y cupos_totales son requeridos' })
       return
     }
 
@@ -1377,36 +1393,69 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       return
     }
 
-    // Si no se pasa instructor, usar el id=1 por defecto
-    const instructorId = Number(id_instructor) || 1
-
+    const slug = generateSlug(courseTitle)
     const now = new Date().toISOString()
     const result = await db.execute({
       sql: `INSERT INTO cursos (
-              id_instructor, nombre, descripcion, programa_codigo, nivel_academico,
-              cupos_totales, cupos_disponibles, fecha_inicio, fecha_fin,
-              precio, imagen_url, estatus, creado_en, actualizado_en
+              titulo, slug, descripcion, contenido, categoria, modalidad,
+              cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
+              estatus, creado_en, actualizado_en
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
-        instructorId,
-        nombre.trim(),
+        courseTitle,
+        slug,
         descripcion ?? null,
-        programa_codigo ? String(programa_codigo).toUpperCase() : null,
-        nivel_academico ?? null,
+        contenido ?? null,
+        categoria ?? null,
+        modalidad ?? null,
         cupos,
-        cupos, // cupos_disponibles = cupos_totales al crear
         fecha_inicio ?? null,
         fecha_fin ?? null,
-        precio ?? null,
         imagen_url ?? null,
-        estatus ?? 'Abierto',
+        banner_url ?? null,
+        estatus ?? 'Borrador',
         now,
         now,
       ],
     })
 
-    res.status(201).json({ success: true, data: result.rows[0] })
+    const courseId = Number(result.rows[0].id_curso)
+    
+    // Parse modules if any
+    const modulosList = Array.isArray(req.body.modulos) ? req.body.modulos : []
+    if (modulosList.length === 0) {
+      await db.execute({
+        sql: `INSERT OR IGNORE INTO modulos_curso (id_curso, nombre_modulo, orden, id_profesor) VALUES (?, ?, 0, NULL)`,
+        args: [courseId, 'Módulo General']
+      })
+    } else {
+      for (const m of modulosList) {
+        const name = (m.nombre_modulo || '').trim()
+        const ord = Number(m.orden) || 0
+        const idProf = m.id_profesor ? Number(m.id_profesor) : null
+        if (name) {
+          await db.execute({
+            sql: `INSERT INTO modulos_curso (id_curso, nombre_modulo, orden, id_profesor) VALUES (?, ?, ?, ?)`,
+            args: [courseId, name, ord, idProf]
+          })
+        }
+      }
+    }
+
+    const modulosResult = await db.execute({
+      sql: `SELECT mc.nombre_modulo, mc.orden, mc.id_profesor,
+                   (p.nombres || ' ' || p.apellidos) AS profesor
+            FROM modulos_curso mc
+            LEFT JOIN profesores prof ON mc.id_profesor = prof.id_profesor
+            LEFT JOIN personas p ON prof.id_persona = p.id
+            WHERE mc.id_curso = ?
+            ORDER BY mc.orden ASC`,
+      args: [courseId]
+    })
+
+    const courseData = { ...result.rows[0], modulos: modulosResult.rows }
+    res.status(201).json({ success: true, data: courseData })
   } catch (error) {
     console.error('adminCreateCurso:', error)
     res.status(500).json({ success: false, message: 'Error al crear curso' })
@@ -1427,50 +1476,49 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
 
     const {
       nombre,
+      titulo,
       descripcion,
-      programa_codigo,
-      nivel_academico,
+      contenido,
+      categoria,
+      modalidad,
       cupos_totales,
-      cupos_disponibles,
       fecha_inicio,
       fecha_fin,
-      precio,
       imagen_url,
+      banner_url,
       estatus,
-      id_instructor,
     } = req.body
 
+    const courseTitle = (titulo || nombre || '').trim()
     const now = new Date().toISOString()
     const result = await db.execute({
       sql: `UPDATE cursos SET
-              nombre = COALESCE(?, nombre),
+              titulo = COALESCE(NULLIF(?, ''), titulo),
               descripcion = ?,
-              programa_codigo = ?,
-              nivel_academico = ?,
+              contenido = ?,
+              categoria = ?,
+              modalidad = ?,
               cupos_totales = COALESCE(?, cupos_totales),
-              cupos_disponibles = COALESCE(?, cupos_disponibles),
               fecha_inicio = ?,
               fecha_fin = ?,
-              precio = ?,
               imagen_url = COALESCE(?, imagen_url),
+              banner_url = ?,
               estatus = COALESCE(?, estatus),
-              id_instructor = COALESCE(?, id_instructor),
               actualizado_en = ?
             WHERE id_curso = ?
             RETURNING *`,
       args: [
-        nombre ?? null,
+        courseTitle || null,
         descripcion ?? null,
-        programa_codigo ? String(programa_codigo).toUpperCase() : null,
-        nivel_academico ?? null,
+        contenido ?? null,
+        categoria ?? null,
+        modalidad ?? null,
         cupos_totales != null ? Number(cupos_totales) : null,
-        cupos_disponibles != null ? Number(cupos_disponibles) : null,
         fecha_inicio ?? null,
         fecha_fin ?? null,
-        precio ?? null,
         imagen_url ?? null,
+        banner_url ?? null,
         estatus ?? null,
-        id_instructor != null ? Number(id_instructor) : null,
         now,
         id,
       ],
@@ -1480,7 +1528,48 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       res.status(404).json({ success: false, message: 'Curso no encontrado' })
       return
     }
-    res.json({ success: true, data: result.rows[0] })
+
+    // Sync modules if provided
+    if (Array.isArray(req.body.modulos)) {
+      await db.execute({
+        sql: `DELETE FROM modulos_curso WHERE id_curso = ?`,
+        args: [id]
+      })
+
+      const modulosList = req.body.modulos
+      if (modulosList.length === 0) {
+        await db.execute({
+          sql: `INSERT OR IGNORE INTO modulos_curso (id_curso, nombre_modulo, orden, id_profesor) VALUES (?, ?, 0, NULL)`,
+          args: [id, 'Módulo General']
+        })
+      } else {
+        for (const m of modulosList) {
+          const name = (m.nombre_modulo || '').trim()
+          const ord = Number(m.orden) || 0
+          const idProf = m.id_profesor ? Number(m.id_profesor) : null
+          if (name) {
+            await db.execute({
+              sql: `INSERT OR REPLACE INTO modulos_curso (id_curso, nombre_modulo, orden, id_profesor) VALUES (?, ?, ?, ?)`,
+              args: [id, name, ord, idProf]
+            })
+          }
+        }
+      }
+    }
+
+    const modulosResult = await db.execute({
+      sql: `SELECT mc.nombre_modulo, mc.orden, mc.id_profesor,
+                   (p.nombres || ' ' || p.apellidos) AS profesor
+            FROM modulos_curso mc
+            LEFT JOIN profesores prof ON mc.id_profesor = prof.id_profesor
+            LEFT JOIN personas p ON prof.id_persona = p.id
+            WHERE mc.id_curso = ?
+            ORDER BY mc.orden ASC`,
+      args: [id]
+    })
+
+    const courseData = { ...result.rows[0], modulos: modulosResult.rows }
+    res.json({ success: true, data: courseData })
   } catch (error) {
     console.error('adminUpdateCurso:', error)
     res.status(500).json({ success: false, message: 'Error al actualizar curso' })
@@ -1599,9 +1688,9 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
         prevAnoInicio = row.ano_inicio_servicio
 
         const docsRes = await db.execute({
-          sql: `SELECT tipo_doc, url, nombre_archivo, fecha_documento 
-                FROM documentos_adjuntos 
-                WHERE entidad_tipo = 'estudiante' AND entidad_id = ?`,
+          sql: `SELECT tipo_archivo as tipo_doc, url, nombre_archivo, fecha_subida as fecha_documento 
+                FROM documentos 
+                WHERE entidad_tipo = 'estudiante' AND entidad_id = ? AND eliminado_en IS NULL`,
           args: [existingEstId]
         })
         documentos = docsRes.rows
@@ -1710,6 +1799,14 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
         SELECT
           ic.*,
           cur.titulo as curso_nombre,
+          CASE 
+            WHEN ic.programa_codigo = 'CIBIR' THEN 5 
+            ELSE COALESCE((SELECT COUNT(*) FROM modulos_curso mc WHERE mc.id_curso = ic.id_curso), 1)
+          END as num_modulos,
+          CASE
+            WHEN ic.programa_codigo = 'CIBIR' THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
+            ELSE (SELECT COUNT(*) FROM modulos_inscripcion mi WHERE mi.id_inscripcion = ic.id_inscripcion AND mi.estatus = 'Aprobado')
+          END as modulos_aprobados,
           e.id_estudiante,
           COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as estudiante_nombre,
           COALESCE(p.email, emp.email) as estudiante_email,
@@ -1727,14 +1824,19 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           af.tipo_afiliado as afiliado_tipo,
           emp_vinc.razon_social as empresa_vinculada_nombre,
           af.ano_inicio_servicio as ano_inicio_servicio,
+          entr.fecha as entrevista_fecha,
+          entr.hora as entrevista_hora,
+          entr.lugar as entrevista_lugar,
+          entr.estatus as entrevista_estatus,
           CASE WHEN (
             ic.programa_codigo = 'AFILIACION' AND (
               (af.ano_inicio_servicio IS NOT NULL AND (CAST(strftime('%Y', 'now') AS INTEGER) - af.ano_inicio_servicio) > 8)
               OR EXISTS (
-                SELECT 1 FROM documentos_adjuntos da 
+                SELECT 1 FROM documentos da 
                 WHERE da.entidad_tipo = 'estudiante' 
                   AND da.entidad_id = e.id_estudiante 
-                  AND da.tipo_doc = 'diplomado' 
+                  AND da.tipo_archivo = 'diplomado' 
+                  AND da.eliminado_en IS NULL
                   AND (UPPER(da.nombre_archivo) LIKE '%FIPPI%' OR UPPER(da.nombre_archivo) LIKE '%FIPI%' OR UPPER(da.nombre_archivo) LIKE '%PREANI%')
               )
             )
@@ -1748,6 +1850,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
         LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
         LEFT JOIN empresas emp_vinc ON ic.id_empresa = emp_vinc.id_empresa
         LEFT JOIN cursos cur ON ic.id_curso = cur.id_curso
+        LEFT JOIN entrevistas entr ON (entr.id_inscripcion = ic.id_inscripcion AND entr.eliminado_en IS NULL)
         WHERE ${whereParts.join(' AND ')}
         ORDER BY ic.fecha_inscripcion DESC
       `,
@@ -1795,8 +1898,10 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     // validar curso abierto y cupos
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, cupos_disponibles, estatus FROM cursos WHERE id_curso = ? LIMIT 1`,
-      args: [idCurso],
+      sql: `SELECT id_curso, cupos_totales, estatus,
+                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus IN ('Inscrito', 'Pagado')) as inscritos
+            FROM cursos WHERE id_curso = ? LIMIT 1`,
+      args: [idCurso, idCurso],
     })
     const curso = cursoRes.rows[0] as any
     if (!curso) {
@@ -1807,7 +1912,8 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'El curso no está abierto' })
       return
     }
-    if ((curso.cupos_disponibles as number) <= 0) {
+    const cuposDisponibles = (curso.cupos_totales || 0) - (curso.inscritos || 0)
+    if (cuposDisponibles <= 0) {
       res.status(400).json({ success: false, message: 'No hay cupos disponibles' })
       return
     }
@@ -1855,27 +1961,17 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     const now = new Date().toISOString()
 
-    await db.batch(
-      [
-        {
-          sql: `INSERT INTO inscripciones_cursos (id_estudiante, id_curso, tipo_inscripcion, estatus, asignado_por, aprobado_por, creado_en, actualizado_en)
-                VALUES (?, ?, 'cohorte', 'Inscrito', ?, ?, ?, ?)
-                ON CONFLICT DO UPDATE SET
-                  estatus='Inscrito',
-                  tipo_inscripcion='cohorte',
-                  asignado_por=excluded.asignado_por,
-                  aprobado_por=excluded.aprobado_por,
-                  actualizado_en=excluded.actualizado_en`,
-          args: [id_estudiante, idCurso, req.user?.id ?? null, req.user?.id ?? null, now, now],
-        },
-        {
-          sql: `UPDATE cursos SET cupos_disponibles = cupos_disponibles - 1
-                WHERE id_curso = ? AND cupos_disponibles > 0`,
-          args: [idCurso],
-        },
-      ],
-      'write'
-    )
+    await db.execute({
+      sql: `INSERT INTO inscripciones_cursos (id_estudiante, id_curso, tipo_inscripcion, estatus, asignado_por, aprobado_por, creado_en, actualizado_en)
+            VALUES (?, ?, 'cohorte', 'Inscrito', ?, ?, ?, ?)
+            ON CONFLICT DO UPDATE SET
+              estatus='Inscrito',
+              tipo_inscripcion='cohorte',
+              asignado_por=excluded.asignado_por,
+              aprobado_por=excluded.aprobado_por,
+              actualizado_en=excluded.actualizado_en`,
+      args: [id_estudiante, idCurso, req.user?.id ?? null, req.user?.id ?? null, now, now],
+    })
 
     res.status(201).json({ success: true, message: 'Estudiante asignado e inscrito en el curso.' })
   } catch (error) {
@@ -1905,11 +2001,10 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
     const now = new Date().toISOString()
     const result = await db.execute({
       sql: `UPDATE inscripciones_cursos 
-            SET estatus='Entrevista', actualizado_en=?,
-                entrevista_fecha=?, entrevista_hora=?, entrevista_lugar=?, entrevista_estatus='Pendiente'
+            SET estatus='Entrevista', actualizado_en=?
             WHERE id_inscripcion=? AND estatus='Preinscrito'
             RETURNING *`,
-      args: [now, entrevistaFecha, entrevistaHora, entrevistaLugar, id],
+      args: [now, id],
     })
 
     if (result.rows.length === 0) {
@@ -1918,6 +2013,24 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
     }
 
     const row = result.rows[0] as any
+
+    const existingEnt = await db.execute({
+      sql: `SELECT id_entrevista FROM entrevistas WHERE id_inscripcion = ? AND eliminado_en IS NULL LIMIT 1`,
+      args: [id]
+    })
+
+    if (existingEnt.rows.length > 0) {
+      const idEntrevista = existingEnt.rows[0].id_entrevista
+      await db.execute({
+        sql: `UPDATE entrevistas SET fecha = ?, hora = ?, lugar = ?, estatus = 'Pendiente', actualizado_en = ? WHERE id_entrevista = ?`,
+        args: [entrevistaFecha, entrevistaHora, entrevistaLugar, now, idEntrevista]
+      })
+    } else {
+      await db.execute({
+        sql: `INSERT INTO entrevistas (id_inscripcion, fecha, hora, lugar, estatus, creado_en) VALUES (?, ?, ?, ?, 'Pendiente', ?)`,
+        args: [id, entrevistaFecha, entrevistaHora, entrevistaLugar, now]
+      })
+    }
 
     try {
       const estRes = await db.execute({
@@ -2003,7 +2116,7 @@ async function promocionarYVincularAfiliado(
 
   // 4. Insertar/Actualizar afiliado en estatus deseado
   const resIns = await db.execute({
-    sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, fecha_afiliacion, actualizado_en, activo, id_user, cibir_convalidado)
+    sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, fecha_afiliacion, actualizado_en, activo, id_user, cibir_acreditado)
           VALUES (?, ?, COALESCE(
             (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
             CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
@@ -2015,7 +2128,7 @@ async function promocionarYVincularAfiliado(
             actualizado_en = excluded.actualizado_en,
             activo = 1,
             id_user = COALESCE(afiliados.id_user, ?),
-            cibir_convalidado = ?
+            cibir_acreditado = ?
           RETURNING id_afiliado`,
     args: [
       finalIdPersona,
@@ -2140,32 +2253,43 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
     // 3. Crear/Verificar Acceso de Usuario
     try {
       const userRes = await db.execute({
-        sql: `SELECT id, reset_token_hash FROM users WHERE email = ?`,
+        sql: `SELECT id FROM users WHERE email = ?`,
         args: [row.email]
       })
       const existingUser = userRes.rows[0] as any
 
       if (!existingUser) {
         shouldSendToken = true
-        const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 7)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-        const tokenHash = sha256(tokenToUse)
 
         await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, '["estudiante", "afiliado"]', ?, ?)`,
-          args: [row.email, placeholderPass, tokenHash, expiracion.toISOString()]
+          sql: `INSERT INTO users (email, password_hash, roles)
+                VALUES (?, ?, '["estudiante", "afiliado"]')`,
+          args: [row.email, placeholderPass]
         })
-      } else if (existingUser.reset_token_hash) {
-        shouldSendToken = true
+      } else {
+        // Check if there is an unused reset_password token
+        const tokCheck = await db.execute({
+          sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+          args: [row.email, now]
+        })
+        if (tokCheck.rows.length > 0) {
+          shouldSendToken = true
+        }
+      }
+
+      if (shouldSendToken) {
         const expiracion = new Date()
         expiracion.setDate(expiracion.getDate() + 7)
-        const tokenHash = sha256(tokenToUse)
-
+        // clean up old tokens
         await db.execute({
-          sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
-          args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+          sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
+          args: [row.email]
+        })
+        await db.execute({
+          sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+                VALUES (?, 'reset_password', ?, 0, ?)`,
+          args: [tokenToUse, row.email, expiracion.toISOString()]
         })
       }
     } catch (err) {
@@ -2241,9 +2365,14 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     if (resultado === 'Rechazado') {
       await db.execute({
         sql: `UPDATE inscripciones_cursos 
-              SET estatus='Rechazado', nota_admin=?, aprobado_por=?, actualizado_en=?, entrevista_estatus='Realizada'
+              SET estatus='Rechazado', nota_admin=?, aprobado_por=?, actualizado_en=?
               WHERE id_inscripcion=?`,
         args: [notaAdmin || null, req.user?.id || null, now, id]
+      })
+
+      await db.execute({
+        sql: `UPDATE entrevistas SET estatus='Realizada', actualizado_en=? WHERE id_inscripcion=? AND eliminado_en IS NULL`,
+        args: [now, id]
       })
 
       // Notificar por correo
@@ -2261,9 +2390,14 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     // Aprobación (Total o Parcial)
     await db.execute({
       sql: `UPDATE inscripciones_cursos 
-            SET estatus='Inscrito', aprobado_por=?, actualizado_en=?, entrevista_estatus='Realizada'
+            SET estatus='Inscrito', aprobado_por=?, actualizado_en=?
             WHERE id_inscripcion=?`,
       args: [req.user?.id || null, now, id]
+    })
+
+    await db.execute({
+      sql: `UPDATE entrevistas SET estatus='Realizada', actualizado_en=? WHERE id_inscripcion=? AND eliminado_en IS NULL`,
+      args: [now, id]
     })
 
     let insertedAfiliadoId: number | null = null
@@ -2273,35 +2407,44 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     // Crear/Verificar Acceso
     try {
       const userRes = await db.execute({
-        sql: `SELECT id, reset_token_hash, activo FROM users WHERE email = ?`,
+        sql: `SELECT id FROM users WHERE email = ?`,
         args: [row.email]
       })
       const existingUser = userRes.rows[0] as any
 
       if (!existingUser) {
         shouldSendToken = true
-        const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 7)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-        const tokenHash = sha256(tokenToUse)
-
         const defaultRoles = row.programa_codigo === 'AFILIACION' ? '["estudiante", "afiliado"]' : '["estudiante"]'
 
         await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, ?, ?, ?)`,
-          args: [row.email, placeholderPass, defaultRoles, tokenHash, expiracion.toISOString()]
+          sql: `INSERT INTO users (email, password_hash, roles)
+                VALUES (?, ?, ?)`,
+          args: [row.email, placeholderPass, defaultRoles]
         })
-      } else if (existingUser.reset_token_hash) {
-        // Si el usuario existe pero tiene un token pendiente (no ha establecido contraseña)
-        shouldSendToken = true
+      } else {
+        // Check if there is an unused reset_password token
+        const tokCheck = await db.execute({
+          sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+          args: [row.email, now]
+        })
+        if (tokCheck.rows.length > 0) {
+          shouldSendToken = true
+        }
+      }
+
+      if (shouldSendToken) {
         const expiracion = new Date()
         expiracion.setDate(expiracion.getDate() + 7)
-        const tokenHash = sha256(tokenToUse)
-
+        // clean up old tokens
         await db.execute({
-          sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
-          args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+          sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
+          args: [row.email]
+        })
+        await db.execute({
+          sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+                VALUES (?, 'reset_password', ?, 0, ?)`,
+          args: [tokenToUse, row.email, expiracion.toISOString()]
         })
       }
     } catch (err) {
@@ -2319,14 +2462,6 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     }
     // --------------------------------------------------
 
-    // Si tiene id_curso, descontar cupo
-    if (row.id_curso) {
-      await db.execute({
-        sql: `UPDATE cursos SET cupos_disponibles = cupos_disponibles - 1 WHERE id_curso = ? AND cupos_disponibles > 0`,
-        args: [row.id_curso],
-      })
-    }
-
     // Registrar módulos CIEBO
     if (resultado === 'Aprobado' || (resultado === 'Parcial' && Array.isArray(modulosConvalidados))) {
       const modulos = resultado === 'Aprobado' ? [1, 2, 3, 4, 5] : modulosConvalidados
@@ -2335,7 +2470,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       if (targetAfiliadoId) {
         for (const num of modulos) {
           await db.execute({
-            sql: `INSERT INTO convalidaciones_cibir (id_afiliado, modulo, estatus, evaluado_por)
+            sql: `INSERT INTO acreditaciones_cibir (id_afiliado, modulo, estatus, evaluado_por)
                   VALUES (?, ?, 'aprobado', ?)
                   ON CONFLICT(id_afiliado, modulo) DO UPDATE SET estatus='aprobado', fecha_evaluacion=strftime('%Y-%m-%dT%H:%M:%SZ','now')`,
             args: [targetAfiliadoId, num, req.user?.id || null]
@@ -2371,7 +2506,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
  * Aprueba una preinscripción sin pasar por entrevista.
  * Genera acceso al portal y notifica al estudiante.
  */
-export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Response): Promise<void> => {
+export const adminAprobarModulo = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) {
@@ -2420,35 +2555,44 @@ export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Respo
     // Crear/Verificar Acceso
     try {
       const userRes = await db.execute({
-        sql: `SELECT id, reset_token_hash FROM users WHERE email = ?`,
+        sql: `SELECT id FROM users WHERE email = ?`,
         args: [row.email]
       })
       const existingUser = userRes.rows[0] as any
 
       if (!existingUser) {
         shouldSendToken = true
-        const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 7)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-        const tokenHash = sha256(tokenToUse)
-
         const defaultRoles = row.programa_codigo === 'AFILIACION' ? '["estudiante", "afiliado"]' : '["estudiante"]'
 
         await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, ?, ?, ?)`,
-          args: [row.email, placeholderPass, defaultRoles, tokenHash, expiracion.toISOString()]
+          sql: `INSERT INTO users (email, password_hash, roles)
+                VALUES (?, ?, ?)`,
+          args: [row.email, placeholderPass, defaultRoles]
         })
-      } else if (existingUser.reset_token_hash) {
-        // Si el usuario existe pero tiene un token pendiente (no ha establecido contraseña)
-        shouldSendToken = true
+      } else {
+        // Check if there is an unused reset_password token
+        const tokCheck = await db.execute({
+          sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+          args: [row.email, now]
+        })
+        if (tokCheck.rows.length > 0) {
+          shouldSendToken = true
+        }
+      }
+
+      if (shouldSendToken) {
         const expiracion = new Date()
         expiracion.setDate(expiracion.getDate() + 7)
-        const tokenHash = sha256(tokenToUse)
-
+        // clean up old tokens
         await db.execute({
-          sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
-          args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+          sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
+          args: [row.email]
+        })
+        await db.execute({
+          sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+                VALUES (?, 'reset_password', ?, 0, ?)`,
+          args: [tokenToUse, row.email, expiracion.toISOString()]
         })
       }
     } catch (err) {
@@ -2462,15 +2606,6 @@ export const adminAprobarPreinscripcionDirecta = async (req: Request, res: Respo
       } catch (err) {
         console.error('Error al mapear preinscripción a afiliado:', err)
       }
-    }
-    // --------------------------------------------------
-
-    // Si tiene id_curso, descontar cupo
-    if (row.id_curso) {
-      await db.execute({
-        sql: `UPDATE cursos SET cupos_disponibles = cupos_disponibles - 1 WHERE id_curso = ? AND cupos_disponibles > 0`,
-        args: [row.id_curso],
-      })
     }
 
     // Enviar correo de bienvenida con acceso a password
@@ -2524,13 +2659,7 @@ export const adminRechazarPreinscripcion = async (req: Request, res: Response): 
       return
     }
 
-    // Si pasó de Inscrito a Rechazado, devolver el cupo
-    if (current.rows.length > 0 && current.rows[0].estatus === 'Inscrito' && current.rows[0].id_curso) {
-      await db.execute({
-        sql: `UPDATE cursos SET cupos_disponibles = cupos_disponibles + 1 WHERE id_curso = ?`,
-        args: [current.rows[0].id_curso],
-      })
-    }
+    // No es necesario actualizar cupos_disponibles (se calculan dinámicamente)
 
     // Obtener detalles del estudiante para enviar el correo de rechazo
     try {
@@ -2622,9 +2751,9 @@ export const adminDeleteInscripcion = async (req: Request, res: Response): Promi
 
     // Si es el único registro de este estudiante, podemos hacer una limpieza profunda
     if (!hasOtherInscriptions) {
-      // a. Borrar documentos adjuntos
+      // a. Borrar documentos
       await db.execute({
-        sql: `DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?`,
+        sql: `DELETE FROM documentos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?`,
         args: [idEstudiante]
       })
 
@@ -2853,10 +2982,10 @@ export const adminGetEstudianteDocumentos = async (req: Request, res: Response):
       return
     }
     const result = await db.execute({
-      sql: `SELECT id_documento, tipo_doc, url, nombre_archivo, creado_en
-            FROM documentos_adjuntos
-            WHERE entidad_tipo = 'estudiante' AND entidad_id = ?
-            ORDER BY tipo_doc, creado_en ASC`,
+      sql: `SELECT id_documento, tipo_archivo as tipo_doc, url, nombre_archivo, fecha_subida as creado_en
+            FROM documentos
+            WHERE entidad_tipo = 'estudiante' AND entidad_id = ? AND eliminado_en IS NULL
+            ORDER BY tipo_archivo, fecha_subida ASC`,
       args: [id],
     })
     res.json({ success: true, data: result.rows })
@@ -2928,7 +3057,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     if (targetInscripcionStatus === 'Inscrito' && row.email) {
       try {
         const userRes = await db.execute({
-          sql: `SELECT id, reset_token_hash FROM users WHERE email = ?`,
+          sql: `SELECT id FROM users WHERE email = ?`,
           args: [row.email]
         })
         const existingUser = userRes.rows[0] as any
@@ -2939,30 +3068,38 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
         if (!existingUser) {
           shouldSendToken = true
           tokenToUse = randomUUID()
-          const expiracion = new Date()
-          expiracion.setDate(expiracion.getDate() + 7)
           const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-          const tokenHash = sha256(tokenToUse)
-
           const defaultRoles = (row.programa_codigo === 'AFILIACION' && targetAfiliadoStatus === 'Afiliado') ? '["estudiante", "afiliado"]' : '["estudiante"]'
 
           await db.execute({
-            sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                  VALUES (?, ?, ?, ?, ?)`,
-            args: [row.email, placeholderPass, defaultRoles, tokenHash, expiracion.toISOString()]
+            sql: `INSERT INTO users (email, password_hash, roles)
+                  VALUES (?, ?, ?)`,
+            args: [row.email, placeholderPass, defaultRoles]
           })
-        } else if (existingUser.reset_token_hash && (etapa === 5 || etapa === 6)) {
-          // El usuario ya existe pero tiene un token pendiente (no ha establecido contraseña)
-          // Solo actualizamos y enviamos token si estamos en etapa de aprobación (Inscripción/Afiliación)
-          shouldSendToken = true
-          tokenToUse = randomUUID()
+        } else if (etapa === 5 || etapa === 6) {
+          // El usuario ya existe. Check if there is an unused reset_password token (indicating they haven't set their password yet)
+          const tokCheck = await db.execute({
+            sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+            args: [row.email, now]
+          })
+          if (tokCheck.rows.length > 0) {
+            shouldSendToken = true
+            tokenToUse = randomUUID()
+          }
+        }
+
+        if (shouldSendToken && tokenToUse) {
           const expiracion = new Date()
           expiracion.setDate(expiracion.getDate() + 7)
-          const tokenHash = sha256(tokenToUse)
-
+          
           await db.execute({
-            sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
-            args: [tokenHash, expiracion.toISOString(), now, existingUser.id]
+            sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
+            args: [row.email]
+          })
+          await db.execute({
+            sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+                  VALUES (?, 'reset_password', ?, 0, ?)`,
+            args: [tokenToUse, row.email, expiracion.toISOString()]
           })
         }
 
@@ -3210,6 +3347,564 @@ export const adminToggleCorredorStatus = async (req: Request, res: Response): Pr
     res.status(500).json({ success: false, message: 'Error al actualizar estado de corredor' })
   }
 }
+
+export const adminGetModulosInscripcion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, message: 'id de inscripción inválido' })
+      return
+    }
+
+    const insRes = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
+                   c.titulo as curso_nombre
+            FROM inscripciones_cursos ic
+            LEFT JOIN cursos c ON ic.id_curso = c.id_curso
+            WHERE ic.id_inscripcion = ?`,
+      args: [id]
+    })
+
+    if (insRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada' })
+      return
+    }
+
+    const ins = insRes.rows[0] as any
+    let templateModulos: any[] = []
+    let progressModulos: any[] = []
+
+    if (ins.programa_codigo === 'CIBIR') {
+      templateModulos = [
+        { nombre_modulo: 'Módulo 1', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 2', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 3', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 4', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 5', obligatorio: 1, profesor: null }
+      ]
+
+      const afRes = await db.execute({
+        sql: `SELECT id_afiliado FROM afiliados a
+              JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+
+      if (afRes.rows.length > 0) {
+        const idAfiliado = afRes.rows[0].id_afiliado
+        const cibirProgRes = await db.execute({
+          sql: `SELECT modulo as num_modulo, estatus, evaluado_por, fecha_evaluacion, observaciones as nota_admin
+                FROM acreditaciones_cibir
+                WHERE id_afiliado = ?`,
+          args: [idAfiliado]
+        })
+        progressModulos = cibirProgRes.rows.map((r: any) => ({
+          ...r,
+          nombre_modulo: `Módulo ${r.num_modulo}`,
+          estatus: r.estatus ? r.estatus.charAt(0).toUpperCase() + r.estatus.slice(1).toLowerCase() : 'Pendiente'
+        }))
+      }
+    } else {
+      const mcRes = await db.execute({
+        sql: `SELECT mc.nombre_modulo, mc.orden, mc.id_profesor,
+                     (p.nombres || ' ' || p.apellidos) AS profesor
+              FROM modulos_curso mc
+              LEFT JOIN profesores prof ON mc.id_profesor = prof.id_profesor
+              LEFT JOIN personas p ON prof.id_persona = p.id
+              WHERE mc.id_curso = ?
+              ORDER BY mc.orden ASC`,
+        args: [ins.id_curso || 0]
+      })
+
+      templateModulos = mcRes.rows as any[]
+      if (templateModulos.length === 0) {
+        templateModulos = [{ nombre_modulo: 'Módulo General', id_profesor: null, profesor: null }]
+      }
+
+      const miRes = await db.execute({
+        sql: `SELECT nombre_modulo, estatus, aprobado_por, fecha_evaluacion, nota_admin FROM modulos_inscripcion WHERE id_inscripcion = ?`,
+        args: [id]
+      })
+      progressModulos = miRes.rows as any[]
+    }
+
+    const modulos = templateModulos.map(tm => {
+      const prog = progressModulos.find(pm => pm.nombre_modulo === tm.nombre_modulo)
+      return {
+        nombre_modulo: tm.nombre_modulo,
+        id_profesor: tm.id_profesor || null,
+        profesor: tm.profesor || null,
+        estatus: prog ? prog.estatus : 'Pendiente',
+        aprobado_por: prog ? prog.aprobado_por : null,
+        fecha_evaluacion: prog ? prog.fecha_evaluacion : null,
+        nota_admin: prog ? prog.nota_admin : null
+      }
+    })
+
+    res.json({
+      success: true,
+      data: {
+        id_inscripcion: ins.id_inscripcion,
+        curso_nombre: ins.curso_nombre || ins.programa_codigo || 'Curso',
+        completado: ins.completado,
+        modulos
+      }
+    })
+  } catch (error) {
+    console.error('adminGetModulosInscripcion:', error)
+    res.status(500).json({ success: false, message: 'Error al obtener módulos' })
+  }
+}
+
+export const adminAprobarModuloInscripcion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const nombreModulo = req.params.nombre as string
+    if (!Number.isFinite(id) || !nombreModulo) {
+      res.status(400).json({ success: false, message: 'id de inscripción o nombre de módulo inválido' })
+      return
+    }
+
+    const userId = (req.user as any)?.id || null
+    const now = new Date().toISOString()
+
+    const insRes = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado
+            FROM inscripciones_cursos ic
+            WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
+      args: [id]
+    })
+
+    if (insRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada o estudiante no está admitido' })
+      return
+    }
+
+    const ins = insRes.rows[0] as any
+
+    if (ins.programa_codigo === 'CIBIR') {
+      const afRes = await db.execute({
+        sql: `SELECT id_afiliado FROM afiliados a
+              JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+
+      if (afRes.rows.length === 0) {
+        res.status(404).json({ success: false, message: 'Afiliado no encontrado para el estudiante' })
+        return
+      }
+
+      const idAfiliado = afRes.rows[0].id_afiliado
+      const match = nombreModulo.match(/Módulo\s+(\d+)/i)
+      const num = match ? Number(match[1]) : 1
+      
+      await db.execute({
+        sql: `INSERT INTO acreditaciones_cibir (id_afiliado, modulo, estatus, evaluado_por, fecha_evaluacion, observaciones)
+              VALUES (?, ?, 'aprobado', ?, ?, NULL)
+              ON CONFLICT(id_afiliado, modulo) DO UPDATE SET
+                estatus = 'aprobado',
+                evaluado_por = ?,
+                fecha_evaluacion = ?,
+                observaciones = NULL`,
+        args: [idAfiliado, num, userId, now, userId, now]
+      })
+
+      const cibirAproRes = await db.execute({
+        sql: `SELECT COUNT(*) as c FROM acreditaciones_cibir WHERE id_afiliado = ? AND estatus = 'aprobado'`,
+        args: [idAfiliado]
+      })
+      const cibirAprobados = Number(cibirAproRes.rows[0].c)
+
+      if (cibirAprobados === 5) {
+        await db.execute({
+          sql: `UPDATE afiliados SET cibir_acreditado = 1, estatus = '6_INSCRIPCION', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
+          args: [now, idAfiliado]
+        })
+        await db.execute({
+          sql: `UPDATE inscripciones_cursos SET completado = 1, actualizado_en = ? WHERE id_inscripcion = ?`,
+          args: [now, id]
+        })
+        const { emitirComprobanteSiCompleto } = await import('../lib/certificados.js')
+        await emitirComprobanteSiCompleto(id)
+      }
+    } else {
+      await db.execute({
+        sql: `INSERT INTO modulos_inscripcion (id_inscripcion, nombre_modulo, estatus, aprobado_por, fecha_evaluacion, nota_admin)
+              VALUES (?, ?, 'Aprobado', ?, ?, NULL)
+              ON CONFLICT(id_inscripcion, nombre_modulo) DO UPDATE SET
+                estatus = 'Aprobado',
+                aprobado_por = ?,
+                fecha_evaluacion = ?,
+                nota_admin = NULL`,
+        args: [id, nombreModulo, userId, now, userId, now]
+      })
+
+      const mcRes = await db.execute({
+        sql: `SELECT nombre_modulo FROM modulos_curso WHERE id_curso = ?`,
+        args: [ins.id_curso || 0]
+      })
+      let obligatorios = mcRes.rows.map((r: any) => r.nombre_modulo)
+      if (obligatorios.length === 0) {
+        obligatorios = ['Módulo General']
+      }
+
+      const miRes = await db.execute({
+        sql: `SELECT nombre_modulo FROM modulos_inscripcion WHERE id_inscripcion = ? AND estatus = 'Aprobado'`,
+        args: [id]
+      })
+      const aprobados = miRes.rows.map((r: any) => r.nombre_modulo)
+
+      const completadoTodo = obligatorios.every(ob => aprobados.includes(ob))
+
+      if (completadoTodo) {
+        await db.execute({
+          sql: `UPDATE inscripciones_cursos SET completado = 1, actualizado_en = ? WHERE id_inscripcion = ?`,
+          args: [now, id]
+        })
+        const { emitirComprobanteSiCompleto } = await import('../lib/certificados.js')
+        await emitirComprobanteSiCompleto(id)
+      }
+    }
+
+    res.json({ success: true, message: 'Módulo aprobado con éxito' })
+  } catch (error) {
+    console.error('adminAprobarModuloInscripcion:', error)
+    res.status(500).json({ success: false, message: 'Error al aprobar módulo' })
+  }
+}
+
+export const adminRechazarModuloInscripcion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const nombreModulo = req.params.nombre as string
+    const { notaAdmin } = req.body
+    if (!Number.isFinite(id) || !nombreModulo) {
+      res.status(400).json({ success: false, message: 'id de inscripción o nombre de módulo inválido' })
+      return
+    }
+
+    const userId = (req.user as any)?.id || null
+    const now = new Date().toISOString()
+
+    const insRes = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante
+            FROM inscripciones_cursos ic
+            WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
+      args: [id]
+    })
+
+    if (insRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada o estudiante no está admitido' })
+      return
+    }
+
+    const ins = insRes.rows[0] as any
+
+    if (ins.programa_codigo === 'CIBIR') {
+      const afRes = await db.execute({
+        sql: `SELECT id_afiliado FROM afiliados a
+              JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+
+      if (afRes.rows.length === 0) {
+        res.status(404).json({ success: false, message: 'Afiliado no encontrado para el estudiante' })
+        return
+      }
+
+      const idAfiliado = afRes.rows[0].id_afiliado
+      const match = nombreModulo.match(/Módulo\s+(\d+)/i)
+      const num = match ? Number(match[1]) : 1
+
+      await db.execute({
+        sql: `INSERT INTO acreditaciones_cibir (id_afiliado, modulo, estatus, evaluado_por, fecha_evaluacion, observaciones)
+              VALUES (?, ?, 'rechazado', ?, ?, ?)
+              ON CONFLICT(id_afiliado, modulo) DO UPDATE SET
+                estatus = 'rechazado',
+                evaluado_por = ?,
+                fecha_evaluacion = ?,
+                observaciones = ?`,
+        args: [idAfiliado, num, userId, now, notaAdmin || null, userId, now, notaAdmin || null]
+      })
+
+      await db.execute({
+        sql: `UPDATE afiliados SET cibir_acreditado = 0, estatus = '5_CIBIR', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
+        args: [now, idAfiliado]
+      })
+      await db.execute({
+        sql: `UPDATE inscripciones_cursos SET completado = 0, actualizado_en = ? WHERE id_inscripcion = ?`,
+        args: [now, id]
+      })
+    } else {
+      await db.execute({
+        sql: `INSERT INTO modulos_inscripcion (id_inscripcion, nombre_modulo, estatus, aprobado_por, fecha_evaluacion, nota_admin)
+              VALUES (?, ?, 'Rechazado', ?, ?, ?)
+              ON CONFLICT(id_inscripcion, nombre_modulo) DO UPDATE SET
+                estatus = 'Rechazado',
+                aprobado_por = ?,
+                fecha_evaluacion = ?,
+                nota_admin = ?`,
+        args: [id, nombreModulo, userId, now, notaAdmin || null, userId, now, notaAdmin || null]
+      })
+
+      await db.execute({
+        sql: `UPDATE inscripciones_cursos SET completado = 0, actualizado_en = ? WHERE id_inscripcion = ?`,
+        args: [now, id]
+      })
+    }
+
+    res.json({ success: true, message: 'Módulo rechazado con éxito' })
+  } catch (error) {
+    console.error('adminRechazarModuloInscripcion:', error)
+    res.status(500).json({ success: false, message: 'Error al rechazar módulo' })
+  }
+}
+
+export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, message: 'id de inscripción inválido' })
+      return
+    }
+
+    const userId = (req.user as any)?.id || null
+    const now = new Date().toISOString()
+
+    const insRes = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado
+            FROM inscripciones_cursos ic
+            WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
+      args: [id]
+    })
+
+    if (insRes.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada o estudiante no está admitido' })
+      return
+    }
+
+    const ins = insRes.rows[0] as any
+
+    if (ins.programa_codigo === 'CIBIR') {
+      const afRes = await db.execute({
+        sql: `SELECT id_afiliado FROM afiliados a
+              JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+
+      if (afRes.rows.length === 0) {
+        res.status(404).json({ success: false, message: 'Afiliado no encontrado para el estudiante' })
+        return
+      }
+
+      const idAfiliado = afRes.rows[0].id_afiliado
+
+      for (let num = 1; num <= 5; num++) {
+        await db.execute({
+          sql: `INSERT INTO acreditaciones_cibir (id_afiliado, modulo, estatus, evaluado_por, fecha_evaluacion, observaciones)
+                VALUES (?, ?, 'aprobado', ?, ?, NULL)
+                ON CONFLICT(id_afiliado, modulo) DO UPDATE SET
+                  estatus = 'aprobado',
+                  evaluado_por = ?,
+                  fecha_evaluacion = ?,
+                  observaciones = NULL`,
+          args: [idAfiliado, num, userId, now, userId, now]
+        })
+      }
+
+      await db.execute({
+        sql: `UPDATE afiliados SET cibir_acreditado = 1, estatus = '6_INSCRIPCION', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
+        args: [now, idAfiliado]
+      })
+    } else {
+      const mcRes = await db.execute({
+        sql: `SELECT nombre_modulo FROM modulos_curso WHERE id_curso = ?`,
+        args: [ins.id_curso || 0]
+      })
+      let numModulos = mcRes.rows.map((r: any) => r.nombre_modulo)
+      if (numModulos.length === 0) {
+        numModulos = ['Módulo General']
+      }
+
+      for (const name of numModulos) {
+        await db.execute({
+          sql: `INSERT INTO modulos_inscripcion (id_inscripcion, nombre_modulo, estatus, aprobado_por, fecha_evaluacion, nota_admin)
+                VALUES (?, ?, 'Aprobado', ?, ?, NULL)
+                ON CONFLICT(id_inscripcion, nombre_modulo) DO UPDATE SET
+                  estatus = 'Aprobado',
+                  aprobado_por = ?,
+                  fecha_evaluacion = ?,
+                  nota_admin = NULL`,
+          args: [id, name, userId, now, userId, now]
+        })
+      }
+    }
+
+    await db.execute({
+      sql: `UPDATE inscripciones_cursos SET completado = 1, actualizado_en = ? WHERE id_inscripcion = ?`,
+      args: [now, id]
+    })
+    const { emitirComprobanteSiCompleto } = await import('../lib/certificados.js')
+    await emitirComprobanteSiCompleto(id)
+
+    res.json({ success: true, message: 'Todos los módulos han sido aprobados con éxito' })
+  } catch (error) {
+    console.error('adminAprobarTodosModulosInscripcion:', error)
+    res.status(500).json({ success: false, message: 'Error al aprobar todos los módulos' })
+  }
+}
+
+export const adminListProfesores = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db.execute({
+      sql: `SELECT pr.id_profesor, pr.id_persona, pr.id_afiliado,
+                   p.nombres, p.apellidos, p.cedula, p.email, p.telefono,
+                   a.codigo as codigo_afiliado
+            FROM profesores pr
+            JOIN personas p ON pr.id_persona = p.id
+            LEFT JOIN afiliados a ON pr.id_afiliado = a.id_afiliado
+            ORDER BY p.nombres, p.apellidos`,
+      args: []
+    });
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('adminListProfesores:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener profesores' });
+  }
+}
+
+export const adminListPersonasDisponibles = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db.execute({
+      sql: `SELECT p.id, p.nombres, p.apellidos, p.cedula, p.email, p.telefono,
+                   a.id_afiliado, a.codigo as codigo_afiliado
+            FROM personas p
+            LEFT JOIN afiliados a ON a.id_persona = p.id
+            WHERE p.id NOT IN (SELECT id_persona FROM profesores)
+            ORDER BY p.nombres, p.apellidos`,
+      args: []
+    });
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('adminListPersonasDisponibles:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener personas disponibles' });
+  }
+}
+
+export const adminCreateProfesor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id_persona, id_afiliado, nombres, apellidos, cedula_tipo, cedula, email, telefono } = req.body;
+    const now = new Date().toISOString();
+
+    let targetPersonaId: number | null = null;
+    let targetAfiliadoId: number | null = id_afiliado ? Number(id_afiliado) : null;
+
+    if (id_persona) {
+      targetPersonaId = Number(id_persona);
+    } else if (targetAfiliadoId) {
+      // If affiliate is selected, fetch their persona ID
+      const afRes = await db.execute({
+        sql: `SELECT id_persona FROM afiliados WHERE id_afiliado = ?`,
+        args: [targetAfiliadoId]
+      });
+      if (afRes.rows.length > 0) {
+        targetPersonaId = Number(afRes.rows[0].id_persona);
+      } else {
+        res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
+        return;
+      }
+    }
+
+    if (!targetPersonaId) {
+      // We need to create a new persona
+      if (!nombres || !apellidos || !cedula || !email) {
+        res.status(400).json({ success: false, message: 'Nombres, apellidos, cédula y email son obligatorios para crear un profesor nuevo' });
+        return;
+      }
+
+      // Check duplicates in personas
+      const existRes = await db.execute({
+        sql: `SELECT id FROM personas WHERE email = ? OR cedula = ? LIMIT 1`,
+        args: [email.trim(), cedula.trim()]
+      });
+
+      if (existRes.rows.length > 0) {
+        targetPersonaId = Number(existRes.rows[0].id);
+        
+        // Also check if they are linked to an affiliate
+        const afRes = await db.execute({
+          sql: `SELECT id_afiliado FROM afiliados WHERE id_persona = ? LIMIT 1`,
+          args: [targetPersonaId]
+        });
+        if (afRes.rows.length > 0) {
+          targetAfiliadoId = Number(afRes.rows[0].id_afiliado);
+        }
+      } else {
+        // Insert into personas
+        const insertPersona = await db.execute({
+          sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, creado_en)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            nombres.trim(),
+            apellidos.trim(),
+            cedula_tipo || 'V',
+            cedula.trim(),
+            email.trim(),
+            telefono ? telefono.trim() : null,
+            now
+          ]
+        });
+        targetPersonaId = Number(insertPersona.lastInsertRowid);
+      }
+    }
+
+    // Check if already a professor
+    const profRes = await db.execute({
+      sql: `SELECT id_profesor FROM profesores WHERE id_persona = ?`,
+      args: [targetPersonaId]
+    });
+
+    if (profRes.rows.length > 0) {
+      res.status(400).json({ success: false, message: 'Esta persona ya está registrada como profesor' });
+      return;
+    }
+
+    // Insert into profesores
+    await db.execute({
+      sql: `INSERT INTO profesores (id_persona, id_afiliado, creado_en) VALUES (?, ?, ?)`,
+      args: [targetPersonaId, targetAfiliadoId, now]
+    });
+
+    res.status(201).json({ success: true, message: 'Profesor registrado con éxito' });
+  } catch (error: any) {
+    console.error('adminCreateProfesor:', error);
+    res.status(500).json({ success: false, message: 'Error al registrar profesor: ' + error.message });
+  }
+}
+
+export const adminDeleteProfesor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, message: 'ID de profesor inválido' });
+      return;
+    }
+
+    await db.execute({
+      sql: `DELETE FROM profesores WHERE id_profesor = ?`,
+      args: [id]
+    });
+
+    res.json({ success: true, message: 'Profesor eliminado con éxito' });
+  } catch (error) {
+    console.error('adminDeleteProfesor:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar profesor' });
+  }
+}
+
 
 
 

@@ -24,6 +24,7 @@ interface CursoDB {
   creado_en: string;
   actualizado_en: string | null;
   instructor_nombre?: string;
+  modulos?: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -45,6 +46,7 @@ const CursosAdminPanel = () => {
   const [cursos, setCursos] = useState<CursoDB[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingCurso, setViewingCurso] = useState<CursoDB | null>(null);
+  const [profesores, setProfesores] = useState<any[]>([]);
 
   // States for Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,14 +66,24 @@ const CursosAdminPanel = () => {
   };
   
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    nombre: string;
+    descripcion: string;
+    imagen_url: string;
+    cupos_totales: number;
+    precio: string;
+    fecha_inicio: string;
+    id_instructor: number;
+    modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
+  }>({
     nombre: '',
     descripcion: '',
     imagen_url: '',
     cupos_totales: 30,
     precio: '0',
     fecha_inicio: '',
-    id_instructor: 1, // default
+    id_instructor: 1,
+    modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
   });
 
   const headers: Record<string, string> = token
@@ -93,11 +105,29 @@ const CursosAdminPanel = () => {
     }
   };
 
+  const fetchProfesores = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/academia/profesores`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (json.success) {
+        setProfesores(json.data);
+      }
+    } catch (e) {
+      console.error('Error fetching profesores:', e);
+    }
+  };
+
   useEffect(() => {
-    fetchCursos();
-  }, []);
+    if (token) {
+      fetchCursos();
+      fetchProfesores();
+    }
+  }, [token]);
 
   const handleOpenModal = (curso?: CursoDB) => {
+    fetchProfesores(); // Refresh list when modal opens
     if (curso) {
       setEditingId(curso.id_curso);
       setFormData({
@@ -108,6 +138,7 @@ const CursosAdminPanel = () => {
         precio: curso.precio === 'Gratis' ? '0' : curso.precio?.replace('$', '').trim() || '0',
         fecha_inicio: curso.fecha_inicio || '',
         id_instructor: curso.id_instructor || 1,
+        modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
       });
     } else {
       setEditingId(null);
@@ -119,6 +150,7 @@ const CursosAdminPanel = () => {
         precio: '0',
         fecha_inicio: '',
         id_instructor: 1,
+        modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
       });
     }
     setIsModalOpen(true);
@@ -397,6 +429,80 @@ const CursosAdminPanel = () => {
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
                     value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} 
                   />
+                </div>
+
+                <div className="space-y-3 border-t border-gray-100 pt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos del Curso</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextNum = formData.modulos.length + 1;
+                        setFormData({
+                          ...formData,
+                          modulos: [
+                            ...formData.modulos,
+                            { nombre_modulo: `Módulo ${nextNum}`, id_profesor: null, orden: nextNum - 1 }
+                          ]
+                        });
+                      }}
+                      className="text-xs font-bold text-[#00B870] hover:underline"
+                    >
+                      + Agregar Módulo
+                    </button>
+                  </div>
+
+                  {formData.modulos.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No hay módulos definidos. Se creará uno por defecto.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {formData.modulos.map((mod, index) => (
+                        <div key={index} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                          <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Nombre del módulo"
+                            value={mod.nombre_modulo}
+                            onChange={(e) => {
+                              const newMods = [...formData.modulos];
+                              newMods[index].nombre_modulo = e.target.value;
+                              setFormData({ ...formData, modulos: newMods });
+                            }}
+                            className="flex-1 bg-white rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                          />
+                          <select
+                            value={mod.id_profesor || ''}
+                            onChange={(e) => {
+                              const val = e.target.value ? Number(e.target.value) : null;
+                              const newMods = [...formData.modulos];
+                              newMods[index].id_profesor = val;
+                              setFormData({ ...formData, modulos: newMods });
+                            }}
+                            className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                          >
+                            <option value="">Profesor (Opcional)</option>
+                            {profesores.map(p => (
+                              <option key={p.id_profesor} value={p.id_profesor}>
+                                {p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newMods = formData.modulos.filter((_, idx) => idx !== index)
+                                .map((m, idx) => ({ ...m, orden: idx }));
+                              setFormData({ ...formData, modulos: newMods });
+                            }}
+                            className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-6 flex justify-end gap-3">

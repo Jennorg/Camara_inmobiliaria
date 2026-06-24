@@ -34,7 +34,7 @@ describe('CMS Admin Endpoints', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         titulo: 'Noticia de Prueba',
-        extracto: 'Esta es una noticia de prueba generada por el test.',
+        contenido: 'Esta es una noticia de prueba generada por el test.',
         publicado: 0
       })
     

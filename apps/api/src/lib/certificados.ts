@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import { db } from './db.js'
 import { enviarCorreoComprobanteGraduacion } from './email.js'
+import { env } from '../config/env.js'
 
 export function nuevoCodigoValidacion(): string {
   return `CIV-${randomBytes(6).toString('hex').toUpperCase()}`
@@ -45,8 +46,8 @@ export async function emitirComprobanteSiCompleto(
     const codigo = nuevoCodigoValidacion()
     try {
       await db.execute({
-        sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, fecha_emision) VALUES (?, ?, ?)`,
-        args: [idInscripcion, codigo, fecha],
+        sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, fecha_emision) VALUES (?, ?, ?, ?)`,
+        args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, fecha],
       })
       insertedCodigo = codigo
       break
@@ -111,26 +112,26 @@ export async function ensureCibirCertificate(idAfiliado: number): Promise<void> 
   try {
     // 1. Obtener datos del afiliado
     const afiRes = await db.execute({
-      sql: `SELECT id_afiliado, id_persona, id_empresa, cibir_convalidado FROM afiliados WHERE id_afiliado = ?`,
+      sql: `SELECT id_afiliado, id_persona, id_empresa, cibir_acreditado FROM afiliados WHERE id_afiliado = ?`,
       args: [idAfiliado]
     })
     if (afiRes.rows.length === 0) return
     const afi = afiRes.rows[0] as any
 
-    // 2. Contar módulos aprobados en convalidaciones_cibir
+    // 2. Contar módulos aprobados en acreditaciones_cibir
     const countRes = await db.execute({
-      sql: `SELECT COUNT(*) as approved_count FROM convalidaciones_cibir WHERE id_afiliado = ? AND estatus = 'aprobado'`,
+      sql: `SELECT COUNT(*) as approved_count FROM acreditaciones_cibir WHERE id_afiliado = ? AND estatus = 'aprobado'`,
       args: [idAfiliado]
     })
     const approvedCount = Number((countRes.rows[0] as any).approved_count)
 
-    const isCibirApproved = Number(afi.cibir_convalidado) === 1 || approvedCount === 5
+    const isCibirApproved = Number(afi.cibir_acreditado) === 1 || approvedCount === 5
     if (!isCibirApproved) return
 
-    // Auto-corregir cibir_convalidado = 1 en afiliados si no lo tenía
-    if (Number(afi.cibir_convalidado) !== 1) {
+    // Auto-corregir cibir_acreditado = 1 en afiliados si no lo tenía
+    if (Number(afi.cibir_acreditado) !== 1) {
       await db.execute({
-        sql: `UPDATE afiliados SET cibir_convalidado = 1, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id_afiliado = ?`,
+        sql: `UPDATE afiliados SET cibir_acreditado = 1, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id_afiliado = ?`,
         args: [idAfiliado]
       })
     }
@@ -209,8 +210,8 @@ export async function ensureCibirCertificate(idAfiliado: number): Promise<void> 
         const codigo = nuevoCodigoValidacion()
         try {
           await db.execute({
-            sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, fecha_emision) VALUES (?, ?, ?)`,
-            args: [idInscripcion, codigo, fecha],
+            sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, fecha_emision) VALUES (?, ?, ?, ?)`,
+            args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, fecha],
           })
           insertedCodigo = codigo
           break

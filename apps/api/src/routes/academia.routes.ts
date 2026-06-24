@@ -13,13 +13,21 @@ import {
   adminListPreinscripciones,
   adminRechazarPreinscripcion,
   adminCompletarCursoEstudiante,
-  adminAprobarPreinscripcionDirecta,
+  adminAprobarModulo,
   academiaAdminGuards,
   adminRemitirACibir,
   adminCambiarEtapaInscripcion,
   adminBuscarReferenciaAfiliado,
   adminToggleCorredorStatus,
   adminDeleteInscripcion,
+  adminGetModulosInscripcion,
+  adminAprobarModuloInscripcion,
+  adminRechazarModuloInscripcion,
+  adminAprobarTodosModulosInscripcion,
+  adminListProfesores,
+  adminListPersonasDisponibles,
+  adminCreateProfesor,
+  adminDeleteProfesor,
 } from '../controllers/academia.controller.js'
 
 const router = Router()
@@ -58,7 +66,7 @@ router.patch('/inscripciones/:id/agendar-entrevista', adminAgendarEntrevista)
 router.patch('/inscripciones/:id/finalizar-entrevista', adminFinalizarEntrevista)
 
 // PATCH /api/academia/inscripciones/:id/aprobar-directo
-router.patch('/inscripciones/:id/aprobar-directo', adminAprobarPreinscripcionDirecta)
+router.patch('/inscripciones/:id/aprobar-directo', adminAprobarModulo)
 
 // PATCH /api/academia/inscripciones/:id/remitir-cibir
 router.patch('/inscripciones/:id/remitir-cibir', adminRemitirACibir)
@@ -75,6 +83,12 @@ router.delete('/inscripciones/:id', adminDeleteInscripcion)
 // PATCH /api/academia/inscripciones/:id/completar
 router.patch('/inscripciones/:id/completar', adminCompletarCursoEstudiante)
 
+// Módulos de inscripciones
+router.get('/inscripciones/:id/modulos', adminGetModulosInscripcion)
+router.patch('/inscripciones/:id/modulos/:nombre/aprobar', adminAprobarModuloInscripcion)
+router.patch('/inscripciones/:id/modulos/:nombre/rechazar', adminRechazarModuloInscripcion)
+router.patch('/inscripciones/:id/modulos/aprobar-todos', adminAprobarTodosModulosInscripcion)
+
 // PATCH /api/academia/inscripciones/:id/cambiar-etapa
 router.patch('/inscripciones/:id/cambiar-etapa', adminCambiarEtapaInscripcion)
 
@@ -83,6 +97,12 @@ router.get('/afiliados/referencia', adminBuscarReferenciaAfiliado)
 
 // PATCH /api/academia/inscripciones/:id/toggle-corredor
 router.patch('/inscripciones/:id/toggle-corredor', adminToggleCorredorStatus)
+
+// Gestión de profesores
+router.get('/profesores', adminListProfesores)
+router.post('/profesores', adminCreateProfesor)
+router.delete('/profesores/:id', adminDeleteProfesor)
+router.get('/personas-disponibles', adminListPersonasDisponibles)
 
 export { router as academiaRoutes }
 

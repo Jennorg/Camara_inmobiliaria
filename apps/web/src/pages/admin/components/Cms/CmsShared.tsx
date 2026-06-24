@@ -161,6 +161,7 @@ const LIST_MAX     = 560
 const LIST_DEFAULT = 320   // sensible starting width — room for titles + metadata
 
 export function ListDetail<T extends { id?: string | number }>({
+  listHeader,
   items,
   loading,
   renderRow,
@@ -172,6 +173,7 @@ export function ListDetail<T extends { id?: string | number }>({
   isEditing,
   setIsEditing,
 }: {
+  listHeader?: React.ReactNode
   items: T[]
   loading: boolean
   renderRow: (item: T, selected: boolean) => React.ReactNode
@@ -255,6 +257,11 @@ export function ListDetail<T extends { id?: string | number }>({
         ].join(' ')}
         style={showDetail ? { width: listWidth, transition: colTransition } : undefined}
       >
+        {listHeader && (
+          <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-2 flex-shrink-0">
+            {listHeader}
+          </div>
+        )}
         {/* Item list with stagger entrance */}
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {loading ? <Loading /> : (

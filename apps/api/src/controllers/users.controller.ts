@@ -148,8 +148,6 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       }
       const hash = await bcrypt.hash(password, 10)
       fields.push('password_hash = ?'); args.push(hash)
-      fields.push('reset_token_hash = NULL')
-      fields.push('reset_token_expira = NULL')
       fields.push('activo = 1')
     }
 
@@ -205,8 +203,8 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<vo
 
     const tokenHash = sha256(token)
     await db.execute({
-      sql: `UPDATE users SET reset_token_hash = ?, reset_token_expira = ?, actualizado_en = ? WHERE id = ?`,
-      args: [tokenHash, expira, new Date().toISOString(), userId],
+      sql: `INSERT INTO tokens_accion (token, tipo, email, fecha_expiracion) VALUES (?, 'reset_password', ?, ?)`,
+      args: [tokenHash, user.email, expira],
     })
 
     const { enviarCorreoResetAdmin } = await import('../lib/email.js')

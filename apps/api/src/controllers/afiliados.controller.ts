@@ -128,14 +128,17 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
       sql: `
         SELECT 
           ic.id_inscripcion,
+          ic.id_curso,
           ic.programa_codigo,
           ic.tipo_inscripcion,
           ic.estatus,
           ic.estatus_academico,
+          ic.completado,
           ic.creado_en as fecha_inscripcion,
           cu.titulo as curso_nombre,
           cu.categoria as nivel_academico,
           cu.imagen_url,
+          (SELECT COUNT(*) FROM modulos_curso mc WHERE mc.id_curso = cu.id_curso) as num_modulos,
           a.estatus as afiliado_estatus,
           a.id_afiliado
         FROM inscripciones_cursos ic
@@ -194,13 +197,47 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
         const modulos = await db.execute({
           sql: `
             SELECT modulo, estatus, fecha_evaluacion 
-            FROM convalidaciones_cibir 
+            FROM acreditaciones_cibir 
             WHERE id_afiliado = ?
             ORDER BY modulo ASC
           `,
           args: [finalIdAfiliado]
         });
         cursoData.modulos = modulos.rows;
+      } else if (row.id_curso) {
+        const mcRes = await db.execute({
+          sql: `SELECT mc.nombre_modulo, mc.orden, mc.id_profesor,
+                       (p.nombres || ' ' || p.apellidos) AS profesor
+                FROM modulos_curso mc
+                LEFT JOIN profesores prof ON mc.id_profesor = prof.id_profesor
+                LEFT JOIN personas p ON prof.id_persona = p.id
+                WHERE mc.id_curso = ?
+                ORDER BY mc.orden ASC`,
+          args: [row.id_curso]
+        })
+        let templateModulos = mcRes.rows as any[]
+        if (templateModulos.length === 0) {
+          templateModulos = [{ nombre_modulo: 'Módulo General', id_profesor: null, profesor: null }]
+        }
+        
+        const miRes = await db.execute({
+          sql: `SELECT nombre_modulo, estatus, fecha_evaluacion, nota_admin FROM modulos_inscripcion WHERE id_inscripcion = ?`,
+          args: [row.id_inscripcion]
+        })
+        const progressModulos = miRes.rows as any[]
+        
+        cursoData.num_modulos = templateModulos.length
+        cursoData.modulos = templateModulos.map(tm => {
+          const prog = progressModulos.find(pm => pm.nombre_modulo === tm.nombre_modulo)
+          return {
+            nombre_modulo: tm.nombre_modulo,
+            id_profesor: tm.id_profesor || null,
+            profesor: tm.profesor || null,
+            estatus: prog ? prog.estatus.toLowerCase() : 'pendiente',
+            fecha_evaluacion: prog ? prog.fecha_evaluacion : null,
+            nota_admin: prog ? prog.nota_admin : null
+          }
+        })
       }
       
       cursosConModulos.push(cursoData);
@@ -267,15 +304,15 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
 
     // Buscar documentos adjuntos
     const docsResult = await db.execute({
-      sql: `SELECT id_documento, tipo_doc, url, nombre_archivo, creado_en
-            FROM documentos_adjuntos
+      sql: `SELECT id_documento, tipo_archivo as tipo_doc, url, nombre_archivo, fecha_subida as creado_en
+            FROM documentos
             WHERE (entidad_tipo = 'afiliado' AND entidad_id = ?)
                OR (entidad_tipo = 'empresa' AND entidad_id = ?)
                OR (entidad_tipo = 'estudiante' AND entidad_id = (
                  SELECT id_estudiante FROM estudiantes 
                  WHERE id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)
                ))
-            ORDER BY creado_en ASC`,
+            ORDER BY fecha_subida ASC`,
       args: [
         afiliado.id_afiliado, 
         afiliado.id_empresa || -1, 
@@ -346,17 +383,10 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     }
 
     // Verificar si ya tiene una verificación pendiente y eliminarla para usar una nueva
-    const existeVerificacion = await db.execute({
-      sql: `SELECT token_verificacion, fecha_expiracion FROM verificaciones_email WHERE email = ? OR cedula_rif = ?`,
-      args: [email, cleanedCedulaRif]
+    await db.execute({
+      sql: `DELETE FROM tokens_accion WHERE tipo = 'verificacion_email' AND (LOWER(email) = ? OR json_extract(data_json, '$.cedula_rif') = ?)`,
+      args: [email.toLowerCase(), cleanedCedulaRif]
     });
-
-    if (existeVerificacion.rows.length > 0) {
-      await db.execute({
-        sql: `DELETE FROM verificaciones_email WHERE email = ? OR cedula_rif = ?`,
-        args: [email, cleanedCedulaRif]
-      });
-    }
 
     // Crear token de validación
     const token = randomUUID();
@@ -365,21 +395,23 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     const fechaExpiracionStr = expiracion.toISOString();
 
     // Insertar en tabla de verificaciones
-    await db.execute({
-      sql: `INSERT INTO verificaciones_email (
-              token_verificacion, 
-              nombre_completo, 
-              cedula_rif, 
-              email, 
-              telefono, 
-              fecha_expiracion
-            ) VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [token, nombreCompleto, cleanedCedulaRif, email, telefono, fechaExpiracionStr]
+    const dataJson = JSON.stringify({
+      nombre_completo: nombreCompleto,
+      cedula_rif: cleanedCedulaRif,
+      telefono: telefono
     });
 
-    // NOTA: Para no romper el esquema de verificaciones_email (que es temporal), 
-    // podríamos guardar el resto en una tabla meta o simplemente permitir que se completen después.
-    // Por ahora, asumiremos que los campos extra se guardan si existen en req.body para el paso final.
+    await db.execute({
+      sql: `INSERT INTO tokens_accion (
+              token, 
+              tipo, 
+              email, 
+              data_json, 
+              usado, 
+              fecha_expiracion
+            ) VALUES (?, 'verificacion_email', ?, ?, 0, ?)`,
+      args: [token, email, dataJson, fechaExpiracionStr]
+    });
 
     // 4. Enviar email con Resend
     if (env.NODE_ENV !== 'development') {
@@ -412,9 +444,9 @@ export const verificarEmail = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Token es requerido' });
     }
 
-    // Buscar token en verificaciones_email
+    // Buscar token en tokens_accion
     const verificacion = await db.execute({
-      sql: `SELECT * FROM verificaciones_email WHERE token_verificacion = ?`,
+      sql: `SELECT token, email, data_json, fecha_expiracion FROM tokens_accion WHERE token = ? AND tipo = 'verificacion_email' AND usado = 0`,
       args: [token]
     });
 
@@ -422,7 +454,8 @@ export const verificarEmail = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Token inválido o no encontrado' });
     }
 
-    const registro = verificacion.rows[0];
+    const registro = verificacion.rows[0] as any;
+    const data = JSON.parse(registro.data_json || '{}');
     const fechaExpiracion = new Date(registro.fecha_expiracion as string);
 
     if (fechaExpiracion < new Date()) {
@@ -432,12 +465,12 @@ export const verificarEmail = async (req: Request, res: Response) => {
     // Idempotencia: si el afiliado ya existe (por intento previo o doble request),
     // consideramos la verificación exitosa y limpiamos el token.
     const yaExiste = await db.execute({
-      sql: `SELECT p.*, a.id_afiliado FROM personas p JOIN afiliados a ON a.id_persona = p.id WHERE p.email = ? OR p.cedula = ? LIMIT 1`,
-      args: [registro.email, registro.cedula_rif],
+      sql: `SELECT p.*, a.id_afiliado FROM personas p JOIN afiliados a ON a.id_persona = p.id WHERE LOWER(p.email) = ? OR p.cedula = ? LIMIT 1`,
+      args: [registro.email.toLowerCase(), data.cedula_rif],
     });
     if (yaExiste.rows.length > 0) {
       await db.execute({
-        sql: `DELETE FROM verificaciones_email WHERE token_verificacion = ?`,
+        sql: `UPDATE tokens_accion SET usado = 1 WHERE token = ?`,
         args: [token]
       });
       return res.status(200).json({
@@ -455,12 +488,12 @@ export const verificarEmail = async (req: Request, res: Response) => {
 
     try {
       // Intentamos parsear nombres/apellidos del nombre_completo almacenado en la verificación
-      const fullName = String(registro.nombre_completo || '').trim()
+      const fullName = String(data.nombre_completo || '').trim()
       const parts = fullName.split(' ')
       const apellidos = parts.length > 1 ? parts.slice(Math.ceil(parts.length / 2)).join(' ') : ''
       const nombres = parts.length > 1 ? parts.slice(0, Math.ceil(parts.length / 2)).join(' ') : fullName
 
-      const cedulaInput = String(registro.cedula_rif || '').trim()
+      const cedulaInput = String(data.cedula_rif || '').trim()
       const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i)
       const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V'
       const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '')
@@ -475,7 +508,7 @@ export const verificarEmail = async (req: Request, res: Response) => {
                 cedula, 
                 telefono
               ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || fullName, apellidos, registro.email, cedulaTipo, cedulaNumero, registro.telefono]
+        args: [nombres || fullName, apellidos, registro.email, cedulaTipo, cedulaNumero, data.telefono]
       });
 
       const idPersona = insertPersona.rows[0].id;
@@ -492,9 +525,9 @@ export const verificarEmail = async (req: Request, res: Response) => {
 
       const newAfiliado = insertAfiliado.rows[0] as any;
 
-      // Eliminar el token usado
+      // Marcar token como usado
       await db.execute({
-        sql: `DELETE FROM verificaciones_email WHERE token_verificacion = ?`,
+        sql: `UPDATE tokens_accion SET usado = 1 WHERE token = ?`,
         args: [token]
       });
 
@@ -632,7 +665,6 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     const updateResult = await db.execute({
       sql: `UPDATE afiliados 
             SET estatus = 'Afiliado', 
-                inscripcion_pagada = 1, 
                 codigo = ?, 
                 fecha_ultimo_cambio_estatus = ?, 
                 fecha_afiliacion = COALESCE(fecha_afiliacion, ?),
@@ -654,17 +686,14 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
         // Crear el usuario en estado "por configurar" (password aleatorio inútil)
         const placeholderPass = await bcrypt.hash(randomUUID(), 10);
 
-        // Insertar o actualizar usuario con el token hasheado
-        const resetTokenHash = sha256(resetToken)
+        // Insertar o actualizar usuario
         const insertUser = await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles, reset_token_hash, reset_token_expira)
-                VALUES (?, ?, '["afiliado"]', ?, ?)
+          sql: `INSERT INTO users (email, password_hash, roles)
+                VALUES (?, ?, '["afiliado"]')
                 ON CONFLICT(email) DO UPDATE SET 
-                  reset_token_hash = excluded.reset_token_hash, 
-                  reset_token_expira = excluded.reset_token_expira,
                   actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
                 RETURNING id`,
-          args: [afiliado.email, placeholderPass, resetTokenHash, expStr]
+          args: [afiliado.email, placeholderPass]
         });
 
         const newUserId = insertUser.rows[0].id;
@@ -672,6 +701,14 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
         await db.execute({
           sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ?`,
           args: [newUserId, id]
+        });
+
+        // Guardar token en tokens_accion
+        const resetTokenHash = sha256(resetToken)
+        await db.execute({
+          sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+                VALUES (?, 'reset_password', ?, 0, ?)`,
+          args: [resetTokenHash, afiliado.email, expStr]
         });
 
         // Enviar Correo de Aprobación
@@ -941,7 +978,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                COALESCE(e_redes.facebook, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END) as facebook,
                COALESCE(e_redes.linkedin, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END) as linkedin,
                COALESCE(e_redes.twitter, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END) as twitter,
-               e.banner_url as empresa_banner_url
+               NULL as empresa_banner_url
         FROM afiliados a
         JOIN personas p ON a.id_persona = p.id
         LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -1087,11 +1124,7 @@ export const formalizarInscripcion = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Todos los campos financieros son requeridos' });
     }
 
-    // Actualizar afiliados para marcar inscripcion_pagada = 1
-    await db.execute({
-      sql: `UPDATE afiliados SET inscripcion_pagada = 1 WHERE id_afiliado = ?`,
-      args: [requesterId]
-    });
+    // El registro financiero ahora se gestiona de forma externa o solo se notificará por correo/notificación de sistema.
 
     const userDisplayName = req.user!.nombre_completo || req.user!.email || 'Afiliado';
     NotificationService.notifyAdmins({
@@ -1125,7 +1158,7 @@ export const formalizarInscripcion = async (req: Request, res: Response) => {
 export const updateEstatusAfiliado = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { estatus, cibir_convalidado } = req.body;
+    const { estatus, cibir_acreditado } = req.body;
 
     // Estados válidos del nuevo flujo de 6 pasos
     const allowedStatuses = [
@@ -1148,9 +1181,9 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
       args.push(new Date().toISOString());
     }
 
-    if (cibir_convalidado !== undefined) {
-      setParts.push('cibir_convalidado = ?');
-      args.push(cibir_convalidado ? 1 : 0);
+    if (cibir_acreditado !== undefined) {
+      setParts.push('cibir_acreditado = ?');
+      args.push(cibir_acreditado ? 1 : 0);
     }
 
     if (setParts.length === 0) {
@@ -1187,7 +1220,7 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     }
 
     const afi = result.rows[0] as any;
-    if (Number(afi.cibir_convalidado) === 1) {
+    if (Number(afi.cibir_acreditado) === 1) {
       await ensureCibirCertificate(Number(id));
     }
 
@@ -1212,10 +1245,16 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     // Campos permitidos por entidad
+    // Mapear cibir_convalidado a cibir_acreditado
+    if (fields.cibir_convalidado !== undefined) {
+      fields.cibir_acreditado = fields.cibir_convalidado;
+      delete fields.cibir_convalidado;
+    }
+
     const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
-    const adminOnlyFields = ['estatus', 'cibir_convalidado', 'inscripcion_pagada', 'codigo', 'id_empresa', 'activo', 'foto_url'];
+    const adminOnlyFields = ['estatus', 'cibir_acreditado', 'codigo', 'id_empresa', 'activo', 'foto_url'];
     const afiliadoFields = [
-      'estatus', 'cibir_convalidado', 'inscripcion_pagada', 'tipo_afiliado',
+      'estatus', 'cibir_acreditado', 'tipo_afiliado',
       'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio', 'descripcion'
     ];
     const estudianteFields = ['es_corredor_inmobiliario'];
@@ -1440,18 +1479,18 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
         // Delete previous document of the same type across all associated entities to prevent duplicates
         await db.execute({
-          sql: `DELETE FROM documentos_adjuntos 
+          sql: `DELETE FROM documentos 
                 WHERE ((entidad_tipo = 'afiliado' AND entidad_id = ?)
                    OR (entidad_tipo = 'empresa' AND entidad_id = ?)
                    OR (entidad_tipo = 'estudiante' AND entidad_id = ?))
-                  AND tipo_doc = ?`,
+                  AND tipo_archivo = ?`,
           args: [Number(id), idEmpresa || -1, idEstudiante || -1, tipo_doc]
         });
 
         // Insert new one if URL is provided
         if (url) {
           await db.execute({
-            sql: `INSERT INTO documentos_adjuntos (entidad_tipo, entidad_id, tipo_doc, url, nombre_archivo)
+            sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo)
                   VALUES (?, ?, ?, ?, ?)`,
             args: [entidadTipo, entidadId, tipo_doc, url, nombre_archivo || null]
           });
@@ -1506,10 +1545,15 @@ export const generarInvitacionCorporativa = async (req: Request, res: Response):
       ? new Date(Date.now() + diasExpiracion * 86400000).toISOString()
       : null
 
+    const dataJson = JSON.stringify({
+      id_empresa: id,
+      nombre_empresa: nombreEmpresa
+    });
+
     await db.execute({
-      sql: `INSERT INTO invitaciones_empresa (id_empresa, token, nombre_empresa, activo, fecha_expiracion)
-            VALUES (?, ?, ?, 1, ?)`,
-      args: [id, token, nombreEmpresa, fechaExpiracion]
+      sql: `INSERT INTO tokens_accion (token, tipo, data_json, usado, fecha_expiracion)
+            VALUES (?, 'invitacion_empresa', ?, 0, ?)`,
+      args: [token, dataJson, fechaExpiracion || '9999-12-31T23:59:59Z']
     })
 
     res.status(201).json({
@@ -1538,12 +1582,14 @@ export const listarInvitacionesCorporativas = async (req: Request, res: Response
     }
 
     const result = await db.execute({
-      sql: `SELECT ic.*, 
-              (SELECT COUNT(*) FROM afiliados WHERE id_empresa = ic.id_empresa) as total_afiliados
-            FROM invitaciones_empresa ic
-            WHERE ic.id_empresa = ?
-            ORDER BY ic.creado_en DESC`,
-      args: [id]
+      sql: `SELECT id as id_invitacion, token, creado_en, fecha_expiracion,
+                   1 - usado as activo,
+                   (SELECT COUNT(*) FROM afiliados WHERE id_empresa = ?) as total_afiliados
+            FROM tokens_accion
+            WHERE tipo = 'invitacion_empresa'
+              AND CAST(json_extract(data_json, '$.id_empresa') AS INTEGER) = ?
+            ORDER BY creado_en DESC`,
+      args: [id, id]
     })
     res.json({ success: true, data: result.rows })
   } catch (error) {
@@ -1560,7 +1606,7 @@ export const revocarInvitacionCorporativa = async (req: Request, res: Response):
   try {
     const tokenId = Number(req.params.tokenId)
     await db.execute({
-      sql: `UPDATE invitaciones_empresa SET activo = 0 WHERE id_invitacion = ?`,
+      sql: `UPDATE tokens_accion SET usado = 1 WHERE id = ? AND tipo = 'invitacion_empresa'`,
       args: [tokenId]
     })
     res.json({ success: true, message: 'Invitación revocada.' })
@@ -1625,17 +1671,20 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
             
             SELECT 
               NULL as id_afiliado,
-              COALESCE(vp.nombres, '') || ' ' || COALESCE(vp.apellidos, '') as nombre_completo,
-              vp.cedula,
-              vp.email,
-              vp.telefono,
+              COALESCE(json_extract(ta.data_json, '$.nombres'), '') || ' ' || COALESCE(json_extract(ta.data_json, '$.apellidos'), '') as nombre_completo,
+              json_extract(ta.data_json, '$.cedula') as cedula,
+              ta.email as email,
+              json_extract(ta.data_json, '$.telefono') as telefono,
               'Pendiente' as estatus,
-              vp.creado_en as fecha_registro,
+              ta.creado_en as fecha_registro,
               'Solicitud' as fase
-            FROM verificaciones_preinscripciones vp
-            WHERE vp.id_empresa = ? AND vp.programa_interes = 'AFILIACION'
-              AND NOT EXISTS (SELECT 1 FROM inscripciones_cursos ic2 JOIN estudiantes e2 ON ic2.id_estudiante = e2.id_estudiante LEFT JOIN personas p3 ON e2.id_persona = p3.id WHERE LOWER(TRIM(p3.email)) = LOWER(TRIM(vp.email)))
-              AND NOT EXISTS (SELECT 1 FROM afiliados a3 JOIN personas p4 ON a3.id_persona = p4.id WHERE LOWER(TRIM(p4.email)) = LOWER(TRIM(vp.email)))
+            FROM tokens_accion ta
+            WHERE ta.tipo = 'preinscripcion'
+              AND CAST(json_extract(ta.data_json, '$.id_empresa') AS INTEGER) = ?
+              AND json_extract(ta.data_json, '$.programa_interes') = 'AFILIACION'
+              AND ta.usado = 0
+              AND NOT EXISTS (SELECT 1 FROM inscripciones_cursos ic2 JOIN estudiantes e2 ON ic2.id_estudiante = e2.id_estudiante LEFT JOIN personas p3 ON e2.id_persona = p3.id WHERE LOWER(TRIM(p3.email)) = LOWER(TRIM(ta.email)))
+              AND NOT EXISTS (SELECT 1 FROM afiliados a3 JOIN personas p4 ON a3.id_persona = p4.id WHERE LOWER(TRIM(p4.email)) = LOWER(TRIM(ta.email)))
             
             ORDER BY fecha_registro DESC`,
       args: [id, id, id]
@@ -1723,24 +1772,35 @@ export const publicValidarInvitacion = async (req: Request, res: Response): Prom
   try {
     const token = String(req.params.token ?? '').trim()
     const result = await db.execute({
-      sql: `SELECT ic.*, e.estatus as estatus_empresa
-            FROM invitaciones_empresa ic
-            JOIN empresas e ON e.id_empresa = ic.id_empresa
-            WHERE ic.token = ? AND ic.activo = 1 LIMIT 1`,
+      sql: `SELECT id, token, data_json, fecha_expiracion
+            FROM tokens_accion
+            WHERE token = ? AND tipo = 'invitacion_empresa' AND usado = 0 LIMIT 1`,
       args: [token]
     })
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Link de invitación inválido o desactivado.' }); return
     }
     const inv = result.rows[0] as any
-    if (inv.fecha_expiracion && new Date(inv.fecha_expiracion) < new Date()) {
+    const data = JSON.parse(inv.data_json || '{}')
+    const idEmpresa = data.id_empresa
+    const nombreEmpresa = data.nombre_empresa
+
+    const compResult = await db.execute({
+      sql: `SELECT 1 FROM empresas WHERE id_empresa = ? AND eliminado_en IS NULL`,
+      args: [idEmpresa]
+    })
+    if (compResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Empresa asociada no encontrada.' }); return
+    }
+
+    if (inv.fecha_expiracion && inv.fecha_expiracion !== '9999-12-31T23:59:59Z' && new Date(inv.fecha_expiracion) < new Date()) {
       res.status(400).json({ success: false, message: 'Este link de invitación ha expirado.' }); return
     }
     res.json({
       success: true,
       data: {
-        nombreEmpresa: inv.nombre_empresa,
-        idEmpresa: inv.id_empresa,
+        nombreEmpresa,
+        idEmpresa,
         token: inv.token
       }
     })
@@ -1760,7 +1820,7 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 
     // Validar token
     const invRes = await db.execute({
-      sql: `SELECT * FROM invitaciones_empresa WHERE token = ? AND activo = 1 LIMIT 1`,
+      sql: `SELECT * FROM tokens_accion WHERE token = ? AND tipo = 'invitacion_empresa' AND usado = 0 LIMIT 1`,
       args: [token]
     })
     if (invRes.rows.length === 0) {
@@ -1818,7 +1878,7 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 
     res.status(201).json({
       success: true,
-      message: `Tu solicitud de afiliación a ${inv.nombre_empresa} fue recibida. Revisa tu correo para completar tu perfil y cargar documentos.`,
+      message: `Tu solicitud de afiliación a ${JSON.parse(inv.data_json || '{}').nombre_empresa || ''} fue recibida. Revisa tu correo para completar tu perfil y cargar documentos.`,
       data: { email, token: tokenVerif }
     })
   } catch (error) {
@@ -1856,19 +1916,15 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
     // 2. Preparar lote de borrado
     const batch: any[] = [];
 
-    // A. Borrar documentos adjuntos (No tienen FK formal con CASCADE en todos los casos)
+    // A. Borrar documentos (No tienen FK formal con CASCADE en todos los casos)
     batch.push({
-      sql: "DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'afiliado' AND entidad_id = ?",
+      sql: "DELETE FROM documentos WHERE entidad_tipo = 'afiliado' AND entidad_id = ?",
       args: [id]
     });
 
     if (id_empresa && tipo_afiliado === 'Corporativo') {
       batch.push({
-        sql: "DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'empresa' AND entidad_id = ?",
-        args: [id_empresa]
-      });
-      batch.push({
-        sql: "DELETE FROM documentos_empresa WHERE id_empresa = ?",
+        sql: "DELETE FROM documentos WHERE entidad_tipo = 'empresa' AND entidad_id = ?",
         args: [id_empresa]
       });
     }
@@ -1882,7 +1938,7 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
       if (estCheck.rows.length > 0) {
         const idEst = estCheck.rows[0].id_estudiante;
         batch.push({
-          sql: "DELETE FROM documentos_adjuntos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?",
+          sql: "DELETE FROM documentos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?",
           args: [idEst]
         });
         // inscripciones_cursos y certificados tienen ON DELETE CASCADE con estudiante/inscripcion
@@ -1893,12 +1949,8 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    // C. Borrar transacciones y usuario
+    // C. Borrar usuario
     if (id_user) {
-      batch.push({
-        sql: 'DELETE FROM transacciones WHERE id_user = ?',
-        args: [id_user]
-      });
       // notificaciones y refresh_tokens tienen ON DELETE CASCADE
       batch.push({
         sql: 'DELETE FROM users WHERE id = ?',
@@ -1921,14 +1973,15 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
       args: [id_persona]
     });
 
-    // F. Limpiar posibles preinscripciones o verificaciones pendientes con esos datos
+    // F. Limpiar posibles preinscripciones o verificaciones pendientes con esos datos en tokens_accion
     batch.push({
-      sql: 'DELETE FROM verificaciones_preinscripciones WHERE email = ? OR cedula = ? OR rif_numero = ?',
-      args: [email, cedula, empresa_rif || cedula]
-    });
-    batch.push({
-      sql: 'DELETE FROM verificaciones_email WHERE email = ? OR cedula_rif = ?',
-      args: [email, cedula]
+      sql: `DELETE FROM tokens_accion 
+            WHERE (tipo = 'preinscripcion' AND (LOWER(email) = ? OR json_extract(data_json, '$.cedula') = ? OR json_extract(data_json, '$.rif_numero') = ?))
+               OR (tipo = 'verificacion_email' AND (LOWER(email) = ? OR json_extract(data_json, '$.cedula_rif') = ?))`,
+      args: [
+        email.toLowerCase(), cedula, empresa_rif || cedula,
+        email.toLowerCase(), cedula
+      ]
     });
 
     // 3. Ejecutar todo en una transacción atómica
@@ -2834,7 +2887,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
 
         for (const doc of docs) {
           await tx.execute({
-            sql: `INSERT INTO documentos_adjuntos (entidad_tipo, entidad_id, tipo_doc, url, nombre_archivo, creado_en)
+            sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
                   VALUES ('empresa', ?, ?, ?, ?, ?)`,
             args: [newCompanyId, doc.tipo_doc || 'documento_empresa', doc.url, doc.nombre_archivo || null, now]
           });
@@ -2978,7 +3031,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
 
         for (const doc of documentos_empresa) {
           await tx.execute({
-            sql: `INSERT INTO documentos_adjuntos (entidad_tipo, entidad_id, tipo_doc, url, nombre_archivo, creado_en)
+            sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
                   VALUES ('empresa', ?, ?, ?, ?, ?)`,
             args: [newCompanyId, doc.tipo_doc || 'documento_empresa', doc.url, doc.nombre_archivo || null, now]
           });

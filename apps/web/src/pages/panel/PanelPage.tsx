@@ -39,7 +39,7 @@ import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel';
 
 // Componentes Administrativos
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel';
-import SuperAdminUsersPanel from '@/pages/admin/components/Users/SuperAdminUsersPanel';
+import { DirectivaPanel } from '@/pages/admin/components/Cms/DirectivaPanel';
 import AnalyticsPanel from '@/pages/admin/components/Analytics/AnalyticsPanel';
 import FormacionPanel from '@/pages/admin/components/Formacion/FormacionPanel';
 import MiembrosPanel from '@/pages/admin/components/Afiliados/MiembrosPanel';
@@ -77,12 +77,11 @@ const NAV_CMS = [
   { icon: Newspaper, label: 'CMS · Noticias' },
   { icon: FileText, label: 'CMS · Marco Legal' },
   { icon: Handshake, label: 'CMS · Convenios' },
-  { icon: Users, label: 'CMS · Directiva' },
   { icon: Settings, label: 'CMS · Configuración' },
 ];
 
 const NAV_SUPER_ADMIN = [
-  { icon: UserCog, label: 'Administradores' },
+  { icon: UserCog, label: 'Junta Directiva' },
 ];
 
 const NAV_DIVIDER_ADMIN = { icon: ShieldCheck, label: '— Administración —', isDivider: true };
@@ -343,9 +342,9 @@ const PanelPage = () => {
     if (activeTab === 'Solicitud de Afiliación') return <div className="col-span-1 lg:col-span-3"><WidgetSolicitudAfiliacion /></div>;
     if (activeTab === 'Mis Agentes') {
       if (isAdmin && user?.tipo_afiliado !== 'Corporativo') {
-        return <div className="col-span-1 lg:col-span-3"><AdminMisAgentesPanel /></div>;
+        return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
       }
-      return <div className="col-span-1 lg:col-span-3"><WidgetGestionAfiliadosCorp /></div>;
+      return <div className="col-span-1 lg:col-span-3 h-full"><WidgetGestionAfiliadosCorp /></div>;
     }
     if (activeTab === 'Configuración') return <SettingsPanel />;
 
@@ -355,7 +354,7 @@ const PanelPage = () => {
     if (activeTab === 'Directorio de Miembros') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><MiembrosPanel /></div>;
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;
     if (activeTab === 'Preinscripciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><PreinscripcionesPrincipalesPanel /></div>;
-    if (activeTab === 'Administradores') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs p-6 overflow-hidden"><SuperAdminUsersPanel /></div>;
+    if (activeTab === 'Junta Directiva') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs p-6 overflow-hidden"><DirectivaPanel /></div>;
     if (activeTab === 'Análisis y Métricas') return <div className="col-span-1 lg:col-span-3 h-full"><AnalyticsPanel /></div>;
     if (activeTab === 'Gestión de Formación') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><FormacionPanel /></div>;
 
@@ -382,7 +381,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Administradores', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>

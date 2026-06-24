@@ -23,16 +23,26 @@ export const getNoticias = async (req: Request, res: Response) => {
   }
 };
 
+const generateSlug = (str: string) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '') + '-' + Date.now();
+}
+
 export const createNoticia = async (req: Request, res: Response) => {
   try {
     const { titulo, contenido, imagen_url, publicado } = req.body;
     if (!titulo || !contenido) {
       return res.status(400).json({ success: false, message: 'titulo y contenido son requeridos' });
     }
+    const slug = generateSlug(titulo);
     const result = await db.execute({
-      sql: `INSERT INTO cms_noticias (titulo, contenido, imagen_url, publicado)
-            VALUES (?, ?, ?, ?) RETURNING *`,
-      args: [titulo, contenido, imagen_url ?? null, publicado !== undefined ? (publicado ? 1 : 0) : 1]
+      sql: `INSERT INTO cms_noticias (titulo, slug, contenido, imagen_url, publicado)
+            VALUES (?, ?, ?, ?, ?) RETURNING *`,
+      args: [titulo, slug, contenido, imagen_url ?? null, publicado !== undefined ? (publicado ? 1 : 0) : 1]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -189,7 +199,15 @@ export const deleteConvenio = async (req: Request, res: Response) => {
 
 export const getDirectiva = async (_req: Request, res: Response) => {
   try {
-    const result = await db.execute('SELECT * FROM cms_directiva ORDER BY orden ASC, id_miembro ASC');
+    const result = await db.execute(`
+      SELECT dc.*, 
+             p.nombres || ' ' || p.apellidos as nombre,
+             p.foto_url as foto_url
+      FROM directiva_cargos dc
+      JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
+      JOIN personas p ON a.id_persona = p.id
+      ORDER BY dc.orden ASC, dc.id ASC
+    `);
     return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('getDirectiva:', error);
@@ -199,11 +217,30 @@ export const getDirectiva = async (_req: Request, res: Response) => {
 
 export const createMiembroDirectiva = async (req: Request, res: Response) => {
   try {
-    const { nombre, cargo, foto_url, orden } = req.body;
-    if (!nombre || !cargo) return res.status(400).json({ success: false, message: 'nombre y cargo son requeridos' });
+    const { id_afiliado, cargo, periodo, orden, activo } = req.body;
+    if (!id_afiliado || !cargo) return res.status(400).json({ success: false, message: 'id_afiliado y cargo son requeridos' });
+
+    // Validar duplicado de afiliado en el mismo período
+    const checkAfi = await db.execute({
+      sql: `SELECT 1 FROM directiva_cargos WHERE id_afiliado = ? AND periodo = ? LIMIT 1`,
+      args: [Number(id_afiliado), periodo ?? null]
+    });
+    if (checkAfi.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'El afiliado ya forma parte de esta junta directiva' });
+    }
+
+    // Validar duplicado de cargo en el mismo período (insensible a mayúsculas/minúsculas)
+    const checkCargo = await db.execute({
+      sql: `SELECT 1 FROM directiva_cargos WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?)) AND periodo = ? LIMIT 1`,
+      args: [cargo, periodo ?? null]
+    });
+    if (checkCargo.rows.length > 0) {
+      return res.status(400).json({ success: false, message: `El cargo "${cargo}" ya está asignado en esta junta directiva` });
+    }
+
     const result = await db.execute({
-      sql: `INSERT INTO cms_directiva (nombre, cargo, foto_url, orden) VALUES (?, ?, ?, ?) RETURNING *`,
-      args: [nombre, cargo, foto_url ?? null, orden ?? 0]
+      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, periodo, orden, activo) VALUES (?, ?, ?, ?, ?) RETURNING *`,
+      args: [Number(id_afiliado), cargo, periodo ?? null, orden ?? 0, activo === false ? 0 : 1]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -215,10 +252,29 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
 export const updateMiembroDirectiva = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { nombre, cargo, foto_url, orden } = req.body;
+    const { id_afiliado, cargo, periodo, orden, activo } = req.body;
+
+    // Validar duplicado de afiliado en el mismo período (excluyendo el actual)
+    const checkAfi = await db.execute({
+      sql: `SELECT 1 FROM directiva_cargos WHERE id_afiliado = ? AND periodo = ? AND id <> ? LIMIT 1`,
+      args: [Number(id_afiliado), periodo ?? null, id]
+    });
+    if (checkAfi.rows.length > 0) {
+      return res.status(400).json({ success: false, message: 'El afiliado ya forma parte de esta junta directiva' });
+    }
+
+    // Validar duplicado de cargo en el mismo período (excluyendo el actual)
+    const checkCargo = await db.execute({
+      sql: `SELECT 1 FROM directiva_cargos WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?)) AND periodo = ? AND id <> ? LIMIT 1`,
+      args: [cargo, periodo ?? null, id]
+    });
+    if (checkCargo.rows.length > 0) {
+      return res.status(400).json({ success: false, message: `El cargo "${cargo}" ya está asignado en esta junta directiva` });
+    }
+
     const result = await db.execute({
-      sql: `UPDATE cms_directiva SET nombre=?, cargo=?, foto_url=?, orden=? WHERE id_miembro=? RETURNING *`,
-      args: [nombre, cargo, foto_url ?? null, orden ?? 0, id]
+      sql: `UPDATE directiva_cargos SET id_afiliado=?, cargo=?, periodo=?, orden=?, activo=? WHERE id=? RETURNING *`,
+      args: [Number(id_afiliado), cargo, periodo ?? null, orden ?? 0, activo ? 1 : 0, id]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Miembro no encontrado' });
     return res.json({ success: true, data: result.rows[0] });
@@ -230,7 +286,7 @@ export const updateMiembroDirectiva = async (req: Request, res: Response) => {
 
 export const deleteMiembroDirectiva = async (req: Request, res: Response) => {
   try {
-    await db.execute({ sql: 'DELETE FROM cms_directiva WHERE id_miembro=?', args: [String(req.params.id)] });
+    await db.execute({ sql: 'DELETE FROM directiva_cargos WHERE id=?', args: [String(req.params.id)] });
     return res.json({ success: true, message: 'Miembro eliminado' });
   } catch (error) {
     console.error('deleteMiembroDirectiva:', error);
@@ -362,74 +418,19 @@ export const deleteConfig = async (req: Request, res: Response) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getPaginasList = async (_req: Request, res: Response) => {
-  try {
-    const result = await db.execute({
-      sql: `SELECT slug, actualizado_en, length(contenido) AS contenido_len FROM cms_paginas ORDER BY slug ASC`,
-      args: [],
-    });
-    return res.json({ success: true, data: result.rows });
-  } catch (error) {
-    console.error('getPaginasList:', error);
-    return res.status(500).json({ success: false, message: 'Error al listar páginas CMS' });
-  }
+  return res.json({ success: true, data: [] });
 };
 
-export const getPaginaBySlug = async (req: Request, res: Response) => {
-  try {
-    const slug = String(req.params.slug || '').trim();
-    if (!slug) return res.status(400).json({ success: false, message: 'slug requerido' });
-    const result = await db.execute({
-      sql: `SELECT slug, contenido, actualizado_en FROM cms_paginas WHERE slug = ? LIMIT 1`,
-      args: [slug],
-    });
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Página no encontrada' });
-    }
-    return res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    console.error('getPaginaBySlug:', error);
-    return res.status(500).json({ success: false, message: 'Error al obtener página CMS' });
-  }
+export const getPaginaBySlug = async (_req: Request, res: Response) => {
+  return res.status(404).json({ success: false, message: 'Página no encontrada' });
 };
 
-export const upsertPagina = async (req: Request, res: Response) => {
-  try {
-    const slug = String(req.params.slug || '').trim();
-    const { contenido } = req.body as { contenido?: string };
-    if (!slug) return res.status(400).json({ success: false, message: 'slug requerido' });
-    if (typeof contenido !== 'string' || contenido.length === 0) {
-      return res.status(400).json({ success: false, message: 'contenido (JSON) es requerido' });
-    }
-    JSON.parse(contenido);
-    const now = new Date().toISOString();
-    const result = await db.execute({
-      sql: `INSERT INTO cms_paginas (slug, contenido, actualizado_en)
-            VALUES (?, ?, ?)
-            ON CONFLICT(slug) DO UPDATE SET
-              contenido = excluded.contenido,
-              actualizado_en = excluded.actualizado_en
-            RETURNING slug, actualizado_en`,
-      args: [slug, contenido, now],
-    });
-    return res.json({ success: true, data: result.rows[0] });
-  } catch (error: any) {
-    if (error instanceof SyntaxError) {
-      return res.status(400).json({ success: false, message: 'contenido no es JSON válido' });
-    }
-    console.error('upsertPagina:', error);
-    return res.status(500).json({ success: false, message: 'Error al guardar página CMS' });
-  }
+export const upsertPagina = async (_req: Request, res: Response) => {
+  return res.status(400).json({ success: false, message: 'La gestión de páginas dinámicas ha sido deshabilitada en esta versión del esquema.' });
 };
 
-export const deletePagina = async (req: Request, res: Response) => {
-  try {
-    const slug = String(req.params.slug || '').trim();
-    await db.execute({ sql: `DELETE FROM cms_paginas WHERE slug = ?`, args: [slug] });
-    return res.json({ success: true, message: 'Página eliminada' });
-  } catch (error) {
-    console.error('deletePagina:', error);
-    return res.status(500).json({ success: false, message: 'Error al eliminar página CMS' });
-  }
+export const deletePagina = async (_req: Request, res: Response) => {
+  return res.json({ success: true, message: 'Página eliminada o no existente' });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

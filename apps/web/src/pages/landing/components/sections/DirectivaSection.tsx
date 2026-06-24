@@ -19,7 +19,16 @@ export default function DirectivaSection() {
           const activos = (data.data || [])
             .filter((m: any) => m.activo !== 0 && m.activo !== false)
             .sort((a: any, b: any) => (a.orden || 0) - (b.orden || 0))
-          setDirectivaMembers(activos)
+          
+          const periods = Array.from(new Set(activos.map((m: any) => m.periodo).filter(Boolean))) as string[]
+          if (periods.length > 0) {
+            periods.sort((a, b) => b.localeCompare(a))
+            const mostRecentPeriod = periods[0]
+            const filteredByPeriod = activos.filter((m: any) => m.periodo === mostRecentPeriod)
+            setDirectivaMembers(filteredByPeriod)
+          } else {
+            setDirectivaMembers(activos)
+          }
         }
       })
       .catch(() => { })

@@ -122,7 +122,6 @@ export async function establecerAccesoPanelAfiliado(
     await db.execute({
       sql: `UPDATE users
             SET email = ?, password_hash = ?, activo = 1,
-                reset_token_hash = NULL, reset_token_expira = NULL,
                 actualizado_en = ?
             WHERE id = ?`,
       args: [email, passwordHash, now, userId],
@@ -139,7 +138,6 @@ export async function establecerAccesoPanelAfiliado(
       await db.execute({
         sql: `UPDATE users
               SET email = ?, password_hash = ?, roles = '["afiliado"]', activo = 1,
-                  reset_token_hash = NULL, reset_token_expira = NULL,
                   actualizado_en = ?
               WHERE id = ?`,
         args: [email, passwordHash, now, userId],
