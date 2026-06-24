@@ -203,7 +203,17 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
           `,
           args: [finalIdAfiliado]
         });
-        cursoData.modulos = modulos.rows;
+        const cibirNombres = [
+          'Negocio de Bienes Raíces',
+          'Nociones Jurídicas',
+          'Comercialización Inmobiliaria',
+          'Hábitos y Buenas Prácticas',
+          'Principios de Valoración'
+        ];
+        cursoData.modulos = modulos.rows.map((r: any) => ({
+          ...r,
+          nombre_modulo: `Módulo ${r.modulo}: ${cibirNombres[r.modulo - 1] || ''}`
+        }));
       } else if (row.id_curso) {
         const mcRes = await db.execute({
           sql: `SELECT mc.nombre_modulo, mc.orden, mc.id_profesor,

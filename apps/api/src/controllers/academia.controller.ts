@@ -1761,8 +1761,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const countArgs: any[] = []
 
     if (onlyCursos) {
-      // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados
-      baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND ic.programa_codigo <> 'AFILIACION'))")
+      // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR
+      baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND (ic.programa_codigo <> 'AFILIACION' OR af.estatus = '5_CIBIR')))")
     } else if (cursoId) {
       baseWhere.push('ic.id_curso = ?')
       countArgs.push(cursoId)
@@ -1811,11 +1811,11 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           ic.*,
           cur.titulo as curso_nombre,
           CASE 
-            WHEN ic.programa_codigo = 'CIBIR' THEN 5 
+            WHEN ic.programa_codigo = 'CIBIR' OR af.estatus = '5_CIBIR' THEN 5 
             ELSE COALESCE((SELECT COUNT(*) FROM modulos_curso mc WHERE mc.id_curso = ic.id_curso), 1)
           END as num_modulos,
           CASE
-            WHEN ic.programa_codigo = 'CIBIR' THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
+            WHEN ic.programa_codigo = 'CIBIR' OR af.estatus = '5_CIBIR' THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
             ELSE (SELECT COUNT(*) FROM modulos_inscripcion mi WHERE mi.id_inscripcion = ic.id_inscripcion AND mi.estatus = 'Aprobado')
           END as modulos_aprobados,
           e.id_estudiante,
@@ -1868,7 +1868,16 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
       args,
     })
 
-    res.json({ success: true, data: result.rows, meta: { counts } })
+    const mappedRows = result.rows.map((row: any) => {
+      const r = { ...row }
+      if (r.programa_codigo === 'AFILIACION' && r.afiliado_estatus === '5_CIBIR') {
+        r.programa_codigo = 'CIBIR'
+        r.curso_nombre = 'Programa CIBIR'
+      }
+      return r
+    })
+
+    res.json({ success: true, data: mappedRows, meta: { counts } })
   } catch (error) {
     console.error('adminListPreinscripciones:', error)
     res.status(500).json({ success: false, message: 'Error al obtener preinscripciones' })
@@ -3369,8 +3378,10 @@ export const adminGetModulosInscripcion = async (req: Request, res: Response): P
 
     const insRes = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
-                   c.titulo as curso_nombre
+                   c.titulo as curso_nombre, af.estatus as afiliado_estatus
             FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
             LEFT JOIN cursos c ON ic.id_curso = c.id_curso
             WHERE ic.id_inscripcion = ?`,
       args: [id]
@@ -3385,13 +3396,15 @@ export const adminGetModulosInscripcion = async (req: Request, res: Response): P
     let templateModulos: any[] = []
     let progressModulos: any[] = []
 
-    if (ins.programa_codigo === 'CIBIR') {
+    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+
+    if (isCibir) {
       templateModulos = [
-        { nombre_modulo: 'Módulo 1', obligatorio: 1, profesor: null },
-        { nombre_modulo: 'Módulo 2', obligatorio: 1, profesor: null },
-        { nombre_modulo: 'Módulo 3', obligatorio: 1, profesor: null },
-        { nombre_modulo: 'Módulo 4', obligatorio: 1, profesor: null },
-        { nombre_modulo: 'Módulo 5', obligatorio: 1, profesor: null }
+        { nombre_modulo: 'Módulo 1: Negocio de Bienes Raíces', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 2: Nociones Jurídicas', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 3: Comercialización Inmobiliaria', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 4: Hábitos y Buenas Prácticas', obligatorio: 1, profesor: null },
+        { nombre_modulo: 'Módulo 5: Principios de Valoración', obligatorio: 1, profesor: null }
       ]
 
       const afRes = await db.execute({
@@ -3409,9 +3422,16 @@ export const adminGetModulosInscripcion = async (req: Request, res: Response): P
                 WHERE id_afiliado = ?`,
           args: [idAfiliado]
         })
+        const cibirNombres = [
+          'Negocio de Bienes Raíces',
+          'Nociones Jurídicas',
+          'Comercialización Inmobiliaria',
+          'Hábitos y Buenas Prácticas',
+          'Principios de Valoración'
+        ]
         progressModulos = cibirProgRes.rows.map((r: any) => ({
           ...r,
-          nombre_modulo: `Módulo ${r.num_modulo}`,
+          nombre_modulo: `Módulo ${r.num_modulo}: ${cibirNombres[r.num_modulo - 1] || ''}`,
           estatus: r.estatus ? r.estatus.charAt(0).toUpperCase() + r.estatus.slice(1).toLowerCase() : 'Pendiente'
         }))
       }
@@ -3456,7 +3476,8 @@ export const adminGetModulosInscripcion = async (req: Request, res: Response): P
       success: true,
       data: {
         id_inscripcion: ins.id_inscripcion,
-        curso_nombre: ins.curso_nombre || ins.programa_codigo || 'Curso',
+        curso_nombre: isCibir ? 'Programa CIBIR' : (ins.curso_nombre || ins.programa_codigo || 'Curso'),
+        programa_codigo: isCibir ? 'CIBIR' : ins.programa_codigo,
         completado: ins.completado,
         modulos
       }
@@ -3480,8 +3501,11 @@ export const adminAprobarModuloInscripcion = async (req: Request, res: Response)
     const now = new Date().toISOString()
 
     const insRes = await db.execute({
-      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
+                   af.estatus as afiliado_estatus
             FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
             WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
       args: [id]
     })
@@ -3493,7 +3517,9 @@ export const adminAprobarModuloInscripcion = async (req: Request, res: Response)
 
     const ins = insRes.rows[0] as any
 
-    if (ins.programa_codigo === 'CIBIR') {
+    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+
+    if (isCibir) {
       const afRes = await db.execute({
         sql: `SELECT id_afiliado FROM afiliados a
               JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
@@ -3599,8 +3625,11 @@ export const adminRechazarModuloInscripcion = async (req: Request, res: Response
     const now = new Date().toISOString()
 
     const insRes = await db.execute({
-      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante,
+                   af.estatus as afiliado_estatus
             FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
             WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
       args: [id]
     })
@@ -3612,7 +3641,9 @@ export const adminRechazarModuloInscripcion = async (req: Request, res: Response
 
     const ins = insRes.rows[0] as any
 
-    if (ins.programa_codigo === 'CIBIR') {
+    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+
+    if (isCibir) {
       const afRes = await db.execute({
         sql: `SELECT id_afiliado FROM afiliados a
               JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
@@ -3685,8 +3716,11 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
     const now = new Date().toISOString()
 
     const insRes = await db.execute({
-      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado
+      sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
+                   af.estatus as afiliado_estatus
             FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
             WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
       args: [id]
     })
@@ -3698,7 +3732,9 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
 
     const ins = insRes.rows[0] as any
 
-    if (ins.programa_codigo === 'CIBIR') {
+    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+
+    if (isCibir) {
       const afRes = await db.execute({
         sql: `SELECT id_afiliado FROM afiliados a
               JOIN estudiantes e ON e.id_persona = a.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa)
