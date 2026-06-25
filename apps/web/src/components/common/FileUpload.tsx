@@ -25,6 +25,8 @@ interface FileUploadProps {
   cropShape?: 'round' | 'rect';
   /** Alineación por defecto del encuadre */
   defaultCropPosition?: 'center' | 'bottom';
+  /** Indica si hay un error de validación externo */
+  hasError?: boolean;
 }
 
 export default function FileUpload({ 
@@ -41,6 +43,7 @@ export default function FileUpload({
   cropAspect = 1 / 1,
   cropShape = 'rect',
   defaultCropPosition = 'center',
+  hasError = false,
 }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -229,9 +232,9 @@ export default function FileUpload({
               ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10'
               : uploadedUrl 
                 ? 'border-emerald-500/30 bg-emerald-50/30 hover:bg-emerald-50/50' 
-                : error 
-                  ? 'border-rose-500/30 bg-rose-50/30'
-                  : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
+                : error || hasError 
+                ? 'border-rose-500 bg-rose-50/30 ring-4 ring-rose-500/10'
+                : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
         }`}
       >
         {!file && !uploadedUrl ? (

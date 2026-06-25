@@ -2107,10 +2107,81 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
       args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales]
     });
 
+    const newAfiliado = resultA.rows[0];
+    const idAfiliado = newAfiliado.id_afiliado;
+
+    // 5. Insertar Documentos si se enviaron
+    const documentos = req.body.documentos;
+    if (documentos && Array.isArray(documentos) && documentos.length > 0) {
+      for (const doc of documentos) {
+        const { tipo_doc, url, nombre_archivo } = doc;
+        if (!tipo_doc || !url) continue;
+
+        let entidadTipo = 'afiliado';
+        let entidadId = Number(idAfiliado);
+
+        if (['registro_mercantil', 'rif_empresa', 'cedula_representante'].includes(tipo_doc) && finalIdEmpresa) {
+          entidadTipo = 'empresa';
+          entidadId = Number(finalIdEmpresa);
+        }
+
+        await db.execute({
+          sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo)
+                VALUES (?, ?, ?, ?, ?)`,
+          args: [entidadTipo, entidadId, tipo_doc, url, nombre_archivo || null]
+        });
+      }
+    }
+
+    // 6. Preparar acceso al sistema (Usuario + Token de Seguridad) y enviar correo
+    try {
+      if (email) {
+        const resetToken = randomUUID();
+        const expiracion = new Date();
+        expiracion.setDate(expiracion.getDate() + 30); // 30 días de validez
+        const expStr = expiracion.toISOString();
+
+        // Crear el usuario en estado "por configurar"
+        const placeholderPass = await bcrypt.hash(randomUUID(), 10);
+
+        // Insertar o actualizar usuario
+        const insertUser = await db.execute({
+          sql: `INSERT INTO users (email, password_hash, roles)
+                VALUES (?, ?, '["afiliado"]')
+                ON CONFLICT(email) DO UPDATE SET 
+                  actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+                RETURNING id`,
+          args: [email.trim().toLowerCase(), placeholderPass]
+        });
+
+        const newUserId = insertUser.rows[0].id;
+
+        await db.execute({
+          sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ?`,
+          args: [newUserId, idAfiliado]
+        });
+
+        // Guardar token en tokens_accion
+        const resetTokenHash = sha256(resetToken);
+        await db.execute({
+          sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+                VALUES (?, 'reset_password', ?, 0, ?)`,
+          args: [resetTokenHash, email.trim().toLowerCase(), expStr]
+        });
+
+        const displayName = `${nombres || ''} ${apellidos || ''}`.trim() || empresa_razon_social || 'Afiliado';
+
+        // Enviar Correo de Aprobación/Acceso
+        await enviarCorreoAprobacion(displayName, email.trim().toLowerCase(), resetToken);
+      }
+    } catch (err) {
+      console.error('Error preparando acceso para afiliado en createAfiliado:', err);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Afiliado creado correctamente',
-      data: resultA.rows[0]
+      data: newAfiliado
     });
   } catch (error) {
     console.error('Error en createAfiliado:', error);

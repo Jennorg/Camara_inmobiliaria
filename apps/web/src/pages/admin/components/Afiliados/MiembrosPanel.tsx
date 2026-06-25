@@ -67,6 +67,16 @@ export default function MiembrosPanel() {
   const [showNewModal, setShowNewModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
 
+  // Documentos para nuevo miembro manual
+  const [newUrlCv, setNewUrlCv] = useState('')
+  const [newNameCv, setNewNameCv] = useState('')
+  const [newUrlTitulo, setNewUrlTitulo] = useState('')
+  const [newNameTitulo, setNewNameTitulo] = useState('')
+  const [newUrlRegistro, setNewUrlRegistro] = useState('')
+  const [newNameRegistro, setNewNameRegistro] = useState('')
+  const [newUrlTituloRep, setNewUrlTituloRep] = useState('')
+  const [newNameTituloRep, setNewNameTituloRep] = useState('')
+
   // Cambio directo por administrador
   const [showChangeTypeModal, setShowChangeTypeModal] = useState(false)
   const [pendingNewType, setPendingNewType] = useState<'Natural' | 'Corporativo' | 'Agente Corporativo' | ''>('')
@@ -465,6 +475,14 @@ export default function MiembrosPanel() {
 
   const openNewMemberModal = () => {
     setNewForm({ tipo_afiliado: 'Natural', estatus: 'Afiliado' })
+    setNewUrlCv('')
+    setNewNameCv('')
+    setNewUrlTitulo('')
+    setNewNameTitulo('')
+    setNewUrlRegistro('')
+    setNewNameRegistro('')
+    setNewUrlTituloRep('')
+    setNewNameTituloRep('')
     setShowNewModal(true)
   }
 
@@ -503,12 +521,39 @@ export default function MiembrosPanel() {
       if (tipoFinal === 'Corporativo') {
         if (!newForm.empresa_razon_social?.trim()) errors.empresa_razon_social = true
         if (!newForm.empresa_rif_numero?.trim()) errors.empresa_rif_numero = true
+        
+        // Validar documentos obligatorios de Corporativo
+        if (!newUrlCv) errors.newUrlCv = true
+        if (!newUrlTitulo) errors.newUrlTitulo = true // RIF de la Empresa
+        if (!newUrlRegistro) errors.newUrlRegistro = true
+        if (!newUrlTituloRep) errors.newUrlTituloRep = true
+      } else {
+        // Natural / Agente / Agente Corporativo
+        if (!newForm.nivel_academico) errors.nivel_academico = true
+        if (!newUrlCv) errors.newUrlCv = true
+        if (newForm.nivel_academico && newForm.nivel_academico !== 'Bachiller' && !newUrlTitulo) {
+          errors.newUrlTitulo = true
+        }
       }
 
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors)
         setCreateError('Por favor, complete todos los campos obligatorios marcados en rojo.')
         return
+      }
+
+      // Preparar listado de documentos
+      const documentosToUpload: Array<{ tipo_doc: string; url: string; nombre_archivo: string }> = []
+      if (tipoFinal === 'Corporativo') {
+        if (newUrlCv) documentosToUpload.push({ tipo_doc: 'cv', url: newUrlCv, nombre_archivo: newNameCv || 'CV_Representante.pdf' })
+        if (newUrlTitulo) documentosToUpload.push({ tipo_doc: 'rif_empresa', url: newUrlTitulo, nombre_archivo: newNameTitulo || 'RIF_Empresa.pdf' })
+        if (newUrlRegistro) documentosToUpload.push({ tipo_doc: 'registro_mercantil', url: newUrlRegistro, nombre_archivo: newNameRegistro || 'Registro_Mercantil.pdf' })
+        if (newUrlTituloRep) documentosToUpload.push({ tipo_doc: 'titulo_representante', url: newUrlTituloRep, nombre_archivo: newNameTituloRep || 'Titulo_Representante.pdf' })
+      } else {
+        if (newUrlCv) documentosToUpload.push({ tipo_doc: 'cv', url: newUrlCv, nombre_archivo: newNameCv || 'CV.pdf' })
+        if (newUrlTitulo && newForm.nivel_academico !== 'Bachiller') {
+          documentosToUpload.push({ tipo_doc: 'titulo', url: newUrlTitulo, nombre_archivo: newNameTitulo || 'Titulo.pdf' })
+        }
       }
 
       const rifEmpresa = newForm.empresa_rif_numero?.trim();
@@ -525,6 +570,7 @@ export default function MiembrosPanel() {
         telefono: tipoFinal === 'Corporativo'
           ? (newForm.empresa_telefono || newForm.telefono)
           : newForm.telefono,
+        documentos: documentosToUpload
       }
 
       const res = await fetch(`${API_URL}/api/afiliados`, {
@@ -536,6 +582,14 @@ export default function MiembrosPanel() {
       if (res.ok && json.success) {
         setShowNewModal(false)
         setNewForm({ tipo_afiliado: 'Natural', estatus: 'Afiliado' })
+        setNewUrlCv('')
+        setNewNameCv('')
+        setNewUrlTitulo('')
+        setNewNameTitulo('')
+        setNewUrlRegistro('')
+        setNewNameRegistro('')
+        setNewUrlTituloRep('')
+        setNewNameTituloRep('')
         setFormErrors({})
         load()
       } else {
@@ -1489,6 +1543,126 @@ export default function MiembrosPanel() {
                   </div>
                 </FormSection>
               )}
+
+              {/* SECCIÓN 3: Documentación Obligatoria */}
+              <FormSection
+                icon={<FileText size={16} />}
+                title="Documentación Obligatoria (Expediente)"
+                subtitle="Cargue los soportes digitales obligatorios para este tipo de miembro"
+                variant="emerald"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {newTipo === 'Corporativo' ? (
+                    <>
+                      <FileUpload
+                        label="Síntesis Curricular (CV) del Representante Legal"
+                        required
+                        accept=".pdf,image/*"
+                        folder="cvs"
+                        initialUrl={newUrlCv || undefined}
+                        initialFileName={newNameCv || undefined}
+                        onUploadSuccess={(url, name) => {
+                          setNewUrlCv(url);
+                          setNewNameCv(name || 'CV_Representante.pdf');
+                        }}
+                        onClear={() => {
+                          setNewUrlCv('');
+                          setNewNameCv('');
+                        }}
+                        hasError={formErrors.newUrlCv}
+                      />
+                      <FileUpload
+                        label="RIF de la Empresa"
+                        required
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        initialUrl={newUrlTitulo || undefined}
+                        initialFileName={newNameTitulo || undefined}
+                        onUploadSuccess={(url, name) => {
+                          setNewUrlTitulo(url);
+                          setNewNameTitulo(name || 'RIF_Empresa.pdf');
+                        }}
+                        onClear={() => {
+                          setNewUrlTitulo('');
+                          setNewNameTitulo('');
+                        }}
+                        hasError={formErrors.newUrlTitulo}
+                      />
+                      <FileUpload
+                        label="Registro Mercantil"
+                        required
+                        accept=".pdf,image/*"
+                        folder="documentos_empresa"
+                        initialUrl={newUrlRegistro || undefined}
+                        initialFileName={newNameRegistro || undefined}
+                        onUploadSuccess={(url, name) => {
+                          setNewUrlRegistro(url);
+                          setNewNameRegistro(name || 'Registro_Mercantil.pdf');
+                        }}
+                        onClear={() => {
+                          setNewUrlRegistro('');
+                          setNewNameRegistro('');
+                        }}
+                        hasError={formErrors.newUrlRegistro}
+                      />
+                      <FileUpload
+                        label="Título Académico del Representante Legal"
+                        required
+                        accept=".pdf,image/*"
+                        folder="titulos"
+                        initialUrl={newUrlTituloRep || undefined}
+                        initialFileName={newNameTituloRep || undefined}
+                        onUploadSuccess={(url, name) => {
+                          setNewUrlTituloRep(url);
+                          setNewNameTituloRep(name || 'Titulo_Representante.pdf');
+                        }}
+                        onClear={() => {
+                          setNewUrlTituloRep('');
+                          setNewNameTituloRep('');
+                        }}
+                        hasError={formErrors.newUrlTituloRep}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FileUpload
+                        label="Síntesis Curricular (CV)"
+                        required
+                        accept=".pdf,image/*"
+                        folder="cvs"
+                        initialUrl={newUrlCv || undefined}
+                        initialFileName={newNameCv || undefined}
+                        onUploadSuccess={(url, name) => {
+                          setNewUrlCv(url);
+                          setNewNameCv(name || 'CV.pdf');
+                        }}
+                        onClear={() => {
+                          setNewUrlCv('');
+                          setNewNameCv('');
+                        }}
+                        hasError={formErrors.newUrlCv}
+                      />
+                      <FileUpload
+                        label="Título Profesional"
+                        required={newForm.nivel_academico && newForm.nivel_academico !== 'Bachiller'}
+                        accept=".pdf,image/*"
+                        folder="titulos"
+                        initialUrl={newUrlTitulo || undefined}
+                        initialFileName={newNameTitulo || undefined}
+                        onUploadSuccess={(url, name) => {
+                          setNewUrlTitulo(url);
+                          setNewNameTitulo(name || 'Titulo.pdf');
+                        }}
+                        onClear={() => {
+                          setNewUrlTitulo('');
+                          setNewNameTitulo('');
+                        }}
+                        hasError={formErrors.newUrlTitulo}
+                      />
+                    </>
+                  )}
+                </div>
+              </FormSection>
             </div>
 
             <div className="px-8 pb-8 flex flex-col gap-4 bg-white">
