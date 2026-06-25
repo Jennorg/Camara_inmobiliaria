@@ -1,43 +1,23 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import bgBolivar from '@/assets/Pzo.jpg'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
-import { API_URL } from '@/config/env'
 
-// ── Cache key & TTL ────────────────────────────────────────────────────────────
-const CACHE_KEY = 'cache_directiva_v2'
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutos
-
-interface CacheEntry {
-  data: MiembroDirectiva[]
-  ts: number
-}
-
-function readCache(): MiembroDirectiva[] | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (!raw) return null
-    const entry: CacheEntry = JSON.parse(raw)
-    if (Date.now() - entry.ts > CACHE_TTL_MS) {
-      localStorage.removeItem(CACHE_KEY)
-      return null
-    }
-    return entry.data
-  } catch {
-    return null
-  }
-}
-
-function writeCache(data: MiembroDirectiva[]) {
-  try {
-    const entry: CacheEntry = { data, ts: Date.now() }
-    localStorage.setItem(CACHE_KEY, JSON.stringify(entry))
-  } catch {}
-}
+// Import directiva images from the repo
+import imgFrancisco from '@/assets/Junta_directiva/francisco.png'
+import imgZulay from '@/assets/Junta_directiva/Zulay.png'
+import imgMargaret from '@/assets/Junta_directiva/Margaret.png'
+import imgRomelia from '@/assets/Junta_directiva/Romelia.png'
+import imgMargot from '@/assets/Junta_directiva/Margot.png'
+import imgPedro from '@/assets/Junta_directiva/Pedro.png'
+import imgGraciela from '@/assets/Junta_directiva/Graciela.png'
+import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.png'
+import imgRina from '@/assets/Junta_directiva/Rina.png'
+import imgPedroC from '@/assets/Junta_directiva/Pedro_C.png'
 
 export function invalidateDirectivaCache() {
-  try { localStorage.removeItem(CACHE_KEY) } catch {}
+  // Función vacía para compatibilidad de importaciones sin romper la compilación
 }
 
 // ── Scroll reveal ──────────────────────────────────────────────────────────────
@@ -56,24 +36,23 @@ const useScrollReveal = () => {
 }
 
 interface MiembroDirectiva {
-  id?: string | number
   nombre: string
   cargo: string
-  foto_url?: string
-  orden?: number
-  activo?: number | boolean
-  periodo?: string
+  foto: string
 }
 
-function formatPeriodoDisplay(periodoStr?: string) {
-  if (!periodoStr) return ''
-  if (!periodoStr.includes('/')) return periodoStr
-  const [start, end] = periodoStr.split('/')
-  const sYear = start.split('-')[0]
-  const eYear = end.split('-')[0]
-  if (sYear === eYear) return sYear
-  return `${sYear} - ${eYear}`
-}
+const directiva: MiembroDirectiva[] = [
+  { nombre: 'Francisco Piñango', cargo: 'Presidente', foto: imgFrancisco },
+  { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto: imgZulay },
+  { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto: imgMargaret },
+  { nombre: 'Romelina Rodríguez', cargo: 'Directora de Finanzas', foto: imgRomelia },
+  { nombre: 'Margot Castro', cargo: 'Directora de Asuntos Legales', foto: imgMargot },
+  { nombre: 'Pedro Vallenilla', cargo: 'Director de Comunicaciones', foto: imgPedro },
+  { nombre: 'Graciela Ledezma', cargo: 'Directora de Formación', foto: imgGraciela },
+  { nombre: 'Yorjharry Vicent', cargo: 'Director de Eventos', foto: imgYorjharry },
+  { nombre: 'Rina Centeno', cargo: 'Directora de Responsabilidad Social', foto: imgRina },
+  { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto: imgPedroC }
+]
 
 const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: string; foto: string; index: number }) => {
   const setReveal = useScrollReveal()
@@ -100,64 +79,10 @@ const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: s
 
 export default function EquipoDirectivo() {
   const [darkMode, setDarkMode] = useState(false)
-  const [allMembers, setAllMembers] = useState<MiembroDirectiva[]>(() => readCache() ?? [])
-  const [loading, setLoading] = useState(allMembers.length === 0)
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('')
-
-  // Helper to extract periods
-  const periods = Array.from(new Set(allMembers.map(m => m.periodo).filter(Boolean))) as string[]
-  periods.sort((a, b) => b.localeCompare(a))
-
-  // Set default period
-  useEffect(() => {
-    if (periods.length > 0 && !selectedPeriod) {
-      setSelectedPeriod(periods[0])
-    }
-  }, [periods, selectedPeriod])
 
   useEffect(() => {
-    setLoading(true)
-    fetch(`${API_URL}/api/cms/directiva`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.success) {
-          const activos = data.data
-            .filter((m: MiembroDirectiva) => m.activo !== 0 && m.activo !== false)
-            .sort((a: MiembroDirectiva, b: MiembroDirectiva) => (a.orden || 0) - (b.orden || 0))
-          setAllMembers(activos)
-          writeCache(activos)
-        }
-      })
-      .catch(err => console.error('Error fetching directiva:', err))
-      .finally(() => {
-        setLoading(false)
-        window.scrollTo(0, 0)
-      })
+    window.scrollTo(0, 0)
   }, [])
-
-  // Escucha evento de invalidación emitido desde el panel CMS
-  useEffect(() => {
-    const handler = () => {
-      invalidateDirectivaCache()
-      setLoading(true)
-      fetch(`${API_URL}/api/cms/directiva`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.success) {
-            const activos = data.data
-              .filter((m: MiembroDirectiva) => m.activo !== 0 && m.activo !== false)
-              .sort((a: MiembroDirectiva, b: MiembroDirectiva) => (a.orden || 0) - (b.orden || 0))
-            setAllMembers(activos)
-            writeCache(activos)
-          }
-        })
-        .finally(() => setLoading(false))
-    }
-    window.addEventListener('directiva-cache-invalidated', handler)
-    return () => window.removeEventListener('directiva-cache-invalidated', handler)
-  }, [])
-
-  const displayMembers = allMembers.filter(m => m.periodo === selectedPeriod)
 
   return (
     <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
@@ -165,64 +90,28 @@ export default function EquipoDirectivo() {
         title="Junta Directiva" 
         description="Conoce a los líderes que guían la Cámara Inmobiliaria del Estado Bolívar. Compromiso y visión para el sector inmobiliario."
       />
-      <Navbar 
-        darkMode={darkMode} setDarkMode={setDarkMode} />
+      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header className='relative px-6 lg:px-20 py-16 lg:py-24 flex items-center justify-center min-h-[40vh] bg-cover animate-header-bg' style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
         <div className='text-center space-y-4'>
           <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Liderazgo Gremial</p>
           <h1 style={{ animationDelay: '0.4s', opacity: 0 }} className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white'>
             Junta <span className='text-emerald-500 italic'>Directiva</span>
           </h1>
-          <p className='text-emerald-100/60 text-sm tracking-widest uppercase font-medium animate-header-text' style={{ animationDelay: '0.5s', opacity: 0 }}>
-            {selectedPeriod ? `Gestión ${formatPeriodoDisplay(selectedPeriod)}` : ''}
-          </p>
+          <p className='text-emerald-100/60 text-sm tracking-widest uppercase font-medium animate-header-text' style={{ animationDelay: '0.5s', opacity: 0 }}>Gestión 2024 - 2026</p>
         </div>
       </header>
       <main className='bg-[#f1f5f9] text-slate-900 rounded-t-[4rem] -mt-12 relative z-10 px-6 lg:px-20 py-24'>
         <div className='max-w-7xl mx-auto'>
-          <div className='text-center mb-16 space-y-6'>
-            <h2 className='text-3xl lg:text-4xl font-black text-[#022c22] tracking-tight'>Conoce a Nuestra Junta Directiva</h2>
+          <div className='text-center mb-16'>
+            <h2 className='text-3xl lg:text-4xl font-black text-[#022c22] tracking-tight mb-4'>Conoce a Nuestra Junta Directiva</h2>
             <p className='text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed'>Profesionales comprometidos con el desarrollo y fortalecimiento del sector inmobiliario en el estado Bolívar.</p>
-            
-            {periods.length > 1 && (
-              <div className="inline-flex flex-wrap justify-center gap-2 bg-white/80 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200 shadow-sm max-w-lg mx-auto">
-                {periods.map(p => {
-                  const yearsDisplay = formatPeriodoDisplay(p)
-                  const isSelected = p === selectedPeriod
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setSelectedPeriod(p)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                        isSelected 
-                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' 
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                      }`}
-                    >
-                      Gestión {yearsDisplay}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
           </div>
- 
-          {loading && displayMembers.length === 0 ? (
-            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10'>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className='bg-white rounded-[2.5rem] aspect-[3/4] animate-pulse shadow-md' />
-              ))}
-            </div>
-          ) : (
-            <div className='flex flex-wrap justify-center gap-10'>
-              {displayMembers.map((miembro, index) => (
-                <div key={miembro.id || index} className="w-full sm:w-[calc(50%-20px)] lg:w-[calc(33.33%-27px)] xl:w-[calc(25%-30px)] max-w-sm">
-                  <DirectorCard index={index} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto_url || ''} />
-                </div>
-              ))}
-            </div>
-          )}
+
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10'>
+            {directiva.map((miembro, index) => (
+              <DirectorCard key={index} index={index} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto} />
+            ))}
+          </div>
 
           <div className='mt-24 relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#022c22] via-[#044b3a] to-[#022c22] text-white text-center p-12 space-y-8 shadow-2xl shadow-emerald-900/30'>
             <div className='absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -mr-40 -mt-40 blur-3xl' />
