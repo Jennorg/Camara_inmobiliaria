@@ -208,7 +208,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
       {programaCodigo === 'AFILIACION' && (
         <div className="space-y-2">
           <label className="text-xs font-black uppercase tracking-widest ml-1 text-emerald-100/60">Tipo de Afiliación</label>
-          <div className="grid grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
             {([
               { val: 'Natural' as const, label: 'Agente Independiente', icon: User },
               { val: 'Agente Corporativo' as const, label: 'Agente Corporativo', icon: Building2 },
@@ -222,12 +222,12 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                   setEmpresaSelected(null)
                   setEmpresaQuery('')
                 }}
-                className={`min-h-[72px] px-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-2 text-center leading-tight ${
+                className={`min-h-[56px] sm:min-h-[72px] px-4 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-2 text-center leading-tight ${
                   tipoAfiliado === val ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Icon size={18} />
-                {label}
+                <Icon size={18} className="shrink-0" />
+                <span>{label}</span>
               </button>
             ))}
           </div>
