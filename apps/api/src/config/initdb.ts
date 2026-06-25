@@ -305,8 +305,13 @@ const statements = [
     contenido         TEXT,
     imagen_url        TEXT,
     categoria         TEXT,
+    tag               TEXT,
     fecha_publicacion TEXT        DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     publicado         INTEGER     DEFAULT 0 CHECK (publicado IN (0,1)),
+    fecha_evento      TEXT,
+    hora_evento       TEXT,
+    lugar_evento      TEXT,
+    posicion_imagen   TEXT        DEFAULT 'center center',
     eliminado_en      TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_cms_noticias_activas ON cms_noticias(eliminado_en) WHERE eliminado_en IS NULL`,

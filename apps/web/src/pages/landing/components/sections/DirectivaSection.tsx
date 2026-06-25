@@ -1,39 +1,37 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { API_URL } from '@/config/env'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { formatNombreCard } from '@/utils/formatters'
 
+// Import directiva images from the repo
+import imgFrancisco from '@/assets/Junta_directiva/francisco.png'
+import imgZulay from '@/assets/Junta_directiva/Zulay.png'
+import imgMargaret from '@/assets/Junta_directiva/Margaret.png'
+import imgRomelia from '@/assets/Junta_directiva/Romelia.png'
+import imgMargot from '@/assets/Junta_directiva/Margot.png'
+import imgPedro from '@/assets/Junta_directiva/Pedro.png'
+import imgGraciela from '@/assets/Junta_directiva/Graciela.png'
+import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.png'
+import imgRina from '@/assets/Junta_directiva/Rina.png'
+import imgPedroC from '@/assets/Junta_directiva/Pedro_C.png'
+
 const s = STATIC.directiva
 
-export default function DirectivaSection() {
-  const [directivaMembers, setDirectivaMembers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const scrollRef = useRef<HTMLDivElement>(null)
+const directivaMembers = [
+  { nombre: 'Francisco Piñango', cargo: 'Presidente', foto_url: imgFrancisco },
+  { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto_url: imgZulay },
+  { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto_url: imgMargaret },
+  { nombre: 'Romelina Rodríguez', cargo: 'Directora de Finanzas', foto_url: imgRomelia },
+  { nombre: 'Margot Castro', cargo: 'Directora de Asuntos Legales', foto_url: imgMargot },
+  { nombre: 'Pedro Vallenilla', cargo: 'Director de Comunicaciones', foto_url: imgPedro },
+  { nombre: 'Graciela Ledezma', cargo: 'Directora de Formación', foto_url: imgGraciela },
+  { nombre: 'Yorjharry Vicent', cargo: 'Director de Eventos', foto_url: imgYorjharry },
+  { nombre: 'Rina Centeno', cargo: 'Directora de Responsabilidad Social', foto_url: imgRina },
+  { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto_url: imgPedroC }
+]
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/cms/directiva`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          const activos = (data.data || [])
-            .filter((m: any) => m.activo !== 0 && m.activo !== false)
-            .sort((a: any, b: any) => (a.orden || 0) - (b.orden || 0))
-          
-          const periods = Array.from(new Set(activos.map((m: any) => m.periodo).filter(Boolean))) as string[]
-          if (periods.length > 0) {
-            periods.sort((a, b) => b.localeCompare(a))
-            const mostRecentPeriod = periods[0]
-            const filteredByPeriod = activos.filter((m: any) => m.periodo === mostRecentPeriod)
-            setDirectivaMembers(filteredByPeriod)
-          } else {
-            setDirectivaMembers(activos)
-          }
-        }
-      })
-      .catch(() => { })
-      .finally(() => setLoading(false))
-  }, [])
+export default function DirectivaSection() {
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = useCallback((direction: 'left' | 'right') => {
     const current = scrollRef.current
@@ -56,15 +54,12 @@ export default function DirectivaSection() {
   }, [])
 
   useEffect(() => {
-    if (directivaMembers.length <= 4) return
     const interval = setInterval(() => scroll('right'), 5000)
     return () => clearInterval(interval)
-  }, [directivaMembers, scroll])
-
-  if (loading || directivaMembers.length === 0) return null
+  }, [scroll])
 
   return (
-    <section id='directiva' className='bg-white px-6 lg:px-20 py-24 scroll-mt-24 overflow-hidden relative'>
+    <section id='directiva' className='bg-white px-6 lg:px-20 pt-0 pb-24 scroll-mt-24 overflow-hidden relative'>
       <div className='max-w-7xl mx-auto space-y-16 relative'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
@@ -78,14 +73,12 @@ export default function DirectivaSection() {
         </div>
 
         <div className="relative group w-full">
-          {directivaMembers.length > 4 && (
-            <button 
-              onClick={() => scroll('left')} 
-              className='absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
-            >
-              <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
-            </button>
-          )}
+          <button 
+            onClick={() => scroll('left')} 
+            className='absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+          >
+            <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
+          </button>
 
           <div 
             ref={scrollRef} 
@@ -93,10 +86,10 @@ export default function DirectivaSection() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {directivaMembers.map((m, i) => (
-              <div key={m.id || i} className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
+              <div key={i} className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
                 <div className="relative w-40 h-40 lg:w-48 lg:h-48 rounded-[2.5rem] overflow-hidden shadow-xl ring-4 ring-emerald-50 transition-all group-hover:ring-emerald-500/20">
                   <img
-                    src={m.foto_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.nombre)}&background=10b981&color=fff&size=200`}
+                    src={m.foto_url}
                     alt={m.nombre}
                     loading="lazy"
                     decoding="async"
@@ -111,14 +104,12 @@ export default function DirectivaSection() {
             ))}
           </div>
 
-          {directivaMembers.length > 4 && (
-            <button 
-              onClick={() => scroll('right')} 
-              className='absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
-            >
-              <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
-            </button>
-          )}
+          <button 
+            onClick={() => scroll('right')} 
+            className='absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+          >
+            <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
+          </button>
         </div>
 
         <div className="flex justify-center pt-8">

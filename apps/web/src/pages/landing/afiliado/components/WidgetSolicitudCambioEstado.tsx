@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  User, 
-  Send, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle2, 
-  Clock, 
-  FileCheck 
+import {
+  Building2,
+  User,
+  Send,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  FileCheck
 } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
@@ -39,16 +39,16 @@ interface SolicitudCambio {
 export default function WidgetSolicitudCambioEstado() {
   const { token } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
-  
+
   const [solicitud, setSolicitud] = useState<SolicitudCambio | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Form state
   const [tipoDestino, setTipoDestino] = useState<'Natural' | 'Corporativo' | 'Agente Corporativo' | ''>('');
   const [idEmpresaSelect, setIdEmpresaSelect] = useState<string>('');
-  
+
   // Company details
   const [razonSocial, setRazonSocial] = useState('');
   const [rifTipo, setRifTipo] = useState('J');
@@ -57,7 +57,7 @@ export default function WidgetSolicitudCambioEstado() {
   const [telefonoEmpresa, setTelefonoEmpresa] = useState('');
   const [direccionEmpresa, setDireccionEmpresa] = useState('');
   const [websiteEmpresa, setWebsiteEmpresa] = useState('');
-  
+
   // Uploaded docs
   const [urlRegistro, setUrlRegistro] = useState('');
   const [urlRif, setUrlRif] = useState('');
@@ -104,7 +104,7 @@ export default function WidgetSolicitudCambioEstado() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !tipoDestino) return;
-    
+
     setSubmitting(true);
     try {
       let body: any = {
@@ -176,9 +176,9 @@ export default function WidgetSolicitudCambioEstado() {
   const hasPending = solicitud && ['Pendiente_Empresa', 'Pendiente_Admin'].includes(solicitud.estatus);
 
   return (
-    <DashboardCard 
-      title="Cambio de Tipo de Membresía" 
-      icon={Building2} 
+    <DashboardCard
+      title="Estatus de afiliado"
+      icon={Building2}
       description="Solicita el cambio de tu tipo de afiliado (Natural, Corporativo o Agente Corporativo)"
     >
       <div className="space-y-6">
@@ -262,17 +262,15 @@ export default function WidgetSolicitudCambioEstado() {
                     key={opt.key}
                     type="button"
                     onClick={() => setTipoDestino(opt.key)}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all ${
-                      tipoDestino === opt.key 
-                        ? 'border-emerald-500 bg-emerald-50/30 ring-4 ring-emerald-500/5' 
+                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all ${tipoDestino === opt.key
+                        ? 'border-emerald-500 bg-emerald-50/30 ring-4 ring-emerald-500/5'
                         : 'border-gray-200 bg-white hover:border-emerald-300'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between w-full mb-3">
                       <opt.icon className={tipoDestino === opt.key ? 'text-emerald-600' : 'text-slate-400'} size={20} />
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                        tipoDestino === opt.key ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'
-                      }`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${tipoDestino === opt.key ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'
+                        }`}>
                         {tipoDestino === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                       </div>
                     </div>
@@ -334,8 +332,8 @@ export default function WidgetSolicitudCambioEstado() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="col-span-full flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={razonSocial}
                         onChange={e => setRazonSocial(e.target.value)}
@@ -346,7 +344,7 @@ export default function WidgetSolicitudCambioEstado() {
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
-                      <select 
+                      <select
                         value={rifTipo}
                         onChange={e => setRifTipo(e.target.value)}
                         className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:bg-white transition-colors"
@@ -361,8 +359,8 @@ export default function WidgetSolicitudCambioEstado() {
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={rifNumero}
                         onChange={e => setRifNumero(e.target.value.replace(/\D/g, ''))}
@@ -373,8 +371,8 @@ export default function WidgetSolicitudCambioEstado() {
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo Electrónico de la Empresa *</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         required
                         value={emailEmpresa}
                         onChange={e => setEmailEmpresa(e.target.value)}
@@ -385,8 +383,8 @@ export default function WidgetSolicitudCambioEstado() {
 
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={telefonoEmpresa}
                         onChange={e => setTelefonoEmpresa(e.target.value)}
@@ -397,7 +395,7 @@ export default function WidgetSolicitudCambioEstado() {
 
                     <div className="col-span-full flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
-                      <textarea 
+                      <textarea
                         rows={2}
                         value={direccionEmpresa}
                         onChange={e => setDireccionEmpresa(e.target.value)}
@@ -408,8 +406,8 @@ export default function WidgetSolicitudCambioEstado() {
 
                     <div className="col-span-full flex flex-col gap-1.5">
                       <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={websiteEmpresa}
                         onChange={e => setWebsiteEmpresa(e.target.value)}
                         className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:bg-white transition-colors"
@@ -427,7 +425,7 @@ export default function WidgetSolicitudCambioEstado() {
                   </h5>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FileUpload 
+                    <FileUpload
                       label="Registro Mercantil de la Empresa"
                       required
                       accept=".pdf,image/*"
@@ -442,7 +440,7 @@ export default function WidgetSolicitudCambioEstado() {
                       }}
                     />
 
-                    <FileUpload 
+                    <FileUpload
                       label="RIF de la Empresa"
                       required
                       accept=".pdf,image/*"

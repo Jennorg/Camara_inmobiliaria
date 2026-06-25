@@ -34,15 +34,29 @@ const generateSlug = (str: string) => {
 
 export const createNoticia = async (req: Request, res: Response) => {
   try {
-    const { titulo, contenido, imagen_url, publicado } = req.body;
-    if (!titulo || !contenido) {
-      return res.status(400).json({ success: false, message: 'titulo y contenido son requeridos' });
+    const { titulo, contenido, resumen, imagen_url, categoria, tag, publicado, fecha_evento, hora_evento, lugar_evento, posicion_imagen } = req.body;
+    const finalContenido = contenido || resumen;
+    if (!titulo || !finalContenido) {
+      return res.status(400).json({ success: false, message: 'El título y el contenido son requeridos' });
     }
     const slug = generateSlug(titulo);
     const result = await db.execute({
-      sql: `INSERT INTO cms_noticias (titulo, slug, contenido, imagen_url, publicado)
-            VALUES (?, ?, ?, ?, ?) RETURNING *`,
-      args: [titulo, slug, contenido, imagen_url ?? null, publicado !== undefined ? (publicado ? 1 : 0) : 1]
+      sql: `INSERT INTO cms_noticias (titulo, slug, contenido, resumen, imagen_url, categoria, tag, publicado, fecha_evento, hora_evento, lugar_evento, posicion_imagen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      args: [
+        titulo,
+        slug,
+        finalContenido,
+        resumen ?? null,
+        imagen_url ?? null,
+        categoria ?? 'Noticias',
+        tag ?? null,
+        publicado !== undefined ? (publicado ? 1 : 0) : 1,
+        fecha_evento ?? null,
+        hora_evento ?? null,
+        lugar_evento ?? null,
+        posicion_imagen ?? 'center center'
+      ]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -54,11 +68,26 @@ export const createNoticia = async (req: Request, res: Response) => {
 export const updateNoticia = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { titulo, contenido, imagen_url, publicado } = req.body;
+    const { titulo, contenido, resumen, imagen_url, categoria, tag, publicado, fecha_evento, hora_evento, lugar_evento, posicion_imagen } = req.body;
+    const finalContenido = contenido || resumen;
     const result = await db.execute({
-      sql: `UPDATE cms_noticias SET titulo=?, contenido=?, imagen_url=?, publicado=?
+      sql: `UPDATE cms_noticias 
+            SET titulo=?, contenido=?, resumen=?, imagen_url=?, categoria=?, tag=?, publicado=?, fecha_evento=?, hora_evento=?, lugar_evento=?, posicion_imagen=?
             WHERE id_noticia=? RETURNING *`,
-      args: [titulo, contenido, imagen_url ?? null, publicado ? 1 : 0, id]
+      args: [
+        titulo,
+        finalContenido,
+        resumen ?? null,
+        imagen_url ?? null,
+        categoria ?? 'Noticias',
+        tag ?? null,
+        publicado ? 1 : 0,
+        fecha_evento ?? null,
+        hora_evento ?? null,
+        lugar_evento ?? null,
+        posicion_imagen ?? 'center center',
+        id
+      ]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Noticia no encontrada' });
     return res.json({ success: true, data: result.rows[0] });

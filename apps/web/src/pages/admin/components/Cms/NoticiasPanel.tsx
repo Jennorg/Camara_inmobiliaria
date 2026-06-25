@@ -1,23 +1,41 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
-import { Upload, Image as ImageIcon, CheckCircle, Trash2, X } from 'lucide-react'
+import { Upload, CheckCircle, Trash2 } from 'lucide-react'
 
 interface NoticiaItem {
   id: string | number;
   titulo: string;
+  contenido: string;
   extracto: string;
   imagen_url: string;
   categoria: string;
   tag: string;
   fecha: string;
   publicado: number | boolean;
+  fecha_evento: string;
+  hora_evento: string;
+  lugar_evento: string;
+  posicion_imagen: string;
 }
 
 export const NoticiasPanel = () => {
   const [items, setItems] = useState<NoticiaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
-  const [form, setForm] = useState({ titulo: '', extracto: '', imagen_url: '', categoria: 'Noticias', tag: '', fecha: '', publicado: true })
+  const [form, setForm] = useState({ 
+    titulo: '', 
+    extracto: '', 
+    contenido: '', 
+    imagen_url: '', 
+    categoria: 'Noticias', 
+    tag: '', 
+    fecha: '', 
+    publicado: true,
+    fecha_evento: '',
+    hora_evento: '',
+    lugar_evento: '',
+    posicion_imagen: 'center center'
+  })
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -40,7 +58,25 @@ export const NoticiasPanel = () => {
   const load = useCallback(async () => {
     setLoading(true)
     const data = await api.get('/api/cms/noticias')
-    if (data.success) setItems(data.data)
+    if (data.success && Array.isArray(data.data)) {
+      // Map API database columns to matches in the component's NoticiaItem interface
+      const mapped: NoticiaItem[] = data.data.map((x: any) => ({
+        id: x.id_noticia,
+        titulo: x.titulo || '',
+        contenido: x.contenido || '',
+        extracto: x.resumen || '',
+        imagen_url: x.imagen_url || '',
+        categoria: x.categoria || 'Noticias',
+        tag: x.tag || '',
+        fecha: x.fecha_publicacion || '',
+        publicado: x.publicado === 1 || x.publicado === true,
+        fecha_evento: x.fecha_evento || '',
+        hora_evento: x.hora_evento || '',
+        lugar_evento: x.lugar_evento || '',
+        posicion_imagen: x.posicion_imagen || 'center center'
+      }))
+      setItems(mapped)
+    }
     setLoading(false)
   }, [])
 
@@ -48,22 +84,62 @@ export const NoticiasPanel = () => {
 
   const openEdit = (item: NoticiaItem) => {
     setSelectedId(item.id)
-    setForm({ titulo: item.titulo, extracto: item.extracto, imagen_url: item.imagen_url || '', categoria: item.categoria, tag: item.tag || '', fecha: item.fecha?.split('T')[0] || '', publicado: item.publicado === 1 || item.publicado === true })
+    setForm({ 
+      titulo: item.titulo, 
+      extracto: item.extracto, 
+      contenido: item.contenido, 
+      imagen_url: item.imagen_url || '', 
+      categoria: item.categoria, 
+      tag: item.tag || '', 
+      fecha: item.fecha?.split('T')[0] || '', 
+      publicado: item.publicado === 1 || item.publicado === true,
+      fecha_evento: item.fecha_evento || '',
+      hora_evento: item.hora_evento || '',
+      lugar_evento: item.lugar_evento || '',
+      posicion_imagen: item.posicion_imagen || 'center center'
+    })
     setIsEditing(true)
   }
 
   const openNew = () => {
     setSelectedId('new')
-    setForm({ titulo: '', extracto: '', imagen_url: '', categoria: 'Noticias', tag: '', fecha: new Date().toISOString().split('T')[0], publicado: true })
+    setForm({ 
+      titulo: '', 
+      extracto: '', 
+      contenido: '', 
+      imagen_url: '', 
+      categoria: 'Noticias', 
+      tag: '', 
+      fecha: new Date().toISOString().split('T')[0], 
+      publicado: true,
+      fecha_evento: '',
+      hora_evento: '',
+      lugar_evento: '',
+      posicion_imagen: 'center center'
+    })
     setIsEditing(true)
   }
 
   const save = async () => {
     setSaving(true)
     try {
+      const payload = {
+        titulo: form.titulo,
+        contenido: form.contenido,
+        resumen: form.extracto,
+        imagen_url: form.imagen_url,
+        categoria: form.categoria,
+        tag: form.tag,
+        publicado: form.publicado,
+        fecha_evento: form.fecha_evento || null,
+        hora_evento: form.hora_evento || null,
+        lugar_evento: form.lugar_evento || null,
+        posicion_imagen: form.posicion_imagen
+      }
+
       const res = selectedId === 'new' 
-        ? await api.post('/api/cms/noticias', form)
-        : await api.put(`/api/cms/noticias/${selectedId}`, form)
+        ? await api.post('/api/cms/noticias', payload)
+        : await api.put(`/api/cms/noticias/${selectedId}`, payload)
 
       if (res.success) {
         setSelectedId(null)
@@ -79,7 +155,6 @@ export const NoticiasPanel = () => {
       setSaving(false)
     }
   }
-
 
   const remove = async (id: string | number) => {
     if (!confirm('¿Eliminar esta noticia?')) return
@@ -111,13 +186,23 @@ export const NoticiasPanel = () => {
           />
         </FormField>
 
-        <FormField label="Extracto / Resumen">
+        <FormField label="Extracto / Resumen (Vista previa)">
           <Textarea 
             value={form.extracto} 
             onChange={f('extracto')} 
-            placeholder="Breve resumen para la vista previa..." 
-            rows={3} 
+            placeholder="Breve resumen de 1 o 2 líneas para la tarjeta de vista previa..." 
+            rows={2} 
             className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all resize-none"
+          />
+        </FormField>
+
+        <FormField label="Cuerpo / Contenido Completo">
+          <Textarea 
+            value={form.contenido} 
+            onChange={f('contenido')} 
+            placeholder="Desarrolle el contenido completo de la noticia aquí..." 
+            rows={5} 
+            className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all resize-y min-h-[120px]"
           />
         </FormField>
 
@@ -168,7 +253,12 @@ export const NoticiasPanel = () => {
               ) : form.imagen_url ? (
                 <div className="flex flex-col items-center gap-3 animate-in fade-in zoom-in duration-300">
                   <div className="relative">
-                    <img src={form.imagen_url} alt="Preview" className="w-24 h-24 object-cover rounded-xl shadow-md border-2 border-white ring-4 ring-emerald-50" />
+                    <img 
+                      src={form.imagen_url} 
+                      alt="Preview" 
+                      className="w-24 h-24 object-cover rounded-xl shadow-md border-2 border-white ring-4 ring-emerald-50"
+                      style={{ objectPosition: form.posicion_imagen }}
+                    />
                     <div className="absolute -top-2 -right-2 bg-emerald-500 text-white p-1 rounded-full shadow-lg ring-2 ring-white">
                       <CheckCircle size={14} strokeWidth={3} />
                     </div>
@@ -190,6 +280,80 @@ export const NoticiasPanel = () => {
             </div>
           </div>
           {uploadError && <p className="text-[11px] text-rose-600 font-bold px-2">× {uploadError}</p>}
+        </div>
+
+        {/* Control de Encuadre de Imagen (object-position) */}
+        {form.imagen_url && (
+          <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-700">Ajuste de Encuadre / Foco</span>
+              <p className="text-[9px] text-slate-400 font-bold uppercase">Seleccione el punto de anclaje para encuadrar la imagen dentro de la tarjeta.</p>
+            </div>
+            
+            <div className="flex gap-6 items-center">
+              {/* Mini previsualizador con recorte */}
+              <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+                <img 
+                  src={form.imagen_url} 
+                  alt="Previsualización" 
+                  className="w-full h-full object-cover transition-all duration-300"
+                  style={{ objectPosition: form.posicion_imagen }}
+                />
+              </div>
+              
+              {/* Selector táctil/clic 3x3 */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/60 rounded-2xl w-24 h-24 border border-slate-200/30">
+                {[
+                  { val: 'top left', label: '↖️' },
+                  { val: 'top center', label: '⬆️' },
+                  { val: 'top right', label: '↗️' },
+                  { val: 'center left', label: '⬅️' },
+                  { val: 'center center', label: '•' },
+                  { val: 'center right', label: '➡️' },
+                  { val: 'bottom left', label: '↙️' },
+                  { val: 'bottom center', label: '⬇️' },
+                  { val: 'bottom right', label: '↘️' }
+                ].map((pos) => (
+                  <button
+                    key={pos.val}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, posicion_imagen: pos.val }))}
+                    className={`flex items-center justify-center text-[10px] rounded-lg font-bold transition-all ${
+                      form.posicion_imagen === pos.val 
+                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-[1.08]' 
+                        : 'hover:bg-slate-200 text-slate-400 hover:text-slate-600'
+                    }`}
+                    title={`Alineación: ${pos.val}`}
+                  >
+                    {pos.label}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="text-[10px] text-slate-500 font-bold max-w-[160px] leading-relaxed uppercase">
+                Haga clic en las flechas para alinear la imagen (ej: use la flecha arriba si se cortan las cabezas).
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Resaltado de Evento (Fecha, Hora, Lugar) */}
+        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-4">
+          <div>
+            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Resaltar Evento (Fecha, Hora, Lugar)</h4>
+            <p className="text-[9px] text-slate-400 font-bold uppercase">Si la noticia corresponde a un evento, complete estos campos para destacarlos visualmente.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <FormField label="Fecha del Evento">
+              <Input type="date" value={form.fecha_evento} onChange={f('fecha_evento')} className="!text-xs !py-2 bg-white" />
+            </FormField>
+            <FormField label="Hora del Evento">
+              <Input type="time" value={form.hora_evento} onChange={f('hora_evento')} className="!text-xs !py-2 bg-white" />
+            </FormField>
+            <FormField label="Lugar del Evento">
+              <Input value={form.lugar_evento} onChange={f('lugar_evento')} placeholder="Ej. Altavista, Puerto Ordaz" className="!text-xs !py-2 bg-white" />
+            </FormField>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -257,9 +421,34 @@ export const NoticiasPanel = () => {
               <BtnDanger onClick={() => remove(item.id)}>Eliminar</BtnDanger>
             </div>
           </div>
-          {item.imagen_url && <img src={item.imagen_url} alt="" className="w-full h-40 object-cover rounded-xl" />}
-          <p className="text-sm text-slate-600 leading-relaxed">{item.extracto}</p>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+          {item.imagen_url && (
+            <img 
+              src={item.imagen_url} 
+              alt="" 
+              className="w-full h-40 object-cover rounded-xl shadow-xs" 
+              style={{ objectPosition: item.posicion_imagen }}
+            />
+          )}
+          
+          {(item.fecha_evento || item.hora_evento || item.lugar_evento) && (
+            <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/50 text-[11px] text-emerald-800 space-y-1">
+              <span className="font-black uppercase tracking-wider block mb-1 text-[10px] text-emerald-600">Detalles del Evento Resaltados:</span>
+              {item.fecha_evento && <div>📅 <strong>Fecha:</strong> {item.fecha_evento}</div>}
+              {item.hora_evento && <div>⏰ <strong>Hora:</strong> {item.hora_evento}</div>}
+              {item.lugar_evento && <div>📍 <strong>Lugar:</strong> {item.lugar_evento}</div>}
+            </div>
+          )}
+
+          <p className="text-sm text-slate-600 leading-relaxed font-bold">{item.extracto}</p>
+          
+          {item.contenido && (
+            <div className="text-xs text-slate-500 whitespace-pre-line border-t border-slate-50 pt-3">
+              <span className="font-bold text-slate-700 block mb-1">Cuerpo Completo:</span>
+              {item.contenido}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 text-xs text-slate-400 pt-2">
             <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{item.categoria}</span>
             {item.tag && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">#{item.tag}</span>}
             <span>{item.fecha?.split('T')[0]}</span>

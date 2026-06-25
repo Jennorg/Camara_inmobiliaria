@@ -44,7 +44,7 @@ export default function LandingPage() {
 
       <OrigenesSection />
 
-      {/* <NoticiasSection /> */}
+      <NoticiasSection />
 
       <DirectivaSection />
 

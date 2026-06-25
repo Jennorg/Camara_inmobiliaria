@@ -1644,7 +1644,7 @@ export default function MiembrosPanel() {
                       />
                       <FileUpload
                         label="Título Profesional"
-                        required={newForm.nivel_academico && newForm.nivel_academico !== 'Bachiller'}
+                        required={!!(newForm.nivel_academico && newForm.nivel_academico !== 'Bachiller')}
                         accept=".pdf,image/*"
                         folder="titulos"
                         initialUrl={newUrlTitulo || undefined}
