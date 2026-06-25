@@ -229,6 +229,67 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<vo
 }
 
 /**
+ * POST /api/users/:id/invite
+ * Envía el correo de invitación (onboarding) para establecer contraseña (solo admin).
+ */
+export const sendUserInvitation = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+    const userId = Number(id)
+
+    // Verificar que el usuario existe y obtener sus datos
+    const check = await db.execute({ 
+      sql: `SELECT u.id, u.email, 
+                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as nombre_completo,
+                   a.id_afiliado
+            FROM users u 
+            LEFT JOIN afiliados a ON u.id = a.id_user 
+            LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            WHERE u.id = ?`, 
+      args: [userId] 
+    })
+
+    if (check.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Usuario no encontrado' })
+      return
+    }
+
+    const user = check.rows[0] as any
+    const nombre = user.nombre_completo || 'Usuario'
+
+    const { randomBytes } = await import('crypto')
+    const token = randomBytes(32).toString('hex')
+    const expStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 días de validez
+    const tokenHash = sha256(token)
+
+    // Eliminar tokens anteriores
+    await db.execute({
+      sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
+      args: [user.email]
+    })
+
+    // Insertar el nuevo token
+    await db.execute({
+      sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+            VALUES (?, 'reset_password', ?, 0, ?)`,
+      args: [tokenHash, user.email, expStr]
+    })
+
+    const { enviarCorreoOnboardingMasivo } = await import('../lib/email.js')
+    await enviarCorreoOnboardingMasivo(nombre, user.email, token)
+
+    res.status(200).json({
+      success: true,
+      message: 'Correo de invitación enviado correctamente.',
+    })
+  } catch (error) {
+    console.error('Error en sendUserInvitation:', error)
+    res.status(500).json({ success: false, message: 'Error al enviar la invitación.' })
+  }
+}
+
+/**
  * DELETE /api/users/:id
  * Elimina completamente un usuario.
  */

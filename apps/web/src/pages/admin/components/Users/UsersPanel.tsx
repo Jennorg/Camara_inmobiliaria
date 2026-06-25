@@ -13,7 +13,8 @@ import {
   ListFilter,
   Trash2,
   Eye,
-  EyeOff
+  EyeOff,
+  Mail
 } from 'lucide-react'
 
 
@@ -54,6 +55,7 @@ export default function UsersPanel() {
   const [saving, setSaving]     = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
   const [resetMsg, setResetMsg] = useState<Record<number, string>>({})
+  const [sendingInvite, setSendingInvite] = useState<Record<number, boolean>>({})
   
   const [showFormPassword, setShowFormPassword] = useState(false)
   const [showResetPassword, setShowResetPassword] = useState(false)
@@ -161,6 +163,28 @@ export default function UsersPanel() {
     setResettingUser(u)
     setNewPassword('')
     setFeedback(null)
+  }
+
+  const handleSendInvite = async (u: SystemUser) => {
+    if (sendingInvite[u.id]) return
+    setSendingInvite(prev => ({ ...prev, [u.id]: true }))
+    setFeedback(null)
+    try {
+      const r = await fetch(`${API_URL}/api/users/${u.id}/invite`, {
+        method: 'POST',
+        headers: authHeaders,
+      })
+      const d = await r.json()
+      if (d.success) {
+        setFeedback({ type: 'ok', msg: `Correo de invitación enviado con éxito a ${u.email}` })
+      } else {
+        setFeedback({ type: 'err', msg: d.message || 'Error al enviar el correo de invitación' })
+      }
+    } catch (e) {
+      setFeedback({ type: 'err', msg: 'Error de conexión al enviar la invitación' })
+    } finally {
+      setSendingInvite(prev => ({ ...prev, [u.id]: false }))
+    }
   }
 
   const confirmPasswordReset = async () => {
@@ -656,6 +680,20 @@ export default function UsersPanel() {
                   </td>
                   <td className='px-5 py-4 text-right'>
                     <div className='flex justify-end gap-2'>
+                      <button
+                        type='button'
+                        disabled={sendingInvite[u.id]}
+                        onClick={() => handleSendInvite(u)}
+                        className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 disabled:opacity-50 transition shadow-sm'
+                        title='Enviar correo de invitación'
+                      >
+                        {sendingInvite[u.id] ? (
+                          <Loader2 size={14} className='animate-spin shrink-0 text-emerald-500' />
+                        ) : (
+                          <Mail size={14} className='shrink-0 text-slate-500' />
+                        )}
+                        <span>Invitar</span>
+                      </button>
                       <button
                         type='button'
                         onClick={() => handleResetClick(u)}

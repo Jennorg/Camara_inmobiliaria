@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getUsers, createUser, updateUser, resetUserPassword, deleteUser } from '../controllers/users.controller.js'
+import { getUsers, createUser, updateUser, resetUserPassword, sendUserInvitation, deleteUser } from '../controllers/users.controller.js'
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 
 const router = Router()
@@ -18,6 +18,9 @@ router.patch('/:id', updateUser)
 
 // POST /api/users/:id/reset — reset de contraseña
 router.post('/:id/reset', resetUserPassword)
+
+// POST /api/users/:id/invite — enviar correo de invitación
+router.post('/:id/invite', sendUserInvitation)
 
 // DELETE /api/users/:id — eliminar usuario (solo super_admin internally in controller)
 router.delete('/:id', deleteUser)
