@@ -97,7 +97,7 @@ export default function RepresentativeSection() {
               {...register('phonePrefix')}
               className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
             >
-              {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+              {COUNTRIES.map(c => <option key={`${c.code}-${c.label}`} value={c.code}>{c.flag} {c.code}</option>)}
             </select>
             <Input 
               {...register('telefono')}
