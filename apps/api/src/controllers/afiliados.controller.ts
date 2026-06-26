@@ -837,9 +837,11 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
 
     // Support both new and old param names
     const search = String(req.query.search ?? req.query.q ?? '').trim()
+    const reqTipo = String(req.query.tipo ?? '').toLowerCase()
     const searchField = String(req.query.search_field ?? '').toLowerCase() || 
-                         (String(req.query.tipo ?? '').toLowerCase() === 'rif' ? 'cedula' : 'nombre')
+                         (['rif', 'v', 'e', 'j', 'g', 'p'].includes(reqTipo) ? 'cedula' : 'nombre')
     const tipoAfiliado = String(req.query.tipo_afiliado ?? '').trim()
+    const conFoto = req.query.con_foto === 'true' || req.query.con_foto === '1'
 
     const BASE_SELECT = `
       SELECT a.id_afiliado, a.id_empresa,
@@ -876,9 +878,10 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
         AND a.activo = 1
         AND a.eliminado_en IS NULL
         AND p.eliminado_en IS NULL
-        AND p.foto_url IS NOT NULL
-        AND p.foto_url <> ''
     `
+    if (conFoto) {
+      whereClauses += ` AND p.foto_url IS NOT NULL AND p.foto_url <> ''`
+    }
     const args: any[] = []
 
     // ── Filter by tipo_afiliado ─────────────────────────────────────
@@ -897,8 +900,17 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
         // Match on cedula or RIF number digits
         const digits = search.replace(/\D/g, '')
         if (digits.length > 0) {
-          whereClauses += ` AND (p.cedula LIKE ? OR e.rif_numero LIKE ?)`
-          args.push(`%${digits}%`, `%${digits}%`)
+          const typeUpper = reqTipo.toUpperCase()
+          if (['V', 'E', 'P'].includes(typeUpper)) {
+            whereClauses += ` AND p.cedula LIKE ? AND UPPER(p.cedula_tipo) = ?`
+            args.push(`%${digits}%`, typeUpper)
+          } else if (['J', 'G'].includes(typeUpper)) {
+            whereClauses += ` AND e.rif_numero LIKE ? AND UPPER(e.rif_tipo) = ?`
+            args.push(`%${digits}%`, typeUpper)
+          } else {
+            whereClauses += ` AND (p.cedula LIKE ? OR e.rif_numero LIKE ?)`
+            args.push(`%${digits}%`, `%${digits}%`)
+          }
         }
       } else if (searchField === 'codigo') {
         // Match on affiliate code (case and accent insensitive)
