@@ -57,3 +57,8 @@ apps/api/src/config/verify-emails-are-affiliates.ts
 !/package.json
 !/package-lock.json
 !/turbo.json
+
+# Diagrams and documentation
+apps/web/casos de uso/
+apps/web/dfds/
+

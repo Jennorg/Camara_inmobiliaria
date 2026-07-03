@@ -4,6 +4,104 @@ import { STATIC } from '@/pages/landing/config/staticContent'
 
 const s = STATIC.noticias
 
+interface NewsCardProps {
+  news: any;
+  onClick: () => void;
+  s: any;
+}
+
+function NewsCard({ news, onClick, s }: NewsCardProps) {
+  const [bgColor, setBgColor] = useState('rgba(248, 250, 252, 1)');
+  const imgUrl = news.imagen_url || news.img || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=75&w=600';
+
+  useEffect(() => {
+    if (!imgUrl) return;
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 1, 1);
+          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+          setBgColor(`rgb(${r}, ${g}, ${b})`);
+        }
+      } catch (e) {
+        // Ignorar si hay problemas de CORS o canvas
+      }
+    };
+    img.src = imgUrl;
+  }, [imgUrl]);
+
+  return (
+    <div 
+      onClick={onClick}
+      className='w-full max-w-md md:w-[calc(50%-20px)] lg:w-[calc(33.333%-27px)] md:max-w-sm lg:max-w-[380px] flex-shrink-0 snap-start group/card cursor-pointer flex flex-col'
+    >
+      <div 
+        style={{ backgroundColor: bgColor }}
+        className='relative mb-0 overflow-hidden rounded-[2.5rem] shadow-xl shadow-emerald-900/5 aspect-[3/4] w-full flex items-center justify-center transition-colors duration-500'
+      >
+        <div className='absolute inset-0 bg-emerald-900/10 opacity-0 group-hover/card:opacity-100 transition-opacity z-20 duration-500' />
+        <img 
+          src={imgUrl} 
+          alt={news.titulo} 
+          loading="lazy"
+          decoding="async"
+          className='relative z-10 w-full h-full object-contain group-hover/card:scale-105 transition duration-700 ease-out' 
+        />
+      </div>
+      
+      <div className='px-2 pt-4 flex-grow flex flex-col justify-between'>
+        <div className='space-y-3'>
+          <div className='flex items-center justify-between gap-2'>
+            <p className='text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
+              {news.fecha_publicacion?.split('T')[0] || news.fecha?.split('T')[0] || s.cardMeta}
+            </p>
+            {news.lugar_evento && (
+              <div className='text-[10px] text-slate-400 font-bold max-w-[150px] overflow-hidden whitespace-nowrap flex items-center gap-1'>
+                <span className="shrink-0">📍</span>
+                <div className="overflow-hidden relative w-full flex whitespace-nowrap">
+                  {news.lugar_evento.length > 20 ? (
+                    <div className="flex animate-marquee hover:[animation-play-state:paused] shrink-0 gap-6" style={{ animationDuration: '12s' }}>
+                      <span className="shrink-0">{news.lugar_evento}</span>
+                      <span className="shrink-0" aria-hidden="true">{news.lugar_evento}</span>
+                    </div>
+                  ) : (
+                    <span className="truncate">{news.lugar_evento}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <h4 className='text-2xl font-bold leading-tight text-[#022c22] group-hover/card:text-emerald-600 transition-colors line-clamp-2'>
+            {news.titulo || news.t}
+          </h4>
+          
+          <p className='text-slate-500 text-sm leading-relaxed line-clamp-2'>
+            {news.resumen || news.extracto || news.d}
+          </p>
+        </div>
+        
+        <div className='pt-4 flex items-center justify-between border-t border-slate-100/80 mt-4'>
+          <span className='text-xs font-bold text-slate-400 group-hover/card:text-emerald-500 transition-colors italic'>
+            {s.leerMas}
+          </span>
+          {news.fecha_evento && (
+            <span className='text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50'>
+              📅 {news.fecha_evento}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NoticiasSection() {
   const [noticiasBase, setNoticiasBase] = useState<any[]>([])
   const [selectedNews, setSelectedNews] = useState<any | null>(null)
@@ -84,70 +182,14 @@ export default function NoticiasSection() {
           }`} 
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {noticias.map((news: any, i) => {
-            const hasEventDetails = news.fecha_evento || news.hora_evento || news.lugar_evento;
-            
-            return (
-              <div 
-                key={i} 
-                onClick={() => setSelectedNews(news)}
-                className='w-full max-w-md md:w-[calc(50%-20px)] lg:w-[calc(33.333%-27px)] md:max-w-sm lg:max-w-[380px] flex-shrink-0 snap-start group/card cursor-pointer'
-              >
-                <div className='relative mb-0 overflow-hidden rounded-[2.5rem] shadow-xl shadow-emerald-900/5'>
-                  <div className='absolute inset-0 bg-emerald-900/20 opacity-0 group-hover/card:opacity-100 transition-opacity z-10 duration-500' />
-                  <img 
-                    src={news.imagen_url || news.img || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=75&w=600'} 
-                    alt={news.titulo} 
-                    loading="lazy"
-                    decoding="async"
-                    className='w-full h-auto group-hover/card:scale-110 transition duration-700 ease-out' 
-                  />
-                </div>
-                
-                <div className='space-y-3 px-2 pt-3'>
-                  <div className='flex items-center justify-between gap-2'>
-                    <p className='text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
-                      {news.fecha_publicacion?.split('T')[0] || news.fecha?.split('T')[0] || s.cardMeta}
-                    </p>
-                    {news.lugar_evento && (
-                      <div className='text-[10px] text-slate-400 font-bold max-w-[150px] overflow-hidden whitespace-nowrap flex items-center gap-1'>
-                        <span className="shrink-0">📍</span>
-                        <div className="overflow-hidden relative w-full flex whitespace-nowrap">
-                          {news.lugar_evento.length > 20 ? (
-                            <div className="flex animate-marquee hover:[animation-play-state:paused] shrink-0 gap-6" style={{ animationDuration: '12s' }}>
-                              <span className="shrink-0">{news.lugar_evento}</span>
-                              <span className="shrink-0" aria-hidden="true">{news.lugar_evento}</span>
-                            </div>
-                          ) : (
-                            <span className="truncate">{news.lugar_evento}</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <h4 className='text-2xl font-bold leading-tight text-[#022c22] group-hover/card:text-emerald-600 transition-colors line-clamp-2'>
-                    {news.titulo || news.t}
-                  </h4>
-                  
-                  <p className='text-slate-500 text-sm leading-relaxed line-clamp-2'>
-                    {news.resumen || news.extracto || news.d}
-                  </p>
-                  
-                  <div className='pt-2 flex items-center justify-between'>
-                    <span className='text-xs font-bold text-slate-400 group-hover/card:text-emerald-500 transition-colors italic'>
-                      {s.leerMas}
-                    </span>
-                    {news.fecha_evento && (
-                      <span className='text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50'>
-                        📅 {news.fecha_evento}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+          {noticias.map((news: any, i) => (
+            <NewsCard 
+              key={i} 
+              news={news} 
+              onClick={() => setSelectedNews(news)} 
+              s={s} 
+            />
+          ))}
         </div>
 
         {/* Right Arrow Button */}
