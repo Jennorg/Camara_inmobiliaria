@@ -55,10 +55,13 @@ export default function App() {
           <Route path='/' element={<><SEO /><LandingPage /></>} />
           <Route path='/cursos'        element={<CursosCatalogPage />} />
           <Route path='/talleres'      element={<CursosCatalogPage />} />
-          <Route path='/mision_vision' element={<MisionVisionPage />} />
-          <Route path='/junta_directiva' element={<JuntaDirectivaPage />} />
+          <Route path='/mision-vision' element={<MisionVisionPage />} />
+          <Route path='/mision_vision' element={<Navigate to='/mision-vision' replace />} />
+          <Route path='/junta-directiva' element={<JuntaDirectivaPage />} />
+          <Route path='/junta_directiva' element={<Navigate to='/junta-directiva' replace />} />
           <Route path='/historia'      element={<HistoriaPage />} />
-          <Route path='/codigo_etica'  element={<CivPage />} />
+          <Route path='/codigo-etica'  element={<CivPage />} />
+          <Route path='/codigo_etica'  element={<Navigate to='/codigo-etica' replace />} />
           <Route path='/direccion'     element={<DireccionPage />} />
           <Route path='/proposito'     element={<PropositoPage />} />
           <Route path='/cibir'         element={<CibirPage />} />

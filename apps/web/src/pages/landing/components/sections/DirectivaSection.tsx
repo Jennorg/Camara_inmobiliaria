@@ -113,7 +113,7 @@ export default function DirectivaSection() {
         </div>
 
         <div className="flex justify-center pt-8">
-          <Link to="/junta_directiva" className="px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
+          <Link to="/junta-directiva" className="px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
             {s.verTodos}
           </Link>
         </div>

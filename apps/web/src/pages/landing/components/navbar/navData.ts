@@ -5,9 +5,9 @@ export const NAV_ITEMS = [
   {
     title: 'Nosotros',
     items: [
-      { label: 'Misión y Visión', path: '/mision_vision' },
+      { label: 'Misión y Visión', path: '/mision-vision' },
       // { label: 'Propósito', path: '/proposito' },
-      { label: 'Junta Directiva', path: '/junta_directiva' },
+      { label: 'Junta Directiva', path: '/junta-directiva' },
       { label: 'Historia', path: '/historia' }
     ],
     Tpath: '',

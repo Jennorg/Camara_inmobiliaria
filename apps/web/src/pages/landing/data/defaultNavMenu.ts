@@ -3,14 +3,14 @@ export const DEFAULT_NAV_MENU = [
   {
     title: 'Nosotros',
     items: [
-      { label: 'Misión y Visión', path: '/mision_vision' },
-      { label: 'Junta Directiva', path: '/junta_directiva' },
+      { label: 'Misión y Visión', path: '/mision-vision' },
+      { label: 'Junta Directiva', path: '/junta-directiva' },
       { label: 'Historia', path: '/historia' },
       { label: 'Dirección', path: '/direccion' },
     ],
     Tpath: '',
   },
-  { title: 'CIV', items: null, Tpath: '/codigo_etica' },
+  { title: 'CIV', items: null, Tpath: '/codigo-etica' },
   { title: 'Eventos', items: null, Tpath: '/eventos' },
   {
     title: 'Afiliados',

@@ -20,7 +20,7 @@ export const STATIC = {
     cards: [
       {
         title: "Misión y Visión",
-        path: "/mision_vision",
+        path: "/mision-vision",
         img: "https://escalas.org/wp-content/uploads/2019/10/4-1.jpg",
       },
       {
@@ -30,7 +30,7 @@ export const STATIC = {
       },
       {
         title: "Junta Directiva",
-        path: "/junta_directiva",
+        path: "/junta-directiva",
         img: "https://gentecompetente.com/wp-content/uploads/2023/10/las-empresas-que-se-hacen-querer.jpg",
       },
     ],
