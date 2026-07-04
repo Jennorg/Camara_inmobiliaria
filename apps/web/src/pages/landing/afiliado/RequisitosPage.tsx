@@ -85,7 +85,7 @@ export default function RequisitosPage() {
   const [darkMode, setDarkMode] = useState(false);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth">
+    <div className="min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth">
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       <header
@@ -109,7 +109,7 @@ export default function RequisitosPage() {
         </div>
       </header>
 
-      <main className="bg-white text-slate-900 rounded-t-[3rem] sm:rounded-t-[4rem] -mt-20 relative z-20 px-4 sm:px-6 lg:px-20 py-20">
+      <main className="bg-white text-slate-900 rounded-t-[3rem] sm:rounded-t-[4rem] -mt-20 relative z-20 px-4 sm:px-6 lg:px-20 py-20 overflow-hidden">
         <div className="max-w-6xl mx-auto">
 
           {/* Value Chain Diagram (Straight Flow) */}
