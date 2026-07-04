@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 import logo from '@/assets/Logo2.png'
 import ForgotPasswordModal from '@/pages/landing/components/ForgotPasswordModal'
 import { Eye, EyeOff } from 'lucide-react'
+import { FloatingInput } from '@/components/ui/FloatingInput'
 
 export default function LoginModal({ onClose }: { onClose: () => void }) {
   const { login } = useAuth()
@@ -68,36 +69,34 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           <form className='space-y-6' onSubmit={handleSubmit}>
             {/* Campo Email */}
             <div className='space-y-2'>
-              <input
+              <FloatingInput
                 type='email'
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                className='w-full px-2 py-3 border-b-2 border-slate-100 focus:border-emerald-500 transition-colors bg-transparent outline-none text-slate-800 placeholder-slate-300 font-medium'
-                placeholder="Correo electrónico"
+                label="Correo electrónico"
               />
             </div>
 
             {/* Campo Password */}
             <div className='space-y-2'>
-              <div className='relative flex items-center group'>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className='w-full px-2 py-3 border-b-2 border-slate-100 focus:border-emerald-500 transition-colors bg-transparent outline-none text-slate-800 placeholder-slate-300 font-medium pr-10'
-                  placeholder="Contraseña"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 text-slate-300 hover:text-emerald-600 transition-colors focus:outline-none"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+              <FloatingInput
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                label="Contraseña"
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-slate-300 hover:text-emerald-600 transition-colors focus:outline-none pb-2 pt-2"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
               <div className='flex justify-end'>
                 <button
                   type='button'
