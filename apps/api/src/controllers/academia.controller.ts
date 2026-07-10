@@ -698,6 +698,42 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       return
     }
 
+    // --- VALIDACIÓN DE DOCUMENTOS OBLIGATORIOS EN EL BACKEND ---
+    const mainPrograms = ['AFILIACION', 'CIBIR', 'PREANI', 'PEGI', 'PADI']
+    if (mainPrograms.includes(programaCodigo)) {
+      const urlCv = typeof req.body?.url_cv === 'string' ? req.body.url_cv.trim() : ''
+      if (!urlCv) {
+        res.status(400).json({ success: false, message: 'El Currículum/Síntesis Curricular es obligatorio para continuar con el expediente.' })
+        return
+      }
+
+      if (isCorporativo) {
+        const urlRif = typeof req.body?.url_titulo === 'string' ? req.body.url_titulo.trim() : ''
+        const urlReg = typeof req.body?.url_registro_mercantil === 'string' ? req.body.url_registro_mercantil.trim() : ''
+        const urlRep = typeof req.body?.url_titulo_representante === 'string' ? req.body.url_titulo_representante.trim() : ''
+
+        if (!urlRif) {
+          res.status(400).json({ success: false, message: 'El RIF de la Empresa es obligatorio.' })
+          return
+        }
+        if (!urlReg) {
+          res.status(400).json({ success: false, message: 'El Acta Constitutiva/Registro Mercantil es obligatorio.' })
+          return
+        }
+        if (!urlRep) {
+          res.status(400).json({ success: false, message: 'El Título Académico del Representante Legal es obligatorio.' })
+          return
+        }
+      } else {
+        const nivel = req.body?.nivelProfesional ? normalizeNivelProfesional(req.body.nivelProfesional) : nivelProfesional
+        const urlTitulo = typeof req.body?.url_titulo === 'string' ? req.body.url_titulo.trim() : ''
+        if (nivel !== 'Bachiller' && !urlTitulo) {
+          res.status(400).json({ success: false, message: 'El Título Académico es obligatorio para los niveles profesionales declarados.' })
+          return
+        }
+      }
+    }
+
     // El estudiante debe ser registrado con la información del solicitante principal (la empresa si razonSocial existe, o la persona natural)
     const finalEmail = email
     const finalNombre = nombreCompleto
@@ -919,10 +955,26 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
         })
 
         for (const doc of docsToInsert) {
+          // Obtener un nombre por defecto amigable según el tipo de documento
+          let defaultName = 'Documento Adjunto'
+          if (doc.tipo === 'cv') defaultName = 'Currículum Vitae'
+          else if (doc.tipo === 'titulo') defaultName = 'Título Académico'
+          else if (doc.tipo === 'registro_mercantil') defaultName = 'Registro Mercantil / RIF'
+          else if (doc.tipo === 'titulo_representante') defaultName = 'Título Académico del Representante'
+          else if (doc.tipo === 'referencia_afiliado_1') defaultName = `Referencia Gremial 1 - ${doc.nombre || ''}`.trim()
+          else if (doc.tipo === 'referencia_afiliado_2') defaultName = `Referencia Gremial 2 - ${doc.nombre || ''}`.trim()
+          else if (doc.nombre) defaultName = doc.nombre
+
           await db.execute({
             sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
                   VALUES ('estudiante', ?, ?, ?, ?, ?)`,
-            args: [id_estudiante, doc.tipo, doc.url, doc.nombre?.trim() || null, doc.fecha || null]
+            args: [
+              id_estudiante, 
+              doc.tipo, 
+              doc.url, 
+              doc.nombre?.trim() || defaultName, 
+              doc.fecha || now
+            ]
           })
         }
       }
