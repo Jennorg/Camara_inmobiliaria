@@ -38,6 +38,7 @@ apps/api/src/scripts/inspect_*
 scratch/
 temp/
 tmp/
+docs/
 
 # Database Seeds
 apps/api/src/config/seed-*.ts
