@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Award, Clock } from 'lucide-react'
+import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Award, Clock, Mail } from 'lucide-react'
 import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 
@@ -57,12 +57,12 @@ export default function PreinscripcionesPrincipalesPanel({
   const { token } = useAuth()
   const [activeSubTab, setActiveSubTab] = useState<'programas' | 'solicitudes'>('programas')
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
-  type UiEstatus = 'Todos' | 'Pendiente' | 'Entrevista' | 'Inscripción' | 'Rechazado'
+  type UiEstatus = 'Todos' | 'Pendiente' | 'Sin Expediente' | 'Entrevista' | 'Inscripción' | 'Rechazado'
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
   const [search, setSearch] = useState('')
   const [filtroAcreditacion, setFiltroAcreditacion] = useState<'todos' | 'apto' | 'no_apto'>('todos')
   const [rows, setRows] = useState<Row[]>([])
-  const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, Entrevista: 0, Inscripción: 0, Rechazado: 0 })
+  const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, 'Sin Expediente': 0, Entrevista: 0, Inscripción: 0, Rechazado: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Row | null>(null)
@@ -104,7 +104,7 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const qs = new URLSearchParams()
       if (uiEstatus === 'Todos') qs.set('estatus', 'Todos')
-      else if (uiEstatus === 'Pendiente') qs.set('estatus', 'Preinscrito')
+      else if (uiEstatus === 'Pendiente' || uiEstatus === 'Sin Expediente') qs.set('estatus', 'Preinscrito')
       else if (uiEstatus === 'Entrevista') qs.set('estatus', 'Entrevista')
       else if (uiEstatus === 'Inscripción') qs.set('estatus', 'Inscrito')
       else if (uiEstatus === 'Rechazado') qs.set('estatus', 'Rechazado')
@@ -118,12 +118,19 @@ export default function PreinscripcionesPrincipalesPanel({
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando preinscripciones')
 
       const data = json.data as Row[]
+      
+      // Calcular dinámicamente los contadores de expediente vacío
+      const preinscritosCount = data.filter(r => r.estatus === 'Preinscrito').length
+      const sinExpedienteCount = data.filter(r => r.estatus === 'Preinscrito' && (r.num_documentos === 0 || !r.num_documentos)).length
+      const conExpedienteCount = preinscritosCount - sinExpedienteCount
+
       setRows(data)
 
       if (json.meta && json.meta.counts) {
         setCounts({
           Todos: json.meta.counts.Todos || 0,
-          Pendiente: json.meta.counts.Pendiente || 0,
+          Pendiente: conExpedienteCount,
+          'Sin Expediente': sinExpedienteCount,
           Entrevista: json.meta.counts.Entrevista || 0,
           Inscripción: json.meta.counts.Aprobado || 0,
           Rechazado: json.meta.counts.Rechazado || 0,
@@ -155,6 +162,10 @@ export default function PreinscripcionesPrincipalesPanel({
   }
 
   const fetchDocumentos = async (idEstudiante: number) => {
+    if (!idEstudiante || isNaN(idEstudiante)) {
+      setDocumentos([])
+      return
+    }
     setLoadingDocs(true)
     setDocumentos([])
     try {
@@ -581,12 +592,62 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  const reenviarEnlaceExpediente = async (id: number) => {
+    const result = await Swal.fire({
+      title: '¿Reenviar correo?',
+      text: 'Se enviará un correo al aspirante y se reactivará su token para cargar el expediente.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#059669',
+      confirmButtonText: 'Sí, reenviar correo'
+    })
+    if (result.isConfirmed) {
+      Swal.fire({
+        title: 'Reenviando...',
+        text: 'Por favor espera un momento.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading()
+        }
+      })
+      try {
+        const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/reenviar-enlace`, {
+          method: 'POST',
+          headers: { ...authHeaders },
+        })
+        const json = await res.json()
+        if (!res.ok || !json.success) throw new Error(json.message || 'Error al reenviar enlace')
+        
+        Swal.fire({
+          title: '¡Enviado!',
+          text: json.message || 'Enlace reenviado con éxito.',
+          icon: 'success',
+          confirmButtonColor: '#059669'
+        })
+      } catch (e: any) {
+        Swal.fire({
+          title: 'Error',
+          text: e.message || 'Ocurrió un error al reenviar.',
+          icon: 'error',
+          confirmButtonColor: '#dc2626'
+        })
+      }
+    }
+  }
+
   const filteredRows = useMemo(() => {
     let result = rows
     if (filtroAcreditacion === 'apto') {
       result = result.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
     } else if (filtroAcreditacion === 'no_apto') {
       result = result.filter(r => r.programa_codigo !== 'AFILIACION' || !r.apto_acreditacion)
+    }
+
+    // Filtro por sub-estado de expediente
+    if (uiEstatus === 'Pendiente') {
+      result = result.filter(r => r.num_documentos && r.num_documentos > 0)
+    } else if (uiEstatus === 'Sin Expediente') {
+      result = result.filter(r => !r.num_documentos || r.num_documentos === 0)
     }
     if (!search) return result
     const q = search.toLowerCase()
@@ -597,7 +658,7 @@ export default function PreinscripcionesPrincipalesPanel({
     )
   }, [rows, search, filtroAcreditacion])
 
-  const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string) => {
+  const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1) => {
     if (afiliadoEstatus === 'Afiliado') {
       return { label: 'Afiliado', styles: 'bg-emerald-50 text-emerald-600 border-emerald-100' }
     }
@@ -605,6 +666,9 @@ export default function PreinscripcionesPrincipalesPanel({
       return { label: 'CIBIR', styles: 'bg-blue-50 text-blue-600 border-blue-100' }
     }
     if (estatus === 'Preinscrito') {
+      if (numDocumentos === 0) {
+        return { label: 'Sin Expediente', styles: 'bg-rose-50 text-rose-500 border-rose-100' }
+      }
       return { label: 'Pendiente', styles: 'bg-amber-50 text-amber-600 border-amber-100' }
     }
     if (estatus === 'Entrevista') {
@@ -684,7 +748,7 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
 
           <div className="flex flex-wrap gap-1.5 mt-1">
-            {(['Todos', 'Pendiente', 'Entrevista', 'Inscripción', 'Rechazado'] as const).map(f => (
+            {(['Todos', 'Pendiente', 'Sin Expediente', 'Entrevista', 'Inscripción', 'Rechazado'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setUiEstatus(f)}
@@ -723,7 +787,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     {r.estudiante_nombre}
                   </span>
                   {(() => {
-                    const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus)
+                    const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus, r.num_documentos)
                     return (
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
                         {statusObj.label}
@@ -772,7 +836,7 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
               <div className="flex flex-col items-end gap-1">
                 {(() => {
-                  const statusObj = getStatusLabelAndStyles(selected.estatus, selected.afiliado_estatus)
+                  const statusObj = getStatusLabelAndStyles(selected.estatus, selected.afiliado_estatus, selected.num_documentos)
                   return (
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-full border uppercase tracking-wider ${statusObj.styles}`}>
                       {statusObj.label}
@@ -1126,21 +1190,50 @@ export default function PreinscripcionesPrincipalesPanel({
               (selected.afiliado_estatus === '5_CIBIR')) && (
               <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-3">
                 {selected.estatus === 'Preinscrito' && selected.afiliado_estatus !== '5_CIBIR' && (
-                  <div className="flex gap-2">
-                    {selected.programa_codigo === 'AFILIACION' ? (
+                  <div className="w-full">
+                    {selected.num_documentos && selected.num_documentos > 0 ? (
                       <>
-                        {selected.apto_acreditacion ? (
-                          <>
-                            <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200">Aprobar Directo</button>
-                            <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
-                          </>
-                        ) : (
-                          <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
-                        )}
-                        <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest">Agendar Cita</button>
+                        <div className="flex gap-2">
+                          {selected.programa_codigo === 'AFILIACION' ? (
+                            <>
+                              {selected.apto_acreditacion ? (
+                                <>
+                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200">Aprobar Directo</button>
+                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
+                                </>
+                              ) : (
+                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
+                              )}
+                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest">Agendar Cita</button>
+                            </>
+                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest">Aprobar</button>}
+                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100">Rechazar</button>
+                        </div>
+                        <button 
+                          onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
+                          className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Reenviar Enlace de Expediente
+                        </button>
                       </>
-                    ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest">Aprobar</button>}
-                    <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100">Rechazar</button>
+                    ) : (
+                      <div className="flex gap-2 w-full">
+                        <button 
+                          onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
+                          className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Reenviar Enlace
+                        </button>
+                        <button 
+                          onClick={() => rechazar(selected.id_inscripcion)} 
+                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Rechazar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 {selected.estatus === 'Entrevista' && (

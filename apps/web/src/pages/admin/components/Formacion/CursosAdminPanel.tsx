@@ -3,7 +3,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
 
@@ -11,6 +11,7 @@ interface CursoDB {
   id_curso: number;
   id_instructor: number;
   nombre: string;
+  titulo?: string;
   descripcion: string | null;
   imagen_url: string | null;
   programa_codigo: string | null;
@@ -52,6 +53,23 @@ const CursosAdminPanel = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // New Professor Modal States
+  const [isProfModalOpen, setIsProfModalOpen] = useState(false);
+  const [profRegisterMode, setProfRegisterMode] = useState<'existente' | 'nuevo'>('existente');
+  const [personasDisponibles, setPersonasDisponibles] = useState<any[]>([]);
+  const [loadingPersonas, setLoadingPersonas] = useState(false);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string>('');
+  const [currentModIndex, setCurrentModIndex] = useState<number | null>(null);
+
+  const [profFormData, setProfFormData] = useState({
+    nombres: '',
+    apellidos: '',
+    cedula_tipo: 'V',
+    cedula: '',
+    email: '',
+    telefono: '',
+  });
   
   const uploadImage = async (file: File) => {
     setUploading(true);
@@ -74,6 +92,8 @@ const CursosAdminPanel = () => {
     precio: string;
     fecha_inicio: string;
     id_instructor: number;
+    categoria: string;
+    estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
   }>({
     nombre: '',
@@ -83,6 +103,8 @@ const CursosAdminPanel = () => {
     precio: '0',
     fecha_inicio: '',
     id_instructor: 1,
+    categoria: 'Taller',
+    estatus: 'Abierto',
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
   });
 
@@ -119,6 +141,23 @@ const CursosAdminPanel = () => {
     }
   };
 
+  const fetchPersonasDisponibles = async () => {
+    setLoadingPersonas(true);
+    try {
+      const res = await fetch(`${API_URL}/api/academia/personas-disponibles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (json.success) {
+        setPersonasDisponibles(json.data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingPersonas(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchCursos();
@@ -138,6 +177,8 @@ const CursosAdminPanel = () => {
         precio: curso.precio === 'Gratis' ? '0' : curso.precio?.replace('$', '').trim() || '0',
         fecha_inicio: curso.fecha_inicio || '',
         id_instructor: curso.id_instructor || 1,
+        categoria: curso.categoria || 'Taller',
+        estatus: (curso.estatus as any) || 'Abierto',
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
       });
     } else {
@@ -150,6 +191,8 @@ const CursosAdminPanel = () => {
         precio: '0',
         fecha_inicio: '',
         id_instructor: 1,
+        categoria: 'Taller',
+        estatus: 'Abierto',
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
       });
     }
@@ -158,6 +201,119 @@ const CursosAdminPanel = () => {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleOpenProfModal = () => {
+    setProfRegisterMode('existente');
+    setSelectedPersonaId('');
+    setProfFormData({
+      nombres: '',
+      apellidos: '',
+      cedula_tipo: 'V',
+      cedula: '',
+      email: '',
+      telefono: '',
+    });
+    fetchPersonasDisponibles();
+    setIsProfModalOpen(true);
+  };
+
+  const handleCreateProfesor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      let body: any = {};
+      if (profRegisterMode === 'existente') {
+        if (!selectedPersonaId) {
+          Swal.fire('Error', 'Por favor selecciona una persona de la lista', 'error');
+          return;
+        }
+        const persona = personasDisponibles.find(p => p.id === Number(selectedPersonaId));
+        body = {
+          id_persona: persona?.id,
+          id_afiliado: persona?.id_afiliado
+        };
+      } else {
+        if (!profFormData.nombres || !profFormData.apellidos || !profFormData.cedula || !profFormData.email) {
+          Swal.fire('Error', 'Completa los campos obligatorios del formulario', 'error');
+          return;
+        }
+        body = {
+          nombres: profFormData.nombres,
+          apellidos: profFormData.apellidos,
+          cedula_tipo: profFormData.cedula_tipo,
+          cedula: profFormData.cedula,
+          email: profFormData.email,
+          telefono: profFormData.telefono,
+        };
+      }
+
+      const res = await fetch(`${API_URL}/api/academia/profesores`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (json.success) {
+        Swal.fire('Éxito', 'Profesor registrado correctamente', 'success');
+        setIsProfModalOpen(false);
+        // Reload professors
+        const resProfs = await fetch(`${API_URL}/api/academia/profesores`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const jsonProfs = await resProfs.json();
+        if (jsonProfs.success) {
+          setProfesores(jsonProfs.data);
+          // Auto-select newly created professor
+          const newProfId = json.data?.id_profesor;
+          if (newProfId && currentModIndex !== null) {
+            const newMods = [...formData.modulos];
+            newMods[currentModIndex].id_profesor = newProfId;
+            setFormData({ ...formData, modulos: newMods });
+          }
+        }
+      } else {
+        Swal.fire('Error', json.message || 'Error al registrar profesor', 'error');
+      }
+    } catch (e) {
+      Swal.fire('Error', 'Fallo de conexión', 'error');
+    }
+  };
+
+  const handleToggleStatus = async (curso: CursoDB) => {
+    const isCurrentlyClosed = curso.estatus === 'Cerrado';
+    const actionText = isCurrentlyClosed ? 'abrir/reabrir' : 'cerrar';
+    const nextStatus = isCurrentlyClosed ? 'Abierto' : 'Cerrado';
+
+    const result = await Swal.fire({
+      title: `¿Quieres ${actionText} este curso?`,
+      text: isCurrentlyClosed 
+        ? "El curso volverá a estar disponible para inscripciones." 
+        : "El curso se cerrará y no se aceptarán más inscripciones.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#00D084',
+      cancelButtonColor: '#d33',
+      confirmButtonText: isCurrentlyClosed ? 'Sí, abrir' : 'Sí, cerrar'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`${API_URL}/api/academia/cursos/${curso.id_curso}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ estatus: nextStatus })
+        });
+        const json = await res.json();
+        if (json.success) {
+          Swal.fire('Éxito', `Curso ${isCurrentlyClosed ? 'abierto' : 'cerrado'} correctamente.`, 'success');
+          fetchCursos();
+        } else {
+          Swal.fire('Error', json.message || 'No se pudo actualizar el estado del curso', 'error');
+        }
+      } catch (error) {
+         Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,9 +326,7 @@ const CursosAdminPanel = () => {
       const payload = { 
         ...formData, 
         precio: finalPrice,
-        // Mandar valores por defecto para campos eliminados pero requeridos por el backend si fuera el caso
-        nivel_academico: 'Libre',
-        estatus: 'Abierto'
+        nivel_academico: 'Libre'
       };
 
       const res = await fetch(url, {
@@ -255,7 +409,12 @@ const CursosAdminPanel = () => {
             {cursos.map(c => (
               <div key={c.id_curso} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-slate-800 text-sm leading-tight flex-1">{c.nombre}</p>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <p className="font-semibold text-slate-800 text-sm leading-tight">{c.titulo || c.nombre}</p>
+                    {c.categoria && (
+                      <span className="self-start text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
+                    )}
+                  </div>
                   <span className={`flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLES[c.estatus] || 'bg-gray-100'}`}>
                     {c.estatus}
                   </span>
@@ -268,19 +427,53 @@ const CursosAdminPanel = () => {
                     <Calendar size={12} className="text-slate-400" />
                     {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}
                   </span>
-                  <span className="font-semibold text-slate-700">{c.precio || 'Gratis'}</span>
                 </div>
                 {/* Cupos bar */}
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${Math.max(0, Math.min(100, ((c.cupos_totales - c.cupos_disponibles) / c.cupos_totales) * 100))}%` }} />
+                {c.cupos_totales >= 999999 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider">Cupos Ilimitados</span>
+                    <span className="text-[10px] text-slate-500 ml-auto tabular-nums">{c.cupos_totales - c.cupos_disponibles} inscritos</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 whitespace-nowrap tabular-nums">{(c.cupos_totales - c.cupos_disponibles)}/{c.cupos_totales} inscritos</span>
-                </div>
-                <div className="flex gap-2 mt-2 border-t pt-2 border-gray-50">
-                  <button onClick={() => setViewingCurso(c)} className="text-xs text-[#00D084] font-semibold hover:underline">Inscritos</button>
-                  <button onClick={() => handleOpenModal(c)} className="text-xs text-blue-600 font-semibold hover:underline">Editar</button>
-                  <button onClick={() => handleDelete(c.id_curso)} className="text-xs text-red-500 font-semibold hover:underline">Cerrar</button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${Math.max(0, Math.min(100, ((c.cupos_totales - c.cupos_disponibles) / c.cupos_totales) * 100))}%` }} />
+                    </div>
+                    <span className="text-[10px] text-slate-500 whitespace-nowrap tabular-nums">{(c.cupos_totales - c.cupos_disponibles)}/{c.cupos_totales} inscritos</span>
+                  </div>
+                )}
+                <div className="flex gap-2 mt-2 border-t pt-2 border-gray-100 justify-end">
+                  <button 
+                    onClick={() => setViewingCurso(c)} 
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
+                  >
+                    <Users size={12} />
+                    <span>Inscritos</span>
+                  </button>
+                  <button 
+                    onClick={() => handleOpenModal(c)} 
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                  >
+                    <Pencil size={12} />
+                    <span>Editar</span>
+                  </button>
+                  {c.estatus === 'Cerrado' ? (
+                    <button 
+                      onClick={() => handleToggleStatus(c)} 
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                    >
+                      <Unlock size={12} />
+                      <span>Abrir</span>
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleToggleStatus(c)} 
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                    >
+                      <Lock size={12} />
+                      <span>Cerrar</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -290,7 +483,7 @@ const CursosAdminPanel = () => {
             <table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="bg-gray-50/60">
-                  {['CURSO', 'INSTRUCTOR', 'INSCRITOS', 'FECHA INICIO', 'PRECIO', 'ACCIONES'].map(h => (
+                  {['CURSO', 'INSTRUCTOR', 'INSCRITOS', 'FECHA INICIO', 'ACCIONES'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap">
                       {h}
                     </th>
@@ -303,23 +496,68 @@ const CursosAdminPanel = () => {
                   return (
                   <tr key={c.id_curso} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-800 text-xs leading-tight max-w-[200px]">{c.nombre}</p>
+                      <div className="flex flex-col gap-1">
+                        <p className="font-semibold text-slate-800 text-xs leading-tight max-w-[200px]">{c.titulo || c.nombre}</p>
+                        {c.categoria && (
+                          <span className="self-start text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{c.instructor_nombre || 'Sin Instructor'}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full w-16 overflow-hidden">
-                          <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${Math.max(0, Math.min(100, (ins / c.cupos_totales) * 100))}%` }} />
+                      {c.cupos_totales >= 999999 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Ilimitados</span>
+                          <span className="text-xs text-slate-500 tabular-nums">({ins} inscritos)</span>
                         </div>
-                        <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">{ins}/{c.cupos_totales}</span>
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full w-16 overflow-hidden">
+                            <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${Math.max(0, Math.min(100, (ins / c.cupos_totales) * 100))}%` }} />
+                          </div>
+                          <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">{ins}/{c.cupos_totales}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-slate-700 tabular-nums">{c.precio || 'Gratis'}</td>
-                    <td className="px-4 py-3 flex gap-2">
-                       <button onClick={() => setViewingCurso(c)} className="text-xs text-[#00D084] font-semibold hover:underline">Inscritos</button>
-                       <button onClick={() => handleOpenModal(c)} className="text-xs text-blue-600 font-semibold hover:underline">Editar</button>
-                       <button onClick={() => handleDelete(c.id_curso)} className="text-xs text-red-500 font-semibold hover:underline">Cerrar</button>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <button 
+                          onClick={() => setViewingCurso(c)} 
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
+                          title="Ver inscritos"
+                        >
+                          <Users size={12} />
+                          <span>Inscritos</span>
+                        </button>
+                        <button 
+                          onClick={() => handleOpenModal(c)} 
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                          title="Editar curso"
+                        >
+                          <Pencil size={12} />
+                          <span>Editar</span>
+                        </button>
+                        {c.estatus === 'Cerrado' ? (
+                          <button 
+                            onClick={() => handleToggleStatus(c)} 
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                            title="Reabrir inscripciones"
+                          >
+                            <Unlock size={12} />
+                            <span>Abrir</span>
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleToggleStatus(c)} 
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                            title="Cerrar inscripciones"
+                          >
+                            <Lock size={12} />
+                            <span>Cerrar</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )})}
@@ -332,193 +570,404 @@ const CursosAdminPanel = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-           <div className="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+           <div className="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <h3 className="font-bold text-slate-800">{editingId ? 'Editar Curso' : 'Nuevo Curso'}</h3>
                 <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
               </div>
-              <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto scrollbar-hide">
-                {/* Drag & Drop Zone */}
-                <div 
-                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-[#00D084]', 'bg-[#E9FAF4]') }}
-                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]') }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]');
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) uploadImage(file);
-                  }}
-                  onClick={() => document.getElementById('image-upload')?.click()}
-                  className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-all hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
-                >
-                  <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadImage(file);
-                  }} />
-                  
-                  {formData.imagen_url ? (
-                    <>
-                      <img src={formData.imagen_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" />
-                      <div className="relative z-10 w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                        <img src={formData.imagen_url} alt="Thumbnail" className="w-full h-full object-cover" />
+              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-5 pr-4">
+                  {/* Drag & Drop Zone */}
+                  <div 
+                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-[#00D084]', 'bg-[#E9FAF4]') }}
+                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]') }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]');
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) uploadImage(file);
+                    }}
+                    onClick={() => document.getElementById('image-upload')?.click()}
+                    className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-all hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
+                  >
+                    <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadImage(file);
+                    }} />
+                    
+                    {formData.imagen_url ? (
+                      <>
+                        <img src={formData.imagen_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" />
+                        <div className="relative z-10 w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md">
+                          <img src={formData.imagen_url} alt="Thumbnail" className="w-full h-full object-cover" />
+                        </div>
+                        <p className="relative z-10 text-xs font-bold text-[#00B870]">Imagen cargada · Cambiar</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-all">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">Arrastra una imagen de portada</p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-widest">o haz clic para buscar</p>
+                        </div>
+                      </>
+                    )}
+                    {uploading && (
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20">
+                        <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[10px] font-black text-[#00D084] uppercase tracking-widest">Subiendo...</span>
                       </div>
-                      <p className="relative z-10 text-xs font-bold text-[#00B870]">Imagen cargada · Cambiar</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-all">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-700">Arrastra una imagen de portada</p>
-                        <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-widest">o haz clic para buscar</p>
-                      </div>
-                    </>
-                  )}
-                  {uploading && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20">
-                      <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[10px] font-black text-[#00D084] uppercase tracking-widest">Subiendo...</span>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Curso</label>
-                  <input required
-                    placeholder="Ej. Curso de Ética Inmobiliaria"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                    value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Descripción del Programa</label>
-                  <textarea 
-                    rows={3}
-                    placeholder="Describe los objetivos y alcances del curso..."
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all resize-none"
-                    value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})} 
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cupos Totales</label>
-                    <input type="number" required min="1"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                      value={formData.cupos_totales} onChange={e => setFormData({...formData, cupos_totales: Number(e.target.value)})} 
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Curso / Cohorte</label>
+                    <input required
+                      placeholder="Ej. Curso de Ética Inmobiliaria"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} 
                     />
                   </div>
+
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Precio de Inscripción</label>
-                    <div className="relative">
-                      <input type="number" step="0.01" min="0" required
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all pr-10"
-                        value={formData.precio} onChange={e => setFormData({...formData, precio: e.target.value})} 
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Descripción del Programa</label>
+                    <textarea 
+                      rows={3}
+                      placeholder="Describe los objetivos y alcances del curso..."
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all resize-none"
+                      value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})} 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Categoría / Tipo de Actividad</label>
+                      <select
+                        required
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                        value={formData.categoria}
+                        onChange={e => setFormData({ ...formData, categoria: e.target.value })}
+                      >
+                        <option value="Taller">Taller</option>
+                        <option value="Conferencia">Conferencia</option>
+                        <option value="Workshop">Workshop</option>
+                        <option value="Webinar">Webinar</option>
+                        <option value="Diplomado">Diplomado</option>
+                        <option value="Certificación">Certificación</option>
+                        <option value="Seminario">Seminario</option>
+                        <option value="Charla">Charla</option>
+                        <option value="Curso">Curso</option>
+                      </select>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1 font-bold italic">{Number(formData.precio) === 0 ? 'Este curso será gratuito' : `Costo por participante: $${formData.precio}`}</p>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Estatus del Curso</label>
+                      <select
+                        value={formData.estatus}
+                        onChange={e => setFormData({ ...formData, estatus: e.target.value as any })}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      >
+                        <option value="Abierto">Abierto (Recibiendo Inscripciones)</option>
+                        <option value="Cerrado">Cerrado / Concluido</option>
+                        <option value="En curso">En curso</option>
+                        <option value="Próximamente">Próximamente</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo de Cupos</label>
+                      <select
+                        value={formData.cupos_totales === 999999 ? 'ilimitado' : 'limitado'}
+                        onChange={(e) => {
+                          const isIlimitado = e.target.value === 'ilimitado';
+                          setFormData({
+                            ...formData,
+                            cupos_totales: isIlimitado ? 999999 : 30
+                          });
+                        }}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      >
+                        <option value="limitado">Definidos / Limitados</option>
+                        <option value="ilimitado">Abierto / Ilimitados</option>
+                      </select>
+                    </div>
+                    {formData.cupos_totales !== 999999 && (
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cantidad de Cupos</label>
+                        <input type="number" required min="1"
+                          className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                          value={formData.cupos_totales} onChange={e => setFormData({...formData, cupos_totales: Number(e.target.value)})} 
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha de Inicio Estimada</label>
+                    <input type="date" required
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} 
+                    />
+                  </div>
+
+                  <div className="space-y-3 border-t border-gray-100 pt-4">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos del Curso</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextNum = formData.modulos.length + 1;
+                          setFormData({
+                            ...formData,
+                            modulos: [
+                              ...formData.modulos,
+                              { nombre_modulo: `Módulo ${nextNum}`, id_profesor: null, orden: nextNum - 1 }
+                            ]
+                          });
+                        }}
+                        className="text-xs font-bold text-[#00B870] hover:underline"
+                      >
+                        + Agregar Módulo
+                      </button>
+                    </div>
+
+                    {formData.modulos.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No hay módulos definidos. Se creará uno por defecto.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {formData.modulos.map((mod, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Nombre del módulo"
+                              value={mod.nombre_modulo}
+                              onChange={(e) => {
+                                const newMods = [...formData.modulos];
+                                newMods[index].nombre_modulo = e.target.value;
+                                setFormData({ ...formData, modulos: newMods });
+                              }}
+                              className="flex-1 bg-white rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                            />
+                            <select
+                              value={mod.id_profesor || ''}
+                              onChange={(e) => {
+                                if (e.target.value === 'NEW_PROFESOR') {
+                                  setCurrentModIndex(index);
+                                  handleOpenProfModal();
+                                  e.target.value = mod.id_profesor ? String(mod.id_profesor) : '';
+                                  return;
+                                }
+                                const val = e.target.value ? Number(e.target.value) : null;
+                                const newMods = [...formData.modulos];
+                                newMods[index].id_profesor = val;
+                                setFormData({ ...formData, modulos: newMods });
+                              }}
+                              className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                            >
+                              <option value="">Profesor (Opcional)</option>
+                              {profesores.map(p => (
+                                <option key={p.id_profesor} value={p.id_profesor}>
+                                  {p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
+                                </option>
+                              ))}
+                              <option value="NEW_PROFESOR" className="text-[#00B870] font-bold">+ Crear Nuevo Profesor...</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newMods = formData.modulos.filter((_, idx) => idx !== index)
+                                  .map((m, idx) => ({ ...m, orden: idx }));
+                                setFormData({ ...formData, modulos: newMods });
+                              }}
+                              className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha de Inicio Estimada</label>
-                  <input type="date" required
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                    value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} 
-                  />
-                </div>
-
-                <div className="space-y-3 border-t border-gray-100 pt-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos del Curso</label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextNum = formData.modulos.length + 1;
-                        setFormData({
-                          ...formData,
-                          modulos: [
-                            ...formData.modulos,
-                            { nombre_modulo: `Módulo ${nextNum}`, id_profesor: null, orden: nextNum - 1 }
-                          ]
-                        });
-                      }}
-                      className="text-xs font-bold text-[#00B870] hover:underline"
-                    >
-                      + Agregar Módulo
-                    </button>
-                  </div>
-
-                  {formData.modulos.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">No hay módulos definidos. Se creará uno por defecto.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {formData.modulos.map((mod, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                          <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
-                          <input
-                            type="text"
-                            required
-                            placeholder="Nombre del módulo"
-                            value={mod.nombre_modulo}
-                            onChange={(e) => {
-                              const newMods = [...formData.modulos];
-                              newMods[index].nombre_modulo = e.target.value;
-                              setFormData({ ...formData, modulos: newMods });
-                            }}
-                            className="flex-1 bg-white rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                          />
-                          <select
-                            value={mod.id_profesor || ''}
-                            onChange={(e) => {
-                              const val = e.target.value ? Number(e.target.value) : null;
-                              const newMods = [...formData.modulos];
-                              newMods[index].id_profesor = val;
-                              setFormData({ ...formData, modulos: newMods });
-                            }}
-                            className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                          >
-                            <option value="">Profesor (Opcional)</option>
-                            {profesores.map(p => (
-                              <option key={p.id_profesor} value={p.id_profesor}>
-                                {p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newMods = formData.modulos.filter((_, idx) => idx !== index)
-                                .map((m, idx) => ({ ...m, orden: idx }));
-                              setFormData({ ...formData, modulos: newMods });
-                            }}
-                            className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
-                          >
-                            &times;
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-6 flex justify-end gap-3">
-                  <button type="button" onClick={handleCloseModal} className="px-6 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all active:scale-95">
+                <div className="p-5 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0 bg-slate-50/50">
+                  <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95">
                     Cancelar
                   </button>
                   <button 
                     type="submit" 
                     disabled={uploading} 
-                    className="px-8 py-3 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                    className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
                   >
                     {uploading ? 'Procesando...' : editingId ? 'Actualizar Programa' : 'Crear Curso'}
                   </button>
                 </div>
               </form>
            </div>
+        </div>
+      )}
+
+      {/* Secondary Modal: Nuevo Profesor */}
+      {isProfModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[80vh]">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
+              <div>
+                <h4 className="font-bold text-slate-800 text-sm">Registrar Profesor</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vincular o crear docente</p>
+              </div>
+              <button onClick={() => setIsProfModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
+            </div>
+            
+            <div className="p-5 border-b border-gray-100 bg-slate-50/30 flex gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setProfRegisterMode('existente')}
+                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                  profRegisterMode === 'existente'
+                    ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
+                    : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Persona Existente
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfRegisterMode('nuevo')}
+                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                  profRegisterMode === 'nuevo'
+                    ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
+                    : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Persona Nueva
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProfesor} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4 pr-3">
+                {profRegisterMode === 'existente' ? (
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Seleccionar Persona</label>
+                    {loadingPersonas ? (
+                      <div className="text-xs text-slate-400 italic">Cargando personas...</div>
+                    ) : (
+                      <select
+                        required
+                        value={selectedPersonaId}
+                        onChange={e => setSelectedPersonaId(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      >
+                        <option value="">-- Elige una persona --</option>
+                        {personasDisponibles.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.nombres} {p.apellidos} - V-{p.cedula} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-normal">
+                      Solo se muestran personas registradas en el sistema (afiliados, postulantes, estudiantes) que no son profesores actualmente.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombres</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Juan Carlos"
+                          value={profFormData.nombres}
+                          onChange={e => setProfFormData({ ...profFormData, nombres: e.target.value })}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Apellidos</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Perez"
+                          value={profFormData.apellidos}
+                          onChange={e => setProfFormData({ ...profFormData, apellidos: e.target.value })}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
+                        <select
+                          value={profFormData.cedula_tipo}
+                          onChange={e => setProfFormData({ ...profFormData, cedula_tipo: e.target.value })}
+                          className="w-full rounded-lg border border-gray-200 px-2 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084]"
+                        >
+                          <option value="V">V</option>
+                          <option value="E">E</option>
+                          <option value="P">P</option>
+                          <option value="J">J</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cédula</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Solo números"
+                          value={profFormData.cedula}
+                          onChange={e => setProfFormData({ ...profFormData, cedula: e.target.value.replace(/\D/g, '') })}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="perez@example.com"
+                        value={profFormData.email}
+                        onChange={e => setProfFormData({ ...profFormData, email: e.target.value })}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Teléfono (Opcional)</label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 04141234567"
+                        value={profFormData.telefono}
+                        onChange={e => setProfFormData({ ...profFormData, telefono: e.target.value })}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084]"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-gray-100 flex justify-end gap-2.5 flex-shrink-0 bg-slate-50/50">
+                <button type="button" onClick={() => setIsProfModalOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all">
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-md shadow-[#00D084]/20"
+                >
+                  Guardar Profesor
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
