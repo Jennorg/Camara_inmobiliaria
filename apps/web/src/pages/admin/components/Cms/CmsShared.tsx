@@ -263,7 +263,7 @@ export function ListDetail<T extends { id?: string | number }>({
           </div>
         )}
         {/* Item list with stagger entrance */}
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden divide-y divide-gray-50">
           {loading ? <Loading /> : (
             <div className="cms-stagger">
               {items.map(item => (
@@ -272,7 +272,6 @@ export function ListDetail<T extends { id?: string | number }>({
                   onClick={() => setSelectedId(item.id ?? null)}
                   className={[
                     'w-full text-left px-4 py-3 transition-all duration-150 group',
-                    'hover:translate-x-0.5',
                     String(selectedId) === String(item.id)
                       ? 'bg-[#E9FAF4] border-l-2 border-[#00D084]'
                       : 'hover:bg-slate-50 border-l-2 border-transparent',

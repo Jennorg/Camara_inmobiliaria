@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, ListDetail } from '@/pages/admin/components/Cms/CmsShared'
-import { Edit, Upload, CheckCircle, Trash2 } from 'lucide-react'
+import { Edit, Upload, CheckCircle, Trash2, ArrowUp, ArrowDown } from 'lucide-react'
 import { sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
 import { formatNombreCard } from '@/utils/formatters'
 import { invalidateDirectivaCache } from '@/pages/landing/junta-directiva/JuntaDirectivaPage'
@@ -216,6 +216,38 @@ export const DirectivaPanel = () => {
       periodo: `${startYear}-${startMonth}/${endYear}-${endMonth}`
     }))
   }, [startMonth, startYear, endMonth, endYear])
+
+  const moveItem = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= filteredItems.length) return;
+
+    const currentItem = filteredItems[index];
+    const swapItem = filteredItems[targetIndex];
+
+    const newOrdenCurrent = swapItem.orden;
+    const newOrdenSwap = currentItem.orden;
+
+    // Local swap state
+    const updatedItems = items.map(item => {
+      if (item.id === currentItem.id) {
+        return { ...item, orden: newOrdenCurrent };
+      }
+      if (item.id === swapItem.id) {
+        return { ...item, orden: newOrdenSwap };
+      }
+      return item;
+    });
+
+    setItems(updatedItems);
+
+    try {
+      await api.put(`/api/cms/directiva/${currentItem.id}`, { ...currentItem, orden: newOrdenCurrent, activo: currentItem.activo ? 1 : 0 });
+      await api.put(`/api/cms/directiva/${swapItem.id}`, { ...swapItem, orden: newOrdenSwap, activo: swapItem.activo ? 1 : 0 });
+      purgeCache();
+    } catch (e) {
+      console.error("Error moving directiva item:", e);
+    }
+  };
 
 
 
@@ -820,65 +852,30 @@ export const DirectivaPanel = () => {
   })
 
   const listHeader = (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gestión / Período</span>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                const y = new Date().getFullYear().toString()
-                setCreateStartMonth('01')
-                setCreateStartYear(y)
-                setCreateEndMonth('01')
-                setCreateEndYear((Number(y) + 2).toString())
-                setShowCreatePeriodModal(true)
-              }}
-              className="text-[9px] bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 font-bold px-2 py-0.5 rounded transition-all"
-            >
-              Crear Gestión
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedPeriodFilter && selectedPeriodFilter !== 'all') {
-                  const parsed = parsePeriodo(selectedPeriodFilter)
-                  setEditStartMonth(parsed.startMonth)
-                  setEditStartYear(parsed.startYear)
-                  setEditEndMonth(parsed.endMonth)
-                  setEditEndYear(parsed.endYear)
-                  setShowEditPeriodModal(true)
-                }
-              }}
-              disabled={selectedPeriodFilter === 'all'}
-              className="text-[9px] bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 font-bold px-2 py-0.5 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              Editar Fechas
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedPeriodFilter && selectedPeriodFilter !== 'all') {
-                  const parsed = parsePeriodo(selectedPeriodFilter)
-                  setSuccStartMonth(parsed.endMonth)
-                  setSuccStartYear(parsed.endYear)
-                  setSuccEndMonth(parsed.endMonth)
-                  setSuccEndYear((Number(parsed.endYear) + 2).toString())
-                }
-                setShowSuccessionModal(true)
-              }}
-              disabled={selectedPeriodFilter === 'all' || !items.some(i => i.periodo === selectedPeriodFilter)}
-              className="text-[9px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200/50 hover:bg-emerald-100 hover:text-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              Nueva Sucesión
-            </button>
-          </div>
-        </div>
+    <div className="flex flex-col gap-3 p-1">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Período de Gestión</h4>
+        <button
+          type="button"
+          onClick={() => {
+            const y = new Date().getFullYear().toString()
+            setCreateStartMonth('01')
+            setCreateStartYear(y)
+            setCreateEndMonth('01')
+            setCreateEndYear((Number(y) + 2).toString())
+            setShowCreatePeriodModal(true)
+          }}
+          className="inline-flex items-center gap-1 text-[10px] font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] px-2 py-1 rounded-lg transition-all"
+        >
+          <span>+ Nueva Gestión</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
         <select
           value={selectedPeriodFilter}
           onChange={(e) => setSelectedPeriodFilter(e.target.value)}
-          className="w-full text-xs rounded-lg border border-slate-200 px-2 py-1.5 text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-medium"
+          className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
         >
           <option value="all">Ver Todas las Gestiones</option>
           {periods.map(p => (
@@ -887,6 +884,40 @@ export const DirectivaPanel = () => {
             </option>
           ))}
         </select>
+
+        {selectedPeriodFilter !== 'all' && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const parsed = parsePeriodo(selectedPeriodFilter)
+                setEditStartMonth(parsed.startMonth)
+                setEditStartYear(parsed.startYear)
+                setEditEndMonth(parsed.endMonth)
+                setEditEndYear(parsed.endYear)
+                setShowEditPeriodModal(true)
+              }}
+              className="flex-1 inline-flex items-center justify-center text-[10px] bg-slate-50 text-slate-600 border border-gray-200 hover:bg-gray-100 font-bold py-1.5 rounded-lg transition-all"
+            >
+              Editar Fechas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const parsed = parsePeriodo(selectedPeriodFilter)
+                setSuccStartMonth(parsed.endMonth)
+                setSuccStartYear(parsed.endYear)
+                setSuccEndMonth(parsed.endMonth)
+                setSuccEndYear((Number(parsed.endYear) + 2).toString())
+                setShowSuccessionModal(true)
+              }}
+              disabled={!items.some(i => i.periodo === selectedPeriodFilter)}
+              className="flex-1 inline-flex items-center justify-center text-[10px] bg-emerald-50 text-[#00B870] border border-[#00D084]/15 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold py-1.5 rounded-lg transition-all"
+            >
+              Iniciar Sucesión
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -902,27 +933,51 @@ export const DirectivaPanel = () => {
         isEditing={isEditing} 
         setIsEditing={setIsEditing}
         onNew={openNew}
-        renderRow={(item, sel) => (
-          <div className="flex items-center justify-between gap-3 p-1 w-full">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-[#E9FAF4] flex items-center justify-center text-[#00B870] font-black text-sm flex-shrink-0 overflow-hidden">
-                {item.foto_url ? <img src={item.foto_url} className="w-full h-full object-cover" /> : item.nombre.charAt(0)}
+        renderRow={(item, sel) => {
+          const index = filteredItems.findIndex(i => i.id === item.id);
+          return (
+            <div className="flex items-center justify-between gap-3 p-1 w-full group/row">
+              <div className="flex items-center gap-3 overflow-hidden flex-1">
+                <div className="w-8 h-8 rounded-full bg-[#E9FAF4] flex items-center justify-center text-[#00B870] font-black text-sm flex-shrink-0 overflow-hidden">
+                  {item.foto_url ? <img src={item.foto_url} className="w-full h-full object-cover" /> : item.nombre.charAt(0)}
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className={`text-sm font-semibold truncate ${sel ? 'text-[#00B870]' : 'text-slate-800'}`}>
+                    {formatNombreCard(item.nombre)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate uppercase font-bold tracking-tighter">
+                    {item.cargo} {item.periodo ? `(${formatPeriodoDisplay(item.periodo)})` : ''}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col min-w-0">
-                <span className={`text-sm font-semibold truncate ${sel ? 'text-[#00B870]' : 'text-slate-800'}`}>
-                  {formatNombreCard(item.nombre)}
-                </span>
-                <span className="text-[10px] text-slate-400 truncate uppercase font-bold tracking-tighter">
-                  {item.cargo} {item.periodo ? `(${formatPeriodoDisplay(item.periodo)})` : ''}
-                </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={(e) => { e.stopPropagation(); moveItem(index, 'up'); }}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded disabled:opacity-25 disabled:hover:bg-transparent transition-all"
+                  title="Subir posición"
+                >
+                  <ArrowUp size={12} />
+                </button>
+                <button
+                  type="button"
+                  disabled={index === filteredItems.length - 1}
+                  onClick={(e) => { e.stopPropagation(); moveItem(index, 'down'); }}
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded disabled:opacity-25 disabled:hover:bg-transparent transition-all"
+                  title="Bajar posición"
+                >
+                  <ArrowDown size={12} />
+                </button>
+
+                <div className="w-[1px] h-3 bg-gray-200 mx-0.5" />
+
+                <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar"><Edit size={14} /></button>
+                <button onClick={(e) => { e.stopPropagation(); remove(item.id); }} className="p-1 text-rose-600 hover:bg-rose-50 rounded" title="Eliminar"><Trash2 size={14} /></button>
               </div>
             </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded" title="Editar"><Edit size={14} /></button>
-              <button onClick={(e) => { e.stopPropagation(); remove(item.id); }} className="p-1 text-rose-600 hover:bg-rose-50 rounded" title="Eliminar"><Trash2 size={14} /></button>
-            </div>
-          </div>
-        )}
+          );
+        }}
         renderDetail={(item) => (
           <div className="flex flex-col gap-4 bg-white rounded-2xl p-5 border border-gray-100">
             <div className="flex items-start justify-between gap-2">
