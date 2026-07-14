@@ -44,12 +44,24 @@ export const getAnalyticsData = async (req: Request, res: Response): Promise<voi
       `SELECT COUNT(DISTINCT a.id_afiliado) as c 
        FROM afiliados a 
        JOIN personas p ON a.id_persona = p.id 
-       WHERE p.cedula LIKE '%NDINT%' OR p.cedula LIKE '%pendiente%'`,
+       WHERE p.cedula IS NULL 
+          OR p.cedula = '' 
+          OR length(p.cedula) <= 5 
+          OR p.cedula = '00000000' 
+          OR p.cedula LIKE '%NDINT%' 
+          OR p.cedula LIKE '%pendiente%'
+          OR p.cedula LIKE 'TEMP%'`,
       // 11. Afiliados con RIF pendiente
       `SELECT COUNT(DISTINCT a.id_afiliado) as c 
        FROM afiliados a 
        JOIN empresas e ON a.id_empresa = e.id_empresa 
-       WHERE e.rif_numero LIKE '%pendiente%' OR e.rif_numero LIKE '%NDINT%'`,
+       WHERE e.rif_numero IS NULL 
+          OR e.rif_numero = '' 
+          OR length(e.rif_numero) <= 5 
+          OR e.rif_numero = '00000000' 
+          OR e.rif_numero LIKE '%pendiente%' 
+          OR e.rif_numero LIKE '%NDINT%'
+          OR e.rif_numero LIKE 'TEMP%'`,
       // 12. Afiliados con Email pendiente
       `SELECT COUNT(DISTINCT a.id_afiliado) as c 
        FROM afiliados a 
@@ -63,8 +75,8 @@ export const getAnalyticsData = async (req: Request, res: Response): Promise<voi
        FROM afiliados a 
        JOIN personas p ON a.id_persona = p.id 
        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa 
-       WHERE p.cedula LIKE '%NDINT%' OR p.cedula LIKE '%pendiente%' 
-          OR e.rif_numero LIKE '%pendiente%' OR e.rif_numero LIKE '%NDINT%' 
+       WHERE (p.cedula IS NULL OR p.cedula = '' OR length(p.cedula) <= 5 OR p.cedula = '00000000' OR p.cedula LIKE '%NDINT%' OR p.cedula LIKE '%pendiente%' OR p.cedula LIKE 'TEMP%')
+          OR (a.id_empresa IS NOT NULL AND (e.rif_numero IS NULL OR e.rif_numero = '' OR length(e.rif_numero) <= 5 OR e.rif_numero = '00000000' OR e.rif_numero LIKE '%pendiente%' OR e.rif_numero LIKE '%NDINT%' OR e.rif_numero LIKE 'TEMP%'))
           OR p.email LIKE '%pendiente%' OR e.email LIKE '%pendiente%'`
     ])
 
