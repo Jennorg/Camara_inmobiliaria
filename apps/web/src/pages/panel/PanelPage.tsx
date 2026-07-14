@@ -57,7 +57,6 @@ import { formatNombreCard } from '@/utils/formatters';
 // ─── Nav Items por sección ────────────────────────────────────────────────────
 
 const NAV_AFILIADO = [
-  { icon: LayoutDashboard, label: 'Resumen / Inicio' },
   { icon: FolderSearch, label: 'Mi Expediente' },
   // { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
   { icon: GraduationCap, label: 'Catálogo Académico' },
@@ -70,14 +69,15 @@ const NAV_ADMIN_CORE = [
   { icon: ShieldCheck, label: 'Control de Acceso' },
   { icon: ClipboardList, label: 'Preinscripciones' },
   { icon: BookOpen, label: 'Gestión de Formación' },
+  { icon: UserPlus, label: 'Solicitudes de Agentes' },
   { icon: BarChart, label: 'Análisis y Métricas' },
 ];
 
 const NAV_CMS = [
-  { icon: Newspaper, label: 'CMS · Noticias' },
-  { icon: FileText, label: 'CMS · Marco Legal' },
-  { icon: Handshake, label: 'CMS · Convenios' },
-  { icon: Settings, label: 'CMS · Configuración' },
+  { id: 'CMS · Noticias', icon: Newspaper, label: 'Noticias' },
+  { id: 'CMS · Marco Legal', icon: FileText, label: 'Marco Legal' },
+  { id: 'CMS · Convenios', icon: Handshake, label: 'Convenios' },
+  { id: 'CMS · Configuración', icon: Settings, label: 'Configuración' },
 ];
 
 const NAV_SUPER_ADMIN = [
@@ -108,7 +108,10 @@ const Section = ({ label }: { label: string }) => (
 const PanelPage = () => {
   const { user, token, logout, isAdmin, isSuperAdmin, isEstudiante, isAfiliado } = useAuth();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'formacion' ? 'Catálogo Académico' : 'Resumen / Inicio');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (searchParams.get('tab') === 'formacion') return 'Catálogo Académico';
+    return isAdmin ? 'Análisis y Métricas' : 'Mi Expediente';
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [loadingAfiliado, setLoadingAfiliado] = useState(true);
@@ -207,14 +210,6 @@ const PanelPage = () => {
         icon: Users, 
         label: 'Mis Agentes',
         count: solicitudesPendientesCount > 0 ? solicitudesPendientesCount : undefined 
-      });
-    }
-
-    // Si es admin y no tiene tipo corporativo, también agregar la misma pestaña para gestionar agentes desde el panel administrativo
-    if (isAdmin && user?.tipo_afiliado !== 'Corporativo') {
-      baseItems.push({
-        icon: Users,
-        label: 'Mis Agentes'
       });
     }
 
@@ -341,10 +336,10 @@ const PanelPage = () => {
     if (activeTab === 'Sistema de Denuncias') return <Section label="Sistema de Denuncias" />;
     if (activeTab === 'Solicitud de Afiliación') return <div className="col-span-1 lg:col-span-3"><WidgetSolicitudAfiliacion /></div>;
     if (activeTab === 'Mis Agentes') {
-      if (isAdmin && user?.tipo_afiliado !== 'Corporativo') {
-        return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
-      }
       return <div className="col-span-1 lg:col-span-3 h-full"><WidgetGestionAfiliadosCorp /></div>;
+    }
+    if (activeTab === 'Solicitudes de Agentes') {
+      return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
     }
     if (activeTab === 'Configuración') return <SettingsPanel />;
 
@@ -381,7 +376,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>

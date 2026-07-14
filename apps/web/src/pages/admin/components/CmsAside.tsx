@@ -162,26 +162,21 @@ interface NavGroup {
   children?: NavItem[]
 }
 
-const CMS_CHILDREN: NavItem[] = [
-  { id: 'cms_noticias', label: 'Noticias', icon: icons.news },
+const NAV_MAIN: NavGroup[] = [
+  { id: 'noticias', label: 'Noticias', icon: icons.news },
   {
-    id: 'cms_normativas',
+    id: 'normativas',
     label: 'Marco Legal',
     icon: icons.fileDoc,
     children: [
-      { id: 'cms_leyes', label: 'Leyes y Decretos', icon: icons.fileDoc },
-      { id: 'cms_reglamentos', label: 'Reglamentos y Estatutos', icon: icons.fileDoc },
-      { id: 'cms_normas', label: 'Normas y Procedimientos', icon: icons.fileDoc },
-      { id: 'cms_actas', label: 'Actas de Asamblea', icon: icons.fileDoc },
+      { id: 'leyes', label: 'Leyes y Decretos', icon: icons.fileDoc },
+      { id: 'reglamentos', label: 'Reglamentos y Estatutos', icon: icons.fileDoc },
+      { id: 'normas', label: 'Normas y Procedimientos', icon: icons.fileDoc },
+      { id: 'actas', label: 'Actas de Asamblea', icon: icons.fileDoc },
     ]
   },
-  { id: 'cms_directiva', label: 'Directiva', icon: icons.team },
-  { id: 'cms_config', label: 'Configuración', icon: icons.sliders },
-]
-
-const NAV_MAIN: NavGroup[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: icons.dashboard },
-  { id: 'cms', label: 'Contenido', icon: icons.cms, children: CMS_CHILDREN },
+  { id: 'directiva', label: 'Directiva', icon: icons.team },
+  { id: 'config', label: 'Configuración', icon: icons.sliders },
   { id: 'formacion', label: 'Formación', icon: icons.formacion },
   { id: 'preinscripciones', label: 'Preinscripciones', icon: icons.solicitudes },
   { id: 'media', label: 'Medios', icon: icons.media },
@@ -259,30 +254,20 @@ const SidebarContent = ({
   isMobile?: boolean
 }) => {
   const { user } = useAuth()
-  // Auto-expand CMS group if any child is active
-  // Auto-expand CMS group if any child (even nested) is active
-  const getAllIds = (items: NavItem[]): string[] => {
-    const ids: string[] = []
-    items.forEach(i => {
-      ids.push(i.id)
-      if (i.children) ids.push(...getAllIds(i.children))
-    })
-    return ids
-  }
-  const cmsChildIds = getAllIds(CMS_CHILDREN)
-  const [cmsOpen, setCmsOpen] = React.useState(cmsChildIds.includes(activeId) || activeId === 'cms')
-  const [expandedIds, setExpandedIds] = React.useState<string[]>(['cms_normativas'])
+  const [expandedGroups, setExpandedGroups] = React.useState<string[]>(['normativas'])
 
-  const toggleExpand = (id: string) => {
-    setExpandedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  const toggleGroup = (id: string) => {
+    setExpandedGroups(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id])
   }
 
-  // Sync cmsOpen when activeId changes externally
+  // Auto-expand group if any of its children is active
   useEffect(() => {
-    if (cmsChildIds.includes(activeId) || activeId === 'cms') {
-      setCmsOpen(true)
-    }
-  }, [activeId, cmsChildIds])
+    NAV_MAIN.forEach(item => {
+      if (item.children?.some(child => child.id === activeId || child.children?.some(sc => sc.id === activeId))) {
+        setExpandedGroups(prev => prev.includes(item.id) ? prev : [...prev, item.id])
+      }
+    })
+  }, [activeId])
 
   return (
     <>
@@ -307,58 +292,65 @@ const SidebarContent = ({
       {/* Main nav */}
       <nav className="flex-1 py-1 flex flex-col gap-0 px-2 overflow-y-auto custom-scrollbar">
         {NAV_MAIN.filter(i => i.id !== 'admin_users' || user?.rol === 'super_admin').map((item) => {
-          const isCmsGroup = item.id === 'cms'
-          const isGroupActive = isCmsGroup
-            ? cmsChildIds.includes(activeId) || activeId === 'cms'
-            : activeId === item.id
+          const hasChildren = !!item.children?.length
+          const childIds = item.children?.map(c => c.id) || []
+          
+          // Also check nested sub-children
+          const allChildIds: string[] = [...childIds]
+          item.children?.forEach(c => {
+            if (c.children) allChildIds.push(...c.children.map(sc => sc.id))
+          })
+
+          const isGroupActive = activeId === item.id || allChildIds.includes(activeId)
+          const isOpen = expandedGroups.includes(item.id)
 
           return (
             <React.Fragment key={item.id}>
               <button
                 onClick={() => {
-                  if (isCmsGroup) {
-                    setCmsOpen(o => !o)
+                  if (hasChildren) {
+                    toggleGroup(item.id)
                   } else {
                     onNav(item.id)
                   }
                 }}
                 title={isCollapsed ? item.label : undefined}
-                style={isGroupActive && !isCmsGroup
+                style={isGroupActive && !hasChildren
                   ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
                   : undefined}
                 className={[
                   'relative flex items-center gap-3 rounded-xl py-1.5 transition-all duration-150 w-full text-left group',
                   isCollapsed ? 'justify-center px-0' : 'px-3',
-                  isGroupActive && !isCmsGroup ? '' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
-                  isCmsGroup && cmsOpen ? 'text-slate-700 font-semibold' : ''
+                  isGroupActive && !hasChildren ? '' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+                  hasChildren && isOpen ? 'text-slate-700 font-semibold' : ''
                 ].join(' ')}
               >
                 <span className="flex-shrink-0">{item.icon}</span>
                 {!isCollapsed && <span className="text-sm font-medium truncate flex-1">{item.label}</span>}
-                {!isCollapsed && isCmsGroup && (
-                  <span className={['transition-transform duration-200 text-slate-400', cmsOpen ? 'rotate-90' : ''].join(' ')}>
+                {!isCollapsed && hasChildren && (
+                  <span className={['transition-transform duration-200 text-slate-400', isOpen ? 'rotate-90' : ''].join(' ')}>
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
                   </span>
                 )}
               </button>
 
-              {/* CMS sub-items */}
-              {isCmsGroup && cmsOpen && !isCollapsed && (
+              {/* Sub-items */}
+              {hasChildren && isOpen && !isCollapsed && (
                 <div className="ml-3 pl-3 border-l border-gray-100 flex flex-col gap-0.5 mb-1">
-                  {CMS_CHILDREN.map(child => {
+                  {item.children?.map(child => {
                     const hasSubChildren = !!child.children?.length
                     const subChildIds = child.children?.map(sc => sc.id) || []
                     const isSubActive = activeId === child.id || subChildIds.includes(activeId)
-                    const isExpanded = expandedIds.includes(child.id)
+                    const isSubOpen = expandedGroups.includes(child.id)
 
                     return (
                       <React.Fragment key={child.id}>
                         <button
                           onClick={() => {
                             onNav(child.id)
-                            if (hasSubChildren) toggleExpand(child.id)
+                            if (hasSubChildren) toggleGroup(child.id)
                           }}
-                          style={activeId === child.id
+                          style={activeId === child.id && !hasSubChildren
                             ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
                             : undefined}
                           className={[
@@ -369,13 +361,13 @@ const SidebarContent = ({
                           <span className="flex-shrink-0">{child.icon}</span>
                           <span className="truncate font-medium flex-1">{child.label}</span>
                           {hasSubChildren && (
-                            <span className={['transition-transform duration-200 opacity-40', isExpanded ? 'rotate-90' : ''].join(' ')}>
+                            <span className={['transition-transform duration-200 opacity-40', isSubOpen ? 'rotate-90' : ''].join(' ')}>
                               <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
                             </span>
                           )}
                         </button>
 
-                        {hasSubChildren && isExpanded && (
+                        {hasSubChildren && isSubOpen && (
                           <div className="ml-4 pl-3 border-l border-emerald-100 flex flex-col gap-0.5 mb-1 mt-0.5">
                             {child.children?.map(sc => (
                               <button
@@ -448,7 +440,7 @@ const CmsAside = ({
   isCollapsed = false,
   animating = true,
 }: CmsAsideProps) => {
-  const [internalActiveId, setInternalActiveId] = useState('dashboard')
+  const [internalActiveId, setInternalActiveId] = useState('analytics')
   const { logout } = useAuth()
 
   const activeId = controlledActiveId !== undefined ? controlledActiveId : internalActiveId

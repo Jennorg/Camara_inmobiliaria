@@ -125,7 +125,7 @@ const SuperAdminUsersPanel = () => {
 
   return (
     <div className="h-full flex flex-col bg-white">
-      <div className="flex px-8 py-5 items-center justify-between border-b border-slate-100">
+      <div className="flex flex-col sm:flex-row px-6 sm:px-8 py-5 items-start sm:items-center justify-between border-b border-slate-100 gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-slate-800">
             Administradores del Sistema
@@ -134,14 +134,15 @@ const SuperAdminUsersPanel = () => {
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#00D084] hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors"
+          className="bg-[#00D084] hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center"
         >
           + Nuevo Admin
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-8">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="flex-1 overflow-auto p-4 sm:p-8">
+        {/* Desktop Table View */}
+        <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
@@ -159,7 +160,7 @@ const SuperAdminUsersPanel = () => {
                      <span className="font-semibold text-slate-700">{u.email}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded inline-flex text-xs font-bold leading-5 ${u.rol === 'super_admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                    <span className={`px-2.5 py-1 rounded-full inline-flex text-xs font-bold leading-5 ${u.rol === 'super_admin' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
                       {u.rol}
                     </span>
                   </td>
@@ -178,7 +179,7 @@ const SuperAdminUsersPanel = () => {
                      <button 
                        onClick={() => setUserToDelete(u)}
                        disabled={u.id === user?.id}
-                       className="text-red-400 hover:text-red-600 font-medium disabled:opacity-30 transition-colors"
+                       className="text-red-400 hover:text-red-600 font-bold disabled:opacity-30 transition-colors"
                      >
                        Eliminar
                      </button>
@@ -192,6 +193,55 @@ const SuperAdminUsersPanel = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card List */}
+        <div className="block md:hidden space-y-4">
+          {users.map((u) => (
+            <div key={u.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4 relative overflow-hidden">
+              <div className={`absolute top-0 left-0 w-1 h-full ${
+                u.rol === 'super_admin' ? 'bg-purple-400' : 'bg-blue-400'
+              }`} />
+              
+              <div className="flex items-start justify-between gap-2 pl-1">
+                <div className="space-y-1 min-w-0">
+                  <span className="font-bold text-slate-800 text-sm truncate block">{u.email}</span>
+                  <span className="text-[10px] text-slate-400 font-medium block">
+                    Creado: {new Date(u.creado_en).toLocaleDateString()}
+                  </span>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                  u.rol === 'super_admin' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'
+                }`}>
+                  {u.rol}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 pl-1">
+                <button 
+                  onClick={() => toggleActive(u)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                    u.activo 
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100' 
+                      : 'bg-red-50 text-red-700 border border-red-100 hover:bg-red-100'
+                  }`}
+                >
+                  {u.activo ? 'Activo' : 'Inactivo'}
+                </button>
+
+                <button 
+                  onClick={() => setUserToDelete(u)}
+                  disabled={u.id === user?.id}
+                  className="text-xs font-bold text-red-500 hover:text-red-700 disabled:opacity-30 transition-colors px-3 py-1.5 rounded-xl border border-red-100 hover:bg-red-50"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+          {users.length === 0 && (
+            <div className="text-center py-8 text-slate-500 text-sm bg-white border border-slate-200 rounded-2xl">Ningún administrador encontrado.</div>
+          )}
         </div>
       </div>
 

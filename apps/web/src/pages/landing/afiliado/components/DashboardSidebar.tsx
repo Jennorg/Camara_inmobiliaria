@@ -3,6 +3,7 @@ import logo from '@/assets/Logo.png';
 import { LogOut, X, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 
 export interface NavItem {
+  id?: string;
   icon: React.ElementType;
   label: string;
   isDivider?: boolean;
@@ -115,7 +116,8 @@ const SidebarContent = ({
       <nav className={`flex-grow py-2 px-2 space-y-0.5 overflow-y-auto custom-scrollbar ${isCollapsed ? 'scrollbar-collapsed' : 'scrollbar-expanded'}`}>
         {navItems.map((item) => {
           const hasChildren = !!item.children?.length;
-          const isExpanded = expandedTabs.includes(item.label);
+          const itemId = item.id || item.label;
+          const isExpanded = expandedTabs.includes(itemId);
           
           return item.isDivider ? (
             <div key={item.label} className={['transition-all duration-300 px-3', isCollapsed ? 'py-2 px-4' : 'pt-2 pb-0.5'].join(' ')}>
@@ -130,25 +132,25 @@ const SidebarContent = ({
             <React.Fragment key={item.label}>
               <button
                 onClick={() => {
-                  onTabChange(item.label);
-                  if (hasChildren) toggleExpand(item.label);
+                  onTabChange(itemId);
+                  if (hasChildren) toggleExpand(itemId);
                   if (!hasChildren) onMobileClose?.();
                 }}
                 title={isCollapsed ? item.label : undefined}
                 style={
-                  activeTab === item.label
+                  activeTab === itemId
                     ? { backgroundColor: 'var(--color-accent)', color: 'var(--color-text-on-accent)' }
                     : undefined
                 }
                 className={[
                   'flex items-center gap-3 w-full rounded-xl py-2 transition-all duration-150 text-left group',
                   isCollapsed ? 'justify-center px-2' : 'px-3',
-                  activeTab === item.label
+                  activeTab === itemId
                     ? 'shadow-lg'
                     : 'text-white/60 hover:text-white hover:bg-white/10',
                 ].join(' ')}
               >
-                <item.icon size={20} className={activeTab === item.label ? '' : 'group-hover:scale-110 transition-transform'} />
+                <item.icon size={20} className={activeTab === itemId ? '' : 'group-hover:scale-110 transition-transform'} />
                 <div className={`flex-1 flex items-center justify-between overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-full opacity-100 ml-3'}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
@@ -166,23 +168,26 @@ const SidebarContent = ({
 
               {hasChildren && isExpanded && !isCollapsed && (
                 <div className="ml-6 pl-3 border-l border-white/10 flex flex-col gap-0 mt-0.5 mb-1">
-                  {item.children?.map(child => (
-                    <button
-                      key={child.label}
-                      onClick={() => {
-                        onTabChange(child.label);
-                        onMobileClose?.();
-                      }}
-                      className={[
-                        'py-1.5 px-2 text-xs font-bold transition-all rounded-lg text-left',
-                        activeTab === child.label 
-                          ? 'text-white bg-white/10' 
-                          : 'text-white/40 hover:text-white hover:bg-white/5'
-                      ].join(' ')}
-                    >
-                      {child.label}
-                    </button>
-                  ))}
+                  {item.children?.map(child => {
+                    const childId = child.id || child.label;
+                    return (
+                      <button
+                        key={childId}
+                        onClick={() => {
+                          onTabChange(childId);
+                          onMobileClose?.();
+                        }}
+                        className={[
+                          'py-1.5 px-2 text-xs font-bold transition-all rounded-lg text-left',
+                          activeTab === childId 
+                            ? 'text-white bg-white/10' 
+                            : 'text-white/40 hover:text-white hover:bg-white/5'
+                        ].join(' ')}
+                      >
+                        {child.label}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </React.Fragment>

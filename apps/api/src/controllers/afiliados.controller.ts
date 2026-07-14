@@ -163,9 +163,6 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
       ]
     });
 
-    console.log('getMisCursos DEBUG ->', {
-      idEstudiante, idAfiliado, userEmail, inscripcionesCount: inscripciones.rows.length
-    });
 
     const cursosConModulos = [];
 
@@ -685,6 +682,25 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
 
     const afiliadoActualizado = updateResult.rows[0];
 
+    // Sincronizar la inscripción al programa 'AFILIACION'
+    try {
+      const queryEst = await db.execute({
+        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ? OR id_empresa = ? LIMIT 1`,
+        args: [afiliado.id_persona || null, afiliado.id_empresa || null]
+      });
+      if (queryEst.rows.length > 0) {
+        const idEstudiante = queryEst.rows[0].id_estudiante;
+        await db.execute({
+          sql: `UPDATE inscripciones_cursos 
+                SET estatus = 'Inscrito', actualizado_en = ?
+                WHERE id_estudiante = ? AND programa_codigo = 'AFILIACION' AND id_curso IS NULL`,
+          args: [fechaCambio, idEstudiante]
+        });
+      }
+    } catch (errSync) {
+      console.error('Error al sincronizar inscripciones_cursos en aprobarAfiliado:', errSync);
+    }
+
     // 4. Preparar acceso (Usuario + Token de Seguridad)
     try {
       if (afiliado.email) {
@@ -781,6 +797,25 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
             WHERE id_afiliado = ? RETURNING *`,
       args: [fechaCambio, fechaCambio, id]
     });
+ 
+    // Sincronizar la inscripción al programa 'AFILIACION' a Rechazado
+    try {
+      const queryEst = await db.execute({
+        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ? OR id_empresa = ? LIMIT 1`,
+        args: [afiliado.id_persona || null, afiliado.id_empresa || null]
+      });
+      if (queryEst.rows.length > 0) {
+        const idEstudiante = queryEst.rows[0].id_estudiante;
+        await db.execute({
+          sql: `UPDATE inscripciones_cursos 
+                SET estatus = 'Rechazado', actualizado_en = ?
+                WHERE id_estudiante = ? AND programa_codigo = 'AFILIACION' AND id_curso IS NULL`,
+          args: [fechaCambio, idEstudiante]
+        });
+      }
+    } catch (errSync) {
+      console.error('Error al sincronizar inscripciones_cursos en rechazarAfiliado:', errSync);
+    }
 
     // Enviar correo de rechazo
     try {
@@ -1242,6 +1277,28 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     }
 
     const afi = result.rows[0] as any;
+
+    // Sincronizar la inscripción al programa 'AFILIACION' si cambia a Afiliado o Rechazado
+    if (estatus === 'Afiliado' || estatus === 'Rechazado') {
+      const targetInscrStatus = estatus === 'Afiliado' ? 'Inscrito' : 'Rechazado';
+      try {
+        const queryEst = await db.execute({
+          sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ? OR id_empresa = ? LIMIT 1`,
+          args: [afi.id_persona || null, afi.id_empresa || null]
+        });
+        if (queryEst.rows.length > 0) {
+          const idEstudiante = queryEst.rows[0].id_estudiante;
+          await db.execute({
+            sql: `UPDATE inscripciones_cursos 
+                  SET estatus = ?, actualizado_en = ?
+                  WHERE id_estudiante = ? AND programa_codigo = 'AFILIACION' AND id_curso IS NULL`,
+            args: [targetInscrStatus, new Date().toISOString(), idEstudiante]
+          });
+        }
+      } catch (errSync) {
+        console.error('Error sincronizando inscripcion en updateEstatusAfiliado:', errSync);
+      }
+    }
     if (Number(afi.cibir_acreditado) === 1) {
       await ensureCibirCertificate(Number(id));
     }

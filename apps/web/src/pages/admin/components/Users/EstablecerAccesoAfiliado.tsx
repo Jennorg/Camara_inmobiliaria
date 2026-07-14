@@ -230,7 +230,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
             <button
               type='submit'
               disabled={saving || !password}
-              className='inline-flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 disabled:opacity-50'
+              className='inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 disabled:opacity-50 w-full sm:w-auto'
             >
               {saving ? (
                 <Loader2 size={14} className='animate-spin' />
