@@ -382,10 +382,26 @@ export const deleteHito = async (req: Request, res: Response) => {
 // CONFIGURACION — Schema: clave (PK), valor, descripcion
 // ─────────────────────────────────────────────────────────────────────────────
 
+const DEFAULT_CMS_CONFIG: Record<string, string> = {
+  redes_instagram: 'https://www.instagram.com/ciebolivar',
+  redes_facebook: 'https://www.facebook.com/CIEBOLIVAR',
+  redes_linkedin: 'https://linkedin.com/company/ciebolivar',
+  redes_twitter: 'https://x.com/ciebolivar',
+  redes_whatsapp: '+58 412-1234567',
+  contacto_email: 'contacto@ciebo.org.ve',
+  contacto_telefono: '+58 286-9611234',
+  rif: 'J-30752538-0',
+  hero_titulo: 'Cámara Inmobiliaria <br/> del Estado Bolívar',
+  hero_subtitulo: 'Tu gremio de inmobiliarias y corredores certificados en Bolívar, Venezuela.',
+  hero_img: '',
+  convenios_marquee_titulo: 'Convenios y Beneficios',
+  convenios_link: 'Conoce nuestros programas de formación inmobiliaria'
+};
+
 export const getConfig = async (_req: Request, res: Response) => {
   try {
     const result = await db.execute('SELECT * FROM cms_configuracion ORDER BY clave ASC');
-    const config: Record<string, string> = {};
+    const config: Record<string, string> = { ...DEFAULT_CMS_CONFIG };
     for (const row of result.rows) {
       config[row.clave as string] = row.valor as string;
     }

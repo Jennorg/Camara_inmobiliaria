@@ -2,17 +2,25 @@ import React from 'react'
 import logo from '@/assets/Logo3.png'
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 import { STATIC } from '@/pages/landing/config/staticContent'
-import { Instagram, Facebook } from 'lucide-react'
+import { Instagram, Facebook, Linkedin } from 'lucide-react'
 
 const s = STATIC.footer
+
+const XIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+  </svg>
+)
 
 export default function Footer() {
   const cfg = useCachedConfig()
 
   const sociallinks = [
-    { name: 'Instagram', icon: <Instagram size={20} />, url: 'https://www.instagram.com/ciebolivar' },
-    { name: 'Facebook', icon: <Facebook size={20} />, url: 'https://www.facebook.com/CIEBOLIVAR' },
-  ]
+    { name: 'Instagram', icon: <Instagram size={20} />, url: cfg['redes_instagram'] || 'https://www.instagram.com/ciebolivar' },
+    { name: 'Facebook', icon: <Facebook size={20} />, url: cfg['redes_facebook'] || 'https://www.facebook.com/CIEBOLIVAR' },
+    { name: 'LinkedIn', icon: <Linkedin size={20} />, url: cfg['redes_linkedin'] || 'https://linkedin.com/company/ciebolivar' },
+    { name: 'Twitter', icon: <XIcon size={20} />, url: cfg['redes_twitter'] || 'https://x.com/ciebolivar' },
+  ].filter(link => !!link.url)
 
   return (
     <footer className='relative z-50 bg-[#022c22] px-6 lg:px-20 py-16 text-center border-t border-white/5 space-y-6'>

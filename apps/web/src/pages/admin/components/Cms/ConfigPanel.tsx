@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { api, Input, Textarea, BtnPrimary, Loading } from '@/pages/admin/components/Cms/CmsShared'
 import { LandingPreviewPane, sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
+import { Instagram, Facebook, Linkedin, Phone, Mail, FileText } from 'lucide-react'
 
 // ─── Field Types ─────────────────────────────────────────────────────────────
 type FieldType = 'text' | 'textarea' | 'url_img' | 'number' | 'url' | 'social'
@@ -24,6 +25,25 @@ const CONFIG_GROUPS: Array<{
   color: string
   keys: ConfigKey[]
 }> = [
+    {
+      label: 'Portada / Hero (Landing)',
+      anchor: '#inicio',
+      color: '#10b981',
+      keys: [
+        { clave: 'hero_titulo', descripcion: 'Título de Bienvenida (HTML soportado)', type: 'textarea', placeholder: 'Cámara Inmobiliaria <br/> de Bolívar' },
+        { clave: 'hero_subtitulo', descripcion: 'Subtítulo Principal', type: 'textarea', placeholder: 'Formación profesional y red de corredores certificados...' },
+        { clave: 'hero_img', descripcion: 'Imagen de Fondo del Hero (URL)', type: 'url_img', placeholder: 'https://...' },
+      ],
+    },
+    {
+      label: 'Convenios & Beneficios (Landing)',
+      anchor: '#convenios',
+      color: '#8b5cf6',
+      keys: [
+        { clave: 'convenios_marquee_titulo', descripcion: 'Título de la marquesina', type: 'text', placeholder: 'Convenios y Beneficios' },
+        { clave: 'convenios_link', descripcion: 'Texto de enlace / informativo', type: 'text', placeholder: 'Conoce nuestros programas de formación inmobiliaria' },
+      ],
+    },
     {
       label: 'Redes Sociales',
       anchor: '#footer',
@@ -50,6 +70,22 @@ const CONFIG_GROUPS: Array<{
 
 
 const ALL_CONFIG_KEYS = CONFIG_GROUPS.flatMap(g => g.keys)
+
+const getSocialIcon = (clave: string) => {
+  if (clave.includes('instagram')) return <Instagram size={16} className="text-pink-600" />
+  if (clave.includes('facebook')) return <Facebook size={16} className="text-blue-600" />
+  if (clave.includes('linkedin')) return <Linkedin size={16} className="text-blue-700" />
+  if (clave.includes('twitter')) return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-slate-800" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.932zm-1.294 19.486h2.039L6.486 3.24H4.298l13.31 17.399z"/>
+    </svg>
+  )
+  if (clave.includes('whatsapp')) return <Phone size={16} className="text-emerald-600" />
+  if (clave.includes('email')) return <Mail size={16} className="text-sky-600" />
+  if (clave.includes('telefono')) return <Phone size={16} className="text-slate-500" />
+  if (clave.includes('rif')) return <FileText size={16} className="text-amber-600" />
+  return <span className="text-slate-400">🔗</span>
+}
 
 // ─── Field renderer ───────────────────────────────────────────────────────────
 const FieldInput = ({
@@ -112,27 +148,23 @@ const FieldInput = ({
     )
   }
 
-  if (field.type === 'social') {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-slate-400 text-sm">🔗</span>
-        <input
-          type="url"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={field.placeholder ?? 'https://...'}
-          className={`${base} border-gray-200 flex-1`}
-        />
-      </div>
-    )
-  }
+  const hasIcon = ['social', 'url', 'text'].includes(field.type ?? '') || ['contacto_email', 'contacto_telefono', 'rif', 'redes_whatsapp'].includes(field.clave);
 
   return (
-    <Input
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={field.placeholder ?? field.descripcion}
-    />
+    <div className="flex items-center gap-2 w-full">
+      {hasIcon && (
+        <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-150">
+          {getSocialIcon(field.clave)}
+        </div>
+      )}
+      <input
+        type={field.type === 'social' ? 'url' : 'text'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={field.placeholder ?? field.descripcion}
+        className={`${base} border-gray-200 flex-1`}
+      />
+    </div>
   )
 }
 
