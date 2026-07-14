@@ -47,6 +47,7 @@ type Row = {
   completado?: number
   num_modulos?: number
   modulos_aprobados?: number
+  num_documentos?: number
 }
 
 export default function PreinscripcionesPrincipalesPanel({

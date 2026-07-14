@@ -25,6 +25,7 @@ interface CursoDB {
   creado_en: string;
   actualizado_en: string | null;
   instructor_nombre?: string;
+  categoria?: string | null;
   modulos?: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
 }
 

@@ -1822,7 +1822,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
                   FROM estudiantes e
                   JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
                   WHERE af.estatus = 'Afiliado'
-                )`
+                )`,
+        args: []
       })
       await db.execute({
         sql: `UPDATE inscripciones_cursos 
@@ -1835,7 +1836,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
                   FROM estudiantes e
                   JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
                   WHERE af.estatus = 'Rechazado'
-                )`
+                )`,
+        args: []
       })
     } catch (e) {
       console.error('Error in preinscripciones healing query:', e)
@@ -2868,85 +2870,85 @@ export const adminDeleteInscripcion = async (req: Request, res: Response): Promi
 
     // Si es el único registro de este estudiante, podemos hacer una limpieza profunda
     if (!hasOtherInscriptions) {
-      // a. Borrar documentos
-      await db.execute({
-        sql: `DELETE FROM documentos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?`,
-        args: [idEstudiante]
-      })
+      // Verificar si ya es un afiliado activo (estatus = 'Afiliado' y activo = 1)
+      let esAfiliadoActivo = false
+      if (idPersona || idEmpresa) {
+        const afCheck = await db.execute({
+          sql: `SELECT COUNT(*) as count FROM afiliados 
+                WHERE (id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)) 
+                  AND estatus = 'Afiliado' AND activo = 1`,
+          args: [idPersona || -1, idEmpresa || -1]
+        })
+        esAfiliadoActivo = Number(afCheck.rows[0]?.count ?? 0) > 0
+      }
 
-      // b. Borrar afiliados asociados a esta persona o empresa
-      if (idPersona) {
+      if (!esAfiliadoActivo) {
+        // a. Borrar documentos
         await db.execute({
-          sql: `DELETE FROM afiliados WHERE id_persona = ?`,
-          args: [idPersona]
+          sql: `DELETE FROM documentos WHERE entidad_tipo = 'estudiante' AND entidad_id = ?`,
+          args: [idEstudiante]
         })
-      }
-      if (idEmpresa) {
+
+        // c. Borrar estudiante (Mantener el afiliado intacto)
         await db.execute({
-          sql: `DELETE FROM afiliados WHERE id_empresa = ?`,
-          args: [idEmpresa]
+          sql: `DELETE FROM estudiantes WHERE id_estudiante = ?`,
+          args: [idEstudiante]
         })
-      }
 
-      // c. Borrar estudiante
-      await db.execute({
-        sql: `DELETE FROM estudiantes WHERE id_estudiante = ?`,
-        args: [idEstudiante]
-      })
-
-      // d. Si hay email, buscar y borrar el usuario
-      if (email) {
-        // Verificar si el usuario está asociado a alguna otra persona o empresa
-        const otherUserUsage = await db.execute({
-          sql: `SELECT 
-                  (SELECT COUNT(*) FROM personas WHERE email = ?) +
-                  (SELECT COUNT(*) FROM empresas WHERE email = ?) +
-                  (SELECT COUNT(*) FROM estudiantes WHERE id_user = (SELECT id FROM users WHERE email = ?)) as count`,
-          args: [email, email, email]
-        })
-        const isUserUsedElsewhere = Number(otherUserUsage.rows[0]?.count ?? 0) > 0
-
-        if (!isUserUsedElsewhere) {
-          await db.execute({
-            sql: `DELETE FROM users WHERE email = ?`,
-            args: [email]
+        // d. Si hay email, buscar y borrar el usuario
+        if (email) {
+          // Verificar si el usuario está asociado a alguna otra persona o empresa
+          const otherUserUsage = await db.execute({
+            sql: `SELECT 
+                    (SELECT COUNT(*) FROM personas WHERE email = ?) +
+                    (SELECT COUNT(*) FROM empresas WHERE email = ?) +
+                    (SELECT COUNT(*) FROM estudiantes WHERE id_user = (SELECT id FROM users WHERE email = ?)) as count`,
+            args: [email, email, email]
           })
+          const isUserUsedElsewhere = Number(otherUserUsage.rows[0]?.count ?? 0) > 0
+
+          if (!isUserUsedElsewhere) {
+            await db.execute({
+              sql: `DELETE FROM users WHERE email = ?`,
+              args: [email]
+            })
+          }
         }
-      }
 
-      // e. Borrar persona (si no está asociada a ningún otro registro)
-      if (idPersona) {
-        const otherPersonaUsage = await db.execute({
-          sql: `SELECT 
-                  (SELECT COUNT(*) FROM afiliados WHERE id_persona = ?) +
-                  (SELECT COUNT(*) FROM estudiantes WHERE id_persona = ?) as count`,
-          args: [idPersona, idPersona]
-        })
-        const isPersonaUsedElsewhere = Number(otherPersonaUsage.rows[0]?.count ?? 0) > 0
-
-        if (!isPersonaUsedElsewhere) {
-          await db.execute({
-            sql: `DELETE FROM personas WHERE id = ?`,
-            args: [idPersona]
+        // e. Borrar persona (si no está asociada a ningún otro registro)
+        if (idPersona) {
+          const otherPersonaUsage = await db.execute({
+            sql: `SELECT 
+                    (SELECT COUNT(*) FROM afiliados WHERE id_persona = ?) +
+                    (SELECT COUNT(*) FROM estudiantes WHERE id_persona = ?) as count`,
+            args: [idPersona, idPersona]
           })
+          const isPersonaUsedElsewhere = Number(otherPersonaUsage.rows[0]?.count ?? 0) > 0
+
+          if (!isPersonaUsedElsewhere) {
+            await db.execute({
+              sql: `DELETE FROM personas WHERE id = ?`,
+              args: [idPersona]
+            })
+          }
         }
-      }
 
-      // f. Borrar empresa (si no está asociada a ningún otro registro)
-      if (idEmpresa) {
-        const otherEmpresaUsage = await db.execute({
-          sql: `SELECT 
-                  (SELECT COUNT(*) FROM afiliados WHERE id_empresa = ?) +
-                  (SELECT COUNT(*) FROM estudiantes WHERE id_empresa = ?) as count`,
-          args: [idEmpresa, idEmpresa]
-        })
-        const isEmpresaUsedElsewhere = Number(otherEmpresaUsage.rows[0]?.count ?? 0) > 0
-
-        if (!isEmpresaUsedElsewhere) {
-          await db.execute({
-            sql: `DELETE FROM empresas WHERE id_empresa = ?`,
-            args: [idEmpresa]
+        // f. Borrar empresa (si no está asociada a ningún otro registro)
+        if (idEmpresa) {
+          const otherEmpresaUsage = await db.execute({
+            sql: `SELECT 
+                    (SELECT COUNT(*) FROM afiliados WHERE id_empresa = ?) +
+                    (SELECT COUNT(*) FROM estudiantes WHERE id_empresa = ?) as count`,
+            args: [idEmpresa, idEmpresa]
           })
+          const isEmpresaUsedElsewhere = Number(otherEmpresaUsage.rows[0]?.count ?? 0) > 0
+
+          if (!isEmpresaUsedElsewhere) {
+            await db.execute({
+              sql: `DELETE FROM empresas WHERE id_empresa = ?`,
+              args: [idEmpresa]
+            })
+          }
         }
       }
     }
