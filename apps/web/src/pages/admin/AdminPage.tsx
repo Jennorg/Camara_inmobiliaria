@@ -4,7 +4,6 @@ import CmsAside from '@/pages/admin/components/CmsAside'
 import CmsContent from '@/pages/admin/components/CmsContent'
 
 const NAV_META: Record<string, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'Resumen financiero y actividad reciente' },
   articles: { title: 'Artículos', subtitle: 'Gestionar el contenido del sitio' },
   formacion: { title: 'Formación', subtitle: 'Cursos, talleres y asignación de estudiantes' },
   preinscripciones: {
@@ -12,12 +11,12 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
     subtitle: 'Postulaciones, entrevistas y admisión a programas (PREANI, PEGI, PADI, CIBIR y afiliación)',
   },
   cms: { title: 'Contenido', subtitle: 'Todas las secciones de la Landing' },
-  cms_noticias: { title: 'Noticias', subtitle: 'Últimas novedades y artículos' },
-  cms_convenios: { title: 'Convenios', subtitle: 'Alianzas y beneficios para afiliados' },
-  cms_normativas: { title: 'Normativas', subtitle: 'Enlaces a documentos oficiales (PDF u otros)' },
-  cms_directiva: { title: 'Directiva', subtitle: 'Miembros de la Junta Directiva' },
-  cms_paginas: { title: 'Páginas públicas', subtitle: 'Contenido JSON de rutas /beneficios, /pegi, etc.' },
-  cms_config: { title: 'Configuración de Contenido', subtitle: 'Textos fijos e imágenes de la Landing' },
+  noticias: { title: 'Noticias', subtitle: 'Últimas novedades y artículos' },
+  convenios: { title: 'Convenios', subtitle: 'Alianzas y beneficios para afiliados' },
+  normativas: { title: 'Normativas', subtitle: 'Enlaces a documentos oficiales (PDF u otros)' },
+  directiva: { title: 'Directiva', subtitle: 'Miembros de la Junta Directiva' },
+  paginas: { title: 'Páginas públicas', subtitle: 'Contenido JSON de rutas /beneficios, /pegi, etc.' },
+  config: { title: 'Configuración de Contenido', subtitle: 'Textos fijos e imágenes de la Landing' },
   media: { title: 'Medios', subtitle: 'Gestionar archivos e imágenes' },
   afiliados: { title: 'Afiliados', subtitle: 'Gestión de candidatos y afiliados CIBIR' },
   estudiantes: { title: 'Estudiantes', subtitle: 'Estudiantes regulares e inscripciones activas' },
@@ -33,7 +32,7 @@ const SIDEBAR_MAX = 340
 const SIDEBAR_DEFAULT = 220
 
 const AdminPage = () => {
-  const [activeId, setActiveId] = useState('dashboard')
+  const [activeId, setActiveId] = useState('analytics')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT)
   const [sidebarDragging, setSidebarDragging] = useState(false)
@@ -45,7 +44,7 @@ const AdminPage = () => {
   /** Remembers the last expanded width so toggle can restore it */
   const prevExpandedWidth = useRef(SIDEBAR_DEFAULT)
 
-  const meta = NAV_META[activeId] ?? NAV_META['dashboard']
+  const meta = NAV_META[activeId] ?? NAV_META['analytics']
   const isCollapsed = sidebarWidth <= SIDEBAR_COLLAPSED
 
   // ── Toggle: icon-only ↔ last expanded width ──────────────────────────────

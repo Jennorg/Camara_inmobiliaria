@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import { env } from './config/env.js'
 import { isOriginAllowed } from './lib/cors.js'
-import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes } from './routes/index.js'
+import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes } from './routes/index.js'
 
 
 const app = express()
@@ -45,6 +45,7 @@ app.use('/api/cms', cmsRoutes)
 app.use('/api/cms/uploads', uploadsRoutes)
 app.use('/api/academia', academiaRoutes)
 app.use('/api/notifications', notificationsRoutes)
+app.use('/api/analytics', analyticsRoutes)
 
 // Rutas base
 app.get('/', (req: Request, res: Response) => {
