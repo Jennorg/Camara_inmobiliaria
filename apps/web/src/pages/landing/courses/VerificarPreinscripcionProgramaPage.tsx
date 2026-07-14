@@ -348,8 +348,8 @@ export default function VerificarPreinscripcionProgramaPage() {
   const displayName = userData?.nombreCompleto
   const currentYear = new Date().getFullYear()
   const anosServicio = formData.ano_inicio_servicio ? (currentYear - parseInt(formData.ano_inicio_servicio, 10)) : 0
-  const tieneDiplomadoRequerido = formData.diplomados.some(d =>
-    ['FIPPI', 'PREANI'].includes(d.nombre.toUpperCase())
+  const tieneDiplomadoRequerido = Array.isArray(formData.diplomados) && formData.diplomados.some(d =>
+    d && d.nombre && typeof d.nombre === 'string' && ['FIPPI', 'PREANI'].includes(d.nombre.toUpperCase())
   )
   const showReferencesSection = isAfiliacion && (anosServicio > 5 || tieneDiplomadoRequerido)
 
@@ -1150,9 +1150,8 @@ export default function VerificarPreinscripcionProgramaPage() {
                             return;
                           }
 
-                          // Validar duplicados
-                          const yaExiste = formData.diplomados.some(
-                            d => d.nombre.toUpperCase() === pendingDiplomadoNombre.toUpperCase()
+                          const yaExiste = Array.isArray(formData.diplomados) && formData.diplomados.some(
+                            d => d && d.nombre && typeof d.nombre === 'string' && d.nombre.toUpperCase() === pendingDiplomadoNombre.toUpperCase()
                           );
                           if (yaExiste) {
                             Swal.fire({
@@ -1501,7 +1500,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                     {/* ── Referencia 1 ─────────────────────────────────── */}
+                    {/* ── Referencia 1 ─────────────────────────────────── */}
                     {([
                       {
                         label: 'Recomendante 1 (Opcional)',
