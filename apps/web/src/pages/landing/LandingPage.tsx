@@ -15,9 +15,11 @@ import SEO from '@/components/SEO'
 
 import ConveniosSection from '@/pages/landing/components/sections/ConveniosSection'
 import NoticiasSection from '@/pages/landing/components/sections/NoticiasSection'
+import { useCachedConfig } from '@/hooks/useCachedConfig'
 
 export default function LandingPage() {
   const [darkMode, setDarkMode] = useState(false)
+  const cfg = useCachedConfig()
 
   return (
     <div className={`${darkMode ? 'dark bg-[#022c22]' : 'bg-[#ffffff]'} transition-colors duration-300`}>
@@ -48,7 +50,7 @@ export default function LandingPage() {
 
       <DirectivaSection />
 
-      <ConveniosSection />
+      <ConveniosSection cfg={cfg} />
 
       <BentoGallerySection />
 

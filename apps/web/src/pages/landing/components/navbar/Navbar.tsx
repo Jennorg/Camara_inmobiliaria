@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import logoLight from '@/assets/Logo2.png' // Logo para modo claro
@@ -8,6 +8,7 @@ import RegisterModal from '@/pages/landing/components/RegisterModal'
 import NavItem from './NavItem'
 import AffiliationTicker from './AffiliationTicker'
 import { NAV_ITEMS } from './navData'
+import { API_URL } from '@/config/env'
 import { Menu, X, LogOut, Moon, Sun } from 'lucide-react'
 
 interface NavbarProps {
@@ -25,6 +26,34 @@ const Navbar = ({
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasOtherCourses, setHasOtherCourses] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/public/cursos`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data && data.data.length > 0) {
+          setHasOtherCourses(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const buildDynamicNavItems = () => {
+    return NAV_ITEMS.map(item => {
+      if (item.title === 'Formación') {
+        const baseItems = [...item.items];
+        if (hasOtherCourses) {
+          return {
+            ...item,
+            items: [...baseItems, { label: 'Otros', path: '/cursos' }]
+          };
+        }
+      }
+      return item;
+    });
+  };
+  const dynamicNavItems = buildDynamicNavItems();
 
   const labelLogin = "Iniciar Sesión";
   const labelSalir = "Salir";
@@ -54,8 +83,8 @@ const Navbar = ({
           {/* 2. MENU DESKTOP */}
           <div className="hidden xl:block">
             <ul className="flex items-center space-x-8 text-[12px] font-bold uppercase tracking-wider text-emerald-600">
-              {NAV_ITEMS.map((item, index) => (
-                <NavItem key={index} item={item} />
+              {dynamicNavItems.map((item, index) => (
+                <NavItem key={index} item={item as any} />
               ))}
             </ul>
           </div>
@@ -138,7 +167,7 @@ const Navbar = ({
           </div>
 
           <div className="flex-grow overflow-y-auto p-6 space-y-6">
-            {NAV_ITEMS.map((item, idx) => (
+            {dynamicNavItems.map((item, idx) => (
               <div key={idx} className="space-y-4">
                 <Link
                   to={item.items ? "#" : item.Tpath}

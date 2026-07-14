@@ -1239,9 +1239,18 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 export const publicListCursos = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute({
-      sql: `SELECT c.*, NULL as instructor_nombre
+      sql: `SELECT c.*,
+                   c.titulo AS nombre,
+                   (SELECT p.nombres || ' ' || p.apellidos 
+                    FROM modulos_curso mc
+                    JOIN profesores pr ON mc.id_profesor = pr.id_profesor
+                    JOIN personas p ON pr.id_persona = p.id
+                    WHERE mc.id_curso = c.id_curso
+                    ORDER BY mc.orden ASC
+                    LIMIT 1) as instructor_nombre
             FROM cursos c
-            WHERE c.estatus IN ('Abierto', 'Próximamente')
+            WHERE c.eliminado_en IS NULL
+              AND c.estatus NOT IN ('Borrador', 'Cerrado')
             ORDER BY c.id_curso DESC`,
       args: [],
     })
@@ -1799,6 +1808,38 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
 
 export const adminListPreinscripciones = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Auto-curación: si hay inscripciones de 'AFILIACION' como 'Preinscrito'/'Entrevista' pero el afiliado ya está como 'Afiliado' o 'Rechazado',
+    // actualizamos la inscripción correspondientemente.
+    try {
+      await db.execute({
+        sql: `UPDATE inscripciones_cursos 
+              SET estatus = 'Inscrito', actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+              WHERE programa_codigo = 'AFILIACION' 
+                AND id_curso IS NULL 
+                AND estatus IN ('Preinscrito', 'Entrevista')
+                AND id_estudiante IN (
+                  SELECT e.id_estudiante 
+                  FROM estudiantes e
+                  JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+                  WHERE af.estatus = 'Afiliado'
+                )`
+      })
+      await db.execute({
+        sql: `UPDATE inscripciones_cursos 
+              SET estatus = 'Rechazado', actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+              WHERE programa_codigo = 'AFILIACION' 
+                AND id_curso IS NULL 
+                AND estatus IN ('Preinscrito', 'Entrevista')
+                AND id_estudiante IN (
+                  SELECT e.id_estudiante 
+                  FROM estudiantes e
+                  JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+                  WHERE af.estatus = 'Rechazado'
+                )`
+      })
+    } catch (e) {
+      console.error('Error in preinscripciones healing query:', e)
+    }
     const programaCodigo = normalizeProgramaCodigo(req.query?.programaCodigo)
     const cursoId = req.query?.cursoId ? Number(req.query.cursoId) : null
     const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : 'Preinscrito'
@@ -1811,6 +1852,9 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const onlyCursos = req.query?.onlyCursos === 'true'
     const baseWhere: string[] = []
     const countArgs: any[] = []
+
+    // Excluir preinscripciones de afiliación de personas/empresas que ya tienen un estatus final en afiliados (Afiliado, Rechazado, etc.)
+    baseWhere.push("NOT (ic.programa_codigo = 'AFILIACION' AND COALESCE(af.estatus, '') IN ('Afiliado', 'Rechazado', 'Moroso', 'Suspendido'))")
 
     if (onlyCursos) {
       // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR
@@ -1831,7 +1875,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
       sql: `SELECT ic.estatus as estatus, COUNT(*) as c 
             FROM inscripciones_cursos ic 
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
-            LEFT JOIN afiliados af ON e.id_persona = af.id_persona
+            LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
             WHERE ${baseWhere.join(' AND ')}
               AND (af.tipo_afiliado IS NULL OR NOT (af.tipo_afiliado = 'Agente Corporativo' AND af.estatus = '1_PREINSCRIPCION'))
             GROUP BY ic.estatus`,
@@ -1870,6 +1914,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
             WHEN ic.programa_codigo = 'CIBIR' OR af.estatus = '5_CIBIR' THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
             ELSE (SELECT COUNT(*) FROM modulos_inscripcion mi WHERE mi.id_inscripcion = ic.id_inscripcion AND mi.estatus = 'Aprobado')
           END as modulos_aprobados,
+          (SELECT COUNT(*) FROM documentos d_count WHERE d_count.entidad_tipo = 'estudiante' AND d_count.entidad_id = e.id_estudiante AND d_count.eliminado_en IS NULL) as num_documentos,
           e.id_estudiante,
           COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as estudiante_nombre,
           COALESCE(p.email, emp.email) as estudiante_email,
@@ -4003,6 +4048,99 @@ export const adminDeleteProfesor = async (req: Request, res: Response): Promise<
     res.status(500).json({ success: false, message: 'Error al eliminar profesor' });
   }
 }
+
+export const adminReenviarEnlaceExpediente = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idInscripcion = Number(req.params.id)
+    if (!Number.isFinite(idInscripcion)) {
+      res.status(400).json({ success: false, message: 'ID de inscripción inválido' })
+      return
+    }
+
+    // 1. Buscar los datos del estudiante asociados a la inscripción
+    const inscQuery = await db.execute({
+      sql: `
+        SELECT 
+          ic.programa_codigo,
+          COALESCE(emp.razon_social, p.nombres || ' ' || p.apellidos) as nombre_completo,
+          COALESCE(emp.email, p.email) as email
+        FROM inscripciones_cursos ic
+        JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+        LEFT JOIN personas p ON e.id_persona = p.id
+        LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+        WHERE ic.id_inscripcion = ? LIMIT 1
+      `,
+      args: [idInscripcion]
+    })
+
+    if (inscQuery.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada.' })
+      return
+    }
+
+    const row = inscQuery.rows[0] as any
+    const email = String(row.email || '').trim().toLowerCase()
+    const nombre = String(row.nombre_completo || 'Aspirante').trim()
+    const programaCodigo = row.programa_codigo
+
+    if (!email) {
+      res.status(400).json({ success: false, message: 'El aspirante no posee un correo electrónico registrado.' })
+      return
+    }
+
+    // 2. Buscar si existe un token de preinscripción activo o usado para ese email
+    const tokenQuery = await db.execute({
+      sql: `SELECT token FROM tokens_accion WHERE email = ? AND tipo = 'preinscripcion' ORDER BY creado_en DESC LIMIT 1`,
+      args: [email]
+    })
+
+    let tokenVal = ''
+    if (tokenQuery.rows.length > 0) {
+      tokenVal = tokenQuery.rows[0].token as string
+      // Reactivar token poniendo usado = 0 y extendiendo validez a 30 días
+      const expiracion = new Date()
+      expiracion.setDate(expiracion.getDate() + 30)
+      const fechaExpiracion = expiracion.toISOString()
+
+      await db.execute({
+        sql: `UPDATE tokens_accion SET usado = 0, fecha_expiracion = ? WHERE token = ?`,
+        args: [fechaExpiracion, tokenVal]
+      })
+    } else {
+      // Si no existe, crear un nuevo token de acción de preinscripción
+      const { randomUUID } = await import('crypto')
+      tokenVal = randomUUID()
+      const expiracion = new Date()
+      expiracion.setDate(expiracion.getDate() + 30)
+      const fechaExpiracion = expiracion.toISOString()
+
+      const dataJson = JSON.stringify({
+        programa_interes: programaCodigo,
+        nombreCompleto: nombre,
+        email: email
+      })
+
+      await db.execute({
+        sql: `INSERT INTO tokens_accion (token, tipo, email, data_json, fecha_expiracion, usado) VALUES (?, 'preinscripcion', ?, ?, ?, 0)`,
+        args: [tokenVal, email, dataJson, fechaExpiracion]
+      })
+    }
+
+    // 3. Enviar correo usando el servicio de Resend
+    await enviarCorreoConfirmacionPreinscripcionPrograma({
+      nombre,
+      emailOriginal: email,
+      programaCodigo,
+      token: tokenVal,
+    })
+
+    res.json({ success: true, message: `Enlace de expediente reenviado con éxito a ${email}` })
+  } catch (error: any) {
+    console.error('adminReenviarEnlaceExpediente:', error)
+    res.status(500).json({ success: false, message: 'Error al reenviar el enlace: ' + error.message })
+  }
+}
+
 
 
 

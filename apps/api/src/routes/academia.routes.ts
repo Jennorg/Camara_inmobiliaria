@@ -28,6 +28,7 @@ import {
   adminListPersonasDisponibles,
   adminCreateProfesor,
   adminDeleteProfesor,
+  adminReenviarEnlaceExpediente,
 } from '../controllers/academia.controller.js'
 
 const router = Router()
@@ -103,6 +104,8 @@ router.get('/profesores', adminListProfesores)
 router.post('/profesores', adminCreateProfesor)
 router.delete('/profesores/:id', adminDeleteProfesor)
 router.get('/personas-disponibles', adminListPersonasDisponibles)
+// POST /api/academia/inscripciones/:id/reenviar-enlace
+router.post('/inscripciones/:id/reenviar-enlace', adminReenviarEnlaceExpediente)
 
 export { router as academiaRoutes }
 

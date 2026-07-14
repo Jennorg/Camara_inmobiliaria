@@ -14,7 +14,9 @@ import padiCatalog from '@/assets/padi_catalog.png';
 interface CursoDB {
   id_curso: number;
   nombre: string;
+  titulo?: string;
   nivel_academico: string | null;
+  categoria?: string | null;
   precio: string | null;
   imagen_url: string | null;
   estatus: string;
@@ -210,9 +212,6 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
     <DashboardCard
       title="Catálogo Académico Destacado"
       icon={GraduationCap}
-      actionText="Ver todo el catálogo"
-      actionIcon={ArrowRight}
-      onAction={onViewAll}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 py-2 min-h-[12rem]">
         {loading ? (
@@ -267,10 +266,6 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                     </span>
                   </div>
                 )}
-                {/* Price */}
-                <div className="absolute bottom-3 right-3 text-white font-black text-sm drop-shadow-md bg-black/40 px-2 py-0.5 rounded">
-                  {course.precio || 'Gratis'}
-                </div>
               </div>
 
               <div className="mt-3">
@@ -278,13 +273,13 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                   className="text-[9px] font-bold uppercase tracking-widest mb-1 block"
                   style={{ color: 'var(--color-accent-hover)' }}
                 >
-                  {course.nivel_academico || 'Libre'}
+                  {course.nivel_academico || course.categoria || 'Libre'}
                 </span>
                 <h4
                   className="font-extrabold text-sm leading-tight transition-colors"
                   style={{ color: 'var(--color-primary)' }}
                 >
-                  {course.nombre}
+                  {course.titulo || course.nombre}
                 </h4>
                 {!isEnrolled && (
                   <div
