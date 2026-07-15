@@ -22,6 +22,7 @@ import {
   ClipboardList,
   RefreshCw,
   Hammer,
+  DollarSign,
 } from 'lucide-react';
 import DashboardSidebar from '@/pages/landing/afiliado/components/DashboardSidebar';
 import DashboardHeader from '@/pages/landing/afiliado/components/DashboardHeader';
@@ -44,6 +45,7 @@ import AnalyticsPanel from '@/pages/admin/components/Analytics/AnalyticsPanel';
 import FormacionPanel from '@/pages/admin/components/Formacion/FormacionPanel';
 import MiembrosPanel from '@/pages/admin/components/Afiliados/MiembrosPanel';
 import PreinscripcionesPrincipalesPanel from '@/pages/admin/components/Formacion/PreinscripcionesPrincipalesPanel';
+import FinancePanel from '@/pages/admin/components/Finance/FinancePanel';
 
 import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
@@ -65,6 +67,7 @@ const NAV_AFILIADO = [
 ];
 
 const NAV_ADMIN_CORE = [
+  { icon: DollarSign, label: 'Finanzas' },
   { icon: Users, label: 'Directorio de Miembros' },
   { icon: ShieldCheck, label: 'Control de Acceso' },
   { icon: ClipboardList, label: 'Preinscripciones' },
@@ -350,6 +353,7 @@ const PanelPage = () => {
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;
     if (activeTab === 'Preinscripciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><PreinscripcionesPrincipalesPanel /></div>;
     if (activeTab === 'Junta Directiva') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs p-6 overflow-hidden"><DirectivaPanel /></div>;
+    if (activeTab === 'Finanzas') return <div className="col-span-1 lg:col-span-3 h-full"><FinancePanel /></div>;
     if (activeTab === 'Análisis y Métricas') return <div className="col-span-1 lg:col-span-3 h-full"><AnalyticsPanel /></div>;
     if (activeTab === 'Gestión de Formación') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><FormacionPanel /></div>;
 
@@ -376,7 +380,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Finanzas', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>
@@ -396,9 +400,11 @@ const PanelPage = () => {
           userCode={displayCode}
         />
 
-        <div className={`flex-1 min-h-0 ${isFullPanel ? 'h-full overflow-hidden' : 'overflow-y-auto p-4 sm:p-6 lg:p-8'}`}>
+        <div className={`flex-1 min-h-0 ${isFullPanel ? 'h-full' : 'overflow-y-auto p-4 sm:p-6 lg:p-8'}`}>
           {isFullPanel ? (
-             renderContent()
+            <div className="h-full overflow-y-auto">
+              {renderContent()}
+            </div>
           ) : (
               <div className="max-w-7xl mx-auto w-full space-y-6 lg:space-y-8">
                 {/* Welcome */}

@@ -44,8 +44,6 @@ const DirectorioPage = () => {
   const [afiliados, setAfiliados] = useState<AfiliadoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'codigo'>('nombre');
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
   const [visibleCount, setVisibleCount] = useState(20);
@@ -98,7 +96,7 @@ const DirectorioPage = () => {
   // Reset local pagination when query or filter changes
   useEffect(() => {
     setVisibleCount(20);
-  }, [debouncedSearch, filterType, searchField]);
+  }, [debouncedSearch, filterType]);
 
   const cleanString = (str: string): string => {
     return str
@@ -126,22 +124,6 @@ const DirectorioPage = () => {
 
       // 2. Filtrar por búsqueda
       if (query) {
-        if (searchField === 'cedula') {
-          const digits = query.replace(/\D/g, '');
-          if (digits) {
-            const itemCed = item.cedula ? item.cedula.replace(/\D/g, '') : '';
-            const itemRif = item.empresa_rif_numero ? item.empresa_rif_numero.replace(/\D/g, '') : '';
-            return itemCed.includes(digits) || itemRif.includes(digits);
-          }
-          return true;
-        }
-
-        if (searchField === 'codigo') {
-          const itemCod = cleanString(item.codigo || '');
-          return itemCod.includes(query);
-        }
-
-        // Búsqueda por Nombre (default)
         const nom = cleanString(item.nombre_completo || '');
         const rep = cleanString(item.representante_nombre || '');
         const emp = cleanString(item.empresa_razon_social || '');
@@ -160,7 +142,7 @@ const DirectorioPage = () => {
       if (isNaN(codeB)) return -1;
       return codeA - codeB;
     });
-  }, [afiliados, searchQuery, filterType, searchField]);
+  }, [afiliados, searchQuery, filterType]);
 
   // ── Infinite scroll: load next page ───────────────────────────────
   const observer = useRef<IntersectionObserver | null>(null);
@@ -204,49 +186,6 @@ const DirectorioPage = () => {
             {/* Buscador y Filtros */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
               <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg h-[68px] relative z-30">
-                {/* Selector de campo en el input */}
-                <div className="relative shrink-0 border-r border-slate-200/60 dark:border-emerald-500/20 h-full flex items-center z-10">
-                  <button
-                    type="button"
-                    onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                    className="flex items-center gap-1.5 px-3 sm:px-6 h-full text-xs md:text-sm font-black uppercase tracking-wider text-slate-500 dark:text-emerald-100/60 hover:text-slate-800 dark:hover:text-white transition-colors"
-                  >
-                    <span>
-                      {searchField === 'nombre' && 'Nombre'}
-                      {searchField === 'cedula' && 'Cédula / RIF'}
-                      {searchField === 'codigo' && 'Código'}
-                    </span>
-                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {showSearchDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                      <div className="absolute left-4 top-full mt-2 bg-white dark:bg-[#04432f] border border-slate-100 dark:border-emerald-500/20 rounded-2xl shadow-2xl py-1.5 z-50 min-w-[140px] animate-in fade-in slide-in-from-top-1 duration-200">
-                        {([
-                          { key: 'nombre', label: 'Nombre' },
-                          { key: 'cedula', label: 'Cédula / RIF' },
-                          { key: 'codigo', label: 'Código' },
-                        ] as const).map(option => (
-                          <button
-                            key={option.key}
-                            type="button"
-                            onClick={() => {
-                              setSearchField(option.key);
-                              setShowSearchDropdown(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 text-xs font-black uppercase tracking-wider transition-colors ${
-                              searchField === option.key ? 'bg-emerald-50 dark:bg-[#022c22] text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-emerald-100/60 hover:bg-slate-50 dark:hover:bg-[#022c22]/50'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-
                 <div className="relative flex-grow h-full flex items-center">
                   <div className="absolute left-6 pointer-events-none text-slate-400 dark:text-emerald-100/40">
                     <Search size={22} />
@@ -255,10 +194,7 @@ const DirectorioPage = () => {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={`Buscar por ${
-                      searchField === 'nombre' ? 'nombre completo' :
-                      searchField === 'cedula' ? 'cédula o RIF' : 'código de afiliado'
-                    }...`}
+                    placeholder="Buscar por nombre completo o empresa..."
                     className="w-full h-full pl-16 pr-24 bg-transparent text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none text-lg"
                   />
                   

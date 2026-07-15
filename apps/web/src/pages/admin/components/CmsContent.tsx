@@ -7,6 +7,7 @@ import AnalyticsPanel from '@/pages/admin/components/Analytics/AnalyticsPanel'
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import EstudiantesRegularesPanel from '@/pages/admin/components/Estudiantes/EstudiantesRegularesPanel'
+import FinancePanel from '@/pages/admin/components/Finance/FinancePanel'
 
 // ─── Placeholder panels ───────────────────────────────────────────────────────
 const Placeholder = ({ title, icon }: { title: string; icon: React.ReactNode }) => (
@@ -90,6 +91,7 @@ const PANELS: Record<string, React.ReactNode> = {
   users: <UsersPanel />,
   admin_users: <SuperAdminUsersPanel />,
   analytics: <AnalyticsPanel />,
+  finanzas: <FinancePanel />,
   settings: <Placeholder title='Settings' icon={icons.settings} />,
 }
 
