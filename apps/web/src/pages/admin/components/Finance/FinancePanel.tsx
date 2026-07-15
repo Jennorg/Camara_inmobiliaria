@@ -535,7 +535,7 @@ const FinancePanel = () => {
   ]
 
   return (
-    <div className="p-4 sm:p-6 max-w-screen-xl overflow-y-auto h-full space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 w-full overflow-y-auto h-full space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
         <div>
