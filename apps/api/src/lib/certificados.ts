@@ -28,11 +28,25 @@ export async function emitirComprobanteSiCompleto(
 ): Promise<void> {
   const { skipEmail = false } = options
   const row = await db.execute({
-    sql: `SELECT id_inscripcion, completado FROM inscripciones_cursos WHERE id_inscripcion = ?`,
+    sql: `SELECT ic.id_inscripcion, ic.completado, ic.programa_codigo,
+                 COALESCE(af.optar_acreditacion, 0) as optar_acreditacion,
+                 COALESCE(af.cibir_acreditado, 0) as cibir_acreditado
+          FROM inscripciones_cursos ic
+          JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+          LEFT JOIN afiliados af ON (
+            (e.id_persona = af.id_persona AND e.id_persona IS NOT NULL)
+            OR (e.id_empresa = af.id_empresa AND e.id_empresa IS NOT NULL)
+          )
+          WHERE ic.id_inscripcion = ?`,
     args: [idInscripcion],
   })
-  const ins = row.rows[0] as unknown as { completado: unknown } | undefined
+  const ins = row.rows[0] as any
   if (!ins || !esCompletadoUno(ins.completado)) return
+
+  // Si es del programa CIBIR y el afiliado opta por acreditación o ya está acreditado, evitar emitir certificado
+  if (ins.programa_codigo === 'CIBIR' && (Number(ins.optar_acreditacion) === 1 || Number(ins.cibir_acreditado) === 1)) {
+    return
+  }
 
   const exists = await db.execute({
     sql: `SELECT 1 FROM certificados WHERE id_inscripcion = ? LIMIT 1`,
@@ -195,35 +209,7 @@ export async function ensureCibirCertificate(idAfiliado: number): Promise<void> 
       idInscripcion = (insInsc.rows[0] as any).id_inscripcion
     }
 
-    if (!idInscripcion) return
-
-    // 5. Asegurar certificado en tabla certificados
-    const certRes = await db.execute({
-      sql: `SELECT 1 FROM certificados WHERE id_inscripcion = ?`,
-      args: [idInscripcion]
-    })
-
-    if (certRes.rows.length === 0) {
-      const fecha = new Date().toISOString()
-      let insertedCodigo: string | null = null
-      for (let a = 0; a < 8; a++) {
-        const codigo = nuevoCodigoValidacion()
-        try {
-          await db.execute({
-            sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, fecha_emision) VALUES (?, ?, ?, ?)`,
-            args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, fecha],
-          })
-          insertedCodigo = codigo
-          break
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e)
-          if (!msg.includes('UNIQUE')) throw e
-        }
-      }
-      if (!insertedCodigo) {
-        throw new Error('No se pudo generar un código de validación único para CIBIR convalidado')
-      }
-    }
+    // El paso 5 (Asegurar certificado en tabla certificados) fue removido, ya que los afiliados acreditados por convalidación no deben recibir un certificado de aprobación regular.
   } catch (err) {
     console.error(`ensureCibirCertificate for idAfiliado=${idAfiliado} failed:`, err)
   }
