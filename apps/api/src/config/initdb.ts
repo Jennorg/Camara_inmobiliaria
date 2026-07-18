@@ -96,6 +96,7 @@ const statements = [
                                               'Requiere Acción','Afiliado','Moroso','Suspendido','Rechazado'
                                             )),
     cibir_acreditado            INTEGER     NOT NULL DEFAULT 0 CHECK (cibir_acreditado IN (0,1)),
+    optar_acreditacion          INTEGER     NOT NULL DEFAULT 0 CHECK (optar_acreditacion IN (0,1)),
     id_empresa                  INTEGER     REFERENCES empresas(id_empresa) ON DELETE SET NULL,
     fecha_registro              TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     fecha_ultimo_cambio_estatus TEXT,

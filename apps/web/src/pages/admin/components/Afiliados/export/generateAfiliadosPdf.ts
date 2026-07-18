@@ -143,7 +143,12 @@ export async function generateAfiliadosPdf({
   }
 
   const head = [columns.map((c) => c.label)]
-  const body = sortedRows.map((row) => columns.map((col) => col.getValue(row)))
+  const body = sortedRows.map((row, index) =>
+    columns.map((col) => {
+      if (col.id === 'conteo') return String(index + 1)
+      return col.getValue(row)
+    })
+  )
 
   autoTable(doc, {
     startY: y,
@@ -166,19 +171,22 @@ export async function generateAfiliadosPdf({
     alternateRowStyles: {
       fillColor: ALT_ROW,
     },
-    didDrawPage: (data) => {
-      const pageCount = doc.getNumberOfPages()
-      const pageH = doc.internal.pageSize.getHeight()
-      doc.setFontSize(7)
-      doc.setTextColor(148, 163, 184)
-      doc.text(
-        `Página ${data.pageNumber} de ${pageCount} · Total: ${sortedRows.length} afiliados`,
-        pageWidth / 2,
-        pageH - 8,
-        { align: 'center' }
-      )
-    },
   })
+
+  // Agregar el pie de página de forma diferida en todas las páginas generadas
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    const pageH = doc.internal.pageSize.getHeight()
+    doc.setFontSize(7)
+    doc.setTextColor(148, 163, 184)
+    doc.text(
+      `Página ${i} de ${totalPages} · Total: ${sortedRows.length} afiliados`,
+      pageWidth / 2,
+      pageH - 8,
+      { align: 'center' }
+    )
+  }
 
   const filename = `reporte-afiliados-${generatedAt.toISOString().slice(0, 10)}.pdf`
   doc.save(filename)

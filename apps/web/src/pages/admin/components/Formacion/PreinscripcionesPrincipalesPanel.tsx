@@ -743,8 +743,8 @@ export default function PreinscripcionesPrincipalesPanel({
               className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 outline-none focus:border-[#00D084] transition-all flex-1"
             >
               <option value="todos">Todos (Acreditación)</option>
-              <option value="apto">Apto para acreditación</option>
-              <option value="no_apto">No apto para acreditación</option>
+              <option value="apto">Opta por acreditación</option>
+              <option value="no_apto">No opta por acreditación</option>
             </select>
           </div>
 
@@ -807,7 +807,7 @@ export default function PreinscripcionesPrincipalesPanel({
                 </span>
                 {r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && (
                   <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-0.5 self-start">
-                    Apto para acreditación
+                    Opta por Acreditación
                   </span>
                 )}
               </button>
@@ -831,7 +831,7 @@ export default function PreinscripcionesPrincipalesPanel({
                 <p className="text-xs text-slate-400 mt-0.5 font-bold uppercase tracking-widest">{selected.estudiante_cedula || 'S/D'}</p>
                 {selected.programa_codigo === 'AFILIACION' && !!selected.apto_acreditacion && (
                   <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-1 uppercase tracking-tighter">
-                    Apto para acreditación
+                    Opta por Acreditación
                   </span>
                 )}
               </div>
@@ -1199,16 +1199,16 @@ export default function PreinscripcionesPrincipalesPanel({
                             <>
                               {selected.apto_acreditacion ? (
                                 <>
-                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200">Aprobar Directo</button>
-                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
+                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar Acreditación</button>
+                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Remitir a CIBIR</button>
                                 </>
                               ) : (
-                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200">Remitir a CIBIR</button>
+                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Remitir a CIBIR</button>
                               )}
-                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest">Agendar Cita</button>
+                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">Agendar Cita</button>
                             </>
-                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest">Aprobar</button>}
-                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100">Rechazar</button>
+                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar</button>}
+                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all">Rechazar</button>
                         </div>
                         <button 
                           onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 

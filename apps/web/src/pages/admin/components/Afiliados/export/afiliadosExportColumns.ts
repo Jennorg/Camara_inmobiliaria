@@ -2,6 +2,7 @@ import { AfiliadoDTO, EstatusAfiliado } from '@/types/afiliados'
 import { formatRif } from '@/utils/formatters'
 
 export type ExportColumnId =
+  | 'conteo'
   | 'codigo'
   | 'nombre_completo'
   | 'tipo_afiliado'
@@ -54,6 +55,12 @@ function getIdentificacion(a: AfiliadoDTO): string {
 }
 
 export const AFILIADOS_EXPORT_COLUMNS: ExportColumnDef[] = [
+  {
+    id: 'conteo',
+    label: '#',
+    defaultSelected: true,
+    getValue: () => '',
+  },
   {
     id: 'codigo',
     label: 'Código de Afiliado',

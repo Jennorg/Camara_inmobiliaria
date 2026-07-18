@@ -296,6 +296,7 @@ export default function Cibir() {
               />
             </div>
 
+            {/* 
             <div
               id="formulario"
               className="relative z-10 p-6 sm:p-12 rounded-[2rem] sm:rounded-[4rem] bg-[#022c22]/95 backdrop-blur-sm text-white text-center space-y-8 overflow-hidden border border-white/5"
@@ -316,6 +317,7 @@ export default function Cibir() {
                 ctaLabel="Confirmar"
               />
             </div>
+            */}
           </div>
         </div>
       </main>

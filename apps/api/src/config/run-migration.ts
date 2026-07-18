@@ -706,6 +706,22 @@ async function migrate() {
       await db.execute(`DROP TABLE IF EXISTS ${tableName}`)
     }
 
+    // 14.5. ADD OPTAR_ACREDITACION COLUMN TO AFILIADOS
+    console.log('Adding optar_acreditacion column to afiliados table if not exists...')
+    try {
+      await db.execute(`
+        ALTER TABLE afiliados 
+        ADD COLUMN optar_acreditacion INTEGER NOT NULL DEFAULT 0 CHECK (optar_acreditacion IN (0, 1))
+      `)
+      console.log('  · optar_acreditacion column added successfully.')
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column name') || e.message?.includes('already exists')) {
+        console.log('  · optar_acreditacion column already exists.')
+      } else {
+        console.warn('  · Warning trying to add optar_acreditacion column:', e.message)
+      }
+    }
+
     console.log('--- DATABASE MIGRATION COMPLETED SUCCESSFULLY ---')
 
   } catch (error) {

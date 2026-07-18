@@ -687,6 +687,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     const isCorporativo = isAfiliacion && ['Juridico', 'Corporativo'].includes(registro.tipo_afiliado)
     const isAgenteCorporativo = isAfiliacion && registro.tipo_afiliado === 'Agente Corporativo'
 
+    const optarAcreditacion = req.body?.optarAcreditacion === true || req.body?.optarAcreditacion === 'true' || req.body?.optarAcreditacion === 1 || req.body?.optarAcreditacion === '1' ? 1 : 0
+
     if (!programaCodigo || !email || !nombreCompleto) {
       res.status(400).json({ success: false, message: 'Registro de verificación incompleto' })
       return
@@ -720,7 +722,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           res.status(400).json({ success: false, message: 'El Acta Constitutiva/Registro Mercantil es obligatorio.' })
           return
         }
-        if (!urlRep) {
+        const nivel = req.body?.nivelProfesional ? normalizeNivelProfesional(req.body.nivelProfesional) : nivelProfesional;
+        if (nivel !== 'Bachiller' && !urlRep) {
           res.status(400).json({ success: false, message: 'El Título Académico del Representante Legal es obligatorio.' })
           return
         }
@@ -889,7 +892,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
 
       if (typeof req.body?.url_titulo === 'string' && req.body.url_titulo) {
-        docsToInsert.push({ tipo: 'titulo', url: req.body.url_titulo })
+        docsToInsert.push({ tipo: isCorporativo ? 'rif_empresa' : 'titulo', url: req.body.url_titulo })
       }
       if (typeof req.body?.url_cv === 'string' && req.body.url_cv) {
         docsToInsert.push({ tipo: 'cv', url: req.body.url_cv })
@@ -1043,15 +1046,17 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 3. Crear/Upsert AFILIADO
           const resA = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en)
-                  VALUES (?, ?, 'Corporativo', '2_EXPEDIENTE', ?)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, optar_acreditacion, actualizado_en)
+                  VALUES (?, ?, 'Corporativo', '2_EXPEDIENTE', ?, ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = excluded.id_empresa,
                     tipo_afiliado = 'Corporativo',
                     estatus = CASE WHEN afiliados.estatus = '1_PREINSCRIPCION' THEN '2_EXPEDIENTE' ELSE afiliados.estatus END,
+                    ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
+                    optar_acreditacion = excluded.optar_acreditacion,
                     actualizado_en = excluded.actualizado_en
                   RETURNING id_afiliado`,
-            args: [idPersona, idEmpresa, now]
+            args: [idPersona, idEmpresa, anoInicioServicio, optarAcreditacion, now]
           })
           const idAfiliado = resA.rows[0].id_afiliado as number
 
@@ -1105,16 +1110,17 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 2. Upsert Afiliado con tipo 'Agente Corporativo' y la empresa vinculada
           const resA = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, actualizado_en)
-                  VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, optar_acreditacion, actualizado_en)
+                  VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = COALESCE(excluded.id_empresa, afiliados.id_empresa),
                     tipo_afiliado = 'Agente Corporativo',
                     estatus = CASE WHEN afiliados.estatus = 'Requiere Acción' THEN afiliados.estatus ELSE '1_PREINSCRIPCION' END,
                     ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
+                    optar_acreditacion = excluded.optar_acreditacion,
                     actualizado_en = excluded.actualizado_en
                   RETURNING id_afiliado`,
-            args: [idPersonaAC, empresaId, anoInicioServicio, now]
+            args: [idPersonaAC, empresaId, anoInicioServicio, optarAcreditacion, now]
           })
           const idAfiliadoAC = resA.rows[0].id_afiliado as number
 
@@ -1159,15 +1165,16 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 2. Upsert Afiliado
           const resA = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, actualizado_en)
-                  VALUES (?, NULL, 'Natural', '2_EXPEDIENTE', ?, ?)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, optar_acreditacion, actualizado_en)
+                  VALUES (?, NULL, 'Natural', '2_EXPEDIENTE', ?, ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = NULL,
                     estatus = CASE WHEN afiliados.estatus = '1_PREINSCRIPCION' THEN '2_EXPEDIENTE' ELSE afiliados.estatus END,
                     ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
+                    optar_acreditacion = excluded.optar_acreditacion,
                     actualizado_en = excluded.actualizado_en
                   RETURNING id_afiliado`,
-            args: [idPersona, anoInicioServicio, now]
+            args: [idPersona, anoInicioServicio, optarAcreditacion, now]
           })
           const idAfiliado = resA.rows[0].id_afiliado as number
 
@@ -1938,19 +1945,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           entr.hora as entrevista_hora,
           entr.lugar as entrevista_lugar,
           entr.estatus as entrevista_estatus,
-          CASE WHEN (
-            ic.programa_codigo = 'AFILIACION' AND (
-              (af.ano_inicio_servicio IS NOT NULL AND (CAST(strftime('%Y', 'now') AS INTEGER) - af.ano_inicio_servicio) > 8)
-              OR EXISTS (
-                SELECT 1 FROM documentos da 
-                WHERE da.entidad_tipo = 'estudiante' 
-                  AND da.entidad_id = e.id_estudiante 
-                  AND da.tipo_archivo = 'diplomado' 
-                  AND da.eliminado_en IS NULL
-                  AND (UPPER(da.nombre_archivo) LIKE '%FIPPI%' OR UPPER(da.nombre_archivo) LIKE '%FIPI%' OR UPPER(da.nombre_archivo) LIKE '%PREANI%')
-              )
-            )
-          ) THEN 1 ELSE 0 END as apto_acreditacion
+          COALESCE(af.optar_acreditacion, 0) as apto_acreditacion
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
@@ -3328,6 +3323,7 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
     }
 
     const extractedDoc = docMatch ? docMatch[1].trim() : null
+    const digitsOnlyDoc = extractedDoc ? extractedDoc.replace(/\D/g, '') : null
 
     // Nombre limpio (quitando los paréntesis y el RIF)
     let nombreLimpio = rawNombre
@@ -3336,8 +3332,10 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
       nombreLimpio = rawNombre.substring(0, parenIndex).trim()
     }
 
+    // Remover acentos comunes para búsquedas más amplias si no se encuentra coincidencia exacta
     const nameSearch = `%${nombreLimpio}%`
     const docSearchLike = extractedDoc ? `%${extractedDoc.replace(/[^a-zA-Z0-9]/g, '')}%` : ''
+    const digitsSearchLike = digitsOnlyDoc ? `%${digitsOnlyDoc}%` : ''
 
     // Buscar en afiliados
     let queryResult;
@@ -3363,11 +3361,19 @@ export const adminBuscarReferenciaAfiliado = async (req: Request, res: Response)
              OR (e.rif_numero = ?)
              OR (REPLACE(REPLACE(p.cedula, '-', ''), ' ', '') LIKE ?)
              OR (REPLACE(REPLACE(e.rif_numero, '-', ''), ' ', '') LIKE ?)
+             OR (p.cedula = ?)
+             OR (e.rif_numero = ?)
+             OR (REPLACE(REPLACE(p.cedula, '-', ''), ' ', '') LIKE ?)
+             OR (REPLACE(REPLACE(e.rif_numero, '-', ''), ' ', '') LIKE ?)
              OR (COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') LIKE ?)
              OR (e.razon_social LIKE ?)
           LIMIT 1
         `,
-        args: [extractedDoc, extractedDoc, docSearchLike, docSearchLike, nameSearch, nameSearch]
+        args: [
+          extractedDoc, extractedDoc, docSearchLike, docSearchLike,
+          digitsOnlyDoc || '', digitsOnlyDoc || '', digitsSearchLike, digitsSearchLike,
+          nameSearch, nameSearch
+        ]
       })
     } else {
       queryResult = await db.execute({

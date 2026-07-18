@@ -57,6 +57,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   const [formData, setFormData] = useState({
     nivelProfesional: '' as 'Bachiller' | 'TSU' | 'Nivel Profesional' | 'Postgrado' | '',
     profesion: '',
+    optarAcreditacion: false,
     ano_inicio_servicio: '',
     url_titulo: '',
     name_titulo: '',
@@ -236,6 +237,7 @@ export default function VerificarPreinscripcionProgramaPage() {
             setFormData({
               nivelProfesional: (saved.nivelProfesional as any) || '',
               profesion: saved.profesion || '',
+              optarAcreditacion: !!saved.optarAcreditacion,
               ano_inicio_servicio: saved.ano_inicio_servicio || '',
               url_cv: saved.url_cv || '',
               name_cv: saved.name_cv || '',
@@ -264,10 +266,15 @@ export default function VerificarPreinscripcionProgramaPage() {
             const ref1Doc = docs.find((d: any) => d.tipo_doc === 'referencia_afiliado_1')
             const ref2Doc = docs.find((d: any) => d.tipo_doc === 'referencia_afiliado_2')
 
+            const hasPriorRefs = !!(ref1Doc?.url || ref2Doc?.url)
+            const listDiplomados = docs.filter((d: any) => d.tipo_doc === 'diplomado')
+            const hasFippiPreani = listDiplomados.some((d: any) => d && d.nombre_archivo && ['FIPPI', 'PREANI'].includes(d.nombre_archivo.toUpperCase()))
+
             setFormData(prev => ({
               ...prev,
               nivelProfesional: (profileData?.nivel_academico || json.data.nivel_academico || '') as any,
               profesion: profileData?.profesion || json.data.profesion || '',
+              optarAcreditacion: hasPriorRefs || hasFippiPreani,
               ano_inicio_servicio: profileData?.ano_inicio_servicio !== undefined ? String(profileData.ano_inicio_servicio) : (json.data.ano_inicio_servicio !== undefined ? String(json.data.ano_inicio_servicio) : ''),
               url_cv: cvDoc?.url || '',
               name_cv: cvDoc?.nombre_archivo || '',
@@ -279,7 +286,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               name_titulo_representante: tituloRepDoc?.nombre_archivo || '',
               especializaciones: docs.filter((d: any) => d.tipo_doc === 'especializacion').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
               cursos_extras: docs.filter((d: any) => d.tipo_doc === 'curso_extra').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
-              diplomados: docs.filter((d: any) => d.tipo_doc === 'diplomado').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
+              diplomados: listDiplomados.map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
               otros_docs: docs.filter((d: any) => d.tipo_doc === 'otro_documento').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
               url_referencia1: ref1Doc?.url || '',
               nombre_referencia1: ref1Doc?.nombre_archivo || '',
@@ -313,6 +320,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       saveProgress({
         nivelProfesional: formData.nivelProfesional,
         profesion: formData.profesion,
+        optarAcreditacion: formData.optarAcreditacion,
         ano_inicio_servicio: formData.ano_inicio_servicio,
         url_cv: formData.url_cv,
         name_cv: formData.name_cv,
@@ -351,7 +359,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   const tieneDiplomadoRequerido = Array.isArray(formData.diplomados) && formData.diplomados.some(d =>
     d && d.nombre && typeof d.nombre === 'string' && ['FIPPI', 'PREANI'].includes(d.nombre.toUpperCase())
   )
-  const showReferencesSection = isAfiliacion && (anosServicio > 5 || tieneDiplomadoRequerido)
+  const showReferencesSection = isAfiliacion && !!formData.optarAcreditacion
 
   const isReferencesIncomplete = showReferencesSection && (
     (formData.url_referencia1 && !selectedAffiliate1 && !isValidReferenciaString(formData.nombre_referencia1)) ||
@@ -432,11 +440,13 @@ export default function VerificarPreinscripcionProgramaPage() {
       return;
     }
 
-    // 4. Validar Año de Inicio como Asesor (Solo para afiliados naturales)
-    if (isAfiliacion && !isCorporativo && !formData.ano_inicio_servicio) {
+    // 4. Validar Año de Inicio como Asesor (Para todos los afiliados)
+    if (isAfiliacion && !formData.ano_inicio_servicio) {
       Swal.fire({
         title: '¡Atención!',
-        text: 'Por favor, indica el Año de Inicio como Asesor.',
+        text: isCorporativo
+          ? 'Por favor, indica el Año de Inicio como Asesor del Representante Legal.'
+          : 'Por favor, indica el Año de Inicio como Asesor.',
         icon: 'warning',
         confirmButtonColor: '#059669',
       });
@@ -463,7 +473,7 @@ export default function VerificarPreinscripcionProgramaPage() {
         });
         return;
       }
-      if (!formData.url_titulo_representante) {
+      if (!formData.url_titulo_representante && formData.nivelProfesional !== 'Bachiller') {
         Swal.fire({
           title: '¡Atención!',
           text: 'Por favor, carga el Título Académico del Representante Legal.',
@@ -493,6 +503,20 @@ export default function VerificarPreinscripcionProgramaPage() {
         confirmButtonColor: '#059669',
       });
       return;
+    }
+
+    // 6.5. Validar Años de Servicio o Diplomados para Acreditación (CIBIR)
+    if (isAfiliacion && formData.optarAcreditacion) {
+      const hasDiplomados = formData.diplomados.length > 0;
+      if (anosServicio < 8 && !hasDiplomados) {
+        Swal.fire({
+          title: 'Requisito para Acreditación',
+          text: 'Para optar por la Acreditación de Conocimientos necesitas tener más de 8 años de servicio o haber cursado y cargado el soporte del Diplomado FIPPI o PREANI.',
+          icon: 'warning',
+          confirmButtonColor: '#059669',
+        });
+        return;
+      }
     }
 
     // 7. Validar Referencias (si aplica)
@@ -534,6 +558,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       token: verifiedToken,
       nivelProfesional: formData.nivelProfesional,
       profesion: formData.profesion.trim(),
+      optarAcreditacion: !!formData.optarAcreditacion,
       ano_inicio_servicio: formData.ano_inicio_servicio ? parseInt(formData.ano_inicio_servicio, 10) : null,
       url_titulo: formData.url_titulo,
       url_cv: formData.url_cv,
@@ -549,6 +574,221 @@ export default function VerificarPreinscripcionProgramaPage() {
       nombre_referencia2: formData.nombre_referencia2.trim(),
     });
   }
+
+  const renderAcreditacionSection = () => {
+    if (!isAfiliacion) return null;
+    return (
+      <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
+            <div>
+              <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
+                ¿Deseas optar por Acreditación de Conocimientos (CIBIR)?
+              </h3>
+            </div>
+          </div>
+          <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
+            Indica si deseas convalidar tu experiencia y estudios previos mediante acreditación directa.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, optarAcreditacion: true }))}
+            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${
+              formData.optarAcreditacion === true
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md shadow-emerald-500/10'
+                : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
+            }`}
+          >
+            Sí, deseo optar
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormData(prev => ({ ...prev, optarAcreditacion: false, diplomados: [] }))}
+            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${
+              formData.optarAcreditacion === false
+                ? 'border-slate-300 bg-slate-50 text-slate-700 shadow-inner'
+                : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
+            }`}
+          >
+            No, curso regular
+          </button>
+        </div>
+
+        {/* Sección de Diplomados Realizados (Solo si opta por Acreditación) */}
+        {formData.optarAcreditacion && (
+          <div className="space-y-6 pt-4 border-t border-slate-100/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
+                <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
+              </div>
+              <span className="text-xs font-bold text-rose-500 uppercase bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">Obligatorio</span>
+            </div>
+
+            {/* Banner informativo de FIPPI/PREANI */}
+            <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 flex gap-3 text-emerald-900 text-sm leading-relaxed">
+              <AlertCircle className="text-emerald-500 shrink-0 mt-0.5" size={16} />
+              <div>
+                <span className="font-bold text-emerald-950">Información importante:</span> Solo se permite cargar los certificados correspondientes a los diplomados <span className="font-black">FIPPI</span> y/o <span className="font-black">PREANI</span>. Puede cargar un máximo de 2 certificados en total (uno de cada tipo).
+              </div>
+            </div>
+
+            {/* Lista de diplomados cargados */}
+            {formData.diplomados.length > 0 && (
+              <div className="space-y-2">
+                {formData.diplomados.map((dip, idx) => (
+                  <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                      <FileText size={14} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="text-sm font-bold text-slate-700 select-none">
+                        {dip.nombre}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={10} className="text-slate-400" />
+                          <input
+                            type="date"
+                            value={dip.fecha}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              diplomados: prev.diplomados.map((d, i) =>
+                                i === idx ? { ...d, fecha: e.target.value } : d
+                              )
+                            }))}
+                            className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                          />
+                        </div>
+                        <a href={dip.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-emerald-500 font-bold hover:underline uppercase tracking-widest">
+                          Ver archivo
+                        </a>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, diplomados: prev.diplomados.filter((_, i) => i !== idx) }))}
+                      className="p-1.5 hover:bg-rose-50 text-slate-300 hover:text-rose-500 rounded-lg transition-colors shrink-0"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input selector + Fecha + Uploader para nuevo diplomado */}
+            {formData.diplomados.length < 2 ? (
+              <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Seleccionar Diplomado</label>
+                    <select
+                      value={pendingDiplomadoNombre}
+                      onChange={(e) => setPendingDiplomadoNombre(e.target.value)}
+                      className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition cursor-pointer"
+                    >
+                      <option value="">-- Seleccione --</option>
+                      <option value="FIPPI">FIPPI</option>
+                      <option value="PREANI">PREANI</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
+                    <div className="relative">
+                      <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="date"
+                        value={pendingDiplomadoFecha}
+                        max={new Date().toISOString().split('T')[0]}
+                        min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
+                        onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
+                        className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <FileUpload
+                  key={formData.diplomados.length}
+                  label="Cargar certificado del diplomado"
+                  accept="image/*,.pdf"
+                  folder="diplomados"
+                  onUploadSuccess={(url) => {
+                    if (!pendingDiplomadoNombre) {
+                      Swal.fire({
+                        title: '¡Atención!',
+                        text: 'Por favor, selecciona primero el nombre del diplomado (FIPPI o PREANI).',
+                        icon: 'warning',
+                        confirmButtonColor: '#059669',
+                      });
+                      return;
+                    }
+
+                    if (!pendingDiplomadoFecha) {
+                      Swal.fire({
+                        title: '¡Atención!',
+                        text: 'Por favor, selecciona primero la fecha del certificado.',
+                        icon: 'warning',
+                        confirmButtonColor: '#059669',
+                      });
+                      return;
+                    }
+
+                    const yaExiste = Array.isArray(formData.diplomados) && formData.diplomados.some(
+                      d => d && d.nombre && typeof d.nombre === 'string' && d.nombre.toUpperCase() === pendingDiplomadoNombre.toUpperCase()
+                    );
+                    if (yaExiste) {
+                      Swal.fire({
+                        title: 'Diplomado ya cargado',
+                        text: `Ya has subido un certificado para el diplomado ${pendingDiplomadoNombre}. Solo se permite un certificado de cada tipo.`,
+                        icon: 'error',
+                        confirmButtonColor: '#059669',
+                      });
+                      return;
+                    }
+
+                    const courseDate = new Date(pendingDiplomadoFecha);
+                    const fiveYearsAgo = new Date();
+                    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+                    if (courseDate < fiveYearsAgo) {
+                      Swal.fire({
+                        title: 'Fecha no válida',
+                        text: 'Lo sentimos, el certificado no debe tener más de 5 años de antigüedad.',
+                        icon: 'error',
+                        confirmButtonColor: '#059669',
+                      });
+                      return;
+                    }
+
+                    setFormData(prev => ({
+                      ...prev,
+                      diplomados: [...prev.diplomados, {
+                        nombre: pendingDiplomadoNombre,
+                        url,
+                        fecha: pendingDiplomadoFecha
+                      }]
+                    }));
+                    setPendingDiplomadoNombre('');
+                    setPendingDiplomadoFecha('');
+                  }}
+                  onClear={() => { }}
+                />
+              </div>
+            ) : (
+              <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 text-center text-xs font-bold text-emerald-800 animate-in fade-in duration-300">
+                ¡Límite máximo alcanzado! Has cargado los certificados correspondientes a FIPPI y PREANI.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const selectedNivel = NIVELES.find(n => n.value === userData?.nivel_profesional)
   const programaLabel = userData?.programaCodigo === 'AFILIACION' ? 'la Cámara Inmobiliaria' : (userData?.programaCodigo || 'CIEBO')
@@ -750,6 +990,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     </div>
                   </div>
 
+
                   {/* Área de Especialización */}
                   {formData.nivelProfesional && formData.nivelProfesional !== 'Bachiller' && (
                     <div className="space-y-4">
@@ -767,31 +1008,6 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={formData.profesion}
                           onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                           placeholder="Ej. Derecho, Ingeniería, Administración..."
-                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Año de Inicio como Asesor */}
-                  {isAfiliacion && (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Año de Inicio como Asesor</h3></div></div>
-                        <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Indica el año en el que comenzaste a ejercer como asesor o corredor inmobiliario.</p>
-                      </div>
-                      <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                          <Briefcase size={18} />
-                        </div>
-                        <input
-                          type="number"
-                          min="1950"
-                          max={new Date().getFullYear()}
-                          required
-                          value={formData.ano_inicio_servicio}
-                          onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
-                          placeholder="Ej. 2015"
                           className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
                         />
                       </div>
@@ -855,6 +1071,24 @@ export default function VerificarPreinscripcionProgramaPage() {
                           </div>
                         </div>
 
+                        {/* Año de Inicio como Asesor (Representante Legal) */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Año de Inicio como Asesor</label>
+                          <div className="relative group">
+                            <Briefcase size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="number"
+                              min="1950"
+                              max={new Date().getFullYear()}
+                              required
+                              value={formData.ano_inicio_servicio}
+                              onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
+                              placeholder="Ej. 2015"
+                              className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
+                            />
+                          </div>
+                        </div>
+
                         {/* Área de Especialización (Inyectado aquí para Corporativos) */}
                         {formData.nivelProfesional && formData.nivelProfesional !== 'Bachiller' && (
                           <div className="space-y-1.5">
@@ -875,9 +1109,10 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                         <div className="md:col-span-2">
                           <FileUpload
-                            label="Título del Representante"
+                            label={formData.nivelProfesional === 'Bachiller' ? "Título del Representante (Opcional)" : "Título del Representante"}
                             accept="image/*,.pdf"
                             folder="afiliados/representantes"
+                            required={formData.nivelProfesional !== 'Bachiller'}
                             initialUrl={formData.url_titulo_representante || undefined}
                             initialFileName={formData.name_titulo_representante || undefined}
                             onUploadSuccess={(url, fileName) => setFormData(prev => ({ ...prev, url_titulo_representante: url, name_titulo_representante: fileName || '' }))}
@@ -908,6 +1143,31 @@ export default function VerificarPreinscripcionProgramaPage() {
                         />
                       </div>
                     </div>
+
+                    {/* Año de Inicio como Asesor */}
+                    {isAfiliacion && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100/60">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Año de Inicio como Asesor</h3></div></div>
+                          <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Indica el año en el que comenzaste a ejercer como asesor o corredor inmobiliario.</p>
+                        </div>
+                        <div className="relative group">
+                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                            <Briefcase size={18} />
+                          </div>
+                          <input
+                            type="number"
+                            min="1950"
+                            max={new Date().getFullYear()}
+                            required
+                            value={formData.ano_inicio_servicio}
+                            onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
+                            placeholder="Ej. 2015"
+                            className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1027,177 +1287,6 @@ export default function VerificarPreinscripcionProgramaPage() {
                 </div>
               )}
 
-
-
-              {/* Sección de Diplomados Realizados */}
-              {isAfiliacion && (
-                <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
-                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
-                    </div>
-                    <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-full">Opcional</span>
-                  </div>
-
-                  {/* Banner informativo de FIPPI/PREANI */}
-                  <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 flex gap-3 text-emerald-900 text-sm leading-relaxed">
-                    <AlertCircle className="text-emerald-500 shrink-0 mt-0.5" size={16} />
-                    <div>
-                      <span className="font-bold text-emerald-950">Información importante:</span> Solo se permite cargar los certificados correspondientes a los diplomados <span className="font-black">FIPPI</span> y/o <span className="font-black">PREANI</span>. Puede cargar un máximo de 2 certificados en total (uno de cada tipo).
-                    </div>
-                  </div>
-
-                  {/* Lista de diplomados cargados */}
-                  {formData.diplomados.length > 0 && (
-                    <div className="space-y-2">
-                      {formData.diplomados.map((dip, idx) => (
-                        <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                            <FileText size={14} className="text-emerald-600" />
-                          </div>
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="text-sm font-bold text-slate-700 select-none">
-                              {dip.nombre}
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-1.5">
-                                <Calendar size={10} className="text-slate-400" />
-                                <input
-                                  type="date"
-                                  value={dip.fecha}
-                                  onChange={(e) => setFormData(prev => ({
-                                    ...prev,
-                                    diplomados: prev.diplomados.map((d, i) =>
-                                      i === idx ? { ...d, fecha: e.target.value } : d
-                                    )
-                                  }))}
-                                  className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
-                                />
-                              </div>
-                              <a href={dip.url} target="_blank" rel="noopener noreferrer"
-                                className="text-xs text-emerald-500 font-bold hover:underline uppercase tracking-widest">
-                                Ver archivo
-                              </a>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, diplomados: prev.diplomados.filter((_, i) => i !== idx) }))}
-                            className="p-1.5 hover:bg-rose-50 text-slate-300 hover:text-rose-500 rounded-lg transition-colors shrink-0"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Input selector + Fecha + Uploader para nuevo diplomado */}
-                  {formData.diplomados.length < 2 ? (
-                    <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 animate-in fade-in duration-300">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Seleccionar Diplomado</label>
-                          <select
-                            value={pendingDiplomadoNombre}
-                            onChange={(e) => setPendingDiplomadoNombre(e.target.value)}
-                            className="w-full h-10 px-4 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition cursor-pointer"
-                          >
-                            <option value="">-- Seleccione --</option>
-                            <option value="FIPPI">FIPPI</option>
-                            <option value="PREANI">PREANI</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
-                          <div className="relative">
-                            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="date"
-                              value={pendingDiplomadoFecha}
-                              max={new Date().toISOString().split('T')[0]}
-                              min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
-                              onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
-                              className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <FileUpload
-                        key={formData.diplomados.length}
-                        label="Cargar certificado del diplomado"
-                        accept="image/*,.pdf"
-                        folder="diplomados"
-                        onUploadSuccess={(url) => {
-                          if (!pendingDiplomadoNombre) {
-                            Swal.fire({
-                              title: '¡Atención!',
-                              text: 'Por favor, selecciona primero el nombre del diplomado (FIPPI o PREANI).',
-                              icon: 'warning',
-                              confirmButtonColor: '#059669',
-                            });
-                            return;
-                          }
-
-                          if (!pendingDiplomadoFecha) {
-                            Swal.fire({
-                              title: '¡Atención!',
-                              text: 'Por favor, selecciona primero la fecha del certificado.',
-                              icon: 'warning',
-                              confirmButtonColor: '#059669',
-                            });
-                            return;
-                          }
-
-                          const yaExiste = Array.isArray(formData.diplomados) && formData.diplomados.some(
-                            d => d && d.nombre && typeof d.nombre === 'string' && d.nombre.toUpperCase() === pendingDiplomadoNombre.toUpperCase()
-                          );
-                          if (yaExiste) {
-                            Swal.fire({
-                              title: 'Diplomado ya cargado',
-                              text: `Ya has subido un certificado para el diplomado ${pendingDiplomadoNombre}. Solo se permite un certificado de cada tipo.`,
-                              icon: 'error',
-                              confirmButtonColor: '#059669',
-                            });
-                            return;
-                          }
-
-                          const courseDate = new Date(pendingDiplomadoFecha);
-                          const fiveYearsAgo = new Date();
-                          fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-
-                          if (courseDate < fiveYearsAgo) {
-                            Swal.fire({
-                              title: 'Fecha no válida',
-                              text: 'Lo sentimos, el certificado no debe tener más de 5 años de antigüedad.',
-                              icon: 'error',
-                              confirmButtonColor: '#059669',
-                            });
-                            return;
-                          }
-
-                          setFormData(prev => ({
-                            ...prev,
-                            diplomados: [...prev.diplomados, {
-                              nombre: pendingDiplomadoNombre,
-                              url,
-                              fecha: pendingDiplomadoFecha
-                            }]
-                          }));
-                          setPendingDiplomadoNombre('');
-                          setPendingDiplomadoFecha('');
-                        }}
-                        onClear={() => { }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 text-center text-xs font-bold text-emerald-800 animate-in fade-in duration-300">
-                      ¡Límite máximo alcanzado! Has cargado los certificados correspondientes a FIPPI y PREANI.
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Sección de Otros Cursos */}
               <div className="space-y-6 pt-4">
@@ -1448,7 +1537,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     onClear={() => { }}
                   />
                 </div>
-              </div>
+              </div>              {!isCorporativo && renderAcreditacionSection()}
 
               {/* SECCIÓN EMPRESA AL FINAL PARA CORPORATIVOS */}
               {isCorporativo && (
@@ -1479,6 +1568,8 @@ export default function VerificarPreinscripcionProgramaPage() {
                   </div>
                 </div>
               )}
+
+              {isCorporativo && renderAcreditacionSection()}
 
               {/* SECCIÓN REFERENCIAS DE AFILIADOS AL FINAL */}
               {showReferencesSection && (
