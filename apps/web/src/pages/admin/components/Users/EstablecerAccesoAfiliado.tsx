@@ -47,11 +47,14 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
 
   useEffect(() => {
     if (selected) {
-      setEmail(selected.email || '')
+      const defaultEmail = selected.tipo_afiliado === 'Corporativo'
+        ? (selected.empresa_email || selected.email || '')
+        : (selected.email || '')
+      setEmail(defaultEmail)
       setPassword('')
       setLocalMsg(null)
     }
-  }, [selected?.id_afiliado, selected?.email])
+  }, [selected?.id_afiliado, selected?.email, selected?.empresa_email])
 
   const filteredPick = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -181,6 +184,35 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
           </div>
 
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            {selected.tipo_afiliado === 'Corporativo' && (
+              <div className='space-y-1.5 sm:col-span-2'>
+                <label className='block text-[10px] font-bold text-slate-400 uppercase'>Origen del correo de acceso</label>
+                <div className='flex flex-col sm:flex-row gap-4 bg-slate-50 border border-slate-100 p-3 rounded-xl'>
+                  <label className='flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600'>
+                    <input
+                      type='radio'
+                      name='emailSource'
+                      checked={email === (selected.email || '')}
+                      onChange={() => setEmail(selected.email || '')}
+                      className='text-emerald-600 focus:ring-emerald-500'
+                    />
+                    Correo Personal ({selected.email || 'no definido'})
+                  </label>
+                  {selected.empresa_email && (
+                    <label className='flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600'>
+                      <input
+                        type='radio'
+                        name='emailSource'
+                        checked={email === (selected.empresa_email || '')}
+                        onChange={() => setEmail(selected.empresa_email || '')}
+                        className='text-emerald-600 focus:ring-emerald-500'
+                      />
+                      Correo de la Empresa ({selected.empresa_email})
+                    </label>
+                  )}
+                </div>
+              </div>
+            )}
             <div className='space-y-1.5 sm:col-span-2'>
               <label className='block text-[10px] font-bold text-slate-400 uppercase'>Correo de acceso</label>
               <input

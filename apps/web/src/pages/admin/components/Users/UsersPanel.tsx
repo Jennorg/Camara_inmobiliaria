@@ -28,6 +28,9 @@ interface SystemUser {
   activo: number
   creado_en: string
   id_afiliado: number | null
+  tipo_afiliado: string | null
+  persona_email: string | null
+  empresa_email: string | null
   nombre_completo: string | null
   codigo: string | null
   cedula_tipo: string | null
@@ -140,6 +143,7 @@ export default function UsersPanel() {
   const [resettingUser, setResettingUser] = useState<SystemUser | null>(null)
   const [userToDelete, setUserToDelete]   = useState<SystemUser | null>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [updatingEmailId, setUpdatingEmailId] = useState<number | null>(null)
 
   const handleResetClick = (u: SystemUser) => {
     setResettingUser(u)
@@ -169,6 +173,32 @@ export default function UsersPanel() {
     }
   }
 
+  const handleEmailTipoChange = async (u: SystemUser, tipo: 'personal' | 'empresa') => {
+    // Determinar el tipo actual comparando u.email con empresa_email
+    const tipoActual = u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'
+    if (tipo === tipoActual) return
+    setUpdatingEmailId(u.id)
+    setFeedback(null)
+    try {
+      const r = await fetch(`${API_URL}/api/afiliados/${u.id_afiliado}/acceso-email`, {
+        method: 'PATCH',
+        headers: authHeaders,
+        body: JSON.stringify({ tipo }),
+      })
+      const d = await r.json()
+      if (d.success) {
+        setFeedback({ type: 'ok', msg: `Correo de acceso de ${u.nombre_completo || u.email} cambiado a ${d.acceso_email}` })
+        load()
+      } else {
+        setFeedback({ type: 'err', msg: d.message || 'Error al cambiar el correo de acceso' })
+      }
+    } catch {
+      setFeedback({ type: 'err', msg: 'Error de conexión' })
+    } finally {
+      setUpdatingEmailId(null)
+    }
+  }
+
   const confirmPasswordReset = async () => {
     if (!resettingUser || !newPassword) return
     setSaving(true)
@@ -180,11 +210,14 @@ export default function UsersPanel() {
       })
       const d = await r.json()
       if (d.success) {
-        setFeedback({ type: 'ok', msg: `Contraseña de ${resettingUser.email} actualizada` })
+        setFeedback({ type: 'ok', msg: `Contraseña de ${resettingUser.email} actualizada con éxito.` })
         setResettingUser(null)
+        load()
       } else {
-        setFeedback({ type: 'err', msg: d.message })
+        setFeedback({ type: 'err', msg: d.message || 'Error al actualizar la contraseña' })
       }
+    } catch (e: any) {
+      setFeedback({ type: 'err', msg: e.message || 'Error de conexión' })
     } finally {
       setSaving(false)
     }
@@ -255,7 +288,7 @@ export default function UsersPanel() {
                 <p className='text-xs text-slate-500'>{resettingUser.email}</p>
               </div>
             </div>
-            
+
             <div className='space-y-4'>
               <div>
                 <label className='block text-xs font-semibold text-slate-500 mb-1'>Nueva contraseña</label>
@@ -268,6 +301,7 @@ export default function UsersPanel() {
                     className='w-full border border-slate-200 rounded-xl pl-4 pr-10 py-2 text-sm focus:outline-none focus:border-amber-400'
                     placeholder='Mínimo 8 caracteres'
                     minLength={8}
+                    required
                   />
                   <button
                     type="button"
@@ -433,7 +467,35 @@ export default function UsersPanel() {
                 {filtered.map(u => (
                   <tr key={u.id} className='hover:bg-slate-50 transition'>
                     <td className='px-5 py-4'>
-                      <p className='font-semibold text-slate-700'>{u.email}</p>
+                      {u.tipo_afiliado === 'Corporativo' ? (
+                        <div className='relative inline-flex items-center group/select-email'>
+                          <select
+                            value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
+                            onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
+                            disabled={updatingEmailId === u.id}
+                            className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-all'
+                          >
+                            <option value='personal' className='bg-white text-slate-800 font-semibold'>
+                              {u.persona_email || 'No definido'}
+                            </option>
+                            {u.empresa_email && (
+                              <option value='empresa' className='bg-white text-slate-800 font-semibold'>
+                                {u.empresa_email}
+                              </option>
+                            )}
+                          </select>
+                          <div className='absolute right-1 pointer-events-none text-slate-400 group-hover/select-email:text-slate-600 transition-colors'>
+                            <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
+                              <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
+                            </svg>
+                          </div>
+                          {updatingEmailId === u.id && (
+                            <Loader2 size={12} className='animate-spin text-emerald-500 ml-1 shrink-0' />
+                          )}
+                        </div>
+                      ) : (
+                        <p className='font-semibold text-slate-700'>{u.email}</p>
+                      )}
                       <div className='flex items-center gap-1 mt-0.5'>
                         {u.nombre_completo ? (
                           <p className='text-xs text-slate-500 truncate max-w-[180px]'>
@@ -571,7 +633,35 @@ export default function UsersPanel() {
 
                 <div className='flex items-start justify-between gap-3'>
                   <div className='space-y-1 min-w-0 pl-1'>
-                    <p className='font-bold text-slate-700 text-sm truncate'>{u.email}</p>
+                     {u.tipo_afiliado === 'Corporativo' ? (
+                      <div className='relative inline-flex items-center group/select-email mb-1.5'>
+                        <select
+                          value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
+                          onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
+                          disabled={updatingEmailId === u.id}
+                          className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[200px] truncate hover:bg-slate-100 hover:text-slate-900 transition-all'
+                        >
+                          <option value='personal' className='bg-white text-slate-800 font-semibold'>
+                            {u.persona_email || 'No definido'}
+                          </option>
+                          {u.empresa_email && (
+                            <option value='empresa' className='bg-white text-slate-800 font-semibold'>
+                              {u.empresa_email}
+                            </option>
+                          )}
+                        </select>
+                        <div className='absolute right-1 pointer-events-none text-slate-400 group-hover/select-email:text-slate-600 transition-colors'>
+                          <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
+                            <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
+                          </svg>
+                        </div>
+                        {updatingEmailId === u.id && (
+                          <Loader2 size={12} className='animate-spin text-emerald-500 ml-1 shrink-0' />
+                        )}
+                      </div>
+                    ) : (
+                      <p className='font-bold text-slate-700 text-sm truncate'>{u.email}</p>
+                    )}
                     {u.nombre_completo ? (
                       <p className='text-xs text-slate-500 font-semibold truncate'>{u.nombre_completo}</p>
                     ) : (

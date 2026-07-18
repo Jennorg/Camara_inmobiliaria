@@ -8,7 +8,7 @@ import {
   listarIndependientesDisponibles, vincularAfiliadoIndependiente,
   crearSolicitudCambio, getMiSolicitudCambio, listarSolicitudesCambioEmpresa,
   resolverSolicitudCambioEmpresa, listarSolicitudesCambioAdmin, resolverSolicitudCambioAdmin,
-  cambiarMembresiaDirectoAdmin
+  cambiarMembresiaDirectoAdmin, cambiarAccesoEmail
 } from '../controllers/afiliados.controller.js';
 import { requireAuth, requireRole, enrichUser } from '../middlewares/auth.middleware.js';
 
@@ -43,6 +43,9 @@ router.post('/formalizar', requireAuth, enrichUser, formalizarInscripcion);
 
 // PATCH /api/afiliados/:id/acceso-panel — Contraseña de acceso al panel (admin)
 router.patch('/:id/acceso-panel', requireAuth, requireRole('admin', 'super_admin'), establecerAccesoPanel);
+
+// PATCH /api/afiliados/:id/acceso-email — Cambiar correo de acceso (dueño o admin)
+router.patch('/:id/acceso-email', requireAuth, enrichUser, cambiarAccesoEmail);
 
 // PATCH /api/afiliados/:id — Actualización general del afiliado
 router.patch('/:id', requireAuth, enrichUser, updateAfiliado);

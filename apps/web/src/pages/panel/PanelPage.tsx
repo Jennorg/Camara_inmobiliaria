@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// Force Vite HMR reload
 import {
   LayoutDashboard,
   FolderSearch,
@@ -67,7 +68,6 @@ const NAV_AFILIADO = [
 ];
 
 const NAV_ADMIN_CORE = [
-  { icon: DollarSign, label: 'Finanzas' },
   { icon: Users, label: 'Directorio de Miembros' },
   { icon: ShieldCheck, label: 'Control de Acceso' },
   { icon: ClipboardList, label: 'Preinscripciones' },

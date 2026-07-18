@@ -129,7 +129,7 @@ const SidebarContent = ({
               <div className={`${!isCollapsed ? 'mt-1' : ''} border-t border-white/10`} />
             </div>
           ) : (
-            <React.Fragment key={item.label}>
+            <React.Fragment key={item.id ? `id-${item.id}` : `label-${item.label}`}>
               <button
                 onClick={() => {
                   onTabChange(itemId);

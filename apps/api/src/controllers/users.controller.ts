@@ -23,7 +23,9 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute({
       sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
-                   a.id_afiliado,
+                   a.id_afiliado, a.tipo_afiliado,
+                   p.email AS persona_email,
+                   e.email AS empresa_email,
                    COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as nombre_completo, 
                    a.codigo, a.estatus as estatus_afiliado,
                    p.cedula_tipo, p.cedula,
@@ -111,7 +113,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { rol, activo, password } = req.body
+    const { rol, activo, password, email } = req.body
 
     // Si queremos actualizar a un usuario, validamos permisos estrictos para administradores
     const userToUpdate = await db.execute({ sql: `SELECT roles FROM users WHERE id = ?`, args: [Number(id)] })
@@ -129,6 +131,24 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
     const fields: string[] = []
     const args: any[] = []
+
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase()
+      if (!normalizedEmail) {
+        res.status(400).json({ success: false, message: 'El correo no puede estar vacío' })
+        return
+      }
+
+      const dup = await db.execute({
+        sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id != ?`,
+        args: [normalizedEmail, Number(id)],
+      })
+      if (dup.rows.length > 0) {
+        res.status(409).json({ success: false, message: 'El correo electrónico ya está registrado por otro usuario' })
+        return
+      }
+      fields.push('email = ?'); args.push(normalizedEmail)
+    }
 
     if (rol !== undefined) {
       if (!['admin', 'afiliado', 'super_admin'].includes(rol)) {
