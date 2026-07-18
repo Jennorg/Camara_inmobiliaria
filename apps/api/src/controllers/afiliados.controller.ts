@@ -270,7 +270,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
     }
 
     const result = await db.execute({
-      sql: `SELECT a.*, 
+      sql: `SELECT a.*, u.email AS acceso_email,
                    p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                    p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
                    e.razon_social as empresa_razon_social, 
@@ -298,6 +298,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
             FROM afiliados a
             JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            LEFT JOIN users u ON a.id_user = u.id
             WHERE a.id_afiliado = ?`,
       args: [Number(id)],
     })
@@ -315,7 +316,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
             FROM documentos
             WHERE (entidad_tipo = 'afiliado' AND entidad_id = ?)
                OR (entidad_tipo = 'empresa' AND entidad_id = ?)
-               OR (entidad_tipo = 'estudiante' AND entidad_id = (
+               OR (entidad_tipo = 'estudiante' AND entidad_id IN (
                  SELECT id_estudiante FROM estudiantes 
                  WHERE id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)
                ))
@@ -338,6 +339,83 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
   } catch (error) {
     console.error('Error en getAfiliadoById:', error)
     res.status(500).json({ success: false, message: 'Error interno del servidor' })
+  }
+};
+
+export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { tipo } = req.body; // 'personal' | 'empresa'
+    const requesterId = req.user!.id_afiliado;
+    const requesterRoles = req.user!.roles ?? [req.user!.rol];
+    const isAdmin = requesterRoles.some(r => ['admin', 'super_admin'].includes(r));
+
+    if (!isAdmin && requesterId !== Number(id)) {
+      res.status(403).json({ success: false, message: 'No tienes permiso para realizar esta acción.' });
+      return;
+    }
+
+    if (tipo !== 'personal' && tipo !== 'empresa') {
+      res.status(400).json({ success: false, message: 'Tipo de correo inválido. Debe ser "personal" o "empresa".' });
+      return;
+    }
+
+    // Obtener los correos del afiliado y su id_user
+    const afiResult = await db.execute({
+      sql: `SELECT a.id_user, a.tipo_afiliado, p.email AS persona_email, e.email AS empresa_email
+            FROM afiliados a
+            LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            WHERE a.id_afiliado = ?`,
+      args: [Number(id)]
+    });
+
+    if (afiResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Afiliado no encontrado.' });
+      return;
+    }
+
+    const { id_user, tipo_afiliado, persona_email, empresa_email } = afiResult.rows[0] as any;
+
+    if (tipo_afiliado !== 'Corporativo') {
+      res.status(400).json({ success: false, message: 'Solo los afiliados corporativos pueden elegir el correo de acceso.' });
+      return;
+    }
+
+    if (!id_user) {
+      res.status(400).json({ success: false, message: 'Este afiliado aún no tiene cuenta de acceso configurada.' });
+      return;
+    }
+
+    const targetEmail: string = tipo === 'empresa'
+      ? (empresa_email || '').trim().toLowerCase()
+      : (persona_email || '').trim().toLowerCase();
+
+    if (!targetEmail) {
+      res.status(400).json({ success: false, message: `El correo de tipo "${tipo}" no está definido para este afiliado.` });
+      return;
+    }
+
+    // Verificar duplicados
+    const dupCheck = await db.execute({
+      sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id <> ?`,
+      args: [targetEmail, id_user]
+    });
+    if (dupCheck.rows.length > 0) {
+      res.status(400).json({ success: false, message: `El correo "${targetEmail}" ya está en uso por otro usuario.` });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    await db.execute({
+      sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
+      args: [targetEmail, now, id_user]
+    });
+
+    res.json({ success: true, message: 'Correo de acceso actualizado correctamente.', acceso_email: targetEmail });
+  } catch (error) {
+    console.error('Error en cambiarAccesoEmail:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 };
 
@@ -1352,16 +1430,28 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       adminOnlyFields.forEach(f => delete fields[f]);
     }
 
-    // 1. Obtener el registro actual para saber qué id_persona e id_empresa tiene
+    // 1. Obtener el registro actual para saber qué id_persona, id_empresa, id_user, etc. tiene
     const current = await db.execute({
-      sql: `SELECT id_persona, id_empresa FROM afiliados WHERE id_afiliado = ?`,
+      sql: `SELECT a.id_persona, a.id_empresa, a.id_user,
+                   p.email AS persona_email,
+                   e.email AS empresa_email
+            FROM afiliados a
+            LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            WHERE a.id_afiliado = ?`,
       args: [id as string]
     });
 
     if (current.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
     }
-    const { id_persona: idPersona, id_empresa: idEmpresa } = current.rows[0] as any;
+    const { 
+      id_persona: idPersona, 
+      id_empresa: idEmpresa,
+      id_user: idUser,
+      persona_email: oldPersonaEmail,
+      empresa_email: oldEmpresaEmail
+    } = current.rows[0] as any;
 
     if (fields.cedula) {
       const cedulaInput = String(fields.cedula).trim();
@@ -1507,6 +1597,93 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         sql: `UPDATE empresas SET ${eUpdates.join(', ')} WHERE id_empresa = ?`,
         args: eArgs
       });
+    }
+
+    // ── Auto-sincronización del correo de acceso ─────────────────────────────
+    if (idUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
+      try {
+        const accessRow = await db.execute({
+          sql: `SELECT email FROM users WHERE id = ?`,
+          args: [idUser]
+        });
+        const curAccess = (accessRow.rows[0]?.email as string || '').trim().toLowerCase();
+        const empEmailOld = (oldEmpresaEmail as string || '').trim().toLowerCase();
+        const isUsingEmpresa = !!(empEmailOld && curAccess === empEmailOld);
+
+        console.log(`[SYNC] idUser=${idUser} curAccess="${curAccess}" empEmailOld="${empEmailOld}" isUsingEmpresa=${isUsingEmpresa}`);
+        console.log(`[SYNC] fields.email="${fields.email}" fields.empresa_email="${fields.empresa_email}"`);
+
+        let emailToSync: string | null = null;
+        if (fields.email !== undefined && !isUsingEmpresa) {
+          emailToSync = String(fields.email).trim().toLowerCase();
+        } else if (fields.empresa_email !== undefined && isUsingEmpresa) {
+          emailToSync = String(fields.empresa_email).trim().toLowerCase();
+        }
+
+        console.log(`[SYNC] emailToSync="${emailToSync}"`);
+
+        if (emailToSync && emailToSync !== curAccess) {
+          const dup = await db.execute({
+            sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id <> ?`,
+            args: [emailToSync, idUser]
+          });
+          if (dup.rows.length === 0) {
+            await db.execute({
+              sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
+              args: [emailToSync, now, idUser]
+            });
+            console.log(`[SYNC] ✅ users.email actualizado a "${emailToSync}" para id_user=${idUser}`);
+          } else {
+            console.log(`[SYNC] ⚠️ Email duplicado, no se sincronizó`);
+          }
+        } else {
+          console.log(`[SYNC] Sin cambio necesario en users.email`);
+        }
+      } catch (syncErr) {
+        console.error('[SYNC] Error en auto-sync de email:', syncErr);
+      }
+    }
+
+    // Sincronizar el correo en la tabla users de forma explícita si se envía el campo 'acceso_email'
+    if (fields.acceso_email !== undefined) {
+      const targetEmail = fields.acceso_email ? String(fields.acceso_email).trim().toLowerCase() : '';
+      delete fields.acceso_email;
+
+      if (idUser && targetEmail) {
+        // Verificar que el correo pertenezca al afiliado (debe ser el personal o el de la empresa)
+        const afEmails = await db.execute({
+          sql: `SELECT p.email AS persona_email, e.email AS empresa_email
+                FROM afiliados a
+                LEFT JOIN personas p ON a.id_persona = p.id
+                LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+                WHERE a.id_afiliado = ?`,
+          args: [String(id)]
+        });
+
+        const pEmail = (String(afEmails.rows[0]?.persona_email || '')).trim().toLowerCase();
+        const eEmail = (String(afEmails.rows[0]?.empresa_email || '')).trim().toLowerCase();
+
+        // Si el correo personal o de la empresa se están actualizando en esta misma petición, usarlos
+        const finalPEmail = fields.email ? fields.email.trim().toLowerCase() : pEmail;
+        const finalEEmail = fields.empresa_email ? fields.empresa_email.trim().toLowerCase() : eEmail;
+
+        if (targetEmail === finalPEmail || targetEmail === finalEEmail) {
+          const dupCheck = await db.execute({
+            sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id <> ?`,
+            args: [targetEmail, idUser]
+          });
+          if (dupCheck.rows.length > 0) {
+            return res.status(400).json({ success: false, message: `El correo de acceso '${targetEmail}' ya está en uso por otro usuario del sistema.` });
+          }
+
+          await db.execute({
+            sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
+            args: [targetEmail, now, idUser]
+          });
+        } else {
+          return res.status(400).json({ success: false, message: `El correo de acceso debe ser tu correo personal o el de tu empresa.` });
+        }
+      }
     }
 
     if (stUpdates.length > 0) {

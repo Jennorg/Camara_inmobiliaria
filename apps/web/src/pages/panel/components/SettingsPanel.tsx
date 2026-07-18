@@ -5,7 +5,7 @@ import {
   User, Mail, Shield, Building, ArrowRightLeft, 
   CheckCircle2, AlertCircle, Globe, Phone, MapPin, 
   Briefcase, GraduationCap, Instagram, Facebook, 
-  Linkedin, Twitter, Save, Loader2, ChevronRight, Clock,
+  Linkedin, Twitter, Save, Loader2, ChevronRight, ChevronDown, Clock,
   Music2, FileText
 } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -57,11 +57,25 @@ const SettingsPanel = () => {
   const [documentos, setDocumentos] = useState<{ tipo_doc: string; url: string; nombre_archivo?: string }[]>([]);
 
   const getDocUrl = (tipo: string) => {
-    return documentos.find(d => d.tipo_doc === tipo)?.url || '';
+    const found = documentos.find(d => d.tipo_doc === tipo)?.url;
+    if (found) return found;
+    // Fallback para preinscripciones corporativas previas
+    const isCorporativo = isCorp || user?.tipo_afiliado === 'Corporativo';
+    if (isCorporativo && tipo === 'rif_empresa') {
+      return documentos.find(d => d.tipo_doc === 'titulo')?.url || '';
+    }
+    return '';
   };
 
   const getDocName = (tipo: string) => {
-    return documentos.find(d => d.tipo_doc === tipo)?.nombre_archivo || '';
+    const found = documentos.find(d => d.tipo_doc === tipo)?.nombre_archivo;
+    if (found) return found;
+    // Fallback para preinscripciones corporativas previas
+    const isCorporativo = isCorp || user?.tipo_afiliado === 'Corporativo';
+    if (isCorporativo && tipo === 'rif_empresa') {
+      return documentos.find(d => d.tipo_doc === 'titulo')?.nombre_archivo || '';
+    }
+    return '';
   };
 
   const handleUploadSuccess = (tipo: string, url: string, name?: string) => {
@@ -80,6 +94,66 @@ const SettingsPanel = () => {
 
   const isAgente = user?.tipo_afiliado === 'Agente Corporativo' || user?.tipo_afiliado === 'Agente';
   const isCorp = user?.tipo_afiliado === 'Corporativo';
+
+  // 'personal' | 'empresa' — tipo del correo de acceso actual
+  const [accesoTipo, setAccesoTipo] = useState<'personal' | 'empresa'>('personal');
+  const [savingAccesoEmail, setSavingAccesoEmail] = useState(false);
+
+  const handleAccesoTipoChange = async (tipo: 'personal' | 'empresa') => {
+    console.log('[ACCESO] handleAccesoTipoChange llamado con tipo=', tipo, 'accesoTipo actual=', accesoTipo);
+    if (tipo === accesoTipo) {
+      console.log('[ACCESO] Mismo tipo, saliendo');
+      return;
+    }
+
+    const targetEmail = tipo === 'empresa' ? formData.empresa_email : formData.email;
+    console.log('[ACCESO] targetEmail=', targetEmail, 'empresa_email=', formData.empresa_email, 'email=', formData.email);
+    if (!targetEmail) return;
+
+    const confirmResult = await Swal.fire({
+      title: '¿Cambiar correo de acceso?',
+      text: `Tu usuario para iniciar sesión cambiará a: ${targetEmail}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cambiar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#10b981',
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    setSavingAccesoEmail(true);
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/${user?.id_afiliado}/acceso-email`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tipo }),
+      });
+      const data = await res.json();
+      console.log('[ACCESO] Respuesta del servidor:', data);
+      if (data.success) {
+        console.log('[ACCESO] Éxito! Llamando setAccesoTipo con:', tipo);
+        setAccesoTipo(tipo);
+        console.log('[ACCESO] setAccesoTipo llamado');
+        Swal.fire({
+          title: '¡Correo actualizado!',
+          text: `Tu correo de acceso ahora es: ${targetEmail}`,
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+        });
+      } else {
+        console.log('[ACCESO] El servidor devolvió error:', data.message);
+        throw new Error(data.message || 'No se pudo cambiar el correo de acceso');
+      }
+    } catch (err: any) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setSavingAccesoEmail(false);
+    }
+  };
 
   useEffect(() => {
     if (!user?.id_afiliado) {
@@ -133,6 +207,10 @@ const SettingsPanel = () => {
           foto_url: af.foto_url || '',
           empresa_logo_url: af.empresa_logo_url || '',
         });
+        // Siempre setear el email de acceso desde la API (nunca desde el token)
+        const resolvedAcceso = (af.acceso_email || af.email || '').trim().toLowerCase();
+        const resolvedEmpresa = (af.empresa_email || '').trim().toLowerCase();
+        setAccesoTipo(resolvedAcceso && resolvedEmpresa && resolvedAcceso === resolvedEmpresa ? 'empresa' : 'personal');
         setDocumentos(af.documentos || []);
       }
     } catch (err) {
@@ -479,20 +557,30 @@ const SettingsPanel = () => {
               <HeaderSection title="Expediente y Documentación" subtitle="Sube o actualiza la documentación requerida para tu membresía." />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FileUpload 
-                  label="Curriculum Vitae (CV)" 
+                  label={isCorp || user?.tipo_afiliado === 'Corporativo' ? "Curriculum Vitae del Representante (CV)" : "Curriculum Vitae (CV)"} 
                   initialUrl={getDocUrl('cv')}
                   initialFileName={getDocName('cv')}
                   onUploadSuccess={(url, name) => handleUploadSuccess('cv', url, name)}
                   onClear={() => handleClearDoc('cv')}
                 />
 
-                <FileUpload 
-                  label="Título Universitario / Académico" 
-                  initialUrl={getDocUrl('titulo')}
-                  initialFileName={getDocName('titulo')}
-                  onUploadSuccess={(url, name) => handleUploadSuccess('titulo', url, name)}
-                  onClear={() => handleClearDoc('titulo')}
-                />
+                {!(isCorp || user?.tipo_afiliado === 'Corporativo') ? (
+                  <FileUpload 
+                    label="Título Universitario / Académico" 
+                    initialUrl={getDocUrl('titulo')}
+                    initialFileName={getDocName('titulo')}
+                    onUploadSuccess={(url, name) => handleUploadSuccess('titulo', url, name)}
+                    onClear={() => handleClearDoc('titulo')}
+                  />
+                ) : (
+                  <FileUpload 
+                    label="Título del Representante Legal" 
+                    initialUrl={getDocUrl('titulo_representante')}
+                    initialFileName={getDocName('titulo_representante')}
+                    onUploadSuccess={(url, name) => handleUploadSuccess('titulo_representante', url, name)}
+                    onClear={() => handleClearDoc('titulo_representante')}
+                  />
+                )}
 
                 {(isCorp || user?.tipo_afiliado === 'Corporativo') && (
                   <>
@@ -546,6 +634,39 @@ const SettingsPanel = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Origen del correo de acceso (solo corporativo) */}
+              {user?.tipo_afiliado === 'Corporativo' && (
+                <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">
+                      Correo de inicio de sesión
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors pointer-events-none">
+                        <Mail size={16} />
+                      </div>
+                      <select
+                        disabled={savingAccesoEmail}
+                        value={accesoTipo}
+                        onChange={(e) => handleAccesoTipoChange(e.target.value as 'personal' | 'empresa')}
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all disabled:opacity-50 disabled:bg-gray-100 appearance-none cursor-pointer"
+                      >
+                        <option value="personal">Personal ({formData.email || '—'})</option>
+                        {formData.empresa_email && (
+                          <option value="empresa">Empresa ({formData.empresa_email})</option>
+                        )}
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-colors group-hover:text-gray-600">
+                        <ChevronDown size={16} />
+                      </div>
+                    </div>
+                    {savingAccesoEmail && (
+                      <p className="text-[10px] text-gray-400 mt-2 animate-pulse">Actualizando correo de acceso...</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {isAgente && (
                 <div className="pt-6 border-t border-gray-100">

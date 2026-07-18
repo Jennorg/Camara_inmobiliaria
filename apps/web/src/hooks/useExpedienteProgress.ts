@@ -18,6 +18,7 @@ export interface ExpedienteProgressData {
   _savedAt: string
   nivelProfesional: string
   profesion: string
+  optarAcreditacion?: boolean
   ano_inicio_servicio: string
   url_cv: string
   name_cv?: string
