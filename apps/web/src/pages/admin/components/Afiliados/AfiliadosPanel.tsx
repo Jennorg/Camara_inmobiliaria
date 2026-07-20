@@ -375,7 +375,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list' }: AfiliadosPa
                     <option value="6_INSCRIPCION">6. Inscripción</option>
                   </optgroup>
                   <optgroup label="Estados Finales">
-                    <option value="Afiliado">Afiliado (CIBIR)</option>
+                    <option value="Afiliado">Afiliado</option>
                     <option value="Moroso">Moroso</option>
                     <option value="Suspendido">Suspendido</option>
                     <option value="Rechazado">Rechazado</option>

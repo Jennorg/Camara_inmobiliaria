@@ -4,11 +4,14 @@ export type ExportTipoFilter = 'Todos' | 'Natural' | 'Corporativo' | 'Agente Cor
 export type ExportActivoFilter = 'todos' | 'activos' | 'inactivos'
 export type ExportEstatusFilter = 'Todos' | EstatusAfiliado
 
+export type SearchFieldType = 'todos' | 'nombre' | 'id' | 'codigo'
+
 export interface ExportRowFilters {
   tipo: ExportTipoFilter
   estatus: ExportEstatusFilter
   activo: ExportActivoFilter
   search: string
+  searchField?: SearchFieldType
   desdeCodigo: string
   fechaDesde: string
   fechaHasta: string
@@ -38,7 +41,7 @@ export function filterAfiliadosForExport(
     if (filters.activo === 'activos' && !item.activo) return false
     if (filters.activo === 'inactivos' && item.activo) return false
 
-    // Filtro por Código CIBIR desde
+    // Filtro por Código desde
     if (!isNaN(desdeCodigo) && item.codigo) {
       const codigoItem = parseInt(item.codigo)
       if (!isNaN(codigoItem) && codigoItem < desdeCodigo) return false
@@ -65,18 +68,30 @@ export function filterAfiliadosForExport(
     }
 
     if (s) {
-      const nombre = (item.nombre_completo || '').toLowerCase()
+      const field = filters.searchField || 'todos'
+      const nombre = (item.nombre_completo || `${item.nombres || ''} ${item.apellidos || ''}`).toLowerCase()
+      const rep = (item.empresa_razon_social || '').toLowerCase()
       const cedula = (item.cedula || '').toLowerCase()
       const rif = (item.empresa_rif_numero || '').toLowerCase()
       const email = (item.email || '').toLowerCase()
       const codigo = (item.codigo || '').toLowerCase()
-      const match =
-        nombre.includes(s) ||
-        cedula.includes(s) ||
-        rif.includes(s) ||
-        email.includes(s) ||
-        codigo.includes(s)
-      if (!match) return false
+
+      if (field === 'nombre') {
+        if (!nombre.includes(s) && !rep.includes(s)) return false
+      } else if (field === 'id') {
+        if (!cedula.includes(s) && !rif.includes(s)) return false
+      } else if (field === 'codigo') {
+        if (!codigo.includes(s)) return false
+      } else {
+        const match =
+          nombre.includes(s) ||
+          rep.includes(s) ||
+          cedula.includes(s) ||
+          rif.includes(s) ||
+          email.includes(s) ||
+          codigo.includes(s)
+        if (!match) return false
+      }
     }
 
     return true
@@ -87,14 +102,13 @@ export function describeExportFilters(filters: ExportRowFilters): string[] {
   const lines: string[] = []
 
   lines.push(
-    `Tipo: ${
-      filters.tipo === 'Todos'
-        ? 'Todos'
-        : filters.tipo === 'Natural'
-          ? 'Independientes'
-          : filters.tipo === 'Corporativo'
-            ? 'Corporativos'
-            : 'Agentes corporativos'
+    `Tipo: ${filters.tipo === 'Todos'
+      ? 'Todos'
+      : filters.tipo === 'Natural'
+        ? 'Independientes'
+        : filters.tipo === 'Corporativo'
+          ? 'Corporativos'
+          : 'Agentes corporativos'
     }`
   )
 
@@ -103,17 +117,16 @@ export function describeExportFilters(filters: ExportRowFilters): string[] {
   )
 
   lines.push(
-    `Activo: ${
-      filters.activo === 'todos'
-        ? 'Todos'
-        : filters.activo === 'activos'
-          ? 'Solo activos'
-          : 'Solo inactivos'
+    `Activo: ${filters.activo === 'todos'
+      ? 'Todos'
+      : filters.activo === 'activos'
+        ? 'Solo activos'
+        : 'Solo inactivos'
     }`
   )
 
   if (filters.desdeCodigo) {
-    lines.push(`Desde código: ${filters.desdeCodigo}`)
+    lines.push(`Desde código determinado: ${filters.desdeCodigo}`)
   }
 
   if (filters.fechaDesde && filters.fechaHasta) {

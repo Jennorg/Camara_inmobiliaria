@@ -38,7 +38,7 @@ export function formatEstatusLabel(estatus: EstatusAfiliado | string): string {
     '4_VERIFICACION': '4. Verificación',
     '5_CIBIR': '5. CIBIR',
     '6_INSCRIPCION': '6. Inscripción',
-    Afiliado: 'Afiliado (CIBIR)',
+    Afiliado: 'Afiliado',
     Moroso: 'Moroso',
     Suspendido: 'Suspendido',
     Rechazado: 'Rechazado',
