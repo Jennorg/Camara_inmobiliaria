@@ -688,6 +688,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
     const isAgenteCorporativo = isAfiliacion && registro.tipo_afiliado === 'Agente Corporativo'
 
     const optarAcreditacion = req.body?.optarAcreditacion === true || req.body?.optarAcreditacion === 'true' || req.body?.optarAcreditacion === 1 || req.body?.optarAcreditacion === '1' ? 1 : 0
+    const fechaNacimiento = typeof req.body?.fecha_nacimiento === 'string' ? req.body.fecha_nacimiento.trim() : null
 
     if (!programaCodigo || !email || !nombreCompleto) {
       res.status(400).json({ success: false, message: 'Registro de verificación incompleto' })
@@ -706,6 +707,11 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       const urlCv = typeof req.body?.url_cv === 'string' ? req.body.url_cv.trim() : ''
       if (!urlCv) {
         res.status(400).json({ success: false, message: 'El Currículum/Síntesis Curricular es obligatorio para continuar con el expediente.' })
+        return
+      }
+
+      if (!fechaNacimiento) {
+        res.status(400).json({ success: false, message: 'La Fecha de Nacimiento es obligatoria para continuar con el expediente.' })
         return
       }
 
@@ -1029,8 +1035,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           const repCedulaNumero = repCedulaMatch ? repCedulaMatch[2].replace(/\D/g, '') : repCedulaInput.replace(/\D/g, '')
 
           const resP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, actualizado_en)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, fecha_nacimiento, actualizado_en)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(email) DO UPDATE SET
                     nombres = excluded.nombres,
                     apellidos = excluded.apellidos,
@@ -1038,9 +1044,10 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                     cedula = excluded.cedula,
                     telefono = COALESCE(excluded.telefono, personas.telefono),
                     nivel_academico = COALESCE(excluded.nivel_academico, personas.nivel_academico),
+                    fecha_nacimiento = COALESCE(excluded.fecha_nacimiento, personas.fecha_nacimiento),
                     actualizado_en = excluded.actualizado_en
                   RETURNING id`,
-            args: [repNombres, repApellidos, repCedulaTipo, repCedulaNumero, repEmail, registro.telefono || null, nivelAcademico, now]
+            args: [repNombres, repApellidos, repCedulaTipo, repCedulaNumero, repEmail, registro.telefono || null, nivelAcademico, fechaNacimiento, now]
           })
           const idPersona = resP.rows[0].id as number
 
@@ -1084,8 +1091,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 1. Upsert Persona
           const resP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, actualizado_en)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, fecha_nacimiento, actualizado_en)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(email) DO UPDATE SET
                     nombres = excluded.nombres,
                     apellidos = excluded.apellidos,
@@ -1093,6 +1100,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                     cedula = excluded.cedula,
                     telefono = excluded.telefono,
                     nivel_academico = COALESCE(excluded.nivel_academico, personas.nivel_academico),
+                    fecha_nacimiento = COALESCE(excluded.fecha_nacimiento, personas.fecha_nacimiento),
                     actualizado_en = excluded.actualizado_en
                   RETURNING id`,
             args: [
@@ -1103,6 +1111,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
               registro.email,
               registro.telefono || telefono,
               nivelAcademico,
+              fechaNacimiento,
               now
             ]
           })
@@ -1139,8 +1148,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
 
           // 1. Upsert Persona
           const resP = await db.execute({
-            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, actualizado_en)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, fecha_nacimiento, actualizado_en)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(email) DO UPDATE SET
                     nombres = excluded.nombres,
                     apellidos = excluded.apellidos,
@@ -1148,6 +1157,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                     cedula = excluded.cedula,
                     telefono = excluded.telefono,
                     nivel_academico = COALESCE(excluded.nivel_academico, personas.nivel_academico),
+                    fecha_nacimiento = COALESCE(excluded.fecha_nacimiento, personas.fecha_nacimiento),
                     actualizado_en = excluded.actualizado_en
                   RETURNING id`,
             args: [
@@ -1158,6 +1168,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
               registro.email,
               registro.telefono || telefono,
               nivelAcademico,
+              fechaNacimiento,
               now
             ]
           })
