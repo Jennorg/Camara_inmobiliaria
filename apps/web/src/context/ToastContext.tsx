@@ -78,13 +78,19 @@ const VARIANT_CONFIG: Record<ToastVariant, {
   iconColor: string;
   bg: string;
   border: string;
+  textColor: string;
+  subTextColor: string;
+  closeColor: string;
 }> = {
   success: {
     icon: CheckCircle,
-    bar: 'bg-emerald-500',
-    iconColor: 'text-emerald-500',
-    bg: 'bg-white',
-    border: 'border-emerald-100',
+    bar: 'bg-emerald-400',
+    iconColor: 'text-white',
+    bg: 'bg-emerald-600',
+    border: 'border-emerald-700',
+    textColor: 'text-white',
+    subTextColor: 'text-emerald-100',
+    closeColor: 'text-emerald-100 hover:text-white hover:bg-emerald-500/50',
   },
   error: {
     icon: XCircle,
@@ -92,6 +98,9 @@ const VARIANT_CONFIG: Record<ToastVariant, {
     iconColor: 'text-red-500',
     bg: 'bg-white',
     border: 'border-red-100',
+    textColor: 'text-gray-900',
+    subTextColor: 'text-gray-500',
+    closeColor: 'text-gray-400 hover:text-gray-700 hover:bg-gray-100',
   },
   warning: {
     icon: AlertCircle,
@@ -99,13 +108,19 @@ const VARIANT_CONFIG: Record<ToastVariant, {
     iconColor: 'text-amber-500',
     bg: 'bg-white',
     border: 'border-amber-100',
+    textColor: 'text-gray-900',
+    subTextColor: 'text-gray-500',
+    closeColor: 'text-gray-400 hover:text-gray-700 hover:bg-gray-100',
   },
   info: {
     icon: Info,
-    bar: 'bg-emerald-500',
-    iconColor: 'text-emerald-500',
-    bg: 'bg-white',
-    border: 'border-emerald-100',
+    bar: 'bg-emerald-400',
+    iconColor: 'text-white',
+    bg: 'bg-emerald-600',
+    border: 'border-emerald-700',
+    textColor: 'text-white',
+    subTextColor: 'text-emerald-100',
+    closeColor: 'text-emerald-100 hover:text-white hover:bg-emerald-500/50',
   },
 };
 
@@ -134,11 +149,11 @@ function ToastItem({ t, dismiss }: { t: Toast; dismiss: (id: string) => void }) 
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-widest text-gray-900 leading-tight">
+        <p className={`text-[11px] font-black uppercase tracking-widest leading-tight ${cfg.textColor}`}>
           {t.title}
         </p>
         {t.message && (
-          <p className="text-[11px] font-medium text-gray-500 mt-0.5 leading-relaxed">
+          <p className={`text-[11px] font-medium mt-0.5 leading-relaxed ${cfg.subTextColor}`}>
             {t.message}
           </p>
         )}
@@ -147,7 +162,7 @@ function ToastItem({ t, dismiss }: { t: Toast; dismiss: (id: string) => void }) 
       {/* Dismiss button */}
       <button
         onClick={() => dismiss(t.id)}
-        className="absolute top-3 right-3 w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+        className={`absolute top-3 right-3 w-6 h-6 rounded-lg flex items-center justify-center transition-all ${cfg.closeColor}`}
         aria-label="Cerrar"
       >
         <X size={12} strokeWidth={2.5} />

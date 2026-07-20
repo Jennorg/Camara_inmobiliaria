@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 export interface FloatingInputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string
-  error?: string
+  error?: string | boolean
   icon?: React.ReactNode
   rightElement?: React.ReactNode
 }
@@ -57,7 +57,7 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
             </div>
           )}
         </div>
-        {error && (
+        {error && typeof error === "string" && (
           <p className="mt-1 text-xs text-red-500 font-medium">{error}</p>
         )}
       </div>
