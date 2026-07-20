@@ -35,6 +35,8 @@ import RequisitosPage from '@/pages/landing/afiliado/RequisitosPage'
 import InvitacionCorporativaPage from '@/pages/landing/afiliado/InvitacionCorporativaPage'
 import AfiliadoProfilePage from '@/pages/landing/directorio/AfiliadoProfilePage'
 
+import { Toaster } from '@/components/ui/sonner'
+
 function PreservingQueryNavigate({ to }: { to: string }) {
   const [searchParams] = useSearchParams()
   const q = searchParams.toString()
@@ -49,6 +51,7 @@ export default function App() {
         <ScrollToHash />
         <ScrollToTop />
         <ToastProvider>
+        <Toaster position="bottom-right" />
         <AuthProvider>
         <Routes>
           {/* Rutas principales dependientes del host */}
