@@ -174,7 +174,7 @@ async function migrate() {
         activo                      INTEGER     NOT NULL DEFAULT 1 CHECK (activo IN (0,1)),
         CONSTRAINT chk_empresa_asignada CHECK (
           (tipo_afiliado IN ('Corporativo','Agente Corporativo') AND id_empresa IS NOT NULL) OR
-          (tipo_afiliado = 'Natural' AND id_empresa IS NULL)
+          (tipo_afiliado = 'Natural')
         )
       )`)
 
