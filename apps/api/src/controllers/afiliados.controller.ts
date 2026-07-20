@@ -276,7 +276,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
                    e.rif_numero as empresa_rif_numero,
-                   e.logo_url as empresa_logo_url,
+                   COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
                    e.website as empresa_website,
                    e.email as empresa_email,
                    e.telefono as empresa_telefono,
@@ -648,7 +648,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
              e.razon_social as empresa_razon_social, 
              e.rif_tipo as empresa_rif_tipo,
              e.rif_numero as empresa_rif_numero,
-             e.logo_url as empresa_logo_url,
+             COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
              e.website as empresa_website,
              e.email as empresa_email,
              e.telefono as empresa_telefono,
@@ -969,7 +969,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
              a.tipo_afiliado,
              e.razon_social as empresa_razon_social,
-             e.logo_url as empresa_logo_url, e.website as empresa_website,
+             COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url, e.website as empresa_website,
              p.email as email,
              e.email as empresa_email,
              e.telefono as empresa_telefono,
@@ -1105,7 +1105,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                e.razon_social as empresa_razon_social, 
                e.rif_tipo as empresa_rif_tipo,
                e.rif_numero as empresa_rif_numero,
-               e.logo_url as empresa_logo_url,
+               COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
                e.website as empresa_website,
                e.email as empresa_email,
                e.telefono as empresa_telefono,
@@ -1432,8 +1432,10 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     // 1. Obtener el registro actual para saber qué id_persona, id_empresa, id_user, etc. tiene
     const current = await db.execute({
-      sql: `SELECT a.id_persona, a.id_empresa, a.id_user,
+      sql: `SELECT a.id_persona, a.id_empresa, a.id_user, a.tipo_afiliado,
                    p.email AS persona_email,
+                   p.cedula AS persona_cedula,
+                   p.nombres, p.apellidos, p.telefono AS persona_telefono,
                    e.email AS empresa_email
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
@@ -1450,7 +1452,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       id_empresa: idEmpresa,
       id_user: idUser,
       persona_email: oldPersonaEmail,
-      empresa_email: oldEmpresaEmail
+      empresa_email: oldEmpresaEmail,
+      persona_cedula: oldPersonaCedula,
+      nombres: oldNombres,
+      apellidos: oldApellidos,
+      persona_telefono: oldPersonaTelefono
     } = current.rows[0] as any;
 
     if (fields.cedula) {
@@ -1483,24 +1489,89 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok', 'website'];
 
-    Object.keys(fields).forEach(key => {
+    const currentTipoAfiliado = current.rows[0]?.tipo_afiliado || 'Natural';
+    if (currentTipoAfiliado !== 'Corporativo') {
+      if (fields.empresa_logo_url !== undefined && currentTipoAfiliado === 'Natural') {
+        aUpdates.push('marca_logo_url = ?');
+        aArgs.push(fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null);
+      }
+      Object.keys(empresaFieldsMap).forEach(k => {
+        delete fields[k];
+      });
+    }
+
+    for (const key of Object.keys(fields)) {
       if (personaFields.includes(key) || key === 'cedula_tipo') {
+        let val = fields[key];
+        if (['nombres', 'apellidos', 'cedula', 'email'].includes(key)) {
+          if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+            return res.status(400).json({ success: false, message: `El campo '${key}' es obligatorio.` });
+          }
+          val = String(val).trim();
+        } else {
+          if (typeof val === 'string' && val.trim() === '') {
+            val = null;
+          }
+        }
+
+        // Validación específica para el CHECK constraint de nivel_academico
+        if (key === 'nivel_academico' && val !== null) {
+          const allowed = ['Bachiller', 'TSU', 'Nivel Profesional', 'Postgrado'];
+          if (!allowed.includes(val)) {
+            return res.status(400).json({ 
+              success: false, 
+              message: `El nivel académico debe ser uno de: ${allowed.join(', ')}.` 
+            });
+          }
+        }
+
         pUpdates.push(`${key} = ?`);
-        pArgs.push(fields[key]);
+        pArgs.push(val);
       } else if (afiliadoFields.includes(key)) {
         let val = fields[key];
         if (key === 'redes_sociales' && typeof val === 'object') val = JSON.stringify(val);
         const dbKey = key === 'descripcion' ? 'notas' : key;
+
+        if (key === 'ano_inicio_servicio') {
+          if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+            val = null;
+          } else {
+            val = Number(val);
+            if (isNaN(val)) val = null;
+          }
+        } else {
+          if (typeof val === 'string' && val.trim() === '') {
+            val = null;
+          }
+        }
+
         aUpdates.push(`${dbKey} = ?`);
         aArgs.push(val);
       } else if (estudianteFields.includes(key)) {
         stUpdates.push(`${key} = ?`);
         stArgs.push(fields[key] === true || fields[key] === 1 ? 1 : 0);
       } else if (empresaFieldsMap[key]) {
-        eUpdates.push(`${empresaFieldsMap[key]} = ?`);
-        eArgs.push(fields[key]);
+        let val = fields[key];
+        const dbColumn = empresaFieldsMap[key];
+        
+        // No permitir valores nulos/vacíos para campos obligatorios de la empresa
+        if (['razon_social', 'rif_numero', 'email'].includes(dbColumn)) {
+          if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+            return res.status(400).json({ 
+              success: false, 
+              message: `El campo '${key}' es obligatorio para afiliados de tipo Corporativo.` 
+            });
+          }
+          val = String(val).trim();
+        } else {
+          if (typeof val === 'string' && val.trim() === '') {
+            val = null;
+          }
+        }
+        eUpdates.push(`${dbColumn} = ?`);
+        eArgs.push(val);
       }
-    });
+    }
 
     // Re-procesar redes sociales si se enviaron campos individuales
     const socialsToUpdate: Record<string, any> = {};
@@ -1589,14 +1660,113 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       });
     }
 
-    if (eUpdates.length > 0 && idEmpresa) {
-      eUpdates.push('actualizado_en = ?');
-      eArgs.push(now);
-      eArgs.push(idEmpresa);
-      await db.execute({
-        sql: `UPDATE empresas SET ${eUpdates.join(', ')} WHERE id_empresa = ?`,
-        args: eArgs
-      });
+    if (eUpdates.length > 0) {
+      if (idEmpresa) {
+        eUpdates.push('actualizado_en = ?');
+        eArgs.push(now);
+        eArgs.push(idEmpresa);
+        await db.execute({
+          sql: `UPDATE empresas SET ${eUpdates.join(', ')} WHERE id_empresa = ?`,
+          args: eArgs
+        });
+      } else {
+        const finalNombre = (oldNombres || '').trim() + ' ' + (oldApellidos || '').trim();
+        const rSocial = fields.empresa_razon_social ? String(fields.empresa_razon_social).trim() : (finalNombre.trim() !== '' ? 'Firma de ' + finalNombre.trim() : 'Firma de Afiliado');
+        const rTipo = fields.empresa_rif_tipo ? String(fields.empresa_rif_tipo).trim() : 'V';
+        
+        let rNum = fields.empresa_rif_numero && String(fields.empresa_rif_numero).trim() !== '' 
+          ? String(fields.empresa_rif_numero).replace(/\D/g, '') 
+          : (oldPersonaCedula ? String(oldPersonaCedula).replace(/\D/g, '') : null);
+        
+        if (!rNum) {
+          rNum = '999' + id + String(Date.now()).slice(-6);
+        }
+
+        // 1. Verificar si ya existe una empresa con este RIF o este representante en la base de datos
+        const existingCompany = await db.execute({
+          sql: `SELECT id_empresa FROM empresas 
+                WHERE (rif_numero = ? AND rif_numero IS NOT NULL AND rif_numero <> '') 
+                   OR (id_representante_legal = ?) 
+                LIMIT 1`,
+          args: [rNum, Number(id)]
+        });
+
+        if (existingCompany.rows.length > 0) {
+          const foundEmpresaId = existingCompany.rows[0].id_empresa as number;
+          
+          // Vincular el afiliado a la empresa existente
+          await db.execute({
+            sql: `UPDATE afiliados SET id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
+            args: [foundEmpresaId, now, Number(id)]
+          });
+
+          // Actualizar los datos comerciales en la empresa existente
+          if (eUpdates.length > 0) {
+            eUpdates.push('actualizado_en = ?');
+            eArgs.push(now);
+            eArgs.push(foundEmpresaId);
+            await db.execute({
+              sql: `UPDATE empresas SET ${eUpdates.join(', ')} WHERE id_empresa = ?`,
+              args: eArgs
+            });
+          }
+        } else {
+          // Si no existe, crear la empresa normalmente de manera 100% libre de colisiones
+          let rNumFinal = rNum;
+          let attempts = 0;
+          while (attempts < 5) {
+            const dupRif = await db.execute({
+              sql: `SELECT id_empresa FROM empresas WHERE rif_numero = ? LIMIT 1`,
+              args: [rNumFinal]
+            });
+            if (dupRif.rows.length === 0) {
+              break;
+            }
+            // En caso de duplicados, concatenar con ID y parte de un timestamp dinámico para evitar colisiones UNIQUE
+            rNumFinal = rNum + id + String(Date.now() + attempts).slice(-4);
+            attempts++;
+          }
+
+          let eEmail = fields.empresa_email && String(fields.empresa_email).trim() !== '' 
+            ? String(fields.empresa_email).trim().toLowerCase() 
+            : (oldPersonaEmail ? String(oldPersonaEmail).trim().toLowerCase() : `firma_${id}_${Date.now()}@camarainmobiliaria.org`);
+
+          let attemptsEmail = 0;
+          while (attemptsEmail < 5) {
+            const dupEmail = await db.execute({
+              sql: `SELECT id_empresa FROM empresas WHERE email = ? LIMIT 1`,
+              args: [eEmail]
+            });
+            if (dupEmail.rows.length === 0) {
+              break;
+            }
+            eEmail = `firma_${id}_${Date.now()}_${attemptsEmail}@camarainmobiliaria.org`;
+            attemptsEmail++;
+          }
+
+          const eTel = fields.empresa_telefono && String(fields.empresa_telefono).trim() !== '' ? String(fields.empresa_telefono).trim() : (oldPersonaTelefono || null);
+          const eWeb = fields.empresa_website && String(fields.empresa_website).trim() !== '' ? String(fields.empresa_website).trim() : null;
+          const eLogo = fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null;
+
+          const insRes = await db.execute({
+            sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, website, logo_url, fecha_registro, id_representante_legal)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  RETURNING id_empresa`,
+            args: [rSocial, rTipo, rNumFinal, eEmail, eTel, eWeb, eLogo, now, Number(id)]
+          });
+          
+          const newEmpresaId = insRes.lastInsertRowid 
+            ? Number(insRes.lastInsertRowid) 
+            : (insRes.rows[0]?.id_empresa as number || null);
+            
+          if (newEmpresaId) {
+            await db.execute({
+              sql: `UPDATE afiliados SET id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
+              args: [newEmpresaId, now, Number(id)]
+            });
+          }
+        }
+      }
     }
 
     // ── Auto-sincronización del correo de acceso ─────────────────────────────
@@ -2266,7 +2436,7 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     const {
       nombres, apellidos, empresa_razon_social, empresa_rif_tipo,
       cedula, email, tipo_afiliado, estatus,
-      telefono, direccion, codigo, nivel_academico,
+      telefono, direccion, codigo, nivel_academico, foto_url, empresa_logo_url,
       id_empresa, instagram, facebook, linkedin, twitter, tiktok, website,
       empresa_direccion, empresa_email, empresa_telefono, empresa_website,
       empresa_instagram, empresa_facebook, empresa_linkedin, empresa_twitter, empresa_tiktok
@@ -2301,9 +2471,9 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
 
     // 1. Insertar Persona
     const resultP = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, direccion, nivel_academico)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [nombres || '', apellidos || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null]
+      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, direccion, nivel_academico, foto_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      args: [nombres || '', apellidos || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null, foto_url || null]
     });
     const idPersona = resultP.rows[0].id;
 
@@ -2321,8 +2491,8 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
         website: empresa_website
       });
       const resultE = await db.execute({
-        sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, direccion, website, redes_sociales)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
+        sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, direccion, website, redes_sociales, logo_url)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
         args: [
           empresa_razon_social || '', 
           empresa_rif_tipo || 'J', 
@@ -2331,7 +2501,8 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
           empresa_telefono || telefono || null, 
           empresa_direccion || direccion || null, 
           empresa_website || website || null, 
-          empresa_redes
+          empresa_redes,
+          empresa_logo_url || null
         ]
       });
       finalIdEmpresa = resultE.rows[0].id_empresa as number;
@@ -2346,11 +2517,12 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
 
     // 4. Insertar Afiliado
     const redes_sociales = JSON.stringify({ instagram, facebook, linkedin, twitter, tiktok, website });
+    const marcaLogoUrl = (tipoFinal === 'Natural' && empresa_logo_url) ? empresa_logo_url : null;
     const resultA = await db.execute({
       sql: `INSERT INTO afiliados (
-        id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, activo
-      ) VALUES (?, ?, ?, ?, ?, ?, 1) RETURNING *`,
-      args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales]
+        id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, marca_logo_url, activo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1) RETURNING *`,
+      args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales, marcaLogoUrl]
     });
 
     const newAfiliado = resultA.rows[0];
