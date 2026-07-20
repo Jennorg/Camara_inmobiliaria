@@ -51,7 +51,7 @@ export const ProfileHero = ({
   const isIndependent = afiliado.tipo_afiliado === 'Natural' || (!isCorporativo && !isAgent);
 
   const actualCompanyLogo = companyLogo || afiliado.empresa_logo_url || null;
-  const logoToShow = (isCorporativo || isAgent) ? actualCompanyLogo : null;
+  const logoToShow = actualCompanyLogo;
 
   const handleShare = async () => {
     try {

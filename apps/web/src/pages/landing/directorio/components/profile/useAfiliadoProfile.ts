@@ -93,9 +93,9 @@ export const useAfiliadoProfile = (): UseAfiliadoProfileResult => {
     const displayEmblem = (isCorporativo && companyLogo) ? companyLogo : logoCibir;
 
     const showEmpresaSection =
-      isCorporativo ||
-      !!(afiliado.empresa_razon_social || afiliado.razon_social) ||
-      !!afiliado.id_empresa;
+      (isCorporativo ||
+       (afiliado.tipo_afiliado !== 'Natural' && 
+        (!!(afiliado.empresa_razon_social || afiliado.razon_social) || !!afiliado.id_empresa)));
     const showAfiliadoSection = !isCorporativo || isRepMode;
 
     const ubicacionTexto = isCorporativo || (afiliado as any).mostrar_direccion_publica

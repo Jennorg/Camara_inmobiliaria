@@ -13,7 +13,7 @@ export default function Header({ darkMode }: { darkMode?: boolean }) {
   return (
     <header
       id='inicio'
-      className='relative overflow-hidden px-6 lg:px-20 py-16 lg:py-16 grid lg:grid-cols-2 gap-12 items-center min-h-[75vh]'
+      className='relative overflow-hidden px-6 lg:px-20 py-16 lg:py-16 grid lg:grid-cols-2 gap-12 items-center min-h-[90dvh]'
     >
       {/* CAPA 1: IMAGEN CON ZOOM */}
       <div

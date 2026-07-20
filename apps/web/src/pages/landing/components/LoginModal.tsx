@@ -6,25 +6,34 @@ import logo from '@/assets/Logo2.png'
 import ForgotPasswordModal from '@/pages/landing/components/ForgotPasswordModal'
 import { Eye, EyeOff } from 'lucide-react'
 import { FloatingInput } from '@/components/ui/FloatingInput'
+import { toast } from 'sonner'
 
 export default function LoginModal({ onClose }: { onClose: () => void }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
+  const [shake, setShake] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const passwordRef = React.useRef<HTMLInputElement | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
     setLoading(true)
+    setHasError(false)
     try {
       await login(email, password)
       onClose()
     } catch (err: any) {
-      setError(err.message || 'Credenciales no autorizadas')
+      toast.error(err.message || 'Credenciales incorrectas')
+      setHasError(true)
+      setShake(true)
+      setTimeout(() => setShake(false), 600)
+      setTimeout(() => {
+        passwordRef.current?.focus()
+      }, 50)
     } finally {
       setLoading(false)
     }
@@ -36,7 +45,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
       <div className='absolute inset-0 bg-[#011a14]/60 backdrop-blur-md' onClick={onClose} />
 
       {/* Contenedor del Modal */}
-      <div className='relative bg-white w-full max-w-[420px] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden'>
+      <div className={`relative bg-white w-full max-w-[440px] rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden ${shake ? 'animate-shake' : ''}`}>
 
         {/* Botón Cerrar Minimalista */}
         <button
@@ -48,14 +57,14 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           </svg>
         </button>
 
-        <div className='p-10 sm:p-12'>
+        <div className='p-8 sm:p-10'>
           {/* Título e Icono Sutil */}
-          <div className='mb-10 flex flex-col items-center text-center'>
-            <div className='mb-8 flex flex-col items-center'>
+          <div className='mb-8 flex flex-col items-center text-center'>
+            <div className='mb-6 flex flex-col items-center'>
               <img
                 src={logo}
                 alt="Logo"
-                className='h-32 w-auto object-contain transition-transform hover:scale-105 duration-300'
+                className='h-28 w-auto object-contain transition-transform hover:scale-105 duration-300'
               />
             </div>
             <h2 className='text-3xl font-black text-slate-900 tracking-tight'>
@@ -66,15 +75,19 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
 
-          <form className='space-y-6' onSubmit={handleSubmit}>
+          <form className='space-y-5' onSubmit={handleSubmit}>
             {/* Campo Email */}
             <div className='space-y-2'>
               <FloatingInput
                 type='email'
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => {
+                  setEmail(e.target.value)
+                  setHasError(false)
+                }}
                 required
                 label="Correo electrónico"
+                error={hasError}
               />
             </div>
 
@@ -82,10 +95,15 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
             <div className='space-y-2'>
               <FloatingInput
                 type={showPassword ? 'text' : 'password'}
+                ref={passwordRef}
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => {
+                  setPassword(e.target.value)
+                  setHasError(false)
+                }}
                 required
                 label="Contraseña"
+                error={hasError}
                 rightElement={
                   <button
                     type="button"
@@ -108,15 +126,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Error */}
-            {error && (
-              <div className='text-red-500 text-xs font-bold flex items-center gap-2 bg-red-50 p-3 rounded-lg'>
-                <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
-                  <path fillRule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z' clipRule='evenodd' />
-                </svg>
-                {error}
-              </div>
-            )}
+
 
             {/* Botón Submit */}
             <div className='pt-4'>

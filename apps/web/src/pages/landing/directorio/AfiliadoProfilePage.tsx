@@ -97,7 +97,7 @@ const AfiliadoProfilePage = () => {
           isRepMode={isRepMode}
           isCorporativo={isCorporativo}
           displayEmblem={displayEmblem}
-          companyLogo={null}
+          companyLogo={afiliado.empresa_logo_url || null}
           ubicacionTexto={ubicacionTexto}
         />
 
