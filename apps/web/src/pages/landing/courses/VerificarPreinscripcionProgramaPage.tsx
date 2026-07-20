@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircle2, Loader2, ArrowRight, Home, GraduationCap, Briefcase, Award, School, ChevronDown, XCircle, FileText, AlertCircle, Calendar, ShieldCheck, Check, Search, ClipboardList, Mail, CreditCard } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import Swal from 'sweetalert2'
+import { toast } from 'sonner'
 import FileUpload from '@/components/common/FileUpload'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
@@ -59,6 +60,7 @@ export default function VerificarPreinscripcionProgramaPage() {
     profesion: '',
     optarAcreditacion: false,
     ano_inicio_servicio: '',
+    fecha_nacimiento: '',
     url_titulo: '',
     name_titulo: '',
     url_cv: '',
@@ -239,6 +241,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               profesion: saved.profesion || '',
               optarAcreditacion: !!saved.optarAcreditacion,
               ano_inicio_servicio: saved.ano_inicio_servicio || '',
+              fecha_nacimiento: saved.fecha_nacimiento || '',
               url_cv: saved.url_cv || '',
               name_cv: saved.name_cv || '',
               url_titulo: saved.url_titulo || '',
@@ -276,6 +279,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               profesion: profileData?.profesion || json.data.profesion || '',
               optarAcreditacion: hasPriorRefs || hasFippiPreani,
               ano_inicio_servicio: profileData?.ano_inicio_servicio !== undefined ? String(profileData.ano_inicio_servicio) : (json.data.ano_inicio_servicio !== undefined ? String(json.data.ano_inicio_servicio) : ''),
+              fecha_nacimiento: profileData?.fecha_nacimiento || json.data.fecha_nacimiento || '',
               url_cv: cvDoc?.url || '',
               name_cv: cvDoc?.nombre_archivo || '',
               url_titulo: tituloDoc?.url || '',
@@ -302,10 +306,13 @@ export default function VerificarPreinscripcionProgramaPage() {
             errMsg = 'El enlace de acceso no es válido, ya fue utilizado o ha caducado. Por favor, solicita uno nuevo al administrador de la Cámara.'
           }
           setMessage(errMsg)
+          toast.error(errMsg)
         }
       } catch {
         setStatus('error')
-        setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.')
+        const connErr = 'Tiempo de espera agotado o error de conexión con el servidor. Por favor, comprueba tu conexión a internet.'
+        setMessage(connErr)
+        toast.error(connErr)
       }
     }
     verificarToken()
@@ -389,10 +396,13 @@ export default function VerificarPreinscripcionProgramaPage() {
           errMsg = 'El enlace de acceso no es válido, ya fue utilizado o ha caducado. Por favor, solicita uno nuevo al administrador de la Cámara.'
         }
         setMessage(errMsg);
+        toast.error(errMsg);
       }
     } catch {
       setStatus('error');
-      setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.');
+      const connErr = 'Tiempo de espera agotado o error de conexión con el servidor. Por favor, comprueba tu conexión a internet.'
+      setMessage(connErr);
+      toast.error(connErr);
     }
     finally { setSubmitLoading(false); }
   }
@@ -447,6 +457,19 @@ export default function VerificarPreinscripcionProgramaPage() {
         text: isCorporativo
           ? 'Por favor, indica el Año de Inicio como Asesor del Representante Legal.'
           : 'Por favor, indica el Año de Inicio como Asesor.',
+        icon: 'warning',
+        confirmButtonColor: '#059669',
+      });
+      return;
+    }
+
+    // 4.5. Validar Fecha de Nacimiento
+    if (!formData.fecha_nacimiento) {
+      Swal.fire({
+        title: '¡Atención!',
+        text: isCorporativo
+          ? 'Por favor, indica la Fecha de Nacimiento del Representante Legal.'
+          : 'Por favor, indica tu Fecha de Nacimiento.',
         icon: 'warning',
         confirmButtonColor: '#059669',
       });
@@ -560,6 +583,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       profesion: formData.profesion.trim(),
       optarAcreditacion: !!formData.optarAcreditacion,
       ano_inicio_servicio: formData.ano_inicio_servicio ? parseInt(formData.ano_inicio_servicio, 10) : null,
+      fecha_nacimiento: formData.fecha_nacimiento,
       url_titulo: formData.url_titulo,
       url_cv: formData.url_cv,
       url_registro_mercantil: formData.url_registro_mercantil,
@@ -990,6 +1014,34 @@ export default function VerificarPreinscripcionProgramaPage() {
                     </div>
                   </div>
 
+                  {/* Fecha de Nacimiento */}
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
+                        <div>
+                          <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
+                            Fecha de Nacimiento
+                          </h3>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
+                        Es un requisito obligatorio para el registro de tu expediente.
+                      </p>
+                    </div>
+                    <div className="relative group">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                        <Calendar size={18} />
+                      </div>
+                      <input
+                        type="date"
+                        required
+                        value={formData.fecha_nacimiento}
+                        onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                        className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                      />
+                    </div>
+                  </div>
 
                   {/* Área de Especialización */}
                   {formData.nivelProfesional && formData.nivelProfesional !== 'Bachiller' && (
@@ -1084,6 +1136,21 @@ export default function VerificarPreinscripcionProgramaPage() {
                               value={formData.ano_inicio_servicio}
                               onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
                               placeholder="Ej. 2015"
+                              className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Fecha de Nacimiento (Representante Legal) */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Nacimiento</label>
+                          <div className="relative group">
+                            <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="date"
+                              required
+                              value={formData.fecha_nacimiento}
+                              onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
                               className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
                             />
                           </div>

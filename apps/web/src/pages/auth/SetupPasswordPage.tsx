@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { API_URL } from '@/config/env';
+import { toast } from 'sonner';
 import logo from '@/assets/Logo2.png';
 
 export default function SetupPasswordPage() {
@@ -32,7 +33,9 @@ export default function SetupPasswordPage() {
   useEffect(() => {
     if (!token) {
       setStatus('error');
-      setMessage('El enlace de acceso es incorrecto o ha caducado. Por favor, solicita una nueva invitación.');
+      const msg = 'El enlace de acceso es incorrecto o ha caducado. Por favor, solicita una nueva invitación.';
+      setMessage(msg);
+      toast.error(msg);
     }
   }, [token]);
 
@@ -57,6 +60,7 @@ export default function SetupPasswordPage() {
       if (data.success) {
         setStatus('success');
         setMessage(successMsg);
+        toast.success(successMsg);
       } else {
         setStatus('error');
         let errMsg = data.message || 'Error al procesar la solicitud.';
@@ -64,10 +68,13 @@ export default function SetupPasswordPage() {
           errMsg = 'El enlace de activación no es válido, ya fue utilizado o ha caducado. Por favor, solicita una nueva invitación.';
         }
         setMessage(errMsg);
+        toast.error(errMsg);
       }
     } catch (err) {
       setStatus('error');
-      setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.');
+      const connErr = 'Tiempo de espera agotado o error de conexión con el servidor. Por favor, intente de nuevo.';
+      setMessage(connErr);
+      toast.error(connErr);
     } finally {
       setLoading(false);
     }

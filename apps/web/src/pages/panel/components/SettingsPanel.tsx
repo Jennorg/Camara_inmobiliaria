@@ -249,7 +249,8 @@ const SettingsPanel = () => {
           position: 'top-end',
           toast: true
         });
-        refreshUser(); // Refresh context
+        await refreshUser(); // Refresh context
+        await loadProfileData(); // Reload profile data directly from database
       } else {
         throw new Error(data.message || 'Error al guardar');
       }
@@ -309,7 +310,7 @@ const SettingsPanel = () => {
     { id: 'personal', label: 'Información Personal', icon: User },
     { id: 'profesional', label: 'Perfil Profesional', icon: Briefcase },
     { id: 'social', label: 'Redes Sociales', icon: Globe },
-    { id: 'empresa', label: 'Mi Corporativo', icon: Building, hide: !isCorp && !isAgente },
+    { id: 'empresa', label: user?.tipo_afiliado === 'Corporativo' ? 'Mi Corporativo' : 'Mi Marca / Firma', icon: Building, hide: isAgente },
     { id: 'documentos', label: 'Expediente / Documentos', icon: FileText },
     { id: 'membresia', label: 'Cuenta', icon: Shield },
   ];
@@ -488,16 +489,19 @@ const SettingsPanel = () => {
 
           {activeTab === 'empresa' && (
             <div className="space-y-6">
-              <HeaderSection title="Información de Corporativo" subtitle="Datos corporativos visibles en tu membresía." />
+              <HeaderSection 
+                title={user?.tipo_afiliado === 'Corporativo' ? "Información de Corporativo" : "Información de Marca / Firma"} 
+                subtitle={user?.tipo_afiliado === 'Corporativo' ? "Datos corporativos visibles en tu membresía." : "Datos comerciales de tu firma o marca independiente."} 
+              />
               
               <div className="flex justify-center py-4">
                 <FileUpload
-                  label="Logo de la Empresa"
+                  label={user?.tipo_afiliado === 'Corporativo' ? "Logo de la Empresa" : "Logo Comercial / Marca"}
                   accept="image/*"
                   folder="logos"
                   initialUrl={formData.empresa_logo_url}
                   enableCrop
-                  cropAspect={16 / 9}
+                  cropAspect={1}
                   cropShape="rect"
                   onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
                   onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
@@ -506,7 +510,14 @@ const SettingsPanel = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <Input label="Razón Social" name="empresa_razon_social" value={formData.empresa_razon_social} onChange={handleInputChange} icon={Building} disabled={isAgente} />
+                  <Input 
+                    label={user?.tipo_afiliado === 'Corporativo' ? "Razón Social" : "Nombre Comercial / Firma"} 
+                    name="empresa_razon_social" 
+                    value={formData.empresa_razon_social} 
+                    onChange={handleInputChange} 
+                    icon={Building} 
+                    disabled={isAgente} 
+                  />
                 </div>
                 <div className="flex gap-2">
                   <div className="w-24">
@@ -524,12 +535,40 @@ const SettingsPanel = () => {
                     </select>
                   </div>
                   <div className="flex-1">
-                    <Input label="Número RIF" name="empresa_rif_numero" value={formData.empresa_rif_numero} onChange={handleInputChange} disabled={isAgente} />
+                    <Input 
+                      label={user?.tipo_afiliado === 'Corporativo' ? "Número RIF" : "RIF Personal / Comercial"} 
+                      name="empresa_rif_numero" 
+                      value={formData.empresa_rif_numero} 
+                      onChange={handleInputChange} 
+                      disabled={isAgente} 
+                    />
                   </div>
                 </div>
-                <Input label="Email Corporativo" name="empresa_email" value={formData.empresa_email} onChange={handleInputChange} icon={Mail} disabled={isAgente} />
-                <Input label="Website" name="empresa_website" value={formData.empresa_website} onChange={handleInputChange} icon={Globe} placeholder="www.tuempresa.com" disabled={isAgente} />
-                <Input label="Teléfono Empresa" name="empresa_telefono" value={formData.empresa_telefono} onChange={handleInputChange} icon={Phone} disabled={isAgente} />
+                <Input 
+                  label={user?.tipo_afiliado === 'Corporativo' ? "Email Corporativo" : "Email Comercial"} 
+                  name="empresa_email" 
+                  value={formData.empresa_email} 
+                  onChange={handleInputChange} 
+                  icon={Mail} 
+                  disabled={isAgente} 
+                />
+                <Input 
+                  label="Website" 
+                  name="empresa_website" 
+                  value={formData.empresa_website} 
+                  onChange={handleInputChange} 
+                  icon={Globe} 
+                  placeholder={user?.tipo_afiliado === 'Corporativo' ? "www.tuempresa.com" : "www.tufirma.com"} 
+                  disabled={isAgente} 
+                />
+                <Input 
+                  label={user?.tipo_afiliado === 'Corporativo' ? "Teléfono Empresa" : "Teléfono Comercial"} 
+                  name="empresa_telefono" 
+                  value={formData.empresa_telefono} 
+                  onChange={handleInputChange} 
+                  icon={Phone} 
+                  disabled={isAgente} 
+                />
               </div>
 
               <div className="mt-8 pt-8 border-t border-gray-100 space-y-6">
