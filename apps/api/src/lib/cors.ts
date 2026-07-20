@@ -29,13 +29,26 @@ export function isOriginAllowed(origin: string): boolean {
     const appHost = new URL(appOrigin).hostname
     const originHost = new URL(normalized).hostname
     if (originHost === appHost) return true
+    const baseDomain = appHost.split('.').slice(-2).join('.')
+    if (originHost.endsWith('.' + baseDomain) || originHost === baseDomain) {
+      return true
+    }
   } catch {
     /* ignore */
   }
 
+  // ── Vercel previews ────────────────────────────────────────────
+  // Si la API está en Vercel, cualquier frontend *.vercel.app se permite
+  // automáticamente (previews de deploy, PRs, etc.) sin necesidad de
+  // configurar CORS_ORIGINS manualmente.
   const vercelPreview = /^https:\/\/[\w.-]+\.vercel\.app$/i.test(normalized)
-  if (vercelPreview && env.CORS_ORIGINS.some(o => o.includes('.vercel.app'))) {
-    return true
+  if (vercelPreview) {
+    if (env.CORS_ORIGINS.some(o => o.includes('.vercel.app'))) {
+      return true
+    }
+    if (process.env.VERCEL === '1') {
+      return true
+    }
   }
 
   return false
