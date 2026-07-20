@@ -162,46 +162,6 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
         className="flex-1 flex flex-col cursor-pointer"
       >
         <div className="relative w-full shrink-0">
-          {/* Badge de tipo (Sobre la foto, alineado a la izquierda abajo) */}
-          <div className="absolute bottom-4 left-4 z-20">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-black/45 dark:bg-emerald-950/70 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
-              {isCorpView ? (
-                <>
-                  <Building2 size={10} className="text-white" />
-                  <span className="text-[9px] font-black uppercase tracking-wider text-white whitespace-nowrap">Corporativo</span>
-                </>
-              ) : (afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente' || forceRepMode) ? (
-                <>
-                  <Briefcase size={10} className="text-white" />
-                  <span className="text-[9px] font-black uppercase tracking-wider text-white whitespace-nowrap">
-                    {forceRepMode ? 'Representante' : 'Agente Corp.'}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <User size={10} className="text-white" />
-                  <span className="text-[9px] font-black uppercase tracking-wider text-white whitespace-nowrap">Agente Indep.</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Logo Comercial / Insignia (Sobre la foto, alineado a la derecha abajo) */}
-          {!isCorpView && afiliado.empresa_logo_url && (
-            <div className="absolute bottom-4 right-4 z-20">
-              <div 
-                className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-1.5 shadow-lg flex items-center justify-center overflow-hidden"
-                title={afiliado.tipo_afiliado === 'Natural' ? "Logo Comercial / Firma" : `Miembro de ${afiliado.empresa_razon_social}`}
-              >
-                <img 
-                  src={afiliado.empresa_logo_url} 
-                  alt="Logo Comercial" 
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            </div>
-          )}
-
           <CardImage afiliado={afiliado} isCorpView={isCorpView} />
         </div>
 
