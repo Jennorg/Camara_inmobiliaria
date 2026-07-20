@@ -77,7 +77,7 @@ const DirectorioPage = () => {
   const fetchAllAfiliados = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?limit=1000`);
+      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?limit=1000&con_foto=true`);
       const json = await res.json();
       if (json.success) {
         setAfiliados(json.data);
