@@ -1,22 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, ChevronDown, Users, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Search, Users, Loader2 } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
 import { API_URL } from '@/config/env';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasMore: boolean;
-}
-
-/** Debounce hook: returns debounced value after `delay` ms of inactivity */
+/** Debounce hook */
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -42,18 +34,24 @@ function SkeletonCard() {
 
 const DirectorioPage = () => {
   const [afiliados, setAfiliados] = useState<AfiliadoData[]>([]);
-  const [loading, setLoading] = useState(true);
+  // true only on first page load (shows full skeleton grid)
+  const [loadingFirst, setLoadingFirst] = useState(true);
+  // true when fetching subsequent pages (shows bottom spinner)
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
-  const [visibleCount, setVisibleCount] = useState(20);
 
+  const debouncedSearch = useDebounce(searchQuery, 400);
+
+  // Horizontal scroll drag for filter pills
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-
-  const debouncedSearch = useDebounce(searchQuery, 350);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;
@@ -61,103 +59,89 @@ const DirectorioPage = () => {
     setStartX(e.pageX - scrollRef.current.offsetLeft);
     setScrollLeft(scrollRef.current.scrollLeft);
   };
-
   const handleMouseLeave = () => setIsDragging(false);
   const handleMouseUp = () => setIsDragging(false);
-
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !scrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 2;
-    scrollRef.current.scrollLeft = scrollLeft - walk;
+    scrollRef.current.scrollLeft = scrollLeft - (x - startX) * 2;
   };
 
-  // ── Fetch all afiliados from the API on mount ───────────────────
-  const fetchAllAfiliados = useCallback(async () => {
-    setLoading(true);
+  // ── Build query string from current filters ─────────────────────────
+  const buildQueryString = useCallback((targetPage: number) => {
+    const params = new URLSearchParams();
+    params.set('page', String(targetPage));
+    params.set('limit', String(PAGE_SIZE));
+    params.set('con_foto', 'true');
+    if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+    if (filterType !== 'Todos') params.set('tipo_afiliado', filterType);
+    return params.toString();
+  }, [debouncedSearch, filterType]);
+
+  // ── Fetch a single page and append to list ──────────────────────────
+  const fetchPage = useCallback(async (targetPage: number, reset: boolean) => {
+    if (reset) {
+      setLoadingFirst(true);
+      setAfiliados([]);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?limit=1000&con_foto=true`);
+      const qs = buildQueryString(targetPage);
+      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?${qs}`);
       const json = await res.json();
+
       if (json.success) {
-        setAfiliados(json.data);
+        setAfiliados(prev => reset ? json.data : [...prev, ...json.data]);
+        setHasMore(json.pagination?.hasMore ?? false);
+        setPage(targetPage);
       }
     } catch (error) {
       console.error('Error cargando el directorio:', error);
     } finally {
-      setLoading(false);
+      setLoadingFirst(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [buildQueryString]);
 
+  // ── Reset and reload when search/filter changes ──────────────────────
   useEffect(() => {
-    fetchAllAfiliados();
-  }, [fetchAllAfiliados]);
-
-  // Reset local pagination when query or filter changes
-  useEffect(() => {
-    setVisibleCount(20);
+    fetchPage(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filterType]);
 
-  const cleanString = (str: string): string => {
-    return str
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-  };
+  // ── Infinite scroll: observe sentinel element ────────────────────────
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const resultados = useMemo(() => {
-    const query = cleanString(searchQuery);
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
 
-    const filtered = afiliados.filter(item => {
-      // 1. Filtrar por tipo (filterType)
-      if (filterType !== 'Todos') {
-        const itemType = (item.tipo_afiliado || 'Natural').toLowerCase().trim();
-        const targetType = filterType.toLowerCase().trim();
-        if (targetType === 'agente') {
-          if (itemType !== 'agente corporativo' && itemType !== 'agente') {
-            return false;
-          }
-        } else if (itemType !== targetType) {
-          return false;
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadingFirst) {
+          fetchPage(page + 1, false);
         }
-      }
+      },
+      { rootMargin: '400px' }
+    );
 
-      // 2. Filtrar por búsqueda
-      if (query) {
-        const nom = cleanString(item.nombre_completo || '');
-        const rep = cleanString(item.representante_nombre || '');
-        const emp = cleanString(item.empresa_razon_social || '');
-        return nom.includes(query) || rep.includes(query) || emp.includes(query);
-      }
+    if (sentinelRef.current) {
+      observerRef.current.observe(sentinelRef.current);
+    }
 
-      return true;
-    });
+    return () => observerRef.current?.disconnect();
+  }, [hasMore, loadingMore, loadingFirst, page, fetchPage]);
 
-    // Ordenar por código (codigo) de forma numérica. Items sin código van al final.
-    return [...filtered].sort((a, b) => {
-      const codeA = a.codigo ? parseInt(a.codigo, 10) : Infinity;
-      const codeB = b.codigo ? parseInt(b.codigo, 10) : Infinity;
-      if (isNaN(codeA) && isNaN(codeB)) return 0;
-      if (isNaN(codeA)) return 1;
-      if (isNaN(codeB)) return -1;
-      return codeA - codeB;
-    });
-  }, [afiliados, searchQuery, filterType]);
-
-  // ── Infinite scroll: load next page ───────────────────────────────
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
-    if (loading) return;
-    if (observer.current) observer.current.disconnect();
-
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && visibleCount < resultados.length) {
-        setVisibleCount(prev => prev + 20);
-      }
-    }, { rootMargin: '400px' });
-
-    if (node) observer.current.observe(node);
-  }, [loading, visibleCount, resultados.length]);
+  const gridCols =
+    afiliados.length === 1 ? 'max-w-sm mx-auto' :
+    afiliados.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
+    afiliados.length === 3 ? 'sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto' :
+    afiliados.length === 4 ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto' :
+    'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full';
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
@@ -165,14 +149,11 @@ const DirectorioPage = () => {
         title="Directorio de Miembros"
         description="Encuentra a los profesionales inmobiliarios certificados en el Estado Bolívar. Consulta nuestro directorio de agentes y corporativos."
       />
-      <Navbar
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-      />
+      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       <main className="flex-grow pt-24 pb-20">
 
-        {/* Cabecera Estructurada */}
+        {/* Cabecera */}
         <section className="bg-emerald-50/50 dark:bg-[#011a14] pt-12 pb-24 px-6 relative border-b border-emerald-100 dark:border-emerald-500/10">
           <div className="max-w-4xl mx-auto relative z-10 text-center space-y-5">
 
@@ -183,7 +164,7 @@ const DirectorioPage = () => {
               Verifica y contacta a los profesionales inmobiliarios certificados que forman parte de nuestra cámara.
             </p>
 
-            {/* Buscador y Filtros */}
+            {/* Buscador */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
               <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg h-[68px] relative z-30">
                 <div className="relative flex-grow h-full flex items-center">
@@ -197,7 +178,6 @@ const DirectorioPage = () => {
                     placeholder="Buscar por nombre completo o empresa..."
                     className="w-full h-full pl-16 pr-24 bg-transparent text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none text-lg"
                   />
-                  
                   <div className="absolute right-6 flex items-center gap-2">
                     {filterType !== 'Todos' && (
                       <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2.5 py-1 rounded-md">
@@ -210,7 +190,7 @@ const DirectorioPage = () => {
 
               {/* Filtros de Tipo */}
               <div className="flex flex-col items-center gap-3 w-full">
-                <div 
+                <div
                   ref={scrollRef}
                   onMouseDown={handleMouseDown}
                   onMouseLeave={handleMouseLeave}
@@ -227,10 +207,11 @@ const DirectorioPage = () => {
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`flex-shrink-0 px-4 md:px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center ${filterType === f.id
+                      className={`flex-shrink-0 px-4 md:px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center ${
+                        filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
-                        }`}
+                      }`}
                     >
                       {f.label}
                     </button>
@@ -244,31 +225,32 @@ const DirectorioPage = () => {
 
         {/* Results Section */}
         <section className="max-w-[1600px] mx-auto px-6 pt-10 pb-16">
-          {loading ? (
+          {loadingFirst ? (
             /* Skeleton grid while first page loads */
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
               {Array.from({ length: 10 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
             </div>
-          ) : resultados.length > 0 ? (
+          ) : afiliados.length > 0 ? (
             <>
-              <div className={`grid grid-cols-1 ${
-                resultados.length === 1 ? 'max-w-sm mx-auto' :
-                resultados.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
-                resultados.length === 3 ? 'sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto' :
-                resultados.length === 4 ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto' :
-                'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full'
-              } gap-4 md:gap-6 justify-center`}>
-                {resultados.slice(0, visibleCount).map((afiliado) => (
+              <div className={`grid grid-cols-1 ${gridCols} gap-4 md:gap-6 justify-center`}>
+                {afiliados.map((afiliado) => (
                   <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
                 ))}
               </div>
-              {visibleCount < resultados.length && (
-                <div ref={lastElementRef} className="h-20 flex items-center justify-center mt-12 w-full col-span-full">
+
+              {/* Sentinel + bottom loader */}
+              <div ref={sentinelRef} className="h-20 flex items-center justify-center mt-12 w-full">
+                {loadingMore && (
                   <Loader2 size={32} className="animate-spin text-emerald-600" />
-                </div>
-              )}
+                )}
+                {!hasMore && afiliados.length > 0 && (
+                  <p className="text-sm text-slate-400 dark:text-emerald-100/30 font-medium">
+                    — {afiliados.length} miembro{afiliados.length !== 1 ? 's' : ''} en total —
+                  </p>
+                )}
+              </div>
             </>
           ) : (
             <div className="text-center py-20 bg-white dark:bg-[#04432f] rounded-[2rem] border border-slate-200 dark:border-emerald-500/20 shadow-sm max-w-2xl mx-auto transition-colors mt-8">

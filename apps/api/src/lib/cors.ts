@@ -66,8 +66,11 @@ export function corsMiddleware(req: Request, res: Response, next: NextFunction):
   const origin = req.headers.origin
 
   // ── 1. Determinar si el origen está permitido ───────────────────────
+  const isPublicRoute = req.path.startsWith('/api/public')
   let allowed = false
-  if (!origin) {
+  if (isPublicRoute) {
+    allowed = true
+  } else if (!origin) {
     allowed = true // server-to-server, curl, etc.
   } else if (env.NODE_ENV !== 'production') {
     console.log(`[CORS] Desarrollo — permitido: ${origin}`)
@@ -84,13 +87,31 @@ export function corsMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   // ── 2. Setear cabeceras CORS en TODAS las respuestas ───────────────
-  if (allowed && origin) {
+  // Evita respuestas cacheadas sin ACAO (p. ej. visita directa en pestaña sin Origin).
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+  res.setHeader('Vary', 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers')
+
+  if (isPublicRoute) {
+    // Si el navegador envía un Origin (siempre lo hace con credentials), respondemos
+    // con ese origen concreto para que sea compatible con `credentials: 'include'`.
+    // El comodín `*` está prohibido cuando se envían credenciales (cookie/auth header).
+    const publicOrigin = origin ?? '*'
+    res.setHeader('Access-Control-Allow-Origin', publicOrigin)
+    if (origin) {
+      // Solo necesario cuando hay un Origin real (peticiones del navegador)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization, X-Requested-With, Accept'
+    )
+  } else if (allowed && origin) {
     res.setHeader('Access-Control-Allow-Origin', origin)
-    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   }
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
   // ── 3. Si es una preflight OPTIONS, responder ya ────────────────────
   if (req.method === 'OPTIONS') {
