@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express'
-import cors from 'cors'
 import { env } from './config/env.js'
-import { isOriginAllowed } from './lib/cors.js'
+import { isOriginAllowed, corsMiddleware } from './lib/cors.js'
 import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes } from './routes/index.js'
 
 
@@ -17,24 +16,22 @@ app.use((req, _res, next) => {
   next()
 })
 
-const corsMiddleware = cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true)
-    if (env.NODE_ENV !== 'production') return callback(null, true)
-
-    if (isOriginAllowed(origin)) return callback(null, true)
-
-    console.warn(`[CORS] Origin bloqueado: ${origin} | Permitidos: ${env.CORS_ORIGINS.join(', ')}`)
-    return callback(null, false)
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-})
-
 app.use(corsMiddleware)
 app.use(express.json())
-app.options('{*path}', corsMiddleware)
+
+// ── Debug: endpoint para diagnosticar CORS desde producción ──────────
+app.get('/api/cors-check', (req, res) => {
+  const origin = req.headers.origin || '(sin-origin)'
+  res.json({
+    ok: true,
+    origin,
+    allowed_origin: isOriginAllowed(origin),
+    allowed: env.CORS_ORIGINS,
+    app_url: env.APP_URL,
+    node_env: env.NODE_ENV,
+    request_host: req.headers.host,
+  })
+})
 
 // Rutas de API
 app.use('/api/auth', authRoutes)

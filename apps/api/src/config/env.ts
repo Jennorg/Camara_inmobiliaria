@@ -19,8 +19,10 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('7d'),
   /**
-   * APP_URL: URL pública del frontend (para links en correos).
+   * APP_URL: URL pública del frontend (para links en correos y fallback CORS).
    * En Vercel suele ser tu dominio `https://<app>.vercel.app`.
+   * NOTA: APP_URL siempre se incluye como origin permitido en CORS,
+   * incluso si CORS_ORIGINS está configurado.
    */
   APP_URL: z.string().url().default('http://localhost:5173'),
 
@@ -28,6 +30,7 @@ const envSchema = z.object({
    * CORS_ORIGINS / CORS_ORIGIN:
    * - `CORS_ORIGINS` puede ser una lista separada por comas.
    * - `CORS_ORIGIN` se mantiene por compatibilidad (un solo origin).
+   * - APP_URL se agrega automáticamente como fallback.
    *
    * Ej: "http://localhost:5173,https://mi-frontend.vercel.app"
    */
@@ -48,11 +51,19 @@ const envSchema = z.object({
 
 const parsed = envSchema.parse(process.env)
 
-const corsRaw = parsed.CORS_ORIGINS ?? parsed.CORS_ORIGIN ?? parsed.APP_URL
-const corsList = corsRaw
+// ── CORS: construye la lista de orígenes permitidos ────────────────────
+const corsRaw = parsed.CORS_ORIGINS ?? parsed.CORS_ORIGIN ?? ''
+const corsFromEnv = corsRaw
   .split(',')
   .map(s => s.trim().replace(/\/$/, ''))
   .filter(Boolean)
+
+// APP_URL siempre se incluye como fallback (útil cuando la API y el frontend
+// comparten dominio o cuando CORS_ORIGINS no está configurado).
+const appOrigin = parsed.APP_URL.replace(/\/$/, '')
+const corsList = corsFromEnv.includes(appOrigin)
+  ? corsFromEnv
+  : [appOrigin, ...corsFromEnv]
 
 export const env = {
   ...parsed,
