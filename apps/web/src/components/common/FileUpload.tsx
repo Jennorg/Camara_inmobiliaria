@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as ImageIcon, FileUp } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as ImageIcon, FileUp, Crop } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
@@ -54,6 +54,18 @@ export default function FileUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Nombre original del archivo restaurado (si existe)
   const [restoredFileName, setRestoredFileName] = useState<string | null>(initialFileName ?? null);
+
+  useEffect(() => {
+    if (initialUrl !== undefined) {
+      setUploadedUrl(initialUrl);
+    }
+  }, [initialUrl]);
+
+  useEffect(() => {
+    if (initialFileName !== undefined) {
+      setRestoredFileName(initialFileName);
+    }
+  }, [initialFileName]);
 
   // Estados para el recorte
   const [showCropper, setShowCropper] = useState(false);
@@ -130,41 +142,37 @@ export default function FileUpload({
 
     if (!selectedFile) return;
 
-    // Basic validation
     if (selectedFile.size > 5 * 1024 * 1024) {
       setError('El archivo es demasiado grande (Máx 5MB)');
       return;
     }
 
-    // Reset state
     setError(null);
+    setFile(selectedFile);
 
-    // Si es imagen y el recorte está habilitado
-    if (enableCrop && selectedFile.type.startsWith('image/')) {
-      setFile(selectedFile);
-      setCrop({ x: 0, y: 0 }); // Reset before media loads
-      setZoom(1);
+    // Cargar la imagen local base64 de fondo por si el usuario decide recortarla después
+    if (selectedFile.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = () => {
         setImageToCrop(reader.result as string);
-        setShowCropper(true);
       };
       reader.readAsDataURL(selectedFile);
-    } else {
-      setFile(selectedFile);
-      await startUpload(selectedFile);
     }
+
+    await startUpload(selectedFile);
   };
 
   const handleCropSave = async () => {
-    if (!imageToCrop || !croppedAreaPixels || !file) return;
+    if (!imageToCrop || !croppedAreaPixels) return;
     
     try {
-      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels, 0, { horizontal: false, vertical: false }, file.type);
+      const fileType = file?.type || 'image/jpeg';
+      const fileName = file?.name || restoredFileName || 'logo_recortado.jpg';
+      
+      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels, 0, { horizontal: false, vertical: false }, fileType);
       if (croppedImageBlob) {
-        const croppedFile = new File([croppedImageBlob], file.name, { type: file.type });
+        const croppedFile = new File([croppedImageBlob], fileName, { type: fileType });
         setShowCropper(false);
-        setImageToCrop(null);
         await startUpload(croppedFile);
       }
     } catch (err) {
@@ -175,9 +183,19 @@ export default function FileUpload({
 
   const handleCropCancel = () => {
     setShowCropper(false);
-    setImageToCrop(null);
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleTriggerCrop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || uploading) return;
+    
+    if (!imageToCrop && uploadedUrl) {
+      setImageToCrop(uploadedUrl);
+    }
+    
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setShowCropper(true);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -208,10 +226,19 @@ export default function FileUpload({
   };
 
   const isImage = file?.type.startsWith('image/');
+  const isUrlImage = !!(
+    isImage || 
+    (uploadedUrl && (
+      uploadedUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)/i) || 
+      uploadedUrl.includes('supabase.co/storage/v1/object/public/logos/') ||
+      uploadedUrl.includes('supabase.co/storage/v1/object/public/')
+    )) ||
+    (restoredFileName && restoredFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)/i))
+  );
 
   return (
-    <div className="space-y-2.5">
-      <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex justify-between items-center">
+    <div className="space-y-2.5 flex flex-col h-full">
+      <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex items-end justify-between min-h-[2.75rem] pb-1 shrink-0">
         <span>{label} {required && <span className="text-rose-500">*</span>}</span>
         {uploadedUrl && (
           <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100">
@@ -225,7 +252,7 @@ export default function FileUpload({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !uploadedUrl && !uploading && !disabled && fileInputRef.current?.click()}
-        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden ${
+        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden flex-1 flex flex-col justify-center min-h-[140px] ${
           disabled
             ? 'border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
             : isDragging
@@ -255,13 +282,15 @@ export default function FileUpload({
           </div>
         ) : (
           <div className="w-full flex items-center gap-4 px-5 py-5">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-              uploading ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-500 text-white'
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${
+              uploading ? 'bg-emerald-100 text-emerald-600' : (isUrlImage ? 'bg-slate-50 border border-slate-100' : 'bg-emerald-500 text-white')
             }`}>
               {uploading ? (
-                <Loader2 size={24} className="animate-spin" />
-              ) : isImage ? (
-                <ImageIcon size={24} />
+                <Loader2 size={24} className="animate-spin text-emerald-600" />
+              ) : isUrlImage && uploadedUrl ? (
+                <img src={uploadedUrl} alt="Preview" className="w-full h-full object-cover animate-in fade-in duration-200" />
+              ) : isUrlImage && file ? (
+                <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover animate-in fade-in duration-200" />
               ) : (
                 <FileText size={24} />
               )}
@@ -290,14 +319,26 @@ export default function FileUpload({
             </div>
 
             {!uploading && !disabled && (
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all"
-                title="Eliminar archivo"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {enableCrop && isUrlImage && (
+                  <button
+                    type="button"
+                    onClick={handleTriggerCrop}
+                    className="p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-all"
+                    title="Recortar / Ajustar"
+                  >
+                    <Crop size={18} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all"
+                  title="Eliminar archivo"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -384,7 +425,7 @@ export default function FileUpload({
                 onClick={handleCropSave}
                 className="flex-[2] bg-emerald-500 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
               >
-                Aplicar y Subir
+                Aplicar Recorte
               </button>
             </div>
           </div>
