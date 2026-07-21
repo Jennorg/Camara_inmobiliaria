@@ -1,18 +1,32 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { Search, Users, Clock, AlertCircle } from 'lucide-react'
+import { Search, Users, Clock, AlertCircle, Building2 } from 'lucide-react'
 
 // ─── DonutChart ───────────────────────────────────────────────────────────────
 interface DonutSlice { label: string; value: number; color: string }
 
-function DonutChart({ slices, title, sub }: { slices: DonutSlice[]; title: string; sub?: string }) {
-  const total = slices.reduce((a, s) => a + s.value, 0)
+function DonutChart({ 
+  slices, 
+  title, 
+  sub,
+  customCenterValue,
+  customCenterLabel
+}: { 
+  slices: DonutSlice[]; 
+  title: string; 
+  sub?: string;
+  customCenterValue?: number;
+  customCenterLabel?: string;
+}) {
+  const sumTotal = slices.reduce((a, s) => a + s.value, 0)
+  const centerValue = customCenterValue !== undefined ? customCenterValue : sumTotal
+  const centerLabel = customCenterLabel || 'Total'
   const R = 40; const cx = 60; const cy = 60; const STROKE = 12
   let cumulative = 0
 
   const arcs = slices.map(s => {
-    const pct = total > 0 ? s.value / total : 0
+    const pct = sumTotal > 0 ? s.value / sumTotal : 0
     const start = cumulative
     cumulative += pct
     return { ...s, pct, start }
@@ -43,9 +57,9 @@ function DonutChart({ slices, title, sub }: { slices: DonutSlice[]; title: strin
               return a.pct > 0 && <path key={i} d={arcD(a.start, a.pct)} fill='none' stroke={a.color} strokeWidth={STROKE} strokeLinecap='round' className='transition-all duration-700' />
             })}
           </svg>
-          <div className='absolute inset-0 flex flex-col items-center justify-center'>
-            <span className='text-xl font-black text-slate-900 leading-none'>{total}</span>
-            <span className='text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1'>Total</span>
+          <div className='absolute inset-0 flex flex-col items-center justify-center text-center px-1'>
+            <span className='text-xl font-black text-slate-900 leading-none'>{centerValue}</span>
+            <span className='text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[70px]'>{centerLabel}</span>
           </div>
         </div>
         <div className='flex flex-col gap-2.5 flex-1 w-full min-w-0'>
@@ -67,6 +81,51 @@ function DonutChart({ slices, title, sub }: { slices: DonutSlice[]; title: strin
       </div>
     </div>
   )
+}
+
+// ─── BarChartCard ─────────────────────────────────────────────────────────────
+function BarChartCard({
+  slices,
+  title,
+  sub,
+}: {
+  slices: DonutSlice[];
+  title: string;
+  sub?: string;
+}) {
+  const maxVal = Math.max(...slices.map(s => s.value), 1);
+
+  return (
+    <div className='bg-white rounded-[2rem] p-6 border border-slate-100 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow w-full'>
+      <div>
+        <h3 className='text-sm font-black text-slate-800 uppercase tracking-tight'>{title}</h3>
+        {sub && <p className='text-[11px] text-slate-400 font-medium mt-0.5'>{sub}</p>}
+      </div>
+
+      <div className='flex flex-col gap-2.5 flex-1 justify-center'>
+        {slices.map((s, i) => {
+          const pct = Math.min(100, Math.round((s.value / maxVal) * 100));
+          return (
+            <div key={i} className='space-y-1'>
+              <div className='flex items-center justify-between text-[10px] font-bold'>
+                <div className='flex items-center gap-1.5 min-w-0'>
+                  <span className='w-2.5 h-2.5 rounded-sm flex-shrink-0' style={{ background: s.color }} />
+                  <span className='text-slate-600 uppercase tracking-wide truncate'>{s.label}</span>
+                </div>
+                <span className='text-slate-900 font-black tabular-nums shrink-0 ml-1'>{s.value} <span className='text-[9px] font-normal text-slate-400'>faltantes</span></span>
+              </div>
+              <div className='w-full h-1.5 bg-slate-50 rounded-full overflow-hidden'>
+                <div 
+                  className='h-full rounded-full transition-all duration-1000' 
+                  style={{ width: `${pct}%`, background: s.color }} 
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,6 +192,7 @@ const AnalyticsPanel = () => {
   const kpis             = useMemo(() => data?.kpis             || {}, [data])
   const admissionSlices  = useMemo(() => data?.admissionSlices  || [], [data])
   const memberTypeSlices = useMemo(() => data?.memberTypeSlices || [], [data])
+  const corpLogoSlices   = useMemo(() => data?.corpLogoSlices   || [], [data])
   const pendingDataSlices = useMemo(() => data?.pendingDataSlices || [], [data])
   const cibirSlices      = useMemo(() => data?.cibirSlices      || [], [data])
   const preaniSlices     = useMemo(() => data?.preaniSlices     || [], [data])
@@ -206,21 +266,30 @@ const AnalyticsPanel = () => {
           </div>
           <div className='group bg-white rounded-[1.75rem] p-5 border border-slate-100 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 w-72'>
             <div className='flex items-start justify-between gap-2'>
-              <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Información Pendiente</p>
-              <div className='w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500'>
-                <AlertCircle size={18} className='text-red-500' />
+              <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Logos Corporativos</p>
+              <div className='w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500'>
+                <Building2 size={18} className='text-blue-500' />
               </div>
             </div>
-            <p className='text-3xl font-black text-slate-900 leading-none'>{kpis.afiliadosConPendientes || 0}</p>
-            <p className='text-[10px] text-slate-400 font-medium'>Afiliados con datos clave incompletos</p>
+            <p className='text-3xl font-black text-slate-900 leading-none'>
+              {kpis.afiliadosCorpConLogo || 0} <span className='text-sm text-slate-400 font-bold'>/ {kpis.totalAfiliadosCorp || 0}</span>
+            </p>
+            <p className='text-[10px] text-slate-400 font-medium'>
+              {kpis.totalAfiliadosCorp > 0 ? Math.round(((kpis.afiliadosCorpConLogo || 0) / kpis.totalAfiliadosCorp) * 100) : 0}% de empresas tienen su logo cargado
+            </p>
           </div>
         </div>
 
-        {/* Embudo + Tipos de miembro + Información Pendiente */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-5'>
-          <DonutChart slices={admissionSlices}  title='Embudo de Admision'  sub='Candidatos activos por etapa del proceso' />
-          <DonutChart slices={memberTypeSlices} title='Tipos de Miembros'   sub='Distribucion de afiliados activos por categoria' />
-          <DonutChart slices={pendingDataSlices} title='Información Clave Pendiente' sub='Afiliados con campos clave faltantes (Cédula, RIF, Email)' />
+        {/* Embudo + Tipos de miembro + Logos Corporativos + Información Pendiente */}
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5'>
+          <DonutChart slices={admissionSlices}  title='Embudo de Admisión'  sub='Candidatos activos por etapa del proceso' />
+          <DonutChart slices={memberTypeSlices} title='Tipos de Miembros'   sub='Distribución de afiliados activos por categoría' />
+          <DonutChart slices={corpLogoSlices}   title='Logos Corporativos' sub='Empresas corporativas con logo cargado' />
+          <BarChartCard 
+            slices={pendingDataSlices} 
+            title='Información Pendiente' 
+            sub='Campos faltantes en la base de datos' 
+          />
         </div>
       </section>
 
