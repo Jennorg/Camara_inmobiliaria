@@ -8,7 +8,7 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   formacion: { title: 'Formación', subtitle: 'Cursos, talleres y asignación de estudiantes' },
   preinscripciones: {
     title: 'Preinscripciones',
-    subtitle: 'Postulaciones, entrevistas y admisión a programas (PREANI, PEGI, PADI, CIBIR y afiliación)',
+    subtitle: '',
   },
   cms: { title: 'Contenido', subtitle: 'Todas las secciones de la Landing' },
   noticias: { title: 'Noticias', subtitle: 'Últimas novedades y artículos' },
@@ -18,7 +18,7 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   paginas: { title: 'Páginas públicas', subtitle: 'Contenido JSON de rutas /beneficios, /pegi, etc.' },
   config: { title: 'Configuración de Contenido', subtitle: 'Textos fijos e imágenes de la Landing' },
   media: { title: 'Medios', subtitle: 'Gestionar archivos e imágenes' },
-  afiliados: { title: 'Afiliados', subtitle: 'Gestión de candidatos y afiliados CIBIR' },
+  afiliados: { title: 'Afiliados', subtitle: '' },
   estudiantes: { title: 'Estudiantes', subtitle: 'Estudiantes regulares e inscripciones activas' },
   admin_users: { title: 'Administradores', subtitle: 'Cuentas con acceso al panel administrativo' },
   users: { title: 'Usuarios', subtitle: 'Cuentas de acceso al sistema' },

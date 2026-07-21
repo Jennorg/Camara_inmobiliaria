@@ -260,6 +260,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => {
         clearTimeout(failsafe);
       });
+
+    return () => clearTimeout(failsafe);
   }, [setToken])
 
   // Login function

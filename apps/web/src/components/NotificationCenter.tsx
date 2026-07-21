@@ -47,6 +47,7 @@ const NotificationCenter = () => {
 
       {/* ── Botón campana ── */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Notificaciones"
         aria-expanded={isOpen}
@@ -96,6 +97,7 @@ const NotificationCenter = () => {
             <div className="flex items-center gap-3">
               {unreadCount > 0 && (
                 <button
+                  type="button"
                   onClick={markAllAsRead}
                   className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors"
                 >
@@ -105,6 +107,7 @@ const NotificationCenter = () => {
               )}
               {/* Botón cerrar – visible en móvil */}
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 aria-label="Cerrar notificaciones"
                 className="sm:hidden p-1.5 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
@@ -126,7 +129,15 @@ const NotificationCenter = () => {
                 {notifications.map((n) => (
                   <div
                     key={n.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => n.leido === 0 && markAsRead(n.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        if (n.leido === 0) markAsRead(n.id)
+                      }
+                    }}
                     className={`px-4 sm:px-5 py-4 transition-all cursor-pointer hover:bg-slate-50 flex gap-3 sm:gap-4 ${n.leido === 0 ? 'bg-emerald-50/20' : ''}`}
                   >
                     <div className="shrink-0 mt-1">
@@ -169,6 +180,7 @@ const NotificationCenter = () => {
           {/* Pie */}
           <div className="px-5 py-3 border-t border-slate-50 text-center">
             <button
+              type="button"
               onClick={() => { setIsOpen(false); setIsHistoryOpen(true); }}
               className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-emerald-600 transition-colors"
             >

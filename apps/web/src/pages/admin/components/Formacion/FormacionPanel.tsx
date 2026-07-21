@@ -15,7 +15,7 @@ const FormacionPanel = () => {
 
 
   return (
-    <div className="flex flex-col flex-1 h-full min-h-0 w-full overflow-hidden">
+    <div className="flex flex-col flex-1 h-full min-h-0 w-full min-w-0 overflow-hidden">
       <div className="flex items-center gap-1 px-4 sm:px-5 pt-4 pb-0 bg-white border-b border-gray-100 flex-shrink-0 overflow-x-auto scrollbar-hide">
         {tabs.map(tab => (
           <button
@@ -34,10 +34,9 @@ const FormacionPanel = () => {
       </div>
 
       {/* Content */}
-      <div className="flex-1 h-full min-h-0 flex flex-col overflow-hidden">
+      <div className="flex-1 h-full min-h-0 w-full min-w-0 flex flex-col overflow-hidden">
         {activeTab === 'cursos' && <CursosAdminPanel />}
         {activeTab === 'aprobar' && <AprobarCursosPanel />}
-
       </div>
     </div>
   )

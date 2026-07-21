@@ -12,7 +12,7 @@
 import { useState, useEffect } from 'react'
 import { API_URL } from '@/config/env'
 
-const CACHE_KEY = 'ciebo_cms_config'
+const CACHE_KEY = 'ciebo_cms_config:v1'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 interface CacheEntry {

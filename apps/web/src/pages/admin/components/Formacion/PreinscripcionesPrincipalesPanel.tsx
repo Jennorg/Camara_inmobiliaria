@@ -62,6 +62,9 @@ export default function PreinscripcionesPrincipalesPanel({
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
   const [search, setSearch] = useState('')
   const [filtroAcreditacion, setFiltroAcreditacion] = useState<'todos' | 'apto' | 'no_apto'>('todos')
+  const [showProgramaDropdown, setShowProgramaDropdown] = useState(false)
+  const [showAcreditacionDropdown, setShowAcreditacionDropdown] = useState(false)
+  const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0)
   const [rows, setRows] = useState<Row[]>([])
   const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, 'Sin Expediente': 0, Entrevista: 0, Inscripción: 0, Rechazado: 0 })
   const [loading, setLoading] = useState(true)
@@ -407,9 +410,23 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }, [selected?.id_inscripcion, selected?.afiliado_estatus, token])
 
+  const fetchSolicitudesCount = async () => {
+    if (!token) return
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setSolicitudesCambioCount(json.data.length)
+      }
+    } catch { /* silencioso */ }
+  }
+
   useEffect(() => {
     fetchData()
-  }, [programa, uiEstatus, token])
+    fetchSolicitudesCount()
+  }, [programa, uiEstatus, activeSubTab, token])
 
   const agendarEntrevista = async () => {
     if (!selected) return
@@ -698,11 +715,16 @@ export default function PreinscripcionesPrincipalesPanel({
         </button>
         <button
           onClick={() => setActiveSubTab('solicitudes')}
-          className={`text-xs font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${
+          className={`text-xs font-black uppercase tracking-wider pb-2 border-b-2 transition-all flex items-center gap-2 ${
             activeSubTab === 'solicitudes' ? 'border-[#00D084] text-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'
           }`}
         >
-          Solicitudes de Cambio
+          <span>Solicitudes de Cambio</span>
+          {solicitudesCambioCount > 0 && (
+            <span className="min-w-[18px] h-[18px] px-1.5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs animate-in zoom-in-75 duration-200">
+              {solicitudesCambioCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -724,28 +746,90 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
 
           <div className="flex gap-2">
-            <select
-              value={programa}
-              onChange={(e) => setPrograma(e.target.value as any)}
-              className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 outline-none focus:border-[#00D084] transition-all flex-1"
-            >
-              <option value="Todos">Todos los Programas</option>
-              <option value="AFILIACION">AFILIACION</option>
-              <option value="CIBIR">CIBIR</option>
-              <option value="PADI">PADI</option>
-              <option value="PEGI">PEGI</option>
-              <option value="PREANI">PREANI</option>
-            </select>
+            {/* Custom Programa Dropdown */}
+            <div className="relative flex-1">
+              <button
+                type="button"
+                onClick={() => setShowProgramaDropdown(!showProgramaDropdown)}
+                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                <span className="truncate">
+                  {programa === 'Todos' ? 'Todos los Programas' : programa}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${showProgramaDropdown ? 'rotate-180' : ''}`} />
+              </button>
 
-            <select
-              value={filtroAcreditacion}
-              onChange={(e) => setFiltroAcreditacion(e.target.value as any)}
-              className="text-[10px] font-bold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 outline-none focus:border-[#00D084] transition-all flex-1"
-            >
-              <option value="todos">Todos (Acreditación)</option>
-              <option value="apto">Opta por acreditación</option>
-              <option value="no_apto">No opta por acreditación</option>
-            </select>
+              {showProgramaDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowProgramaDropdown(false)} />
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[150px] animate-in fade-in slide-in-from-top-1 duration-200">
+                    {[
+                      { key: 'Todos', label: 'Todos los Programas' },
+                      { key: 'AFILIACION', label: 'AFILIACION' },
+                      { key: 'CIBIR', label: 'CIBIR' },
+                      { key: 'PADI', label: 'PADI' },
+                      { key: 'PEGI', label: 'PEGI' },
+                      { key: 'PREANI', label: 'PREANI' },
+                    ].map(option => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setPrograma(option.key as any)
+                          setShowProgramaDropdown(false)
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-[10px] font-bold transition-colors ${
+                          programa === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Custom Filtro Acreditación Dropdown */}
+            <div className="relative flex-1">
+              <button
+                type="button"
+                onClick={() => setShowAcreditacionDropdown(!showAcreditacionDropdown)}
+                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                <span className="truncate">
+                  {filtroAcreditacion === 'todos' ? 'Todos (Acreditación)' : filtroAcreditacion === 'apto' ? 'Opta por acreditación' : 'No opta por acreditación'}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${showAcreditacionDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showAcreditacionDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowAcreditacionDropdown(false)} />
+                  <div className="absolute right-0 sm:left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[160px] animate-in fade-in slide-in-from-top-1 duration-200">
+                    {[
+                      { key: 'todos', label: 'Todos (Acreditación)' },
+                      { key: 'apto', label: 'Opta por acreditación' },
+                      { key: 'no_apto', label: 'No opta por acreditación' },
+                    ].map(option => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setFiltroAcreditacion(option.key as any)
+                          setShowAcreditacionDropdown(false)
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-[10px] font-bold transition-colors ${
+                          filtroAcreditacion === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-1.5 mt-1">
@@ -1330,7 +1414,7 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
         ) : (
           <div className="absolute inset-0 bg-white">
-            <AfiliadosPanel defaultViewMode="solicitudes" />
+            <AfiliadosPanel defaultViewMode="solicitudes" hideViewModeTabs />
           </div>
         )}
       </div>

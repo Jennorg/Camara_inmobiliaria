@@ -286,6 +286,7 @@ const PanelPage = () => {
                       </div>
                       <div className="flex gap-2">
                         <button 
+                          type="button"
                           onClick={fetchAfiliado}
                           disabled={loadingAfiliado || loadingAgentes}
                           className="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 border border-white/10"
@@ -294,6 +295,7 @@ const PanelPage = () => {
                           <RefreshCw size={20} className={(loadingAfiliado || loadingAgentes) ? 'animate-spin' : ''} />
                         </button>
                         <button 
+                          type="button"
                           onClick={() => setActiveTab('Mis Agentes')}
                           className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap ${
                             solicitudesPendientesCount > 0 

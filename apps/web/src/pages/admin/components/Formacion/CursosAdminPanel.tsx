@@ -43,6 +43,23 @@ const NIVEL_STYLES: Record<string, string> = {
   'Libre': 'bg-gray-50 text-gray-600',
 };
 
+const getSafeNumber = (val: any, fallback = 0): number => {
+  const num = Number(val);
+  return isNaN(num) ? fallback : num;
+};
+
+const calcInscritos = (c: any): number => {
+  if (typeof c?.num_estudiantes === 'number' && !isNaN(c.num_estudiantes)) {
+    return c.num_estudiantes;
+  }
+  if (typeof c?.inscritos === 'number' && !isNaN(c.inscritos)) {
+    return c.inscritos;
+  }
+  const totales = getSafeNumber(c?.cupos_totales, 0);
+  const disponibles = getSafeNumber(c?.cupos_disponibles, totales);
+  return Math.max(0, totales - disponibles);
+};
+
 const CursosAdminPanel = () => {
   const { token } = useAuth();
   const [cursos, setCursos] = useState<CursoDB[]>([]);
@@ -384,7 +401,7 @@ const CursosAdminPanel = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 overflow-y-auto h-full relative">
+    <div className="w-full flex-1 min-w-0 p-4 sm:p-6 overflow-y-auto h-full relative flex flex-col">
       <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Cursos & Talleres</h3>
@@ -430,19 +447,25 @@ const CursosAdminPanel = () => {
                   </span>
                 </div>
                 {/* Cupos bar */}
-                {c.cupos_totales >= 999999 ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider">Cupos Ilimitados</span>
-                    <span className="text-[10px] text-slate-500 ml-auto tabular-nums">{c.cupos_totales - c.cupos_disponibles} inscritos</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${Math.max(0, Math.min(100, ((c.cupos_totales - c.cupos_disponibles) / c.cupos_totales) * 100))}%` }} />
+                {(() => {
+                  const totales = getSafeNumber(c.cupos_totales, 0);
+                  const ins = calcInscritos(c);
+                  const isIlimitado = totales >= 999999;
+                  const pct = totales > 0 ? Math.max(0, Math.min(100, (ins / totales) * 100)) : 0;
+                  return isIlimitado ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider">Cupos Ilimitados</span>
+                      <span className="text-[10px] text-slate-500 ml-auto tabular-nums">{ins} inscritos</span>
                     </div>
-                    <span className="text-[10px] text-slate-500 whitespace-nowrap tabular-nums">{(c.cupos_totales - c.cupos_disponibles)}/{c.cupos_totales} inscritos</span>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] text-slate-500 whitespace-nowrap tabular-nums">{ins}/{totales} inscritos</span>
+                    </div>
+                  );
+                })()}
                 <div className="flex gap-2 mt-2 border-t pt-2 border-gray-100 justify-end">
                   <button 
                     onClick={() => setViewingCurso(c)} 
@@ -481,48 +504,51 @@ const CursosAdminPanel = () => {
           </div>
 
           <div className="hidden sm:block bg-white rounded-2xl border border-gray-100 overflow-x-auto">
-            <table className="w-full text-sm min-w-[640px]">
+            <table className="w-full text-sm min-w-[640px] table-auto">
               <thead>
-                <tr className="bg-gray-50/60">
-                  {['CURSO', 'INSTRUCTOR', 'INSCRITOS', 'FECHA INICIO', 'ACCIONES'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
+                <tr className="bg-gray-50/60 border-b border-gray-100">
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap w-[30%]">CURSO</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap w-[20%]">INSTRUCTOR</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap w-[20%]">INSCRITOS</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap w-[15%]">FECHA INICIO</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap w-[15%]">ACCIONES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {cursos.map(c => {
-                  const ins = c.cupos_totales - c.cupos_disponibles;
+                  const totales = getSafeNumber(c.cupos_totales, 0);
+                  const ins = calcInscritos(c);
+                  const isIlimitado = totales >= 999999;
+                  const pct = totales > 0 ? Math.max(0, Math.min(100, (ins / totales) * 100)) : 0;
                   return (
                   <tr key={c.id_curso} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <p className="font-semibold text-slate-800 text-xs leading-tight max-w-[200px]">{c.titulo || c.nombre}</p>
+                    <td className="px-4 py-3 text-left">
+                      <div className="flex flex-col gap-1 items-start">
+                        <p className="font-semibold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
                         {c.categoria && (
-                          <span className="self-start text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{c.instructor_nombre || 'Sin Instructor'}</td>
-                    <td className="px-4 py-3">
-                      {c.cupos_totales >= 999999 ? (
-                        <div className="flex items-center gap-2">
+                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap text-center">{c.instructor_nombre || 'Sin Instructor'}</td>
+                    <td className="px-4 py-3 text-center">
+                      {isIlimitado ? (
+                        <div className="flex items-center justify-center gap-2">
                           <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Ilimitados</span>
                           <span className="text-xs text-slate-500 tabular-nums">({ins} inscritos)</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full w-16 overflow-hidden">
-                            <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${Math.max(0, Math.min(100, (ins / c.cupos_totales) * 100))}%` }} />
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0">
+                            <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">{ins}/{c.cupos_totales}</span>
+                          <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">{ins}/{totales}</span>
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap text-center">{c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button 
                           onClick={() => setViewingCurso(c)} 
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
@@ -1018,7 +1044,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full w-full min-w-0 flex-1 bg-white">
       {/* Header Premium */}
       <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
         <div className="flex items-center gap-4">
@@ -1042,7 +1068,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           <div className="flex flex-col">
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
             <span className="text-sm font-bold text-slate-700 tabular-nums">
-              {curso.cupos_disponibles} <span className="text-slate-300 font-medium">/ {curso.cupos_totales}</span>
+              {getSafeNumber(curso.cupos_disponibles, 0)} <span className="text-slate-300 font-medium">/ {getSafeNumber(curso.cupos_totales, 0) >= 999999 ? '∞' : getSafeNumber(curso.cupos_totales, 0)}</span>
             </span>
           </div>
           <div className="w-px h-8 bg-gray-100 mx-1" />

@@ -195,6 +195,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           <div className="flex items-center gap-2 shrink-0">
             {unreadCount > 0 && (
               <button
+                type="button"
                 onClick={handleMarkAllAsRead}
                 className="hidden sm:flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors px-2 py-1 rounded-lg hover:bg-emerald-50"
               >
@@ -203,6 +204,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
               aria-label="Cerrar historial"
               className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
@@ -218,6 +220,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           {(['TODAS', 'NO_LEIDAS', 'LEIDAS'] as FilterType[]).map(f => (
             <button
               key={f}
+              type="button"
               onClick={() => setFilter(f)}
               className={[
                 'text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full whitespace-nowrap transition-all',
@@ -233,6 +236,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           {/* Marcar todas – solo móvil */}
           {unreadCount > 0 && (
             <button
+              type="button"
               onClick={handleMarkAllAsRead}
               className="sm:hidden ml-auto flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest whitespace-nowrap"
             >
@@ -268,9 +272,17 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
               {visible.map((n) => (
                 <div
                   key={n.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => n.leido === 0 && handleMarkAsRead(n.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      if (n.leido === 0) handleMarkAsRead(n.id)
+                    }
+                  }}
                   className={[
-                    'group px-5 sm:px-6 py-4 flex gap-3 sm:gap-4 transition-all',
+                    'group px-5 sm:px-6 py-4 flex gap-3 sm:gap-4 transition-all focus:outline-none focus-visible:bg-slate-50',
                     n.leido === 0
                       ? 'bg-emerald-50/30 hover:bg-emerald-50/60 cursor-pointer'
                       : 'hover:bg-slate-50/70 cursor-default',

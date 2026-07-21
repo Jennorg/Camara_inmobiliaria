@@ -92,10 +92,11 @@ const Navbar = ({
           {/* 3. ACCIONES Y AUTENTICACIÓN */}
           <div className="flex-1 flex items-center justify-end space-x-3">
             <button 
+              type="button"
               onClick={() => {
                 const nextMode = !darkMode;
                 setDarkMode(nextMode);
-                localStorage.setItem('darkMode', JSON.stringify(nextMode));
+                localStorage.setItem('darkMode:v1', JSON.stringify(nextMode));
               }}
               className={`hidden p-2 rounded-full transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-emerald-50"}`}
             >
@@ -117,6 +118,7 @@ const Navbar = ({
                   </Link>
 
                   <button
+                    type="button"
                     onClick={logout}
                     title={labelSalir}
                     className='p-2 text-emerald-500/70 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all flex items-center gap-1 text-xs font-bold'
@@ -126,6 +128,7 @@ const Navbar = ({
                 </>
               ) : (
                 <button
+                  type="button"
                   onClick={() => setShowLoginModal(true)}
                   className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95'
                 >
@@ -135,6 +138,7 @@ const Navbar = ({
             </div>
 
             <button 
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
               className={`xl:hidden p-2 rounded-lg transition-colors ${
                 darkMode ? "text-white hover:bg-white/10" : "text-emerald-950 hover:bg-emerald-50"
@@ -163,7 +167,7 @@ const Navbar = ({
           <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-white/10' : 'border-emerald-100'}`}>
             {/* Logo dinámico también en el menú móvil */}
             <img src={darkMode ? logoDark : logoLight} alt="Logo" className="h-12 w-auto" />
-            <button onClick={() => setIsMobileMenuOpen(false)} className={darkMode ? 'text-white' : 'text-emerald-900'}><X /></button>
+            <button type="button" onClick={() => setIsMobileMenuOpen(false)} className={darkMode ? 'text-white' : 'text-emerald-900'}><X /></button>
           </div>
 
           <div className="flex-grow overflow-y-auto p-6 space-y-6">
@@ -194,6 +198,7 @@ const Navbar = ({
 
           <div className="p-6">
             <button 
+              type="button"
               onClick={() => { 
                 if (user) {
                   window.location.href = '/panel';

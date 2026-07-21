@@ -5,21 +5,25 @@ const ScrollToHash = () => {
   const { pathname, hash, key } = useLocation();
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     if (hash) {
       const id = hash.replace('#', '');
       const element = document.getElementById(id);
       if (element) {
-        setTimeout(() => {
+        timer = setTimeout(() => {
           element.scrollIntoView({ behavior: 'smooth' });
         }, 100);
       }
     } else {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         window.scrollTo(0, 0);
         document.documentElement.scrollTo(0, 0);
         document.body.scrollTo(0, 0);
       }, 50);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [pathname, hash, key]);
 
   return null;

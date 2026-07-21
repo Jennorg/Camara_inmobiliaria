@@ -328,6 +328,7 @@ const SettingsPanel = () => {
         <div className="hidden lg:flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar">
           {tabs.filter(t => !t.hide).map(tab => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-left group ${
@@ -347,6 +348,7 @@ const SettingsPanel = () => {
         <div className="lg:hidden flex items-center gap-2 overflow-x-auto p-4 bg-white border-b border-gray-100 scrollbar-hide">
           {tabs.filter(t => !t.hide).map(tab => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest ${

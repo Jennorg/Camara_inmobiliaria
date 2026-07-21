@@ -51,21 +51,21 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
   const [width, setWidth] = useState(1000)
-  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const trackerRef = useRef<HTMLDivElement | null>(null)
 
-  const trackerRef = useCallback((node: HTMLDivElement | null) => {
-    if (resizeObserverRef.current) {
-      resizeObserverRef.current.disconnect()
-      resizeObserverRef.current = null
-    }
-    if (node) {
-      const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          setWidth(entry.contentRect.width)
-        }
-      })
-      observer.observe(node)
-      resizeObserverRef.current = observer
+  React.useEffect(() => {
+    const node = trackerRef.current
+    if (!node) return
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width)
+      }
+    })
+    observer.observe(node)
+
+    return () => {
+      observer.disconnect()
     }
   }, [])
 

@@ -140,9 +140,6 @@ export default function AdminMisAgentesPanel() {
             <Users className="text-emerald-600" size={24} />
             Solicitudes de Agentes
           </h2>
-          <p className="text-sm text-slate-500 max-w-2xl">
-            Área administrativa para gestionar las solicitudes y agentes corporativos. Aquí el admin actúa como intermediario entre las empresas corporativas y el proceso de aprobación.
-          </p>
         </div>
         <button
           type="button"
@@ -166,7 +163,6 @@ export default function AdminMisAgentesPanel() {
           <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-4">
             <div>
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Empresas Corporativas</h3>
-              <p className="text-[11px] text-slate-500 mt-1">Selecciona una empresa para ver sus agentes corporativos.</p>
             </div>
             <span className="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
               {companies.length} Empresas
@@ -199,14 +195,20 @@ export default function AdminMisAgentesPanel() {
                     onClick={() => fetchAgents(companyId)}
                     className={`w-full text-left p-4 transition-colors border-b border-slate-100 ${selectedCompanyId === companyId ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{company.empresa_razon_social || company.nombre_completo}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                        <Building2 size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-900 truncate">{company.empresa_razon_social || company.nombre_completo}</p>
                         <p className="text-[11px] text-slate-500 truncate">{company.empresa_email || company.email || 'Sin email'}</p>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">#{companyId}</span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-2 truncate">RIF: {company.empresa_rif_numero || '—'}</p>
+                    {company.empresa_rif_numero && (
+                      <p className="text-[11px] text-slate-400 font-medium mt-1.5 pl-12 truncate">
+                        RIF: {company.empresa_rif_numero}
+                      </p>
+                    )}
                   </button>
                 ) : null
               })
@@ -228,7 +230,6 @@ export default function AdminMisAgentesPanel() {
                 )}
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Agentes Corporativos</h3>
-                  <p className="text-[11px] text-slate-500 mt-1">Gestión de solicitudes y miembros vinculados.</p>
                 </div>
               </div>
               <span className="rounded-full bg-slate-50 text-slate-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider">

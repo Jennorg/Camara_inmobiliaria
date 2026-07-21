@@ -542,6 +542,28 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
   button, select, [role="button"] {
     cursor: pointer;
   }
+  select option {
+    background-color: #ffffff;
+    color: #059669;
+    font-weight: 600;
+  }
+  select option:checked {
+    background-color: #ecfdf5;
+    color: #047857;
+    font-weight: 700;
+  }
+  select option:hover {
+    background-color: #ecfdf5;
+    color: #059669;
+  }
+  .dark select option {
+    background-color: #04432f;
+    color: #a7f3d0;
+  }
+  .dark select option:checked {
+    background-color: #065f46;
+    color: #ffffff;
+  }
   input, textarea {
     cursor: text;
   }
