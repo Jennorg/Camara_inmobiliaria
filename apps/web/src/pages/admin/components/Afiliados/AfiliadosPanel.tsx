@@ -53,9 +53,10 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
 
 interface AfiliadosPanelProps {
   defaultViewMode?: 'list' | 'solicitudes'
+  hideViewModeTabs?: boolean
 }
 
-export default function AfiliadosPanel({ defaultViewMode = 'list' }: AfiliadosPanelProps) {
+export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeTabs = false }: AfiliadosPanelProps) {
   const { token } = useAuth()
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
@@ -315,31 +316,33 @@ export default function AfiliadosPanel({ defaultViewMode = 'list' }: AfiliadosPa
       <div className="flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0">
         <div className="p-4 border-b border-gray-100 space-y-3">
           {/* viewMode Tabs */}
-          <div className="flex gap-1 p-1 bg-slate-100/70 rounded-xl">
-            <button
-              type="button"
-              onClick={() => { setViewMode('list'); setSelected(null); setSelectedSolicitud(null); }}
-              className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Afiliados CIBIR
-            </button>
-            <button
-              type="button"
-              onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
-              className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative ${
-                viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Solicitudes Cambio
-              {solicitudes.length > 0 && (
-                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black scale-90">
-                  {solicitudes.length}
-                </span>
-              )}
-            </button>
-          </div>
+          {!hideViewModeTabs && (
+            <div className="flex gap-1 p-1 bg-slate-100/70 rounded-xl">
+              <button
+                type="button"
+                onClick={() => { setViewMode('list'); setSelected(null); setSelectedSolicitud(null); }}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Afiliados CIBIR
+              </button>
+              <button
+                type="button"
+                onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative ${
+                  viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Solicitudes Cambio
+                {solicitudes.length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black scale-90">
+                    {solicitudes.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
 
           {viewMode === 'list' ? (
             <>

@@ -20,6 +20,7 @@ import {
 const ic = 'shrink-0 opacity-95'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
+import { toast } from 'sonner'
 
 interface SystemUser {
   id: number
@@ -50,6 +51,7 @@ export default function UsersPanel() {
   const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null)
   const [resetMsg, setResetMsg] = useState<Record<number, string>>({})
   const [sendingInvite, setSendingInvite] = useState<Record<number, boolean>>({})
+  const [userToInvite, setUserToInvite] = useState<SystemUser | null>(null)
   
   const [showResetPassword, setShowResetPassword] = useState(false)
 
@@ -151,10 +153,13 @@ export default function UsersPanel() {
     setFeedback(null)
   }
 
-  const handleSendInvite = async (u: SystemUser) => {
+  const confirmSendInvite = async () => {
+    if (!userToInvite) return
+    const u = userToInvite
+    setUserToInvite(null)
+    
     if (sendingInvite[u.id]) return
     setSendingInvite(prev => ({ ...prev, [u.id]: true }))
-    setFeedback(null)
     try {
       const r = await fetch(`${API_URL}/api/users/${u.id}/invite`, {
         method: 'POST',
@@ -162,12 +167,12 @@ export default function UsersPanel() {
       })
       const d = await r.json()
       if (d.success) {
-        setFeedback({ type: 'ok', msg: `Correo de invitación enviado con éxito a ${u.email}` })
+        toast.success(`Correo de invitación enviado con éxito a ${u.email}`)
       } else {
-        setFeedback({ type: 'err', msg: d.message || 'Error al enviar el correo de invitación' })
+        toast.error(d.message || 'Error al enviar el correo de invitación')
       }
     } catch (e) {
-      setFeedback({ type: 'err', msg: 'Error de conexión al enviar la invitación' })
+      toast.error('Error de conexión al enviar la invitación')
     } finally {
       setSendingInvite(prev => ({ ...prev, [u.id]: false }))
     }
@@ -277,10 +282,10 @@ export default function UsersPanel() {
 
       {/* Reset password modal */}
       {resettingUser && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
           <div className='bg-white rounded-2xl shadow-xl border border-slate-100 p-6 w-full max-w-md animate-in fade-in zoom-in duration-200'>
             <div className='flex items-center gap-3 mb-4'>
-              <div className='w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500'>
+              <div className='w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500'>
                 <KeyRound size={20} />
               </div>
               <div>
@@ -298,7 +303,7 @@ export default function UsersPanel() {
                     autoFocus
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    className='w-full border border-slate-200 rounded-xl pl-4 pr-10 py-2 text-sm focus:outline-none focus:border-amber-400'
+                    className='w-full border border-slate-200 rounded-xl pl-4 pr-10 py-2 text-sm focus:outline-none focus:border-orange-400'
                     placeholder='Mínimo 8 caracteres'
                     minLength={8}
                     required
@@ -306,7 +311,7 @@ export default function UsersPanel() {
                   <button
                     type="button"
                     onClick={() => setShowResetPassword(!showResetPassword)}
-                    className="absolute right-3 text-slate-300 hover:text-amber-500 focus:outline-none transition-colors"
+                    className="absolute right-3 text-slate-300 hover:text-orange-500 focus:outline-none transition-colors"
                     tabIndex={-1}
                   >
                     {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -322,7 +327,7 @@ export default function UsersPanel() {
               <button 
                 type='button' 
                 onClick={() => setResettingUser(null)} 
-                className='px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors'
+                className='px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all duration-200 active:scale-95'
               >
                 Cancelar
               </button>
@@ -330,9 +335,9 @@ export default function UsersPanel() {
                 type='button'
                 disabled={saving || !newPassword}
                 onClick={confirmPasswordReset}
-                className='px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 disabled:opacity-50 shadow-sm transition-all active:scale-95 flex items-center gap-2'
+                className='px-5 py-2.5 bg-orange-700 hover:bg-orange-800 text-white rounded-xl text-xs font-black shadow-sm hover:shadow-md hover:shadow-orange-700/20 disabled:bg-orange-400 disabled:text-orange-100 border border-transparent transition-all duration-200 active:scale-95 flex items-center justify-center gap-2'
               >
-                {saving ? <Loader2 size={14} className='animate-spin' /> : <ShieldCheck size={14} />}
+                {saving && <Loader2 size={14} className='animate-spin' />}
                 Confirmar cambio
               </button>
             </div>
@@ -342,7 +347,7 @@ export default function UsersPanel() {
 
       {/* Delete confirmation modal */}
       {userToDelete && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
           <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
@@ -368,6 +373,39 @@ export default function UsersPanel() {
                 className='w-full py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors'
               >
                 Mantener usuario
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite confirmation modal */}
+      {userToInvite && (
+        <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+            <div className='w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mx-auto mb-4'>
+              <Mail size={32} />
+            </div>
+            <h3 className='text-lg font-black text-slate-800 mb-2'>¿Enviar invitación?</h3>
+            <p className='text-sm text-slate-500 mb-6'>
+              Estás a punto de enviar un correo de invitación a <span className='font-bold text-slate-700'>{userToInvite.email}</span> para que pueda acceder al panel.
+            </p>
+            
+            <div className='flex flex-col gap-2'>
+              <button
+                type='button'
+                onClick={confirmSendInvite}
+                className='w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2'
+              >
+                <Mail size={18} />
+                Enviar Invitación
+              </button>
+              <button 
+                type='button' 
+                onClick={() => setUserToInvite(null)} 
+                className='w-full py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors'
+              >
+                Cancelar
               </button>
             </div>
           </div>
@@ -587,7 +625,7 @@ export default function UsersPanel() {
                         <button
                           type='button'
                           disabled={sendingInvite[u.id]}
-                          onClick={() => handleSendInvite(u)}
+                          onClick={() => setUserToInvite(u)}
                           className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 disabled:opacity-50 transition shadow-sm'
                           title='Enviar correo de invitación'
                         >
@@ -751,7 +789,7 @@ export default function UsersPanel() {
                     <button
                       type='button'
                       disabled={sendingInvite[u.id]}
-                      onClick={() => handleSendInvite(u)}
+                      onClick={() => setUserToInvite(u)}
                       className='inline-flex items-center justify-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold hover:bg-slate-100 transition shadow-sm'
                       title='Enviar correo de invitación'
                     >

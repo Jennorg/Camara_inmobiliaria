@@ -159,7 +159,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
               <option value=''>Selecciona un afiliado...</option>
               {filteredPick.map(a => (
                 <option key={a.id_afiliado} value={a.id_afiliado}>
-                  {a.nombre_completo ? formatNombreCard(a.nombre_completo) : 'Sin nombre'}
+                  {a.nombre_completo ? formatNombreCard(a.nombre_completo) : (a.email || a.empresa_email || 'Sin nombre')}
                   {a.codigo ? ` · ${a.codigo}` : ''}
                   {a.id_user ? ' · cuenta activa' : ' · sin cuenta'}
                 </option>
