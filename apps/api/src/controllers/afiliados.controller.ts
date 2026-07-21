@@ -1770,17 +1770,45 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     // ── Auto-sincronización del correo de acceso ─────────────────────────────
-    if (idUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
+    let effectiveIdUser = idUser;
+    
+    // Si idUser no está vinculado al afiliado, buscar el usuario por el correo actual de la persona
+    if (!effectiveIdUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
+      const lookupEmail = ((oldPersonaEmail as string) || '').trim().toLowerCase();
+      if (lookupEmail) {
+        try {
+          const userByEmail = await db.execute({
+            sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ?`,
+            args: [lookupEmail]
+          });
+          if (userByEmail.rows.length > 0) {
+            effectiveIdUser = (userByEmail.rows[0] as any).id;
+            // Vincular el afiliado con el usuario encontrado para futuras sincronizaciones
+            await db.execute({
+              sql: `UPDATE afiliados SET id_user = ?, actualizado_en = ? WHERE id_afiliado = ?`,
+              args: [effectiveIdUser, now, id]
+            });
+            console.log(`[SYNC] 🔗 Vinculado afiliado ${id} → id_user=${effectiveIdUser} (encontrado por email "${lookupEmail}")`);
+          } else {
+            console.log(`[SYNC] ⚠️ No se encontró ningún usuario con el email "${lookupEmail}"`);
+          }
+        } catch (lookupErr) {
+          console.error('[SYNC] Error buscando usuario por email:', lookupErr);
+        }
+      }
+    }
+
+    if (effectiveIdUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
       try {
         const accessRow = await db.execute({
           sql: `SELECT email FROM users WHERE id = ?`,
-          args: [idUser]
+          args: [effectiveIdUser]
         });
         const curAccess = (accessRow.rows[0]?.email as string || '').trim().toLowerCase();
         const empEmailOld = (oldEmpresaEmail as string || '').trim().toLowerCase();
         const isUsingEmpresa = !!(empEmailOld && curAccess === empEmailOld);
 
-        console.log(`[SYNC] idUser=${idUser} curAccess="${curAccess}" empEmailOld="${empEmailOld}" isUsingEmpresa=${isUsingEmpresa}`);
+        console.log(`[SYNC] idUser=${effectiveIdUser} curAccess="${curAccess}" empEmailOld="${empEmailOld}" isUsingEmpresa=${isUsingEmpresa}`);
         console.log(`[SYNC] fields.email="${fields.email}" fields.empresa_email="${fields.empresa_email}"`);
 
         let emailToSync: string | null = null;
@@ -1795,14 +1823,14 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         if (emailToSync && emailToSync !== curAccess) {
           const dup = await db.execute({
             sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id <> ?`,
-            args: [emailToSync, idUser]
+            args: [emailToSync, effectiveIdUser]
           });
           if (dup.rows.length === 0) {
             await db.execute({
               sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
-              args: [emailToSync, now, idUser]
+              args: [emailToSync, now, effectiveIdUser]
             });
-            console.log(`[SYNC] ✅ users.email actualizado a "${emailToSync}" para id_user=${idUser}`);
+            console.log(`[SYNC] ✅ users.email actualizado a "${emailToSync}" para id_user=${effectiveIdUser}`);
           } else {
             console.log(`[SYNC] ⚠️ Email duplicado, no se sincronizó`);
           }
@@ -3453,6 +3481,14 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
       if (queryExistingRif.rows.length > 0) {
         res.status(400).json({ success: false, message: 'El RIF de la empresa ya se encuentra registrado.' }); return;
       }
+      // Verificar que el email no esté duplicado (columna UNIQUE en empresas)
+      const queryExistingEmail = await db.execute({
+        sql: `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) AND eliminado_en IS NULL LIMIT 1`,
+        args: [datos_empresa.email]
+      });
+      if (queryExistingEmail.rows.length > 0) {
+        res.status(400).json({ success: false, message: 'El correo electrónico de la empresa ya se encuentra registrado por otra empresa.' }); return;
+      }
       if (!documentos_empresa || !Array.isArray(documentos_empresa)) {
         res.status(400).json({ success: false, message: 'Debes cargar los documentos de la empresa.' }); return;
       }
@@ -3540,12 +3576,40 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
       await tx.commit();
       res.json({ success: true, message: 'El tipo de membresía del afiliado ha sido cambiado con éxito.' });
     } catch (txErr) {
-      await tx.rollback();
+      try {
+        await tx.rollback();
+      } catch (rbErr) {
+        console.error('cambiarMembresiaDirectoAdmin: error al hacer rollback:', rbErr);
+      }
       throw txErr;
     }
-  } catch (error) {
+  } catch (error: any) {
+    const errorMsg = error?.message || error?.code || (typeof error === 'string' ? error : 'Error desconocido');
     console.error('cambiarMembresiaDirectoAdmin:', error);
-    res.status(500).json({ success: false, message: 'Error interno al cambiar la membresía.' });
+
+    // ── Diagnóstico: verificar estado de afiliados_old ──
+    try {
+      const oldCheck = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='afiliados_old'");
+      const oldExists = oldCheck.rows.length > 0;
+      const oldCount = oldExists ? Number((await db.execute('SELECT COUNT(*) as c FROM afiliados_old')).rows[0]?.c || 0) : 0;
+      const fkMode = Number((await db.execute('PRAGMA foreign_keys')).rows[0]?.foreign_keys || 0);
+      console.error('cambiarMembresiaDirectoAdmin DIAGNÓSTICO:', {
+        afiliados_old_exists: oldExists,
+        afiliados_old_count: oldCount,
+        foreign_keys: fkMode,
+        db_url_prefix: env.TURSO_DATABASE_URL.substring(0, 40),
+        error_msg: errorMsg,
+        error_cause: (error as any)?.cause?.message || 'none'
+      });
+    } catch (diagErr) {
+      console.error('cambiarMembresiaDirectoAdmin DIAGNÓSTICO ERROR:', diagErr);
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno al cambiar la membresía.',
+      error: env.NODE_ENV === 'development' ? errorMsg : undefined
+    });
   }
 };
 

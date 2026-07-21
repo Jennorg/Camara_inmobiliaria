@@ -84,6 +84,7 @@ export interface AfiliadoDTO {
   tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
   cibir_convalidado: number;
+  cibir_acreditado?: number;
   inscripcion_pagada: number;
   notas: string | null;
   redes_sociales: Record<string, any> | null;

@@ -26,7 +26,14 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
                    a.id_afiliado, a.tipo_afiliado,
                    p.email AS persona_email,
                    e.email AS empresa_email,
-                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as nombre_completo, 
+                    COALESCE(
+                      NULLIF(TRIM(e.razon_social), ''), 
+                      NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''),
+                      'Nombre no definido'
+                    ) as nombre_completo,
+                    p.nombres,
+                    p.apellidos,
+                    e.razon_social,
                    a.codigo, a.estatus as estatus_afiliado,
                    p.cedula_tipo, p.cedula,
                    e.rif_tipo, e.rif_numero

@@ -45,39 +45,56 @@ export const getAnalyticsData = async (req: Request, res: Response): Promise<voi
        FROM afiliados a 
        JOIN personas p ON a.id_persona = p.id 
        WHERE p.cedula IS NULL 
-          OR p.cedula = '' 
-          OR length(p.cedula) <= 5 
-          OR p.cedula = '00000000' 
-          OR p.cedula LIKE '%NDINT%' 
-          OR p.cedula LIKE '%pendiente%'
-          OR p.cedula LIKE 'TEMP%'`,
+          OR TRIM(p.cedula) = '' 
+          OR LOWER(p.cedula) LIKE '%ndint%' 
+          OR LOWER(p.cedula) LIKE '%pendiente%'`,
       // 11. Afiliados con RIF pendiente
       `SELECT COUNT(DISTINCT a.id_afiliado) as c 
        FROM afiliados a 
        JOIN empresas e ON a.id_empresa = e.id_empresa 
        WHERE e.rif_numero IS NULL 
-          OR e.rif_numero = '' 
-          OR length(e.rif_numero) <= 5 
-          OR e.rif_numero = '00000000' 
-          OR e.rif_numero LIKE '%pendiente%' 
-          OR e.rif_numero LIKE '%NDINT%'
-          OR e.rif_numero LIKE 'TEMP%'`,
+          OR TRIM(e.rif_numero) = '' 
+          OR LOWER(e.rif_numero) LIKE '%pendiente%' 
+          OR LOWER(e.rif_numero) LIKE '%ndint%'`,
       // 12. Afiliados con Email pendiente
       `SELECT COUNT(DISTINCT a.id_afiliado) as c 
        FROM afiliados a 
        JOIN personas p ON a.id_persona = p.id 
        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa 
-       WHERE p.email LIKE '%pendiente%' OR e.email LIKE '%pendiente%'`,
+       WHERE p.email IS NULL OR TRIM(p.email) = '' OR LOWER(p.email) LIKE '%pendiente%'`,
       // 13. Total afiliados
       `SELECT COUNT(*) as c FROM afiliados`,
-      // 14. Afiliados únicos con al menos un dato pendiente
+      // 14. Afiliados únicos con al menos un dato pendiente (Cédula, RIF, Email, Teléfono o Foto)
       `SELECT COUNT(DISTINCT a.id_afiliado) as c 
        FROM afiliados a 
        JOIN personas p ON a.id_persona = p.id 
        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa 
-       WHERE (p.cedula IS NULL OR p.cedula = '' OR length(p.cedula) <= 5 OR p.cedula = '00000000' OR p.cedula LIKE '%NDINT%' OR p.cedula LIKE '%pendiente%' OR p.cedula LIKE 'TEMP%')
-          OR (a.id_empresa IS NOT NULL AND (e.rif_numero IS NULL OR e.rif_numero = '' OR length(e.rif_numero) <= 5 OR e.rif_numero = '00000000' OR e.rif_numero LIKE '%pendiente%' OR e.rif_numero LIKE '%NDINT%' OR e.rif_numero LIKE 'TEMP%'))
-          OR p.email LIKE '%pendiente%' OR e.email LIKE '%pendiente%'`
+       WHERE (p.cedula IS NULL OR TRIM(p.cedula) = '' OR LOWER(p.cedula) LIKE '%ndint%' OR LOWER(p.cedula) LIKE '%pendiente%')
+          OR (a.id_empresa IS NOT NULL AND (e.rif_numero IS NULL OR TRIM(e.rif_numero) = '' OR LOWER(e.rif_numero) LIKE '%pendiente%' OR LOWER(e.rif_numero) LIKE '%ndint%'))
+          OR (p.email IS NULL OR TRIM(p.email) = '' OR LOWER(p.email) LIKE '%pendiente%')
+          OR (p.telefono IS NULL OR TRIM(p.telefono) = '' OR LOWER(p.telefono) LIKE '%pendiente%')
+          OR (p.foto_url IS NULL OR TRIM(p.foto_url) = '' OR LOWER(p.foto_url) LIKE '%pendiente%')`,
+      // 15. Afiliados Corporativos con Logo cargado
+      `SELECT COUNT(DISTINCT a.id_afiliado) as c 
+       FROM afiliados a 
+       JOIN empresas e ON a.id_empresa = e.id_empresa 
+       WHERE a.tipo_afiliado = 'Corporativo' 
+         AND e.logo_url IS NOT NULL 
+         AND e.logo_url != ''`,
+      // 16. Total Afiliados Corporativos
+      `SELECT COUNT(*) as c FROM afiliados WHERE tipo_afiliado = 'Corporativo'`,
+      // 17. Teléfono pendiente
+      `SELECT COUNT(DISTINCT a.id_afiliado) as c 
+       FROM afiliados a 
+       JOIN personas p ON a.id_persona = p.id 
+       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa 
+       WHERE (p.telefono IS NULL OR TRIM(p.telefono) = '' OR LOWER(p.telefono) LIKE '%pendiente%')
+         AND (a.id_empresa IS NULL OR e.telefono IS NULL OR TRIM(e.telefono) = '' OR LOWER(e.telefono) LIKE '%pendiente%')`,
+      // 18. Foto de perfil pendiente
+      `SELECT COUNT(DISTINCT a.id_afiliado) as c 
+       FROM afiliados a 
+       JOIN personas p ON a.id_persona = p.id 
+       WHERE p.foto_url IS NULL OR TRIM(p.foto_url) = '' OR LOWER(p.foto_url) LIKE '%pendiente%'`
     ])
 
     // 0 - Afiliados activos
@@ -167,13 +184,15 @@ export const getAnalyticsData = async (req: Request, res: Response): Promise<voi
       { creado_en: new Date().toISOString(), titulo: 'Sistema de analiticas activo', mensaje: 'Las metricas se actualizan en tiempo real desde la base de datos', tipo: 'FINANZAS', type: 'finance' }
     ]
 
-    // 10, 11, 12, 13, 14
+    // 10, 11, 12, 13, 14, 15, 16, 17, 18
     const pendingCedula = Number(results[10].rows[0]?.c || 0)
     const pendingRif = Number(results[11].rows[0]?.c || 0)
     const pendingEmail = Number(results[12].rows[0]?.c || 0)
-    const totalAffiliates = Number(results[13].rows[0]?.c || 0)
     const pendingUnique = Number(results[14].rows[0]?.c || 0)
-    const cleanAffiliates = totalAffiliates - pendingUnique
+    const corpConLogo = Number(results[15].rows[0]?.c || 0)
+    const corpTotal = Number(results[16].rows[0]?.c || 0)
+    const pendingTelefono = Number(results[17].rows[0]?.c || 0)
+    const pendingFoto = Number(results[18].rows[0]?.c || 0)
 
     res.json({
       success: true,
@@ -184,14 +203,21 @@ export const getAnalyticsData = async (req: Request, res: Response): Promise<voi
           afiliadosAprobados:  totalActivos,
           afiliadosRechazados: totalRechazados,
           afiliadosConPendientes: pendingUnique,
+          afiliadosCorpConLogo: corpConLogo,
+          totalAfiliadosCorp: corpTotal,
         },
         admissionSlices,
         memberTypeSlices,
+        corpLogoSlices: [
+          { label: 'Con Logo', value: corpConLogo, color: '#10b981' },
+          { label: 'Sin Logo', value: Math.max(0, corpTotal - corpConLogo), color: '#94a3b8' }
+        ],
         pendingDataSlices: [
           { label: 'Cédula Pendiente', value: pendingCedula, color: '#f87171' },
           { label: 'RIF Pendiente', value: pendingRif, color: '#fbbf24' },
           { label: 'Email Pendiente', value: pendingEmail, color: '#60a5fa' },
-          { label: 'Datos Completos', value: cleanAffiliates, color: '#10b981' }
+          { label: 'Teléfono Pendiente', value: pendingTelefono, color: '#a855f7' },
+          { label: 'Foto Pendiente', value: pendingFoto, color: '#ec4899' },
         ],
         cibirSlices: [
           { label: 'Aprobados',  value: cibirAprobados,  color: '#10b981' },
