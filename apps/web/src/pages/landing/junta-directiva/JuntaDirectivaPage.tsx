@@ -60,7 +60,7 @@ const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: s
     <div ref={setReveal} style={{ transitionDelay: `${index * 0.1}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[2.5rem] bg-white p-6 border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-700 hover:-translate-y-2'>
       <div className='relative overflow-hidden rounded-[2rem] aspect-square mb-6 bg-gradient-to-br from-emerald-100 to-slate-200'>
         {foto ? (
-          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover transition-all duration-700 ease-in-out group-hover:scale-110' />
+          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover object-top transition-all duration-700 ease-in-out group-hover:scale-110' />
         ) : (
           <div className='w-full h-full flex items-center justify-center text-6xl font-black text-emerald-300'>
             {nombre.charAt(0)}

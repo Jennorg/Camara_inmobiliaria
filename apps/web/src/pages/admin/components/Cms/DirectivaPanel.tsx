@@ -23,6 +23,7 @@ import {
 import { formatNombreCard } from '@/utils/formatters'
 import { invalidateDirectivaCache } from '@/pages/landing/junta-directiva/JuntaDirectivaPage'
 import { useAuth } from '@/context/AuthContext'
+import { toast } from 'sonner'
 
 interface DirectivaItem {
   id: string | number;
@@ -68,8 +69,50 @@ const PRESET_CARGOS = [
   'Director de Eventos',
   'Director de Responsabilidad Social',
   'Director de Relaciones Interinstitucionales',
-  'Vocal'
+  'Vocal',
+  'Otro'
 ]
+
+export function getGenericCargoName(cargoText: string): string {
+  if (!cargoText) return '';
+  
+  let key = cargoText.trim().toLowerCase();
+  key = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  if (key.includes('finanzas')) return 'Director(a) de Finanzas';
+  if (key.includes('general')) return 'Director(a) General';
+  if (key.includes('legales') || key.includes('legal')) return 'Director(a) de Asuntos Legales';
+  if (key.includes('comunicaciones') || key.includes('comunicacion')) return 'Director(a) de Comunicaciones';
+  if (key.includes('formacion')) return 'Director(a) de Formación';
+  if (key.includes('eventos') || key.includes('evento')) return 'Director(a) de Eventos';
+  if (key.includes('responsabilidad_social') || (key.includes('responsabilidad') && key.includes('social'))) return 'Director(a) de Responsabilidad Social';
+  if (key.includes('relaciones_interinstitucionales') || (key.includes('relaciones') && key.includes('inter'))) return 'Director(a) de Relaciones Interinstitucionales';
+  
+  if (key.startsWith('director') || key.startsWith('directora')) {
+    let rest = cargoText.trim().substring(8).trim();
+    if (rest.toLowerCase().startsWith('a')) rest = rest.substring(1).trim();
+    const formattedRest = rest.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return `Director(a) ${formattedRest}`;
+  }
+  
+  if (key.startsWith('vicepresident')) {
+    return 'Vicepresidente / Vicepresidenta';
+  }
+  if (key.startsWith('president')) {
+    return 'Presidente / Presidenta';
+  }
+  if (key.startsWith('secretari')) {
+    return 'Secretario(a)';
+  }
+  if (key.startsWith('tesorer')) {
+    return 'Tesorero(a)';
+  }
+  if (key.startsWith('vocal')) {
+    return 'Vocal';
+  }
+  
+  return cargoText;
+}
 
 export function parsePeriodo(periodoStr?: string) {
   if (!periodoStr || !periodoStr.includes('/')) {
@@ -139,6 +182,7 @@ export const DirectivaPanel = () => {
   const [form, setForm] = useState({ 
     id_afiliado: '' as string | number, 
     cargo: '', 
+    cargo_canonical: '',
     periodo: '', 
     orden: 0, 
     activo: true 
@@ -159,6 +203,7 @@ export const DirectivaPanel = () => {
   const [endMonth, setEndMonth] = useState('01')
   const [endYear, setEndYear] = useState((new Date().getFullYear() + 2).toString())
 
+  const [isCustomCargo, setIsCustomCargo] = useState(false)
   const [showCargoSuggestions, setShowCargoSuggestions] = useState(false)
 
   // Succession modal states
@@ -228,10 +273,15 @@ export const DirectivaPanel = () => {
     }
   }, [loadAffiliates, token])
 
+  const [customPeriods, setCustomPeriods] = useState<string[]>([])
+
   const periods = useMemo(() => {
-    const uniquePeriods = Array.from(new Set(items.flatMap(item => item.periodo ? [item.periodo] : []))) as string[]
+    const uniquePeriods = Array.from(new Set([
+      ...customPeriods,
+      ...items.flatMap(item => item.periodo ? [item.periodo] : [])
+    ])) as string[]
     return uniquePeriods.sort((a, b) => b.localeCompare(a))
-  }, [items])
+  }, [items, customPeriods])
 
   // Load and auto-select latest period if filter is 'all'
   useEffect(() => {
@@ -242,13 +292,7 @@ export const DirectivaPanel = () => {
     }
   }, [items, selectedPeriodFilter, periods])
 
-  // Form year-month syncing
-  useEffect(() => {
-    setForm(p => ({
-      ...p,
-      periodo: `${startYear}-${startMonth}/${endYear}-${endMonth}`
-    }))
-  }, [startMonth, startYear, endMonth, endYear])
+
 
   const filteredItems = useMemo(() => {
     let result = items.filter(item => {
@@ -302,27 +346,47 @@ export const DirectivaPanel = () => {
   };
 
   const openNewModal = () => {
+    // 1. If there are no periods defined in the system at all
+    if (periods.length === 0) {
+      toast.warning('No existen períodos de gestión definidos. Primero debes registrar un período de gestión antes de agregar miembros.', {
+        style: {
+          backgroundColor: '#f59e0b',
+          color: '#ffffff',
+          borderColor: '#d97706'
+        }
+      })
+      const y = new Date().getFullYear().toString()
+      setCreateStartMonth('01')
+      setCreateStartYear(y)
+      setCreateEndMonth('01')
+      setCreateEndYear((Number(y) + 2).toString())
+      setShowCreatePeriodModal(true)
+      return
+    }
+
+    // 2. If they are on "Ver Todas", auto-select the latest period to prevent blocking
+    let targetPeriod = selectedPeriodFilter
+    if (selectedPeriodFilter === 'all' || !selectedPeriodFilter) {
+      targetPeriod = periods[0]
+      setSelectedPeriodFilter(periods[0])
+    }
+
     setEditingItem(null)
     setSearchTerm('')
-    let defaultPeriod = selectedPeriodFilter !== 'all' ? selectedPeriodFilter : (periods[0] || '')
-    if (defaultPeriod) {
-      const parsed = parsePeriodo(defaultPeriod)
-      setStartMonth(parsed.startMonth)
-      setStartYear(parsed.startYear)
-      setEndMonth(parsed.endMonth)
-      setEndYear(parsed.endYear)
-    } else {
-      const currentY = new Date().getFullYear().toString()
-      setStartMonth('01')
-      setStartYear(currentY)
-      setEndMonth('01')
-      setEndYear((Number(currentY) + 2).toString())
-    }
+    setIsCustomCargo(false)
+    
+    const parsed = parsePeriodo(targetPeriod)
+    setStartMonth(parsed.startMonth)
+    setStartYear(parsed.startYear)
+    setEndMonth(parsed.endMonth)
+    setEndYear(parsed.endYear)
+
     const maxOrden = items.length > 0 ? Math.max(...items.map(i => i.orden)) : 0
     setForm({
       id_afiliado: '',
       cargo: '',
-      periodo: defaultPeriod || `${startYear}-${startMonth}/${endYear}-${endMonth}`,
+      cargo_canonical: '',
+      periodo: targetPeriod,
       orden: maxOrden + 1,
       activo: true
     })
@@ -332,6 +396,8 @@ export const DirectivaPanel = () => {
   const openEditModal = (item: DirectivaItem) => {
     setEditingItem(item)
     setSearchTerm(item.nombre)
+    const isCustom = !PRESET_CARGOS.includes(item.cargo_canonical || item.cargo)
+    setIsCustomCargo(isCustom)
     if (item.periodo) {
       const parsed = parsePeriodo(item.periodo)
       setStartMonth(parsed.startMonth)
@@ -342,6 +408,7 @@ export const DirectivaPanel = () => {
     setForm({
       id_afiliado: item.id_afiliado,
       cargo: item.cargo,
+      cargo_canonical: item.cargo_canonical || item.cargo,
       periodo: item.periodo || '',
       orden: item.orden,
       activo: item.activo === true || item.activo === 1
@@ -350,8 +417,8 @@ export const DirectivaPanel = () => {
   }
 
   const save = async () => {
-    if (!form.id_afiliado && !editingItem) return alert('Debes seleccionar un afiliado.')
-    if (!form.cargo) return alert('El cargo es requerido.')
+    if (!form.id_afiliado && !editingItem) return toast.warning('Debes seleccionar un afiliado.')
+    if (!form.cargo) return toast.warning('El cargo es requerido.')
 
     setSaving(true)
     try {
@@ -365,11 +432,12 @@ export const DirectivaPanel = () => {
         purgeCache()
         load()
         setIsModalOpen(false)
+        toast.success(editingItem ? 'Miembro de la junta directiva actualizado con éxito' : 'Miembro de la junta directiva agregado con éxito')
       } else {
-        alert(resp.message || 'Error al guardar')
+        toast.error(resp.message || 'Error al guardar')
       }
     } catch (e: any) {
-      alert(e.message || 'Error al guardar')
+      toast.error(e.message || 'Error al guardar')
     } finally {
       setSaving(false)
     }
@@ -385,9 +453,10 @@ export const DirectivaPanel = () => {
         if (editingItem?.id === id) {
           setIsModalOpen(false)
         }
+        toast.success('Miembro de la junta directiva eliminado con éxito')
       }
     } catch (e: any) {
-      alert(e.message || 'Error al eliminar')
+      toast.error(e.message || 'Error al eliminar')
     }
   }
 
@@ -399,40 +468,6 @@ export const DirectivaPanel = () => {
       purgeCache()
     } catch (e) {
       load()
-    }
-  }
-
-  const handleCreateSuccession = async () => {
-    if (!selectedPeriodFilter || selectedPeriodFilter === 'all') return
-    const currentPeriodItems = items.filter(item => item.periodo === selectedPeriodFilter)
-    if (currentPeriodItems.length === 0) return alert('No hay miembros en esta gestión para clonar.')
-
-    const newPeriod = `${succStartYear}-${succStartMonth}/${succEndYear}-${succEndMonth}`
-    if (periods.includes(newPeriod)) {
-      if (!confirm(`El período ${formatPeriodoDisplay(newPeriod)} ya existe. ¿Deseas agregar los cargos igualmente?`)) {
-        return
-      }
-    }
-
-    setCloning(true)
-    try {
-      for (const item of currentPeriodItems) {
-        await api.post('/api/cms/directiva', {
-          id_afiliado: item.id_afiliado,
-          cargo: item.cargo,
-          periodo: newPeriod,
-          orden: item.orden,
-          activo: item.activo
-        })
-      }
-      purgeCache()
-      await load()
-      setSelectedPeriodFilter(newPeriod)
-      setShowSuccessionModal(false)
-    } catch (e: any) {
-      alert(e.message || 'Error al crear la sucesión')
-    } finally {
-      setCloning(false)
     }
   }
 
@@ -456,31 +491,39 @@ export const DirectivaPanel = () => {
       await load()
       setSelectedPeriodFilter(newPeriod)
       setShowEditPeriodModal(false)
+      toast.success('Fechas de gestión actualizadas con éxito')
     } catch (e: any) {
-      alert(e.message || 'Error al actualizar el período')
+      toast.error(e.message || 'Error al actualizar el período')
     } finally {
       setUpdatingPeriodDates(false)
     }
   }
 
   const handleStartCreatePeriod = (periodStr: string) => {
+    const [newStart, newEnd] = periodStr.split('/')
+    
+    // 1. Validate start date is before end date
+    if (newStart >= newEnd) {
+      toast.error('La fecha de inicio de la nueva gestión debe ser anterior a la fecha de fin.')
+      return
+    }
+
+    // 2. Validate it starts exactly when the current/latest period ends
+    if (periods.length > 0) {
+      const latestPeriod = periods[0] // Since periods are sorted DESC chronologically
+      const [, latestEnd] = latestPeriod.split('/')
+      
+      if (newStart !== latestEnd) {
+        const latestEndDateReadable = formatPeriodoCompleto(latestPeriod).split(' - ')[1]
+        toast.error(`La nueva gestión debe iniciar exactamente al terminar la anterior (${latestEndDateReadable} / ${latestEnd}).`)
+        return
+      }
+    }
+
     setShowCreatePeriodModal(false)
-    const maxOrden = items.length > 0 ? Math.max(...items.map(i => i.orden)) : 0
-    setEditingItem(null)
-    setSearchTerm('')
-    setForm({
-      id_afiliado: '',
-      cargo: '',
-      periodo: periodStr,
-      orden: maxOrden + 1,
-      activo: true
-    })
-    const parsed = parsePeriodo(periodStr)
-    setStartMonth(parsed.startMonth)
-    setStartYear(parsed.startYear)
-    setEndMonth(parsed.endMonth)
-    setEndYear(parsed.endYear)
-    setIsModalOpen(true)
+    setCustomPeriods(prev => Array.from(new Set([...prev, periodStr])))
+    setSelectedPeriodFilter(periodStr)
+    toast.success('Nueva gestión creada con éxito')
   }
 
   const selectedAffiliate = useMemo(() => {
@@ -543,7 +586,7 @@ export const DirectivaPanel = () => {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">Junta Directiva</h1>
                 <span className="bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-emerald-100">
-                  {items.length} Autoridades
+                  {items.filter(item => item.periodo === selectedPeriodFilter).length} Autoridades
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-medium mt-0.5">Gestión de autoridades, orden jerárquico y períodos de mandato</p>
@@ -563,16 +606,26 @@ export const DirectivaPanel = () => {
               type="button"
               onClick={() => {
                 const y = new Date().getFullYear().toString()
-                setCreateStartMonth('01')
-                setCreateStartYear(y)
-                setCreateEndMonth('01')
-                setCreateEndYear((Number(y) + 2).toString())
+                if (periods.length > 0) {
+                  const latestPeriod = periods[0]
+                  const [, latestEnd] = latestPeriod.split('/')
+                  const [endYear, endMonth] = latestEnd.split('-')
+                  setCreateStartMonth(endMonth)
+                  setCreateStartYear(endYear)
+                  setCreateEndMonth(endMonth)
+                  setCreateEndYear((Number(endYear) + 2).toString())
+                } else {
+                  setCreateStartMonth('01')
+                  setCreateStartYear(y)
+                  setCreateEndMonth('01')
+                  setCreateEndYear((Number(y) + 2).toString())
+                }
                 setShowCreatePeriodModal(true)
               }}
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold transition-all"
             >
               <Calendar size={15} className="text-slate-500" />
-              <span>+ Nueva Gestión</span>
+              <span>Nueva Gestión</span>
             </button>
           </div>
         </div>
@@ -583,16 +636,7 @@ export const DirectivaPanel = () => {
           {/* Period Tabs & Dropdown */}
           <div className="flex items-center flex-wrap gap-2">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1 hidden sm:inline">Período:</span>
-            <button
-              onClick={() => setSelectedPeriodFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                selectedPeriodFilter === 'all'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Ver Todas
-            </button>
+
 
             {periods.map((p, idx) => (
               <button
@@ -649,22 +693,7 @@ export const DirectivaPanel = () => {
               >
                 Editar Fechas
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const parsed = parsePeriodo(selectedPeriodFilter)
-                  setSuccStartMonth(parsed.endMonth)
-                  setSuccStartYear(parsed.endYear)
-                  setSuccEndMonth(parsed.endMonth)
-                  setSuccEndYear((Number(parsed.endYear) + 2).toString())
-                  setShowSuccessionModal(true)
-                }}
-                disabled={!items.some(i => i.periodo === selectedPeriodFilter)}
-                className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-xs flex items-center gap-1.5"
-              >
-                <Sparkles size={14} />
-                <span>Iniciar Sucesión</span>
-              </button>
+
             </div>
           </div>
         )}
@@ -736,7 +765,7 @@ export const DirectivaPanel = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0">
                         {item.foto_url ? (
-                          <img src={item.foto_url} alt={item.nombre} className="w-full h-full object-cover" />
+                          <img src={item.foto_url} alt={item.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
                         ) : (
                           formatNombreCard(item.nombre).charAt(0)
                         )}
@@ -850,7 +879,7 @@ export const DirectivaPanel = () => {
                             >
                               <div className="flex items-center gap-3">
                                 {a.foto_url ? (
-                                  <img src={a.foto_url} className="w-8 h-8 rounded-xl object-cover shrink-0" />
+                                  <img src={a.foto_url} loading="lazy" decoding="async" className="w-8 h-8 rounded-xl object-cover object-top shrink-0" />
                                 ) : (
                                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center shrink-0">
                                     {(representativeName || 'A').charAt(0)}
@@ -888,7 +917,9 @@ export const DirectivaPanel = () => {
                     <img
                       src={selectedAffiliate.foto_url}
                       alt="Afiliado"
-                      className="w-12 h-12 rounded-2xl object-cover border border-white ring-2 ring-emerald-500/20 shrink-0"
+                      loading="lazy"
+                      decoding="async"
+                      className="w-12 h-12 rounded-2xl object-cover object-top border border-white ring-2 ring-emerald-500/20 shrink-0"
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-lg flex items-center justify-center shrink-0">
@@ -907,88 +938,66 @@ export const DirectivaPanel = () => {
                 </div>
               )}
 
-              {/* Cargo / Posición Input with Presets */}
+              {/* Cargo / Posición Dropdown and Display Title */}
               <FormField label="Cargo / Posición">
-                <div className="space-y-2">
-                  <Input
-                    value={form.cargo}
-                    onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))}
-                    placeholder="Ej. Presidente, Tesorero, Director General..."
-                    className="!text-sm !py-3 bg-slate-50 border-slate-200 focus:bg-white transition-all text-slate-800 w-full rounded-2xl"
-                  />
-                  
-                  {/* Preset Cargo Chips */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {PRESET_CARGOS.slice(0, 7).map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setForm(p => ({ ...p, cargo: preset }))}
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-all ${
-                          form.cargo === preset 
-                            ? 'bg-emerald-600 text-white border-emerald-600' 
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
+                <div className="space-y-3.5">
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Cargo de Referencia (Interno)</span>
+                    <select
+                      value={PRESET_CARGOS.includes(form.cargo_canonical) ? form.cargo_canonical : (form.cargo_canonical ? 'Otro' : '')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'Otro') {
+                          setForm(p => ({ ...p, cargo_canonical: '', cargo: '' }));
+                          setIsCustomCargo(true);
+                        } else {
+                          setForm(p => ({ ...p, cargo_canonical: val, cargo: val }));
+                          setIsCustomCargo(false);
+                        }
+                      }}
+                      className="w-full text-sm mt-1 py-3 px-4 bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 rounded-2xl text-slate-800 transition-all focus:outline-none cursor-pointer font-medium"
+                    >
+                      <option value="" disabled>Selecciona un cargo de referencia...</option>
+                      {PRESET_CARGOS.map(opt => (
+                        <option key={opt} value={opt}>
+                          {opt === 'Otro' ? 'Otro cargo (especificar)...' : opt}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  {/* Input for Custom Cargo if selected */}
+                  {(isCustomCargo || (form.cargo_canonical && !PRESET_CARGOS.includes(form.cargo_canonical))) && (
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Especificar Cargo de Referencia (Masculino)</span>
+                      <Input
+                        value={form.cargo_canonical}
+                        onChange={(e) => setForm(p => ({ ...p, cargo_canonical: e.target.value, cargo: form.cargo || e.target.value }))}
+                        placeholder="Ej. Director de Relaciones Públicas"
+                        className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-all text-slate-800 w-full rounded-2xl"
+                      />
+                    </div>
+                  )}
+
+                  {/* Input for Display Cargo */}
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Título de Visualización (Personalizable)</span>
+                    <Input
+                      value={form.cargo}
+                      onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))}
+                      placeholder="Ej. Directora de Finanzas, Presidente de Honor..."
+                      className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-all text-slate-800 w-full rounded-2xl"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1.5 ml-1 leading-relaxed">
+                      Este es el nombre exacto que se mostrará en la web pública. Por defecto se llena con el cargo seleccionado, pero puedes adaptarlo (ej. cambiar a femenino).
+                    </p>
+                  </div>
+
+
                 </div>
               </FormField>
 
-              {/* Período Selectors */}
-              <FormField label="Período de Mandato">
-                <div className="grid grid-cols-2 gap-3 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/60">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Inicio</span>
-                    <div className="flex gap-1.5">
-                      <select
-                        value={startMonth}
-                        onChange={(e) => setStartMonth(e.target.value)}
-                        className="flex-1 text-xs rounded-xl border border-slate-200 px-2.5 py-2 text-slate-700 bg-white font-semibold focus:ring-2 focus:ring-emerald-500/20"
-                      >
-                        {MESES.map(m => (
-                          <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={startYear}
-                        onChange={(e) => setStartYear(e.target.value)}
-                        className="flex-1 text-xs rounded-xl border border-slate-200 px-2.5 py-2 text-slate-700 bg-white font-semibold focus:ring-2 focus:ring-emerald-500/20"
-                      >
-                        {YEARS.map(y => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Fin</span>
-                    <div className="flex gap-1.5">
-                      <select
-                        value={endMonth}
-                        onChange={(e) => setEndMonth(e.target.value)}
-                        className="flex-1 text-xs rounded-xl border border-slate-200 px-2.5 py-2 text-slate-700 bg-white font-semibold focus:ring-2 focus:ring-emerald-500/20"
-                      >
-                        {MESES.map(m => (
-                          <option key={m.value} value={m.value}>{m.label}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={endYear}
-                        onChange={(e) => setEndYear(e.target.value)}
-                        className="flex-1 text-xs rounded-xl border border-slate-200 px-2.5 py-2 text-slate-700 bg-white font-semibold focus:ring-2 focus:ring-emerald-500/20"
-                      >
-                        {YEARS.map(y => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </FormField>
 
               {/* Status Toggle */}
               <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl">
@@ -1040,93 +1049,7 @@ export const DirectivaPanel = () => {
         </div>
       )}
 
-      {/* ── MODAL: Iniciar Sucesión ────────────────────────────────────────── */}
-      {showSuccessionModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900">Iniciar Nueva Sucesión</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Copiar las posiciones de <strong>{formatPeriodoDisplay(selectedPeriodFilter)}</strong> a una nueva gestión
-                </p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
-              <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Inicio Nueva Gestión</span>
-                <div className="flex gap-1">
-                  <select
-                    value={succStartMonth}
-                    onChange={(e) => setSuccStartMonth(e.target.value)}
-                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold"
-                  >
-                    {MESES.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={succStartYear}
-                    onChange={(e) => setSuccStartYear(e.target.value)}
-                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold"
-                  >
-                    {YEARS.map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Fin Nueva Gestión</span>
-                <div className="flex gap-1">
-                  <select
-                    value={succEndMonth}
-                    onChange={(e) => setSuccEndMonth(e.target.value)}
-                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold"
-                  >
-                    {MESES.map(m => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={succEndYear}
-                    onChange={(e) => setSuccEndYear(e.target.value)}
-                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold"
-                  >
-                    {YEARS.map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleCreateSuccession}
-                disabled={cloning}
-                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
-              >
-                {cloning ? 'Creando...' : 'Confirmar Sucesión'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSuccessionModal(false)}
-                disabled={cloning}
-                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-all"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── MODAL: Editar Fechas del Período ──────────────────────────────── */}
       {showEditPeriodModal && (
@@ -1227,18 +1150,20 @@ export const DirectivaPanel = () => {
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Inicio</span>
                 <div className="flex gap-1">
                   <select
+                    disabled={periods.length > 0}
                     value={createStartMonth}
                     onChange={(e) => setCreateStartMonth(e.target.value)}
-                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold"
+                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                   >
                     {MESES.map(m => (
                       <option key={m.value} value={m.value}>{m.label}</option>
                     ))}
                   </select>
                   <select
+                    disabled={periods.length > 0}
                     value={createStartYear}
                     onChange={(e) => setCreateStartYear(e.target.value)}
-                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold"
+                    className="flex-1 text-xs rounded-xl border border-slate-200 px-2 py-1.5 text-slate-700 bg-white font-semibold disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                   >
                     {YEARS.map(y => (
                       <option key={y} value={y}>{y}</option>
@@ -1278,7 +1203,7 @@ export const DirectivaPanel = () => {
                 onClick={() => handleStartCreatePeriod(`${createStartYear}-${createStartMonth}/${createEndYear}-${createEndMonth}`)}
                 className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20"
               >
-                Confirmar y Agregar Miembro
+                Confirmar y Crear Gestión
               </button>
               <button
                 type="button"

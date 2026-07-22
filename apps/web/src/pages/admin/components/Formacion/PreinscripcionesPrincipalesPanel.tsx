@@ -1121,8 +1121,8 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
             )}
 
-            {/* Módulos de la Formación CIBIR */}
-            {(selected.programa_codigo === 'CIBIR' || selected.afiliado_estatus === '5_CIBIR') && (
+            {/* Módulos de la Formación CIBIR (Solo para quienes cursan CIBIR y NO optan/tienen acreditación directa) */}
+            {(selected.programa_codigo === 'CIBIR' || selected.afiliado_estatus === '5_CIBIR') && !selected.apto_acreditacion && !selected.cibir_acreditado && (
               <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-4 flex flex-col gap-4">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-50">
                   <div className="flex items-center gap-2">

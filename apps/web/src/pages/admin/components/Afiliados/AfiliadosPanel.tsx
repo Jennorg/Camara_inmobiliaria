@@ -3,12 +3,13 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
-import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check, CheckCircle } from 'lucide-react'
+import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check, CheckCircle, ChevronDown } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
+import { toast } from 'sonner'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -29,9 +30,9 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
   )
 
   return (
-    <a 
-      href={url} 
-      target="_blank" 
+    <a
+      href={url}
+      target="_blank"
       rel="noopener noreferrer"
       className={`flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-emerald-200 hover:shadow-sm transition-all group ${compact ? 'py-2' : ''}`}
     >
@@ -81,7 +82,9 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
   // Cambio directo por administrador
   const [showChangeTypeModal, setShowChangeTypeModal] = useState(false)
+  const [showChangeTypeMenu, setShowChangeTypeMenu] = useState(false)
   const [pendingNewType, setPendingNewType] = useState<'Natural' | 'Corporativo' | 'Agente Corporativo' | ''>('')
+  const [naturalTransitionTarget, setNaturalTransitionTarget] = useState<any | null>(null)
   const [empresas, setEmpresas] = useState<any[]>([])
   const [selectedEmpresaId, setSelectedEmpresaId] = useState('')
   const [razonSocial, setRazonSocial] = useState('')
@@ -120,19 +123,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
   const confirmNaturalTransition = async () => {
     if (!selected) return
-    const displayName = formatNombreCard(selected.nombre_completo)
-    const result = await Swal.fire({
-      title: '¿Cambiar a Agente Independiente?',
-      text: `¿Estás seguro de convertir a ${displayName} en Agente Independiente (Natural)? Se romperá cualquier vínculo con su empresa actual.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, cambiar',
-      cancelButtonText: 'Cancelar'
-    })
-
-    if (result.isConfirmed) {
-      await executeDirectTypeChange('Natural')
-    }
+    setNaturalTransitionTarget(selected)
   }
 
   const executeDirectTypeChange = async (type: string, additionalData: any = {}) => {
@@ -149,13 +140,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       })
       const json = await res.json()
       if (res.ok && json.success) {
-        Swal.fire({
-          title: '¡Cambiado!',
-          text: json.message || 'Membresía actualizada con éxito.',
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false
-        })
+        toast.success(json.message || 'Membresía actualizada con éxito.')
         setShowChangeTypeModal(false)
         // Reset states
         setSelectedEmpresaId('')
@@ -173,10 +158,10 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
         await loadDetail(selected.id_afiliado)
         await load()
       } else {
-        Swal.fire('Error', json.message || 'No se pudo realizar el cambio.', 'error')
+        toast.error(json.message || 'No se pudo realizar el cambio.')
       }
     } catch (err) {
-      Swal.fire('Error de conexión', 'No se pudo establecer comunicación con el servidor.', 'error')
+      toast.error('Error de conexión: No se pudo establecer comunicación con el servidor.')
     } finally {
       setSubmittingChangeType(false)
     }
@@ -195,7 +180,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       const qs = new URLSearchParams()
       if (estatus !== 'Todos') qs.set('estatus', estatus)
       if (filterTipo !== 'Todos') qs.set('tipo_afiliado', filterTipo)
-      
+
       const res = await fetch(`${API_URL}/api/afiliados?${qs.toString()}`, { headers: authHeaders })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando afiliados')
@@ -264,21 +249,16 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error al resolver la solicitud')
-      
-      Swal.fire({
-        title: aprobado ? '¡Aprobada!' : '¡Rechazada!',
-        text: aprobado ? 'La solicitud ha sido aprobada y los cambios se aplicaron exitosamente.' : 'La solicitud ha sido rechazada.',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-      })
-      
+
+      toast.success(aprobado ? 'La solicitud ha sido aprobada y los cambios se aplicaron exitosamente.' : 'La solicitud ha sido rechazada.')
+
       setAdminObservaciones('')
       setSelectedSolicitud(null)
       await loadSolicitudes()
       await load()
     } catch (e: any) {
       setError(e.message || 'Error al resolver la solicitud')
+      toast.error(e.message || 'Error al resolver la solicitud')
     }
   }
 
@@ -321,18 +301,16 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <button
                 type="button"
                 onClick={() => { setViewMode('list'); setSelected(null); setSelectedSolicitud(null); }}
-                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                  viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
-                }`}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                  }`}
               >
                 Afiliados CIBIR
               </button>
               <button
                 type="button"
                 onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
-                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative ${
-                  viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
-                }`}
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative ${viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                  }`}
               >
                 Solicitudes Cambio
                 {solicitudes.length > 0 && (
@@ -361,7 +339,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   PDF
                 </button>
               </div>
-              
+
               <div className="flex flex-col gap-2">
                 <select
                   value={estatus}
@@ -442,14 +420,13 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm font-semibold text-slate-800">{a.nombre_completo}</span>
 
-                      <span className={`text-[9px] font-black uppercase tracking-widest ${
-                        a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
                         a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'text-amber-500' :
-                        'text-blue-500'
-                      }`}>
+                          'text-blue-500'
+                        }`}>
                         {a.tipo_afiliado === 'Corporativo' ? 'Corporativo' :
-                         a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'Agente Corporativo' :
-                         'Agente Independiente'}
+                          a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'Agente Corporativo' :
+                            'Agente Independiente'}
                       </span>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
@@ -580,7 +557,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                         return (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {docs.map((doc: any, i: number) => (
-                              <DocLink 
+                              <DocLink
                                 key={i}
                                 label={doc.tipo_doc.replace(/_/g, ' ')}
                                 url={doc.url}
@@ -629,10 +606,10 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               {/* Resolver Action */}
               <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Resolver Solicitud (Administración)</h4>
-                
+
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Observaciones / Comentarios</label>
-                  <textarea 
+                  <textarea
                     value={adminObservaciones}
                     onChange={(e) => setAdminObservaciones(e.target.value)}
                     placeholder="Escribe comentarios, justificaciones de aprobación o motivos del rechazo..."
@@ -671,20 +648,21 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             <div className="bg-white rounded-2xl p-4 border border-gray-100">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 relative max-w-[200px]">
                     <select
                       value={selected.tipo_afiliado}
                       onChange={(e) => handleDropdownTypeChange(e.target.value)}
-                      className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-slate-100 text-slate-500 border-none focus:ring-0 cursor-pointer"
+                      className="w-full bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 hover:border-gray-200 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10"
                     >
                       <option value="Natural">Agente Independiente</option>
                       <option value="Agente Corporativo">Agente Corporativo</option>
                       <option value="Corporativo">Corporativo</option>
                     </select>
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                    {selected.tipo_afiliado === 'Corporativo' 
-                      ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo)) 
+                    {selected.tipo_afiliado === 'Corporativo'
+                      ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo))
                       : formatNombreCard(selected.nombre_completo)
                     }
                   </h3>
@@ -744,8 +722,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   'Convertirá de forma definitiva al aspirante en un miembro activo (Afiliado) con credenciales de acceso a la Cámara.'
                 ]
 
-                const displayName = selected.tipo_afiliado === 'Corporativo' 
-                  ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo)) 
+                const displayName = selected.tipo_afiliado === 'Corporativo'
+                  ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo))
                   : formatNombreCard(selected.nombre_completo)
 
                 // Detect skipping or returning
@@ -817,8 +795,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     {/* Connecting Line background */}
                     <div className="absolute left-6 right-6 top-[24px] md:top-[28px] h-0.5 bg-slate-100 -z-0" />
                     {/* Active progress line */}
-                    <div 
-                      className="absolute left-6 top-[24px] md:top-[28px] h-0.5 bg-emerald-500 -z-0 transition-all duration-500" 
+                    <div
+                      className="absolute left-6 top-[24px] md:top-[28px] h-0.5 bg-emerald-500 -z-0 transition-all duration-500"
                       style={{ width: `calc(${(activeIndex / 6) * 100}% - ${activeIndex === 6 ? '12px' : '0px'})` }}
                     />
 
@@ -827,18 +805,17 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       const isCurrent = idx === activeIndex;
                       const StepIcon = step.icon;
                       return (
-                        <button 
-                          key={idx} 
+                        <button
+                          key={idx}
                           type="button"
                           onClick={() => handleStepClick(idx)}
                           className="flex flex-col items-center relative z-10 group cursor-pointer gap-2 focus:outline-none"
                         >
-                          <div 
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                              isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100' :
+                          <div
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100' :
                               isCurrent ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 font-extrabold scale-110' :
-                              'bg-white text-slate-400 border-2 border-slate-200'
-                            }`}
+                                'bg-white text-slate-400 border-2 border-slate-200'
+                              }`}
                           >
                             {isCompleted ? (
                               <Check className="w-3.5 h-3.5 md:w-5 md:h-5" strokeWidth={3} />
@@ -846,13 +823,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                               <StepIcon className="w-3.5 h-3.5 md:w-5 md:h-5" />
                             )}
                           </div>
-                          
-                          <span className={`text-[8px] md:text-[10px] font-black tracking-tighter uppercase ${
-                            isCurrent ? 'text-emerald-600 font-extrabold' : isCompleted ? 'text-slate-500' : 'text-slate-300'
-                          }`}>
+
+                          <span className={`text-[8px] md:text-[10px] font-black tracking-tighter uppercase ${isCurrent ? 'text-emerald-600 font-extrabold' : isCompleted ? 'text-slate-500' : 'text-slate-300'
+                            }`}>
                             {step.labelShort}
                           </span>
-                          
+
                           <span className="absolute top-12 left-1/2 -translate-x-1/2 text-[9px] font-bold tracking-tight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white px-2 py-1 rounded shadow-md pointer-events-none z-50">
                             {step.label}: {step.desc}
                           </span>
@@ -888,44 +864,44 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             {/* Profile Info */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Información del Perfil</h4>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selected.tipo_afiliado === 'Corporativo' && (
                   <div className="col-span-full flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Razón Social</label>
-                    <input 
-                      type="text" 
-                      value={selected.empresa_razon_social || ''} 
+                    <input
+                      type="text"
+                      value={selected.empresa_razon_social || ''}
                       onChange={(e) => updateField('empresa_razon_social', e.target.value)}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                       placeholder="Nombre del corporativo"
                     />
                   </div>
                 )}
-                
+
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Nombres</label>
-                  <input 
-                    type="text" 
-                    value={selected.nombres || ''} 
+                  <input
+                    type="text"
+                    value={selected.nombres || ''}
                     onChange={(e) => updateField('nombres', e.target.value)}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Apellidos</label>
-                  <input 
-                    type="text" 
-                    value={selected.apellidos || ''} 
+                  <input
+                    type="text"
+                    value={selected.apellidos || ''}
                     onChange={(e) => updateField('apellidos', e.target.value)}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula / RIF</label>
-                  <input 
-                    type="text" 
-                    value={selected.empresa_rif_numero ? formatRif(selected.empresa_rif_tipo, selected.empresa_rif_numero) : selected.cedula} 
+                  <input
+                    type="text"
+                    value={selected.empresa_rif_numero ? formatRif(selected.empresa_rif_tipo, selected.empresa_rif_numero) : selected.cedula}
                     disabled
                     className="w-full rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
                   />
@@ -933,9 +909,9 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 {selected.tipo_afiliado === 'Corporativo' && (
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula del Representante</label>
-                    <input 
-                      type="text" 
-                      value={selected.cedula || ''} 
+                    <input
+                      type="text"
+                      value={selected.cedula || ''}
                       onChange={(e) => updateField('cedula', e.target.value)}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                     />
@@ -943,18 +919,18 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 )}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Teléfono</label>
-                  <input 
-                    type="text" 
-                    value={selected.telefono || ''} 
+                  <input
+                    type="text"
+                    value={selected.telefono || ''}
                     onChange={(e) => updateField('telefono', e.target.value)}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Fecha Nacimiento</label>
-                  <input 
-                    type="text" 
-                    value={selected.fecha_nacimiento || ''} 
+                  <input
+                    type="text"
+                    value={selected.fecha_nacimiento || ''}
                     onChange={(e) => updateField('fecha_nacimiento', e.target.value)}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                     placeholder="DD-MM-YYYY"
@@ -962,8 +938,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 </div>
                 <div className="col-span-full flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase">Dirección</label>
-                  <textarea 
-                    value={selected.direccion || ''} 
+                  <textarea
+                    value={selected.direccion || ''}
                     onChange={(e) => updateField('direccion', e.target.value)}
                     rows={2}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors resize-none"
@@ -983,16 +959,16 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     </span>
                   )}
                 </div>
-                
+
                 {selected.documentos && selected.documentos.length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {selected.documentos.map((doc: any) => (
-                      <DocLink 
-                        key={doc.id_documento} 
-                        label={doc.tipo_doc.replace(/_/g, ' ')} 
-                        url={doc.url} 
+                      <DocLink
+                        key={doc.id_documento}
+                        label={doc.tipo_doc.replace(/_/g, ' ')}
+                        url={doc.url}
                         detail={doc.nombre_archivo}
-                        compact 
+                        compact
                       />
                     ))}
                   </div>
@@ -1004,7 +980,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       Cargar/Actualizar Soportes de la Empresa
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FileUpload 
+                      <FileUpload
                         label="Registro Mercantil"
                         accept=".pdf,image/*"
                         folder="documentos_empresa"
@@ -1021,7 +997,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                           ])
                         }}
                       />
-                      <FileUpload 
+                      <FileUpload
                         label="RIF de la Empresa"
                         accept=".pdf,image/*"
                         folder="documentos_empresa"
@@ -1047,10 +1023,10 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             {/* Process Management */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Gestión del Proceso</h4>
-              
+
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Estado Actual</label>
-                <select 
+                <select
                   value={selected.estatus}
                   onChange={(e) => updateField('estatus', e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700"
@@ -1069,8 +1045,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               </div>
 
               <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   id="cibir_convalidado"
                   checked={!!selected.cibir_convalidado}
                   onChange={(e) => updateField('cibir_convalidado', e.target.checked)}
@@ -1082,8 +1058,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               </div>
 
               <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   id="inscripcion_pagada"
                   checked={!!selected.inscripcion_pagada}
                   onChange={(e) => updateField('inscripcion_pagada', e.target.checked ? 1 : 0)}
@@ -1132,8 +1108,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       {showChangeTypeModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowChangeTypeModal(false)} />
-          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-all duration-500 ease-in-out">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
                   Cambiar Tipo de Membresía
@@ -1142,39 +1118,36 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   Mover a {selected ? formatNombreCard(selected.nombre_completo) : ''} a la membresía: {pendingNewType}
                 </p>
               </div>
-              <button 
-                onClick={() => setShowChangeTypeModal(false)} 
+              <button
+                onClick={() => setShowChangeTypeModal(false)}
                 className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900"
               >
                 ✕
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="overflow-y-auto p-5 space-y-3 max-h-[calc(90vh-140px)]">
               {pendingNewType === 'Agente Corporativo' && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                       Seleccionar Empresa Destino
                     </label>
-                    <select
-                      value={selectedEmpresaId}
-                      onChange={e => setSelectedEmpresaId(e.target.value)}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-xs font-semibold text-slate-700 bg-slate-50/50 focus:bg-white transition-colors"
-                    >
-                      <option value="">-- Selecciona una empresa --</option>
-                      {empresas.map(emp => (
-                        <option key={emp.id_empresa} value={emp.id_empresa}>
-                          {emp.razon_social} ({emp.rif_tipo}-{emp.rif_numero})
-                        </option>
-                      ))}
-                    </select>
+                    <CompanySearchField
+                      companies={empresas.map(emp => ({
+                        ...emp,
+                        empresa_razon_social: emp.razon_social,
+                        empresa_rif_numero: `${emp.rif_tipo}-${emp.rif_numero}`
+                      }))}
+                      selectedIdEmpresa={Number(selectedEmpresaId) || null}
+                      onSelect={(id) => setSelectedEmpresaId(id ? String(id) : '')}
+                    />
                   </div>
                 </div>
               )}
 
               {pendingNewType === 'Corporativo' && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
                     <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">
                       Información de la Nueva Empresa
@@ -1182,8 +1155,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="col-span-full flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={razonSocial}
                           onChange={e => setRazonSocial(e.target.value)}
                           className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
@@ -1193,7 +1166,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
-                        <select 
+                        <select
                           value={rifTipo}
                           onChange={e => setRifTipo(e.target.value)}
                           className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
@@ -1208,8 +1181,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={rifNumero}
                           onChange={e => setRifNumero(e.target.value.replace(/\D/g, ''))}
                           className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
@@ -1219,8 +1192,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
-                        <input 
-                          type="email" 
+                        <input
+                          type="email"
                           value={emailEmpresa}
                           onChange={e => setEmailEmpresa(e.target.value)}
                           className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
@@ -1230,8 +1203,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={telefonoEmpresa}
                           onChange={e => setTelefonoEmpresa(e.target.value)}
                           className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
@@ -1241,7 +1214,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                       <div className="col-span-full flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
-                        <textarea 
+                        <textarea
                           rows={2}
                           value={direccionEmpresa}
                           onChange={e => setDireccionEmpresa(e.target.value)}
@@ -1252,8 +1225,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                       <div className="col-span-full flex flex-col gap-1.5">
                         <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={websiteEmpresa}
                           onChange={e => setWebsiteEmpresa(e.target.value)}
                           className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 bg-white"
@@ -1268,7 +1241,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       Documentación de la Empresa
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FileUpload 
+                      <FileUpload
                         label="Registro Mercantil"
                         required
                         accept=".pdf,image/*"
@@ -1282,7 +1255,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                           setNombreRegistro('');
                         }}
                       />
-                      <FileUpload 
+                      <FileUpload
                         label="RIF de la Empresa"
                         required
                         accept=".pdf,image/*"
@@ -1302,16 +1275,16 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               )}
             </div>
 
-            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
-              <button 
-                type="button" 
-                onClick={() => setShowChangeTypeModal(false)} 
+            <div className="p-0 bg-gray-50 border-t border-gray-100 flex">
+              <button
+                type="button"
+                onClick={() => setShowChangeTypeModal(false)}
                 className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all"
               >
                 Cancelar
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 disabled={
                   submittingChangeType ||
                   (pendingNewType === 'Agente Corporativo' && !selectedEmpresaId) ||
@@ -1338,9 +1311,45 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   }
                   executeDirectTypeChange(pendingNewType, data);
                 }}
-                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all flex items-center justify-center"
               >
                 {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Natural Transition confirmation modal */}
+      {naturalTransitionTarget && (
+        <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+            <div className='w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-3'>
+              <ShieldAlert size={28} />
+            </div>
+            <h3 className='text-base font-black text-slate-800 mb-1.5'>¿Cambiar a Agente Independiente?</h3>
+            <p className='text-xs text-slate-500 mb-4 leading-relaxed'>
+              ¿Estás seguro de convertir a <span className='font-bold text-slate-700'>{formatNombreCard(naturalTransitionTarget.nombre_completo)}</span> en Agente Independiente (Natural)? Se romperá cualquier vínculo con su empresa actual.
+            </p>
+
+            <div className='flex flex-col gap-2'>
+              <button
+                type='button'
+                onClick={async () => {
+                  setNaturalTransitionTarget(null);
+                  await executeDirectTypeChange('Natural');
+                }}
+                className='w-full py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black hover:bg-amber-600 shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2'
+              >
+                <BadgeCheck size={16} />
+                Sí, cambiar
+              </button>
+              <button
+                type='button'
+                onClick={() => setNaturalTransitionTarget(null)}
+                className='w-full py-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors'
+              >
+                Cancelar
               </button>
             </div>
           </div>
@@ -1349,4 +1358,156 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
     </div>
   )
 }
+
+function CompanySearchField({
+  companies,
+  selectedIdEmpresa,
+  onSelect,
+  placeholder = "Buscar empresa...",
+}: {
+  companies: any[]
+  selectedIdEmpresa: number | null | undefined
+  onSelect: (id: number | null) => void
+  placeholder?: string
+}) {
+  const [corpSearchField, setCorpSearchField] = React.useState<'nombre' | 'rif' | 'codigo'>('nombre')
+  const [corpSearch, setCorpSearch] = React.useState('')
+  const [showCorpDropdown, setShowCorpDropdown] = React.useState(false)
+  const [showCorpResults, setShowCorpResults] = React.useState(false)
+
+  const selectedCompany = companies.find(c => {
+    return c.id_empresa === selectedIdEmpresa || c.id_afiliado === selectedIdEmpresa;
+  })
+
+  React.useEffect(() => {
+    if (selectedCompany) {
+      setCorpSearch(selectedCompany.empresa_razon_social || selectedCompany.nombre_completo || '')
+    } else {
+      setCorpSearch('')
+    }
+  }, [selectedCompany])
+
+  const filteredCompanies = companies.filter((c) => {
+    if (!corpSearch.trim()) return true
+    const q = corpSearch.toLowerCase()
+    if (selectedCompany && (c.empresa_razon_social || c.nombre_completo || '') === corpSearch) return true;
+    if (corpSearchField === 'nombre') return (c.empresa_razon_social || c.nombre_completo || '').toLowerCase().includes(q)
+    if (corpSearchField === 'rif') return (c.empresa_rif_numero || c.cedula || '').toLowerCase().includes(q)
+    if (corpSearchField === 'codigo') return (c.codigo || '').toLowerCase().includes(q)
+    return true
+  })
+
+  return (
+    <div className="space-y-2 w-full">
+      <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-10">
+        <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
+          <button
+            type="button"
+            onClick={() => setShowCorpDropdown(!showCorpDropdown)}
+            className="flex items-center gap-0.5 px-3 h-full text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <span>
+              {corpSearchField === 'nombre' && 'Nombre'}
+              {corpSearchField === 'rif' && 'RIF'}
+              {corpSearchField === 'codigo' && 'Código'}
+            </span>
+            <ChevronDown size={12} className={`text-slate-400 transition-transform ${showCorpDropdown ? 'rotate-180' : ''}`} />
+          </button>
+          {showCorpDropdown && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowCorpDropdown(false)} />
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] animate-in fade-in slide-in-from-top-1 duration-200">
+                {([
+                  { key: 'nombre' as const, label: 'Nombre' },
+                  { key: 'rif' as const, label: 'RIF' },
+                  { key: 'codigo' as const, label: 'Código' },
+                ]).map(option => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => { setCorpSearchField(option.key); setShowCorpDropdown(false); setCorpSearch(''); onSelect(null); }}
+                    className={`w-full text-left px-3 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${corpSearchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="relative flex-grow h-full flex items-center">
+          <Search className="absolute left-3 text-slate-400" size={14} />
+          <input
+            type="text"
+            value={corpSearch}
+            onChange={(e) => { setCorpSearch(e.target.value); setShowCorpResults(true); }}
+            onFocus={() => setShowCorpResults(true)}
+            placeholder={placeholder}
+            className="w-full h-full pl-9 pr-8 bg-transparent text-xs font-semibold placeholder-slate-400 outline-none text-slate-800"
+          />
+          {corpSearch && (
+            <button
+              type="button"
+              onClick={() => { setCorpSearch(''); onSelect(null); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-all"
+            >
+              <X size={10} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {selectedCompany && (
+        <div className="flex items-center gap-3 px-3.5 py-2 bg-emerald-50/80 border border-emerald-100 rounded-xl">
+          <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+            <Building2 size={14} className="text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-emerald-900 truncate">{selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}</p>
+            <p className="text-[10px] text-emerald-600 font-bold truncate">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { onSelect(null); setCorpSearch(''); }}
+            className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-all shrink-0"
+          >
+            <X size={10} />
+          </button>
+        </div>
+      )}
+
+      <div className={`transition-all duration-500 ease-in-out ${showCorpResults && corpSearch.trim() && !selectedCompany
+        ? 'max-h-48 opacity-100 mt-1.5 border border-gray-200 pointer-events-auto'
+        : 'max-h-0 opacity-0 mt-0 border-transparent overflow-hidden pointer-events-none'
+        } relative z-10 w-full bg-white rounded-xl shadow-inner overflow-y-auto py-1.5`}>
+        {filteredCompanies.length === 0 ? (
+          <p className="px-4 py-3 text-xs text-slate-400 font-bold text-center">Sin resultados</p>
+        ) : (
+          filteredCompanies.slice(0, 10).map((c) => (
+            <button
+              key={c.id_afiliado}
+              type="button"
+              onClick={() => {
+                onSelect(c.id_empresa ?? c.id_afiliado ?? null)
+                setCorpSearch(c.empresa_razon_social || c.nombre_completo || '')
+                setShowCorpResults(false)
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-emerald-50/50 transition-colors flex items-center gap-3 group"
+            >
+              <div className="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-emerald-100 flex items-center justify-center shrink-0 transition-colors">
+                <Building2 size={13} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
+              </div>
+              <div className="min-w-0 flex-grow">
+                <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-950 transition-colors truncate">{c.empresa_razon_social || c.nombre_completo}</p>
+                <p className="text-[10px] text-slate-500 font-bold truncate">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
 
