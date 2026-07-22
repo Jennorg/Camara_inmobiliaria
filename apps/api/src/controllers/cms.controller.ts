@@ -32,6 +32,30 @@ const generateSlug = (str: string) => {
     .replace(/(^-|-$)+/g, '') + '-' + Date.now();
 }
 
+const normalizeCargo = (cargo: string) => {
+  if (!cargo) return '';
+  let key = cargo.trim().toLowerCase();
+  
+  // Replace accents
+  key = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  // Normalize gendered prefixes
+  if (key.startsWith('directora')) {
+    key = 'director' + key.substring(9);
+  } else if (key.startsWith('vicepresidenta')) {
+    key = 'vicepresidente' + key.substring(14);
+  } else if (key.startsWith('presidenta')) {
+    key = 'presidente' + key.substring(10);
+  } else if (key.startsWith('secretaria')) {
+    key = 'secretario' + key.substring(10);
+  } else if (key.startsWith('tesorera')) {
+    key = 'tesorero' + key.substring(8);
+  }
+  
+  // Replace spaces/special characters with underscores
+  return key.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
 export const createNoticia = async (req: Request, res: Response) => {
   try {
     const { titulo, contenido, resumen, imagen_url, categoria, tag, publicado, fecha_evento, hora_evento, lugar_evento, posicion_imagen } = req.body;
@@ -246,7 +270,7 @@ export const getDirectiva = async (_req: Request, res: Response) => {
 
 export const createMiembroDirectiva = async (req: Request, res: Response) => {
   try {
-    const { id_afiliado, cargo, periodo, orden, activo } = req.body;
+    const { id_afiliado, cargo, cargo_canonical, periodo, orden, activo } = req.body;
     if (!id_afiliado || !cargo) return res.status(400).json({ success: false, message: 'id_afiliado y cargo son requeridos' });
 
     // Validar duplicado de afiliado en el mismo período
@@ -258,18 +282,19 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'El afiliado ya forma parte de esta junta directiva' });
     }
 
-    // Validar duplicado de cargo en el mismo período (insensible a mayúsculas/minúsculas)
+    // Validar duplicado de cargo en el mismo período usando cargo_canonical (insensible a género/mayúsculas)
+    const canonical = normalizeCargo(cargo_canonical || cargo);
     const checkCargo = await db.execute({
-      sql: `SELECT 1 FROM directiva_cargos WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?)) AND periodo = ? LIMIT 1`,
-      args: [cargo, periodo ?? null]
+      sql: `SELECT 1 FROM directiva_cargos WHERE cargo_canonical = ? AND periodo = ? LIMIT 1`,
+      args: [canonical, periodo ?? null]
     });
     if (checkCargo.rows.length > 0) {
       return res.status(400).json({ success: false, message: `El cargo "${cargo}" ya está asignado en esta junta directiva` });
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, periodo, orden, activo) VALUES (?, ?, ?, ?, ?) RETURNING *`,
-      args: [Number(id_afiliado), cargo, periodo ?? null, orden ?? 0, activo === false ? 0 : 1]
+      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, cargo_canonical, periodo, orden, activo) VALUES (?, ?, ?, ?, ?, ?) RETURNING *`,
+      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo === false ? 0 : 1]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -281,7 +306,7 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
 export const updateMiembroDirectiva = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { id_afiliado, cargo, periodo, orden, activo } = req.body;
+    const { id_afiliado, cargo, cargo_canonical, periodo, orden, activo } = req.body;
 
     // Validar duplicado de afiliado en el mismo período (excluyendo el actual)
     const checkAfi = await db.execute({
@@ -292,18 +317,19 @@ export const updateMiembroDirectiva = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'El afiliado ya forma parte de esta junta directiva' });
     }
 
-    // Validar duplicado de cargo en el mismo período (excluyendo el actual)
+    // Validar duplicado de cargo en el mismo período usando cargo_canonical (excluyendo el actual)
+    const canonical = normalizeCargo(cargo_canonical || cargo);
     const checkCargo = await db.execute({
-      sql: `SELECT 1 FROM directiva_cargos WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?)) AND periodo = ? AND id <> ? LIMIT 1`,
-      args: [cargo, periodo ?? null, id]
+      sql: `SELECT 1 FROM directiva_cargos WHERE cargo_canonical = ? AND periodo = ? AND id <> ? LIMIT 1`,
+      args: [canonical, periodo ?? null, id]
     });
     if (checkCargo.rows.length > 0) {
       return res.status(400).json({ success: false, message: `El cargo "${cargo}" ya está asignado en esta junta directiva` });
     }
 
     const result = await db.execute({
-      sql: `UPDATE directiva_cargos SET id_afiliado=?, cargo=?, periodo=?, orden=?, activo=? WHERE id=? RETURNING *`,
-      args: [Number(id_afiliado), cargo, periodo ?? null, orden ?? 0, activo ? 1 : 0, id]
+      sql: `UPDATE directiva_cargos SET id_afiliado=?, cargo=?, cargo_canonical=?, periodo=?, orden=?, activo=? WHERE id=? RETURNING *`,
+      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo ? 1 : 0, id]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Miembro no encontrado' });
     return res.json({ success: true, data: result.rows[0] });

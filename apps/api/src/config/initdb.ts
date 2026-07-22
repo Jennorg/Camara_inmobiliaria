@@ -352,6 +352,7 @@ const statements = [
     id              INTEGER PRIMARY KEY,
     id_afiliado     INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
     cargo           TEXT    NOT NULL,
+    cargo_canonical TEXT    NOT NULL DEFAULT '',
     periodo         TEXT,
     orden           INTEGER DEFAULT 0,
     activo          INTEGER DEFAULT 1 CHECK (activo IN (0,1)),

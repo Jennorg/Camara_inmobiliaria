@@ -1984,7 +1984,7 @@ export const generarInvitacionCorporativa = async (req: Request, res: Response):
 
     // Verificar que la empresa existe
     const corp = await db.execute({
-      sql: `SELECT id_empresa, razon_social, estatus FROM empresas WHERE id_empresa = ? LIMIT 1`,
+      sql: `SELECT id_empresa, razon_social FROM empresas WHERE id_empresa = ? LIMIT 1`,
       args: [id]
     })
     if (corp.rows.length === 0) {
@@ -3386,26 +3386,59 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
         const docs = JSON.parse(sol.documentos_empresa);
         const cleanedRif = String(datos.rif_numero || '').replace(/\D/g, '');
 
-        const resEmp = await tx.execute({
-          sql: `INSERT INTO empresas (
-                  id_user, razon_social, rif_tipo, rif_numero, email, direccion, telefono, website, logo_url, id_representante_legal, fecha_registro, estatus
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Afiliado') RETURNING id_empresa`,
-          args: [
-            sol.afiliado_user_id || null,
-            datos.razon_social,
-            datos.rif_tipo || 'J',
-            cleanedRif,
-            datos.email,
-            datos.direccion || null,
-            datos.telefono || null,
-            datos.website || null,
-            datos.logo_url || null,
-            sol.id_afiliado,
-            now
-          ]
-        });
-        
-        const newCompanyId = Number(resEmp.rows[0].id_empresa);
+        let companyId: number;
+        let existingCompany = null;
+        if (sol.afiliado_user_id) {
+          const checkCompany = await tx.execute({
+            sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
+            args: [sol.afiliado_user_id]
+          });
+          if (checkCompany.rows.length > 0) {
+            existingCompany = checkCompany.rows[0] as any;
+          }
+        }
+
+        if (existingCompany) {
+          companyId = Number(existingCompany.id_empresa);
+          await tx.execute({
+            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, actualizado_en=? WHERE id_empresa=?`,
+            args: [
+              datos.razon_social,
+              datos.rif_tipo || 'J',
+              cleanedRif,
+              datos.email,
+              datos.direccion || null,
+              datos.telefono || null,
+              datos.website || null,
+              datos.logo_url || null,
+              sol.id_afiliado,
+              now,
+              companyId
+            ]
+          });
+        } else {
+          const resEmp = await tx.execute({
+            sql: `INSERT INTO empresas (
+                    id_user, razon_social, rif_tipo, rif_numero, email, direccion, telefono, website, logo_url, id_representante_legal, fecha_registro
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
+            args: [
+              sol.afiliado_user_id || null,
+              datos.razon_social,
+              datos.rif_tipo || 'J',
+              cleanedRif,
+              datos.email,
+              datos.direccion || null,
+              datos.telefono || null,
+              datos.website || null,
+              datos.logo_url || null,
+              sol.id_afiliado,
+              now
+            ]
+          });
+          companyId = Number(resEmp.rows[0].id_empresa);
+        }
+
+        const newCompanyId = companyId;
 
         await tx.execute({
           sql: `UPDATE afiliados SET tipo_afiliado = 'Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
@@ -3538,26 +3571,59 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
       else if (tipo_destino === 'Corporativo') {
         const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
 
-        const resEmp = await tx.execute({
-          sql: `INSERT INTO empresas (
-                  id_user, razon_social, rif_tipo, rif_numero, email, direccion, telefono, website, logo_url, id_representante_legal, fecha_registro, estatus
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Afiliado') RETURNING id_empresa`,
-          args: [
-            af.id_user || null,
-            datos_empresa.razon_social,
-            datos_empresa.rif_tipo || 'J',
-            cleanedRif,
-            datos_empresa.email,
-            datos_empresa.direccion || null,
-            datos_empresa.telefono || null,
-            datos_empresa.website || null,
-            datos_empresa.logo_url || null,
-            idAfiliado,
-            now
-          ]
-        });
-        
-        const newCompanyId = Number(resEmp.rows[0].id_empresa);
+        let companyId: number;
+        let existingCompany = null;
+        if (af.id_user) {
+          const checkCompany = await tx.execute({
+            sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
+            args: [af.id_user]
+          });
+          if (checkCompany.rows.length > 0) {
+            existingCompany = checkCompany.rows[0] as any;
+          }
+        }
+
+        if (existingCompany) {
+          companyId = Number(existingCompany.id_empresa);
+          await tx.execute({
+            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, actualizado_en=? WHERE id_empresa=?`,
+            args: [
+              datos_empresa.razon_social,
+              datos_empresa.rif_tipo || 'J',
+              cleanedRif,
+              datos_empresa.email,
+              datos_empresa.direccion || null,
+              datos_empresa.telefono || null,
+              datos_empresa.website || null,
+              datos_empresa.logo_url || null,
+              idAfiliado,
+              now,
+              companyId
+            ]
+          });
+        } else {
+          const resEmp = await tx.execute({
+            sql: `INSERT INTO empresas (
+                    id_user, razon_social, rif_tipo, rif_numero, email, direccion, telefono, website, logo_url, id_representante_legal, fecha_registro
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
+            args: [
+              af.id_user || null,
+              datos_empresa.razon_social,
+              datos_empresa.rif_tipo || 'J',
+              cleanedRif,
+              datos_empresa.email,
+              datos_empresa.direccion || null,
+              datos_empresa.telefono || null,
+              datos_empresa.website || null,
+              datos_empresa.logo_url || null,
+              idAfiliado,
+              now
+            ]
+          });
+          companyId = Number(resEmp.rows[0].id_empresa);
+        }
+
+        const newCompanyId = companyId;
 
         await tx.execute({
           sql: `UPDATE afiliados SET tipo_afiliado = 'Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,

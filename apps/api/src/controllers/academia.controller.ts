@@ -2666,10 +2666,10 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
       return
     }
 
-    // Aprobación Directa
+    // Aprobación Directa (Completado)
     await db.execute({
       sql: `UPDATE inscripciones_cursos 
-            SET estatus='Inscrito', aprobado_por=?, actualizado_en=?
+            SET estatus='Inscrito', completado=1, aprobado_por=?, actualizado_en=?
             WHERE id_inscripcion=?`,
       args: [req.user?.id || null, now, id]
     })
@@ -2727,9 +2727,9 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
     // --- PUENTE HACIA AFILIADOS (Si es AFILIACION) ---
     if (row.programa_codigo === 'AFILIACION') {
       try {
-        await promocionarYVincularAfiliado(row.id_estudiante, row.email, now)
+        await promocionarYVincularAfiliado(row.id_estudiante, row.email, now, 'Afiliado')
       } catch (err) {
-        console.error('Error al mapear preinscripción a afiliado:', err)
+        console.error('Error promocionando afiliado en aprobación directa:', err)
       }
     }
 

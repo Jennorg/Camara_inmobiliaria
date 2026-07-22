@@ -73,7 +73,6 @@ export function corsMiddleware(req: Request, res: Response, next: NextFunction):
   } else if (!origin) {
     allowed = true // server-to-server, curl, etc.
   } else if (env.NODE_ENV !== 'production') {
-    console.log(`[CORS] Desarrollo — permitido: ${origin}`)
     allowed = true
   } else if (isOriginAllowed(origin)) {
     allowed = true
