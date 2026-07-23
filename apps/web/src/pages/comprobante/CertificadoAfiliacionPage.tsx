@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Printer, ArrowLeft, Loader2, Award } from 'lucide-react'
+import { FileDown, ArrowLeft, Loader2, Award } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import { API_URL } from '@/config/env'
 import logoImg from '@/assets/Logo4.png'
 import firmaImg from '@/assets/firma-francisco.png'
+import { exportElementToPdf } from '@/utils/domToPdf'
 
 interface AfiliadoData {
   id_afiliado: number
@@ -78,8 +79,19 @@ const CertificadoAfiliacionPage: React.FC = () => {
       })
   }, [id])
 
-  const handlePrint = () => {
-    window.print()
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+
+  const handleDownloadPdf = async () => {
+    if (!data) return
+    setDownloadingPdf(true)
+    try {
+      const safeName = (data.nombre_completo || 'Afiliado').replace(/[^a-zA-Z0-9_-]/g, '_')
+      await exportElementToPdf('certificate-print-area', `Certificado_Afiliacion_${safeName}.pdf`)
+    } catch (err) {
+      console.error('Error al generar el PDF del certificado:', err)
+    } finally {
+      setDownloadingPdf(false)
+    }
   }
 
   // Formatear cédula/RIF
@@ -162,11 +174,21 @@ const CertificadoAfiliacionPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
           >
-            <Printer size={16} />
-            Exportar PDF / Imprimir
+            {downloadingPdf ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Descargando PDF...
+              </>
+            ) : (
+              <>
+                <FileDown size={16} />
+                Descargar PDF
+              </>
+            )}
           </button>
         </div>
       </header>
@@ -320,9 +342,9 @@ const CertificadoAfiliacionPage: React.FC = () => {
             </div>
 
             {/* Footer con Firma Única y QR Único a la Izquierda */}
-            <div className="relative z-10 grid grid-cols-[1fr_1.5fr_1fr] items-end w-full mt-4 pb-2">
+            <div className="relative z-10 grid grid-cols-[1fr_1.5fr_1fr] items-center w-full mt-4 pb-2">
               {/* QR Único a la Izquierda (Código de Afiliación) integrado de forma limpia */}
-              <div className="flex flex-col items-center justify-center pl-4 pb-2">
+              <div className="flex flex-col items-center justify-center text-center">
                 <div className="bg-white p-2.5 rounded-xl shadow-md border border-slate-100">
                   <img
                     src={qrApiUrl}
@@ -339,7 +361,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
               </div>
 
               {/* Firma Centro */}
-              <div className="flex flex-col items-center justify-center pb-2 px-10">
+              <div className="flex flex-col items-center justify-center px-10">
                 <div className="relative w-48 h-12 flex items-center justify-center">
                   <img
                     src={firmaImg}
@@ -357,11 +379,11 @@ const CertificadoAfiliacionPage: React.FC = () => {
               </div>
 
               {/* Código de Afiliado a la derecha */}
-              <div className="flex flex-col items-center justify-center pb-4 pr-4">
-                <span className="text-[10px] font-black text-emerald-900 uppercase tracking-widest font-sans mb-1.5">
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] font-black text-emerald-900 uppercase tracking-widest font-sans mb-1.5 text-center">
                   Código de Afiliado
                 </span>
-                <span className="text-xl font-bold font-mono text-emerald-950 border border-slate-200 bg-white px-6 py-2 rounded-xl shadow-md">
+                <span className="inline-flex items-center justify-center text-xl font-bold font-mono text-emerald-950 border border-slate-200 bg-white px-6 py-2 rounded-xl shadow-md">
                   {data.codigo || data.id_afiliado}
                 </span>
               </div>

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Printer, ArrowLeft } from 'lucide-react'
+import { FileDown, ArrowLeft, Loader2 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import ComprobanteVerificacionView from '@/components/ComprobanteVerificacionView'
 import CertificadoProgramaView from '@/components/CertificadoProgramaView'
 import { API_URL } from '@/config/env'
+import { exportElementToPdf } from '@/utils/domToPdf'
 
 type ApiData = {
   codigo_validacion: string
@@ -22,6 +23,7 @@ const ComprobantePublicoPage: React.FC = () => {
   const [data, setData] = useState<ApiData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const urlVerificacion = codigo ? `${origin}/comprobante/${encodeURIComponent(codigo)}` : origin
@@ -45,8 +47,22 @@ const ComprobantePublicoPage: React.FC = () => {
       .finally(() => setLoading(false))
   }, [codigo])
 
-  const handlePrintPdf = () => {
-    window.print()
+  const isProgramaPrincipal =
+    data?.programa_codigo &&
+    ['CIBIR', 'PEGI', 'PREANI', 'PADI'].includes(data.programa_codigo.toUpperCase())
+
+  const handleDownloadPdf = async () => {
+    if (!data) return
+    setDownloadingPdf(true)
+    try {
+      const targetId = isProgramaPrincipal ? 'certificate-print-area' : 'comprobante-digital-root'
+      const safeName = (data.titular_nombre || 'Comprobante').replace(/[^a-zA-Z0-9_-]/g, '_')
+      await exportElementToPdf(targetId, `Comprobante_${safeName}.pdf`)
+    } catch (err) {
+      console.error('Error generando PDF:', err)
+    } finally {
+      setDownloadingPdf(false)
+    }
   }
 
   const handleBack = () => {
@@ -56,10 +72,6 @@ const ComprobantePublicoPage: React.FC = () => {
       navigate('/');
     }
   };
-
-  const isProgramaPrincipal =
-    data?.programa_codigo &&
-    ['CIBIR', 'PEGI', 'PREANI', 'PADI'].includes(data.programa_codigo.toUpperCase())
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 print:bg-white">
@@ -115,16 +127,23 @@ const ComprobantePublicoPage: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={handlePrintPdf}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-700 cursor-pointer"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-700 cursor-pointer disabled:opacity-50"
           >
-            <Printer size={16} />
-            Exportar PDF
+            {downloadingPdf ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Descargando PDF...
+              </>
+            ) : (
+              <>
+                <FileDown size={16} />
+                Descargar PDF
+              </>
+            )}
           </button>
         </div>
-        <p className="mx-auto max-w-4xl px-4 pb-3 text-[11px] text-slate-500 pl-16">
-          Use la impresión del navegador y elija <strong>Guardar como PDF</strong> como destino {isProgramaPrincipal && '(orientación Horizontal)'}.
-        </p>
       </header>
 
       <main
