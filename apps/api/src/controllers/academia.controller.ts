@@ -2709,6 +2709,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
       if (shouldSendToken) {
         const expiracion = new Date()
         expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
+        const tokenHash = sha256(tokenToUse)
         // clean up old tokens
         await db.execute({
           sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
@@ -2717,7 +2718,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
         await db.execute({
           sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
                 VALUES (?, 'reset_password', ?, 0, ?)`,
-          args: [tokenToUse, row.email, expiracion.toISOString()]
+          args: [tokenHash, row.email, expiracion.toISOString()]
         })
       }
     } catch (err) {
@@ -2733,14 +2734,10 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
       }
     }
 
-    // Enviar correo de bienvenida con acceso a password
+    // Enviar correo de bienvenida/invitación de acceso (mismo correo que botón Invitar del panel)
     try {
-      await enviarCorreoSetPasswordEstudiante({
-        nombre: row.nombre_completo,
-        emailOriginal: row.email,
-        programaCodigo: row.programa_codigo || 'Curso',
-        token: shouldSendToken ? tokenToUse : undefined
-      })
+      const { enviarCorreoOnboardingMasivo } = await import('../lib/email.js')
+      await enviarCorreoOnboardingMasivo(row.nombre_completo, row.email, tokenToUse)
     } catch (err) {
       console.error('Error enviando correo de acceso directo:', err)
     }
