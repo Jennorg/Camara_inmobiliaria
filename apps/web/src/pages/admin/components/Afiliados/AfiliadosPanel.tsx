@@ -652,13 +652,13 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <select
                       value={selected.tipo_afiliado}
                       onChange={(e) => handleDropdownTypeChange(e.target.value)}
-                      className="w-full bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 hover:border-gray-200 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10"
+                      className="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-colors cursor-pointer text-[10px] font-black uppercase tracking-widest px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     >
                       <option value="Natural">Agente Independiente</option>
                       <option value="Agente Corporativo">Agente Corporativo</option>
                       <option value="Corporativo">Corporativo</option>
                     </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
                     {selected.tipo_afiliado === 'Corporativo'
