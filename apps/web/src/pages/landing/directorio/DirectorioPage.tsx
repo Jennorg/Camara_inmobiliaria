@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Users, Loader2 } from 'lucide-react';
+import { Search, Users, Loader2, ChevronDown, X } from 'lucide-react';
 import SEO from '@/components/SEO';
 import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
@@ -42,6 +42,8 @@ const DirectorioPage = () => {
   const [page, setPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState<'nombre' | 'id' | 'codigo'>('nombre');
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
 
@@ -74,10 +76,13 @@ const DirectorioPage = () => {
     params.set('page', String(targetPage));
     params.set('limit', String(PAGE_SIZE));
     params.set('con_foto', 'true');
-    if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+    if (debouncedSearch.trim()) {
+      params.set('search', debouncedSearch.trim());
+      params.set('search_field', searchField);
+    }
     if (filterType !== 'Todos') params.set('tipo_afiliado', filterType);
     return params.toString();
-  }, [debouncedSearch, filterType]);
+  }, [debouncedSearch, searchField, filterType]);
 
   // ── Fetch a single page and append to list ──────────────────────────
   const fetchPage = useCallback(async (targetPage: number, reset: boolean) => {
@@ -167,17 +172,76 @@ const DirectorioPage = () => {
             {/* Buscador */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
               <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg h-[68px] relative z-30">
+                {/* Dropdown de criterio de búsqueda */}
+                <div className="relative shrink-0 border-r border-slate-200 dark:border-emerald-500/20 h-full flex items-center z-20 pl-6 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+                    className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-emerald-200 hover:text-emerald-600 dark:hover:text-white transition-colors"
+                  >
+                    <span>
+                      {searchField === 'nombre' && 'Nombre'}
+                      {searchField === 'id' && 'Cédula / RIF'}
+                      {searchField === 'codigo' && 'Código'}
+                    </span>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showSearchDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
+                      <div className="absolute left-6 top-full mt-2 bg-white dark:bg-[#04432f] border border-slate-200 dark:border-emerald-500/20 rounded-xl shadow-xl py-2 z-50 min-w-[140px] animate-in fade-in slide-in-from-top-1 duration-150">
+                        {([
+                          { key: 'nombre', label: 'Nombre' },
+                          { key: 'id', label: 'Cédula / RIF' },
+                          { key: 'codigo', label: 'Código' },
+                        ] as const).map(option => (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => {
+                              setSearchField(option.key);
+                              setShowSearchDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                              searchField === option.key
+                                ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
+                                : 'text-slate-600 dark:text-emerald-100/70 hover:bg-slate-50 dark:hover:bg-emerald-900/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <div className="relative flex-grow h-full flex items-center">
-                  <div className="absolute left-6 pointer-events-none text-slate-400 dark:text-emerald-100/40">
+                  <div className="absolute left-6 pointer-events-none text-slate-400 dark:text-emerald-100/40 hidden sm:block">
                     <Search size={22} />
                   </div>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por nombre completo o empresa..."
-                    className="w-full h-full pl-16 pr-24 bg-transparent text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none text-lg"
+                    placeholder={
+                      searchField === 'nombre'
+                        ? 'Buscar por nombre completo o empresa...'
+                        : searchField === 'id'
+                        ? 'Buscar por cédula o RIF (ej. 12345678)...'
+                        : 'Buscar por código de miembro...'
+                    }
+                    className="w-full h-full pl-4 sm:pl-16 pr-24 bg-transparent text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none text-base md:text-lg"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-16 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 dark:bg-emerald-900/50 text-slate-600 dark:text-emerald-200 flex items-center justify-center hover:bg-slate-300 transition-all"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                   <div className="absolute right-6 flex items-center gap-2">
                     {filterType !== 'Todos' && (
                       <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2.5 py-1 rounded-md">
