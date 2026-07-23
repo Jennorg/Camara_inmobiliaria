@@ -11,7 +11,7 @@ import {
   Mail, Phone, MapPin, BadgeCheck, FileText, Calendar, CreditCard,
   ShieldAlert, ArrowUpDown, ChevronDown, ImageIcon, Upload, Loader2,
   Briefcase, StickyNote, Globe, FileDown, Music2, Facebook, Instagram, Linkedin,
-  ExternalLink
+  ExternalLink, GraduationCap
 } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import Cropper from 'react-easy-crop'
@@ -300,6 +300,7 @@ export default function MiembrosPanel() {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [cropAspectChoice, setCropAspectChoice] = useState<number>(1)
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
@@ -473,6 +474,7 @@ export default function MiembrosPanel() {
     setImageFile(null)
     setCrop(kind === 'foto' ? { x: 0, y: -350 } : { x: 0, y: 0 })
     setZoom(kind === 'foto' ? 1.1 : 1)
+    setCropAspectChoice(kind === 'foto' ? 4 / 5 : 1)
     setImagePreview(
       kind === 'logo'
         ? selected.empresa_logo_url || null
@@ -1433,6 +1435,36 @@ export default function MiembrosPanel() {
                       )}
                     </div>
                   )}
+
+                  {/* Aprobar CIBIR (Certificación vs Acreditación) */}
+                  <div className="p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-2xl flex items-center justify-between gap-4 pt-3 border-t border-gray-200">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap size={16} className="text-emerald-600" />
+                        <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">Aprobar CIBIR</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-emerald-800/80 leading-snug">
+                        {!Boolean(isEditing ? (editForm.cibir_acreditado ?? editForm.cibir_convalidado) : (selected.cibir_acreditado ?? selected.cibir_convalidado))
+                          ? '✓ Aprobado en CIBIR (Genera certificado CIBIR de aprobación)'
+                          : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
+                      </p>
+                    </div>
+                    {isEditing ? (
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={!Boolean(editForm.cibir_acreditado ?? editForm.cibir_convalidado)}
+                          onChange={(e) => setEditForm({ ...editForm, cibir_acreditado: e.target.checked ? 0 : 1 })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                      </label>
+                    ) : (
+                      <span className={`text-xs font-black px-3 py-1 rounded-full ${!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado) ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-700'}`}>
+                        {!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado) ? 'SI' : 'NO'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1787,6 +1819,30 @@ export default function MiembrosPanel() {
                     </div>
                   </div>
                   <DataInput label="Código de Afiliado (opcional)" placeholder="Dejar en blanco para autogenerar" value={newForm.codigo || ''} onChange={(v: string) => setNewForm({ ...newForm, codigo: v })} />
+                  
+                  {/* Aprobar CIBIR (Certificación vs Acreditación) */}
+                  <div className="sm:col-span-2 bg-emerald-50/60 border border-emerald-200/60 p-4 rounded-2xl flex items-center justify-between gap-4 mt-2">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap size={16} className="text-emerald-600" />
+                        <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">Aprobar CIBIR</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-emerald-800/80 leading-snug">
+                        {!newForm.cibir_acreditado 
+                          ? '✓ Aprobado en CIBIR (Genera certificado CIBIR de aprobación)' 
+                          : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={!newForm.cibir_acreditado}
+                        onChange={(e) => setNewForm({ ...newForm, cibir_acreditado: e.target.checked ? 0 : 1 })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                    </label>
+                  </div>
                 </div>
 
                 {/* Redes Sociales del Individuo */}
@@ -1976,7 +2032,7 @@ export default function MiembrosPanel() {
                       onUploadSuccess={(url) => setNewForm({ ...newForm, empresa_logo_url: url } as any)}
                       onClear={() => setNewForm({ ...newForm, empresa_logo_url: null } as any)}
                       enableCrop
-                      cropAspect={16 / 9}
+                      cropAspect={1}
                       cropShape="rect"
                     />
                   )}
@@ -2065,7 +2121,10 @@ export default function MiembrosPanel() {
                     image={imagePreview}
                     crop={crop}
                     zoom={zoom}
-                    aspect={imageEditKind === 'foto' ? 4 / 5 : 16 / 9}
+                    minZoom={0.2}
+                    maxZoom={4}
+                    restrictPosition={false}
+                    aspect={cropAspectChoice}
                     onCropChange={setCrop}
                     onZoomChange={setZoom}
                     onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
@@ -2103,6 +2162,33 @@ export default function MiembrosPanel() {
               />
             </div>
 
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCropAspectChoice(1)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Cuadrado (1:1)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCropAspectChoice(4 / 5)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Perfil (4:5)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCropAspectChoice(16 / 9)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Horizontal (16:9)
+                </button>
+              </div>
+            </div>
+
             {imagePreview && (
               <div className="space-y-4">
                 <div className="px-2">
@@ -2113,9 +2199,9 @@ export default function MiembrosPanel() {
                   <input
                     type="range"
                     value={zoom}
-                    min={1}
-                    max={3}
-                    step={0.1}
+                    min={0.2}
+                    max={4}
+                    step={0.02}
                     aria-labelledby="Zoom"
                     onChange={(e) => setZoom(Number(e.target.value))}
                     className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-500"

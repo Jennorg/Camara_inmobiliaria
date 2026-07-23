@@ -1044,16 +1044,26 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 </select>
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <input
-                  type="checkbox"
-                  id="cibir_convalidado"
-                  checked={!!selected.cibir_convalidado}
-                  onChange={(e) => updateField('cibir_convalidado', e.target.checked)}
-                  className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500"
-                />
-                <label htmlFor="cibir_convalidado" className="text-xs font-bold text-slate-600 cursor-pointer">
-                  Convalidar conocimientos CIBIR (Vía Entrevista)
+              <div className="bg-emerald-50/70 border border-emerald-200/60 p-4 rounded-2xl flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap size={16} className="text-emerald-600" />
+                    <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">Aprobar CIBIR</span>
+                  </div>
+                  <p className="text-[11px] font-medium text-emerald-800/80 leading-snug">
+                    {!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado)
+                      ? '✓ Aprobado en CIBIR (Genera certificado CIBIR de aprobación)'
+                      : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado)}
+                    onChange={(e) => updateField('cibir_acreditado', e.target.checked ? 0 : 1)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
                 </label>
               </div>
 

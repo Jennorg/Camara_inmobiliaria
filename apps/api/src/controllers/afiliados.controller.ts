@@ -29,9 +29,8 @@ import {
 } from '../lib/email.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
-import bcrypt from 'bcryptjs';
 import { NotificationService } from '../services/notification.service.js';
-import { ensureCibirCertificate } from '../lib/certificados.js';
+import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
 
 /**
  * GET /api/afiliados/:id
@@ -964,6 +963,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              END as nombre_completo,
              NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') as representante_nombre,
              p.nombres, p.apellidos, a.codigo, p.foto_url,
+             (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
              (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
              (p.cedula_tipo || '-' || p.cedula) as cedula,
              e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
@@ -1053,8 +1053,6 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     const dataSql = `${BASE_SELECT} ${whereClauses} ${ORDER_BY} LIMIT ? OFFSET ?`
     const result = await db.execute({ sql: dataSql, args: [...args, limit, offset] })
 
-    console.log(`[DEBUG] buscarAfiliadosPublic: search="${search}" field="${searchField}" tipo="${tipoAfiliado}" page=${page} limit=${limit} → ${result.rows.length}/${total}`)
-
     const mappedData = result.rows.map((row) => ({
       ...row,
       foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
@@ -1068,9 +1066,31 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       }
     }))
 
+    // ── Category Breakdown Counts ───────────────────────────────────
+    const countsSql = `
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN LOWER(a.tipo_afiliado) = 'natural' THEN 1 ELSE 0 END) as natural,
+        SUM(CASE WHEN LOWER(a.tipo_afiliado) = 'corporativo' THEN 1 ELSE 0 END) as corporativo,
+        SUM(CASE WHEN LOWER(a.tipo_afiliado) IN ('agente', 'agente corporativo') THEN 1 ELSE 0 END) as agente
+      FROM afiliados a 
+      JOIN personas p ON a.id_persona = p.id 
+      LEFT JOIN empresas e ON a.id_empresa = e.id_empresa 
+      WHERE a.estatus = 'Afiliado' AND a.activo = 1 AND a.eliminado_en IS NULL AND p.eliminado_en IS NULL ${conFoto ? "AND p.foto_url IS NOT NULL AND p.foto_url <> ''" : ""}
+    `
+    const breakdownRes = await db.execute({ sql: countsSql, args: [] })
+    const bRow: any = breakdownRes.rows[0] || {}
+    const counts = {
+      total: Number(bRow.total ?? 0),
+      natural: Number(bRow.natural ?? 0),
+      corporativo: Number(bRow.corporativo ?? 0),
+      agente: Number(bRow.agente ?? 0),
+    }
+
     return res.status(200).json({
       success: true,
       data: mappedData,
+      counts,
       pagination: {
         page,
         limit,
@@ -1103,6 +1123,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
                e.razon_social as empresa_razon_social, 
+               (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
                e.rif_tipo as empresa_rif_tipo,
                e.rif_numero as empresa_rif_numero,
                COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
@@ -1148,7 +1169,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
       }
     };
 
-    if (row.tipo_afiliado === 'Corporativo') {
+    if (row.id_empresa) {
       const assocResult = await db.execute({
         sql: `
           SELECT a.id_afiliado, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, a.codigo, (p.cedula_tipo || '-' || p.cedula) as cedula, a.tipo_afiliado, p.foto_url
@@ -1162,6 +1183,11 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
         ...r,
         foto_url: (r.foto_url as string) || avatarFallback(r.nombre_completo)
       }));
+
+      const corpItem = assocResult.rows.find((r: any) => r.tipo_afiliado === 'Corporativo');
+      if (corpItem && corpItem.codigo) {
+        mappedData.empresa_codigo = corpItem.codigo;
+      }
     }
 
     return res.status(200).json({
@@ -1377,8 +1403,8 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
         console.error('Error sincronizando inscripcion en updateEstatusAfiliado:', errSync);
       }
     }
-    if (Number(afi.cibir_acreditado) === 1) {
-      await ensureCibirCertificate(Number(id));
+    if (cibir_acreditado !== undefined || afi.cibir_acreditado !== undefined) {
+      await syncCibirCertificateState(Number(id), Number(afi.cibir_acreditado) === 1);
     }
 
     return res.json({ success: true, data: afi });
@@ -1658,6 +1684,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         sql: `UPDATE afiliados SET ${aUpdates.join(', ')} WHERE id_afiliado = ?`,
         args: aArgs
       });
+      if (fields.cibir_acreditado !== undefined) {
+        await syncCibirCertificateState(Number(id), Boolean(fields.cibir_acreditado));
+      }
     }
 
     if (eUpdates.length > 0) {
@@ -2546,15 +2575,18 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     // 4. Insertar Afiliado
     const redes_sociales = JSON.stringify({ instagram, facebook, linkedin, twitter, tiktok, website });
     const marcaLogoUrl = (tipoFinal === 'Natural' && empresa_logo_url) ? empresa_logo_url : null;
+    const cibirAcreditadoVal = req.body.cibir_acreditado ? 1 : 0;
     const resultA = await db.execute({
       sql: `INSERT INTO afiliados (
-        id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, marca_logo_url, activo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1) RETURNING *`,
-      args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales, marcaLogoUrl]
+        id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, marca_logo_url, activo, cibir_acreditado
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?) RETURNING *`,
+      args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales, marcaLogoUrl, cibirAcreditadoVal]
     });
 
     const newAfiliado = resultA.rows[0];
     const idAfiliado = newAfiliado.id_afiliado;
+
+    await syncCibirCertificateState(Number(idAfiliado), cibirAcreditadoVal === 1);
 
     // 5. Insertar Documentos si se enviaron
     const documentos = req.body.documentos;
