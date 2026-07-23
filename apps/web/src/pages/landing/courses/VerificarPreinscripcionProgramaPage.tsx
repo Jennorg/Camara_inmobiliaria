@@ -463,7 +463,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       return;
     }
 
-    // 4.5. Validar Fecha de Nacimiento
+    // 4.5. Validar Fecha de Nacimiento (Mínimo 18 años)
     if (!formData.fecha_nacimiento) {
       Swal.fire({
         title: '¡Atención!',
@@ -471,6 +471,26 @@ export default function VerificarPreinscripcionProgramaPage() {
           ? 'Por favor, indica la Fecha de Nacimiento del Representante Legal.'
           : 'Por favor, indica tu Fecha de Nacimiento.',
         icon: 'warning',
+        confirmButtonColor: '#059669',
+      });
+      return;
+    }
+
+    const birthDate = new Date(formData.fecha_nacimiento);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (age < 18) {
+      Swal.fire({
+        title: 'Edad mínima requerida',
+        text: isCorporativo
+          ? 'El Representante Legal debe ser mayor de 18 años.'
+          : 'Debes tener al menos 18 años para enviar tu expediente y postularte.',
+        icon: 'error',
         confirmButtonColor: '#059669',
       });
       return;
@@ -528,13 +548,12 @@ export default function VerificarPreinscripcionProgramaPage() {
       return;
     }
 
-    // 6.5. Validar Años de Servicio o Diplomados para Acreditación (CIBIR)
+    // 6.5. Validar Años de Servicio para Acreditación (CIBIR)
     if (isAfiliacion && formData.optarAcreditacion) {
-      const hasDiplomados = formData.diplomados.length > 0;
-      if (anosServicio < 8 && !hasDiplomados) {
+      if (anosServicio < 8) {
         Swal.fire({
           title: 'Requisito para Acreditación',
-          text: 'Para optar por la Acreditación de Conocimientos necesitas tener más de 8 años de servicio o haber cursado y cargado el soporte del Diplomado FIPPI o PREANI.',
+          text: 'Para optar por la Acreditación de Conocimientos es obligatorio tener al menos 8 años de experiencia/servicio profesional en el sector inmobiliario.',
           icon: 'warning',
           confirmButtonColor: '#059669',
         });
@@ -649,7 +668,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
                 <p className="text-sm text-slate-600 font-medium ml-4.5 italic">Certificados de diplomados realizados relevantes de los últimos 5 años</p>
               </div>
-              <span className="text-xs font-bold text-rose-500 uppercase bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">Obligatorio</span>
+              <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-full">Opcional</span>
             </div>
 
             {/* Banner informativo de FIPPI/PREANI */}
@@ -926,7 +945,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-6 py-12">
           {status === 'form' && userData && (
-            <form onSubmit={handleConfirmar} className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <form onSubmit={handleConfirmar} className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
               <div className="space-y-3">
                 <h2 className="text-2xl md:text-3xl font-black text-[#022c22] uppercase tracking-tight">Carga de Documentación</h2>
@@ -957,6 +976,35 @@ export default function VerificarPreinscripcionProgramaPage() {
 
               {!isCorporativo && (
                 <>
+                  {/* Fecha de Nacimiento */}
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
+                        <div>
+                          <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
+                            Fecha de Nacimiento
+                          </h3>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
+                        Es un requisito obligatorio para el registro de tu expediente.
+                      </p>
+                    </div>
+                    <div className="relative group">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                        <Calendar size={18} />
+                      </div>
+                      <input
+                        type="date"
+                        required
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                        value={formData.fecha_nacimiento}
+                        onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                        className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                      />
+                    </div>
+                  </div>
 
                   {/* Selector de Nivel Académico */}
                   <div className="space-y-4">
@@ -1011,35 +1059,6 @@ export default function VerificarPreinscripcionProgramaPage() {
                           </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Fecha de Nacimiento */}
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-3 mb-1">
-                        <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
-                        <div>
-                          <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
-                            Fecha de Nacimiento
-                          </h3>
-                        </div>
-                      </div>
-                      <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
-                        Es un requisito obligatorio para el registro de tu expediente.
-                      </p>
-                    </div>
-                    <div className="relative group">
-                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
-                        <Calendar size={18} />
-                      </div>
-                      <input
-                        type="date"
-                        required
-                        value={formData.fecha_nacimiento}
-                        onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
-                        className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
-                      />
                     </div>
                   </div>
 
@@ -1149,6 +1168,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                             <input
                               type="date"
                               required
+                              max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                               value={formData.fecha_nacimiento}
                               onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
                               className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
@@ -1792,9 +1812,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
-                {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
-              </button>
+              <div className="pt-6 border-t border-slate-100/80">
+                <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
+                  {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
+                </button>
+              </div>
             </form>
           )}
 

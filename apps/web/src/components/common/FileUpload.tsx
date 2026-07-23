@@ -237,8 +237,8 @@ export default function FileUpload({
   );
 
   return (
-    <div className="space-y-2.5 flex flex-col h-full">
-      <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex items-end justify-between min-h-[2.75rem] pb-1 shrink-0">
+    <div className="space-y-2">
+      <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex items-center justify-between pb-1 shrink-0">
         <span>{label} {required && <span className="text-rose-500">*</span>}</span>
         {uploadedUrl && (
           <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100">
@@ -252,7 +252,7 @@ export default function FileUpload({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !uploadedUrl && !uploading && !disabled && fileInputRef.current?.click()}
-        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden flex-1 flex flex-col justify-center min-h-[140px] ${
+        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden w-full flex flex-col justify-center min-h-[120px] ${
           disabled
             ? 'border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
             : isDragging
