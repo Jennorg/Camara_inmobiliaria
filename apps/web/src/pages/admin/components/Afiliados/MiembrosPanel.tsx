@@ -519,13 +519,17 @@ export default function MiembrosPanel() {
           const croppedFile = new File([croppedImageBlob], imageFile.name, { type: imageFile.type })
           finalUrl = await uploadFileSupabase(
             croppedFile,
-            isLogo ? 'logos/empresas' : 'fotos/afiliados'
+            isLogo
+              ? (selected.tipo_afiliado === 'Corporativo' ? 'logos/empresas' : 'logos/marcas')
+              : 'fotos/afiliados'
           )
         }
       } else if (imageFile) {
         finalUrl = await uploadFileSupabase(
           imageFile,
-          isLogo ? 'logos/empresas' : 'fotos/afiliados'
+          isLogo
+            ? (selected.tipo_afiliado === 'Corporativo' ? 'logos/empresas' : 'logos/marcas')
+            : 'fotos/afiliados'
         )
       }
 
@@ -1128,53 +1132,63 @@ export default function MiembrosPanel() {
 
               <div className="flex flex-col items-center justify-center text-center gap-6">
                 {/* Avatar / Logo */}
-                {selected.tipo_afiliado === 'Corporativo' ? (
-                  <div className="flex items-center justify-center gap-3 shrink-0">
-                    <div className="relative">
-                      <div
-                        className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
-                        onClick={() => openImageEditor('logo')}
-                        title="Haz clic para cambiar el logo de la empresa"
-                      >
-                        {selected.empresa_logo_url ? (
-                          <img src={selected.empresa_logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
-                        ) : (
-                          <Building2 size={36} className="text-emerald-900" />
-                        )}
+                {selected.tipo_afiliado === 'Corporativo' || selected.tipo_afiliado === 'Natural' ? (
+                  <div className="flex items-center justify-center gap-4 shrink-0">
+                    {/* Caja de Logo */}
+                    <div className="flex flex-col items-center">
+                      <div className="relative">
+                        <div
+                          className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                          onClick={() => openImageEditor('logo')}
+                          title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar el logo de la empresa" : "Haz clic para cambiar el logo comercial / personal"}
+                        >
+                          {selected.empresa_logo_url ? (
+                            <img src={selected.empresa_logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
+                          ) : (
+                            <Building2 size={36} className="text-emerald-900" />
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                          onClick={() => openImageEditor('logo')}
+                          title={selected.tipo_afiliado === 'Corporativo' ? "Editar logo de la empresa" : "Editar logo de marca"}
+                        >
+                          <Edit3 size={12} className="text-slate-500" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
-                        onClick={() => openImageEditor('logo')}
-                        title="Editar logo"
-                      >
-                        <Edit3 size={12} className="text-slate-500" />
-                      </button>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
+                        {selected.tipo_afiliado === 'Corporativo' ? 'Logo Empresa' : 'Logo Personal'}
+                      </p>
                     </div>
-                    <div className="relative">
-                      <div
-                        className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
-                        onClick={() => openImageEditor('foto')}
-                        title="Haz clic para cambiar la foto del representante"
-                      >
-                        {selected.foto_url ? (
-                          <img src={selected.foto_url} alt="Representante" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-2xl font-black text-emerald-700 uppercase">
-                            {getInitials(selected.nombres, selected.apellidos)}
-                          </span>
-                        )}
+
+                    {/* Caja de Foto */}
+                    <div className="flex flex-col items-center">
+                      <div className="relative">
+                        <div
+                          className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
+                          onClick={() => openImageEditor('foto')}
+                          title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar la foto del representante" : "Haz clic para cambiar la foto de perfil"}
+                        >
+                          {selected.foto_url ? (
+                            <img src={selected.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-2xl font-black text-emerald-700 uppercase">
+                              {getInitials(selected.nombres, selected.apellidos)}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
+                          onClick={() => openImageEditor('foto')}
+                          title={selected.tipo_afiliado === 'Corporativo' ? "Editar foto del representante" : "Editar foto de perfil"}
+                        >
+                          <Edit3 size={14} className="text-slate-500" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
-                        onClick={() => openImageEditor('foto')}
-                        title="Editar foto del representante"
-                      >
-                        <Edit3 size={14} className="text-slate-500" />
-                      </button>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-3">
-                        Representante
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
+                        {selected.tipo_afiliado === 'Corporativo' ? 'Representante' : 'Foto Perfil'}
                       </p>
                     </div>
                   </div>
@@ -2013,11 +2027,13 @@ export default function MiembrosPanel() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-black text-slate-800 text-base">
-                  {imageEditKind === 'logo' ? 'Logo de la Empresa' : 'Foto de Perfil'}
+                  {imageEditKind === 'logo'
+                    ? (selected.tipo_afiliado === 'Corporativo' ? 'Logo de la Empresa' : 'Logo Personal / Comercial')
+                    : 'Foto de Perfil'}
                 </p>
                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                   {imageEditKind === 'logo'
-                    ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo))
+                    ? (selected.tipo_afiliado === 'Corporativo' ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo)) : formatNombreCard(selected.nombre_completo))
                     : formatNombreCard(selected.nombre_completo)}
                 </p>
               </div>
@@ -2128,7 +2144,7 @@ export default function MiembrosPanel() {
                 className="w-full bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold py-2.5 rounded-2xl transition-colors flex items-center justify-center gap-1.5"
               >
                 <Trash2 size={12} />
-                {imageEditKind === 'logo' ? 'Eliminar Logo actual' : 'Eliminar Foto actual'}
+                {imageEditKind === 'logo' ? (selected.tipo_afiliado === 'Corporativo' ? 'Eliminar Logo de Empresa' : 'Eliminar Logo Personal') : 'Eliminar Foto actual'}
               </button>
             )}
 
@@ -2147,7 +2163,7 @@ export default function MiembrosPanel() {
                 className="flex-[2] bg-emerald-500 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-600 disabled:opacity-60 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
               >
                 {imageUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                {imageUploading ? 'Subiendo...' : imageEditKind === 'logo' ? 'Guardar Logo' : 'Guardar Foto'}
+                {imageUploading ? 'Subiendo...' : imageEditKind === 'logo' ? (selected.tipo_afiliado === 'Corporativo' ? 'Guardar Logo Empresa' : 'Guardar Logo Personal') : 'Guardar Foto'}
               </button>
             </div>
           </div>
