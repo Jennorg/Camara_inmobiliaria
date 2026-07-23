@@ -7,7 +7,7 @@ import {
   getHitos, createHito, updateHito, deleteHito,
   getConfig, upsertConfig, upsertConfigBatch, deleteConfig,
   getPaginasList, getPaginaBySlug, upsertPagina, deletePagina,
-  getNormativas, createNormativa, updateNormativa, deleteNormativa,
+  getNormativas, createNormativa, updateNormativa, deleteNormativa, deleteBatchNormativas,
 } from '../controllers/cms.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
 
@@ -35,6 +35,7 @@ router.delete('/convenios/:id', ...adminOnly, deleteConvenio);
 // ── Normativas (enlaces a documentos) ───────────────────
 router.get('/normativas', getNormativas);
 router.post('/normativas', ...adminOnly, createNormativa);
+router.post('/normativas-batch-delete', ...adminOnly, deleteBatchNormativas);
 router.put('/normativas/:id', ...adminOnly, updateNormativa);
 router.delete('/normativas/:id', ...adminOnly, deleteNormativa);
 

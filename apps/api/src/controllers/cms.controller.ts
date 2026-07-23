@@ -637,3 +637,23 @@ export const deleteNormativa = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Error al eliminar normativa' });
   }
 };
+
+export const deleteBatchNormativas = async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Debe proporcionar un arreglo de IDs a eliminar' });
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+    await db.execute({
+      sql: `DELETE FROM cms_normativas WHERE id_normativa IN (${placeholders})`,
+      args: ids.map(id => String(id))
+    });
+
+    return res.json({ success: true, message: `${ids.length} documentos eliminados correctamente` });
+  } catch (error) {
+    console.error('deleteBatchNormativas:', error);
+    return res.status(500).json({ success: false, message: 'Error al eliminar documentos en lote' });
+  }
+};

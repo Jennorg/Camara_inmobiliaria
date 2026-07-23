@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2 } from 'lucide-react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
 
@@ -32,7 +33,61 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
 
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([])
+  const [deletingBatch, setDeletingBatch] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<NormativaItem | null>(null)
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
 
+  const toggleSelect = (id: string | number) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredItems.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filteredItems.map(it => it.id))
+    }
+  }
+
+  const confirmRemoveBatch = async () => {
+    if (selectedIds.length === 0) return
+    setDeletingBatch(true)
+    try {
+      const res = await api.post('/api/cms/normativas-batch-delete', { ids: selectedIds })
+      if (res.success) {
+        setSelectedIds([])
+        setSelectedId(null)
+        setIsEditing(false)
+        setShowBatchDeleteModal(false)
+        load()
+      } else {
+        alert(res.message || 'Error al eliminar documentos')
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Error de conexión al eliminar los documentos seleccionados')
+    } finally {
+      setDeletingBatch(false)
+    }
+  }
+
+  const confirmRemoveSingle = async () => {
+    if (!itemToDelete) return
+    const id = itemToDelete.id
+    try {
+      await api.delete(`/api/cms/normativas/${id}`)
+      setSelectedId(null)
+      setSelectedIds(prev => prev.filter(i => i !== id))
+      setItemToDelete(null)
+      load()
+    } catch (e) {
+      console.error(e)
+      alert('Error de conexión al eliminar el documento')
+    }
+  }
 
   const tabs = ['Todas', 'Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Otros']
 
@@ -54,6 +109,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       setForm(p => ({ ...p, categoria: fixedCategory }))
       setSelectedId(null)
       setIsEditing(false)
+      setSelectedIds([])
     }
   }, [fixedCategory])
 
@@ -135,12 +191,10 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     }
   }
 
-  const remove = async (id: string | number) => {
-    if (!confirm('¿Eliminar este documento legal?')) return
-    await api.delete(`/api/cms/normativas/${id}`)
-    setSelectedId(null)
-    load()
+  const remove = (item: NormativaItem) => {
+    setItemToDelete(item)
   }
+
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((p) => ({
       ...p,
@@ -161,7 +215,6 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       setUploading(false)
     }
   }
-
 
   const filteredItems = activeTab === 'Todas' ? items : items.filter(it => it.categoria === activeTab)
 
@@ -199,98 +252,64 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
             <Textarea 
               value={form.descripcion} 
               onChange={f('descripcion')} 
-              placeholder="Escribe un breve resumen del contenido para facilitar la búsqueda..." 
-              rows={3} 
-              className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all resize-none"
+              placeholder="Escribe una breve descripción del documento legal..."
+              className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
             />
           </FormField>
         </div>
 
         <div className="md:col-span-2">
-          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Documento PDF</span>
-              {form.url_archivo && (
-                <a 
-                  href={form.url_archivo} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
-                >
-                  <FolderSearch size={12} />
-                  Ver actual
-                </a>
+          <FormField label="Documento PDF / Archivo">
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+              onDragLeave={() => setIsDraggingOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) uploadFile(file);
+              }}
+              className={[
+                "border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-3",
+                isDraggingOver ? "border-emerald-500 bg-emerald-50/50" : "border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300"
+              ].join(' ')}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf,application/pdf';
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) uploadFile(file);
+                };
+                input.click();
+              }}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors">
+                <Upload size={22} strokeWidth={2} />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-black text-slate-700">
+                  {uploading ? 'Subiendo archivo...' : uploadedFileName ? uploadedFileName : 'Haz clic o arrastra un archivo PDF aquí'}
+                </span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                  {uploadedFileName ? 'Archivo cargado correctamente' : 'PDF (Máx. 25MB)'}
+                </span>
+              </div>
+              {uploadError && (
+                <span className="text-xs font-bold text-red-500 mt-1">{uploadError}</span>
               )}
             </div>
-
-            <div className="relative group">
-              <input
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) uploadFile(file)
-                }}
-                disabled={uploading}
-                onDragEnter={() => setIsDraggingOver(true)}
-                onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true) }}
-                onDragLeave={() => setIsDraggingOver(false)}
-                onDrop={() => setIsDraggingOver(false)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
-              />
-              <div className={`flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed rounded-xl transition-all duration-200 ${
-                uploading 
-                  ? 'border-emerald-200 bg-emerald-50/30' 
-                  : isDraggingOver
-                    ? 'border-emerald-500 bg-emerald-100 scale-[1.02] shadow-xl shadow-emerald-500/10'
-                    : form.url_archivo 
-                      ? 'border-emerald-400 bg-emerald-50/50' 
-                      : 'border-slate-200 group-hover:border-emerald-400 group-hover:bg-emerald-50/10'
-              }`}>
-
-                {uploading ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-[11px] font-bold text-emerald-700">Subiendo archivo...</span>
-                  </div>
-                ) : form.url_archivo ? (
-                  <div className="flex flex-col items-center gap-1 text-center animate-in fade-in zoom-in duration-300">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mb-1 shadow-md shadow-emerald-200 ring-4 ring-emerald-50">
-                      <CheckCircle size={22} strokeWidth={3} />
-                    </div>
-                    <p className="text-[11px] font-black text-emerald-700 uppercase tracking-tight">¡Documento listo!</p>
-                    {uploadedFileName && (
-                      <p className="text-[10px] text-slate-500 font-bold truncate max-w-[200px] bg-white px-2 py-0.5 rounded-lg border border-emerald-100 mt-1">
-                        {uploadedFileName}
-                      </p>
-                    )}
-                    <p className="text-[9px] text-emerald-600/60 font-bold mt-1 uppercase tracking-widest">Haga clic para cambiar</p>
-                  </div>
-
-                ) : (
-                  <>
-                    <Upload size={20} className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-2" />
-                    <p className="text-[11px] font-bold text-slate-600 group-hover:text-emerald-700">
-                      Haga clic o arrastre para subir el PDF
-                    </p>
-                    <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-wider">Solo archivos .pdf</p>
-                  </>
-                )}
-              </div>
-
-            </div>
-            {uploadError && <p className="text-[10px] font-bold text-red-500 animate-pulse">{uploadError}</p>}
-          </div>
+          </FormField>
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <FormField label="Categoría">
-            <select 
-              value={form.categoria} 
+            <select
+              value={form.categoria}
               onChange={(e) => setForm(p => ({ ...p, categoria: e.target.value }))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all appearance-none cursor-pointer"
+              className="w-full text-sm rounded-xl border border-slate-200 px-3 py-3 text-slate-700 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-semibold"
             >
-              <option value="">Seleccionar categoría...</option>
+              <option value="">Selecciona una categoría</option>
               <option value="Leyes y Decretos">Leyes y Decretos</option>
               <option value="Reglamentos y Estatutos">Reglamentos y Estatutos</option>
               <option value="Normas y Procedimientos">Normas y Procedimientos</option>
@@ -342,7 +361,10 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
         </BtnPrimary>
         {selectedId && selectedId !== 'new' && (
           <BtnDanger
-            onClick={() => remove(selectedId)}
+            onClick={() => {
+              const item = items.find(it => String(it.id) === String(selectedId))
+              if (item) remove(item)
+            }}
             className="flex-1 !py-3.5 !rounded-xl !text-xs !font-black uppercase tracking-widest bg-red-50 text-red-500 hover:bg-red-100"
           >
             Eliminar Documento
@@ -362,7 +384,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {!fixedCategory && (
         <div className="flex-shrink-0 px-4 pt-4 bg-white border-b border-gray-100 overflow-x-auto no-scrollbar">
           <div className="flex gap-6">
@@ -372,6 +394,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 onClick={() => {
                   setActiveTab(tab)
                   setSelectedId(null)
+                  setSelectedIds([])
                 }}
                 className={[
                   'pb-3 text-[11px] font-bold uppercase tracking-widest transition-all relative whitespace-nowrap',
@@ -385,6 +408,35 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Control bar de selección múltiple */}
+      {filteredItems.length > 0 && (
+        <div className="px-4 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-3 text-xs">
+          <label className="flex items-center gap-2 cursor-pointer select-none font-bold text-slate-600">
+            <input
+              type="checkbox"
+              checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+            />
+            <span>
+              {selectedIds.length === filteredItems.length ? 'Desmarcar todos' : 'Seleccionar todos'} ({selectedIds.length}/{filteredItems.length})
+            </span>
+          </label>
+
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowBatchDeleteModal(true)}
+              disabled={deletingBatch}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs transition-colors shadow-xs"
+            >
+              <Trash2 size={13} />
+              {deletingBatch ? 'Eliminando...' : `Eliminar ${selectedIds.length} seleccionados`}
+            </button>
+          )}
         </div>
       )}
 
@@ -403,6 +455,14 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
           renderRow={(item, sel) => (
             <div className="flex items-center justify-between gap-3 min-w-0 group cursor-pointer pr-2">
               <div className="flex items-center gap-3 min-w-0">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => toggleSelect(item.id)}
+                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
+                />
+
                 <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500 shrink-0">
                   <FileText size={18} strokeWidth={2.5} />
                 </div>
@@ -421,7 +481,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                   <Edit size={14} />
                 </button>
                 <button 
-                  onClick={(e) => { e.stopPropagation(); remove(item.id); }}
+                  onClick={(e) => { e.stopPropagation(); remove(item); }}
                   className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
                 >
                   <Trash2 size={14} />
@@ -435,7 +495,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 <h3 className="text-sm font-bold text-slate-800">{item.titulo}</h3>
                 <div className="flex gap-2 shrink-0">
                   <BtnSecondary onClick={() => openEdit(item)}>Editar</BtnSecondary>
-                  <BtnDanger onClick={() => remove(item.id)}>Eliminar</BtnDanger>
+                  <BtnDanger onClick={() => remove(item)}>Eliminar</BtnDanger>
                 </div>
               </div>
               {item.descripcion && <p className="text-xs text-slate-600">{item.descripcion}</p>}
@@ -468,6 +528,74 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
           renderForm={formBody}
         />
       </div>
+
+      {/* Modal de confirmación individual */}
+      {itemToDelete && createPortal(
+        <div className='fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md'>
+          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+            <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
+              <Trash2 size={32} />
+            </div>
+            <h3 className='text-lg font-black text-slate-800 mb-2'>¿Eliminar documento?</h3>
+            <p className='text-sm text-slate-500 mb-6'>
+              Estás a punto de eliminar <span className='font-bold text-slate-700'>{itemToDelete.titulo}</span> del Marco Legal. Esta acción no se puede deshacer.
+            </p>
+            
+            <div className='flex flex-col gap-2'>
+              <button
+                type='button'
+                onClick={confirmRemoveSingle}
+                className='w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-all active:scale-95'
+              >
+                Sí, eliminar documento
+              </button>
+              <button 
+                type='button' 
+                onClick={() => setItemToDelete(null)} 
+                className='w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all'
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal de confirmación masiva */}
+      {showBatchDeleteModal && createPortal(
+        <div className='fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md'>
+          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+            <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
+              <Trash2 size={32} />
+            </div>
+            <h3 className='text-lg font-black text-slate-800 mb-2'>¿Eliminar selección?</h3>
+            <p className='text-sm text-slate-500 mb-6'>
+              Estás a punto de eliminar <span className='font-bold text-slate-700'>{selectedIds.length} documentos</span> del Marco Legal. Esta acción no se puede deshacer.
+            </p>
+            
+            <div className='flex flex-col gap-2'>
+              <button
+                type='button'
+                disabled={deletingBatch}
+                onClick={confirmRemoveBatch}
+                className='w-full py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-all active:scale-95'
+              >
+                {deletingBatch ? 'Eliminando...' : `Sí, eliminar los ${selectedIds.length} documentos`}
+              </button>
+              <button 
+                type='button' 
+                disabled={deletingBatch}
+                onClick={() => setShowBatchDeleteModal(false)} 
+                className='w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all'
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
