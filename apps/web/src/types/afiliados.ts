@@ -113,6 +113,7 @@ export interface AfiliadoDTO {
   empresa_website: string | null;
   empresa_email: string | null;
   empresa_telefono: string | null;
+  empresa_codigo?: string | null;
 
   // ── Campos calculados o DTO específicos ──
   nombre_completo?: string;
