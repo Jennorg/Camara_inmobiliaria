@@ -121,7 +121,6 @@ export default function UsersPanel() {
   const handleRoleChange = async (u: SystemUser, newRol: 'admin' | 'afiliado' | 'super_admin') => {
     if (saving) return
     setSaving(true)
-    setFeedback(null)
     try {
       const r = await fetch(`${API_URL}/api/users/${u.id}`, {
         method: 'PATCH',
@@ -130,13 +129,13 @@ export default function UsersPanel() {
       })
       const d = await r.json()
       if (d.success) {
-        setFeedback({ type: 'ok', msg: `Rol de ${u.email} actualizado correctamente` })
+        toast.success(`Rol de ${u.email} actualizado correctamente`)
         load()
       } else {
-        setFeedback({ type: 'err', msg: d.message || 'Error al actualizar el rol' })
+        toast.error(d.message || 'Error al actualizar el rol')
       }
     } catch (e) {
-      setFeedback({ type: 'err', msg: 'Error de conexión al actualizar el rol' })
+      toast.error('Error de conexión al actualizar el rol')
     } finally {
       setSaving(false)
     }
@@ -150,7 +149,6 @@ export default function UsersPanel() {
   const handleResetClick = (u: SystemUser) => {
     setResettingUser(u)
     setNewPassword('')
-    setFeedback(null)
   }
 
   const confirmSendInvite = async () => {
@@ -183,7 +181,6 @@ export default function UsersPanel() {
     const tipoActual = u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'
     if (tipo === tipoActual) return
     setUpdatingEmailId(u.id)
-    setFeedback(null)
     try {
       const r = await fetch(`${API_URL}/api/afiliados/${u.id_afiliado}/acceso-email`, {
         method: 'PATCH',
@@ -192,13 +189,13 @@ export default function UsersPanel() {
       })
       const d = await r.json()
       if (d.success) {
-        setFeedback({ type: 'ok', msg: `Correo de acceso de ${u.nombre_completo || u.email} cambiado a ${d.acceso_email}` })
+        toast.success(`Correo de acceso de ${u.nombre_completo || u.email} cambiado a ${d.acceso_email}`)
         load()
       } else {
-        setFeedback({ type: 'err', msg: d.message || 'Error al cambiar el correo de acceso' })
+        toast.error(d.message || 'Error al cambiar el correo de acceso')
       }
     } catch {
-      setFeedback({ type: 'err', msg: 'Error de conexión' })
+      toast.error('Error de conexión')
     } finally {
       setUpdatingEmailId(null)
     }
@@ -215,14 +212,14 @@ export default function UsersPanel() {
       })
       const d = await r.json()
       if (d.success) {
-        setFeedback({ type: 'ok', msg: `Contraseña de ${resettingUser.email} actualizada con éxito.` })
+        toast.success(`Contraseña de ${resettingUser.email} actualizada con éxito.`)
         setResettingUser(null)
         load()
       } else {
-        setFeedback({ type: 'err', msg: d.message || 'Error al actualizar la contraseña' })
+        toast.error(d.message || 'Error al actualizar la contraseña')
       }
     } catch (e: any) {
-      setFeedback({ type: 'err', msg: e.message || 'Error de conexión' })
+      toast.error(e.message || 'Error de conexión')
     } finally {
       setSaving(false)
     }
@@ -238,14 +235,14 @@ export default function UsersPanel() {
       })
       const d = await r.json()
       if (d.success) {
-        setFeedback({ type: 'ok', msg: 'Usuario eliminado correctamente' })
+        toast.success('Usuario eliminado correctamente')
         setUserToDelete(null)
         load()
       } else {
-        setFeedback({ type: 'err', msg: d.message })
+        toast.error(d.message || 'Error al eliminar usuario')
       }
     } catch (e) {
-      setFeedback({ type: 'err', msg: 'Error al eliminar usuario' })
+      toast.error('Error al eliminar usuario')
     } finally {
       setSaving(false)
     }
@@ -273,12 +270,7 @@ export default function UsersPanel() {
         </div>
       </div>
 
-      {/* Feedback */}
-      {feedback && (
-        <div className={`px-4 py-3 rounded-xl text-sm font-medium ${feedback.type === 'ok' ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100 shadow-sm'}`}>
-          {feedback.msg}
-        </div>
-      )}
+
 
       {/* Reset password modal */}
       {resettingUser && (
