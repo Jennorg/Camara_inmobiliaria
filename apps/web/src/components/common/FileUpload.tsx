@@ -73,6 +73,11 @@ export default function FileUpload({
   const [zoom, setZoom] = useState(enableCrop && cropAspect !== 1 ? 1.1 : 1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [selectedAspect, setSelectedAspect] = useState<number>(cropAspect);
+
+  useEffect(() => {
+    setSelectedAspect(cropAspect);
+  }, [cropAspect]);
 
   const startUpload = async (targetFile: File) => {
     setUploading(true);
@@ -379,7 +384,10 @@ export default function FileUpload({
                 image={imageToCrop}
                 crop={crop}
                 zoom={zoom}
-                aspect={cropAspect}
+                minZoom={0.2}
+                maxZoom={4}
+                restrictPosition={false}
+                aspect={selectedAspect}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
@@ -396,6 +404,33 @@ export default function FileUpload({
               <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] border-l-2 border-dashed border-white/60 drop-shadow-md pointer-events-none z-10" />
             </div>
 
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAspect(1)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Cuadrado (1:1)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAspect(4 / 5)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  4:5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAspect(16 / 9)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  16:9
+                </button>
+              </div>
+            </div>
+
             <div className="px-2">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
@@ -404,9 +439,9 @@ export default function FileUpload({
               <input
                 type="range"
                 value={zoom}
-                min={1}
-                max={3}
-                step={0.1}
+                min={0.2}
+                max={4}
+                step={0.02}
                 onChange={(e) => setZoom(Number(e.target.value))}
                 className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
               />
