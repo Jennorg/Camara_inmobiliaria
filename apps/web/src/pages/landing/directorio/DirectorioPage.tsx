@@ -46,6 +46,12 @@ const DirectorioPage = () => {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [filterType, setFilterType] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente'>('Todos');
+  const [counts, setCounts] = useState<{ total: number; natural: number; corporativo: number; agente: number }>({
+    total: 0,
+    natural: 0,
+    corporativo: 0,
+    agente: 0,
+  });
 
   const debouncedSearch = useDebounce(searchQuery, 400);
 
@@ -103,6 +109,9 @@ const DirectorioPage = () => {
         setAfiliados(prev => reset ? json.data : [...prev, ...json.data]);
         setHasMore(json.pagination?.hasMore ?? false);
         setPage(targetPage);
+        if (json.counts) {
+          setCounts(json.counts);
+        }
       }
     } catch (error) {
       console.error('Error cargando el directorio:', error);
@@ -143,10 +152,10 @@ const DirectorioPage = () => {
 
   const gridCols =
     afiliados.length === 1 ? 'max-w-sm mx-auto' :
-    afiliados.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
-    afiliados.length === 3 ? 'sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto' :
-    afiliados.length === 4 ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto' :
-    'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full';
+      afiliados.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
+        afiliados.length === 3 ? 'sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto' :
+          afiliados.length === 4 ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto' :
+            'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full';
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
@@ -203,11 +212,10 @@ const DirectorioPage = () => {
                               setSearchField(option.key);
                               setShowSearchDropdown(false);
                             }}
-                            className={`w-full text-left px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
-                              searchField === option.key
+                            className={`w-full text-left px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${searchField === option.key
                                 ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
                                 : 'text-slate-600 dark:text-emerald-100/70 hover:bg-slate-50 dark:hover:bg-emerald-900/20'
-                            }`}
+                              }`}
                           >
                             {option.label}
                           </button>
@@ -229,8 +237,8 @@ const DirectorioPage = () => {
                       searchField === 'nombre'
                         ? 'Buscar por nombre completo o empresa...'
                         : searchField === 'id'
-                        ? 'Buscar por cédula o RIF (ej. 12345678)...'
-                        : 'Buscar por código de miembro...'
+                          ? 'Buscar por cédula o RIF (ej. 12345678)...'
+                          : 'Buscar por código de miembro...'
                     }
                     className="w-full h-full pl-4 sm:pl-16 pr-24 bg-transparent text-slate-800 dark:text-emerald-50 font-bold placeholder-slate-400 outline-none text-base md:text-lg"
                   />
@@ -263,21 +271,28 @@ const DirectorioPage = () => {
                   className="flex flex-row items-center justify-start sm:justify-center gap-2 md:gap-3 w-full overflow-x-auto pb-2 px-2 scrollbar-hide cursor-grab active:cursor-grabbing"
                 >
                   {[
-                    { id: 'Todos', label: 'Todos' },
-                    { id: 'Natural', label: 'Agentes Independientes' },
-                    { id: 'Corporativo', label: 'Corporativos' },
-                    { id: 'Agente', label: 'Agentes Corporativos' },
+                    { id: 'Todos', label: 'Todos', count: counts.total },
+                    { id: 'Natural', label: 'Agentes Independientes', count: counts.natural },
+                    { id: 'Corporativo', label: 'Corporativos', count: counts.corporativo },
+                    { id: 'Agente', label: 'Agentes Corporativos', count: counts.agente },
                   ].map((f) => (
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`flex-shrink-0 px-4 md:px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center ${
-                        filterType === f.id
+                      className={`flex-shrink-0 px-4 md:px-5 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center gap-1.5 ${filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
-                      }`}
+                        }`}
                     >
-                      {f.label}
+                      <span>{f.label}</span>
+                      {f.count > 0 && (
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-extrabold transition-colors ${filterType === f.id
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 dark:bg-emerald-900/60 text-slate-600 dark:text-emerald-200'
+                          }`}>
+                          {f.count}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

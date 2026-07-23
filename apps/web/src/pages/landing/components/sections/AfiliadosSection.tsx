@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import featureImg from '@/assets/empresaria_3.png'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { STATIC } from '@/pages/landing/config/staticContent'
+import { API_URL } from '@/config/env'
 
 const s = STATIC.afiliados
 
@@ -43,6 +44,19 @@ export default function AfiliadosSection() {
   const revealStats = useScrollReveal()
   const revealText = useScrollReveal()
 
+  const [countAfiliados, setCountAfiliados] = useState<number>(s.contador)
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/public/afiliados/buscar?limit=1`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.counts && typeof json.counts.total === 'number') {
+          setCountAfiliados(json.counts.total)
+        }
+      })
+      .catch((err) => console.error('Error cargando total de afiliados para la landing:', err))
+  }, [])
+
   return (
     <section id='afiliados' className='scroll-mt-24 bg-slate-50 text-slate-900 px-6 lg:px-20 py-20'>
       <div className='flex flex-col lg:flex-row gap-16 items-center'>
@@ -50,7 +64,7 @@ export default function AfiliadosSection() {
           <div className='space-y-4'>
             <div className='bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 text-center'>
               <div className='text-emerald-600 font-bold text-3xl mb-2'>
-                <Counter end={s.contador} />
+                <Counter end={countAfiliados} key={countAfiliados} />
               </div>
               <p className='text-sm text-slate-500 font-medium uppercase tracking-tighter'>
                 {s.labelAfiliados}
