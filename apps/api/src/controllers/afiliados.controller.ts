@@ -3129,6 +3129,23 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
     if (!idAfiliado) {
       res.status(401).json({ success: false, message: 'No autenticado o no eres afiliado.' }); return;
     }
+
+    // Asegurar que la tabla solicitudes_cambio_estado exista
+    await db.execute(`CREATE TABLE IF NOT EXISTS solicitudes_cambio_estado (
+      id_solicitud           INTEGER     PRIMARY KEY AUTOINCREMENT,
+      id_afiliado            INTEGER     NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+      tipo_actual            TEXT        NOT NULL CHECK (tipo_actual IN ('Natural','Corporativo','Agente Corporativo')),
+      tipo_solicitado        TEXT        NOT NULL CHECK (tipo_solicitado IN ('Natural','Corporativo','Agente Corporativo')),
+      id_empresa_solicitada  INTEGER     REFERENCES empresas(id_empresa) ON DELETE SET NULL,
+      datos_empresa          TEXT        DEFAULT '{}',
+      documentos_empresa     TEXT        DEFAULT '[]',
+      estatus                TEXT        NOT NULL DEFAULT 'Pendiente_Admin'
+                                         CHECK (estatus IN ('Pendiente_Empresa', 'Pendiente_Admin', 'Aprobado', 'Rechazado_Empresa', 'Rechazado_Admin')),
+      observaciones_empresa  TEXT,
+      observaciones_admin    TEXT,
+      creado_en              TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+      actualizado_en         TEXT
+    )`);
     
     // Obtener información actual del afiliado
     const queryAf = await db.execute({
@@ -3139,6 +3156,16 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
       res.status(404).json({ success: false, message: 'Afiliado no encontrado.' }); return;
     }
     const af = queryAf.rows[0] as any;
+
+    // Normalizar tipo_actual para garantizar coincidencia exacta con el CHECK constraint del esquema DB
+    let tipoActual = String(af.tipo_afiliado || 'Natural').trim();
+    if (['Independiente', 'Agente Independiente', 'Agente'].includes(tipoActual)) {
+      tipoActual = 'Natural';
+    } else if (['Juridico'].includes(tipoActual)) {
+      tipoActual = 'Corporativo';
+    } else if (!['Natural', 'Corporativo', 'Agente Corporativo'].includes(tipoActual)) {
+      tipoActual = 'Natural';
+    }
 
     // Verificar si ya tiene una solicitud activa (Pendiente_Empresa o Pendiente_Admin)
     const queryPending = await db.execute({
@@ -3155,7 +3182,7 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
       res.status(400).json({ success: false, message: 'Tipo solicitado inválido.' }); return;
     }
 
-    if (tipo_solicitado === af.tipo_afiliado) {
+    if (tipo_solicitado === tipoActual) {
       res.status(400).json({ success: false, message: 'El tipo solicitado coincide con tu tipo actual.' }); return;
     }
 
@@ -3177,6 +3204,16 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
         res.status(400).json({ success: false, message: 'El RIF de la empresa ya se encuentra registrado.' }); return;
       }
 
+      // Validar también la unicidad del correo electrónico de la empresa
+      const cleanedEmail = String(datos_empresa.email || '').trim().toLowerCase();
+      const queryExistingEmail = await db.execute({
+        sql: `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = ? AND eliminado_en IS NULL LIMIT 1`,
+        args: [cleanedEmail]
+      });
+      if (queryExistingEmail.rows.length > 0) {
+        res.status(400).json({ success: false, message: 'El correo electrónico de la empresa ya se encuentra registrado por otra empresa.' }); return;
+      }
+
       if (!documentos_empresa || !Array.isArray(documentos_empresa)) {
         res.status(400).json({ success: false, message: 'Debes cargar los documentos de la empresa.' }); return;
       }
@@ -3188,7 +3225,7 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
       finalDatosEmpresa = JSON.stringify(datos_empresa);
       finalDocumentosEmpresa = JSON.stringify(documentos_empresa);
     } else if (tipo_solicitado === 'Agente Corporativo') {
-      if (!id_empresa_solicitada) {
+      if (!id_empresa_solicitada || isNaN(Number(id_empresa_solicitada))) {
         res.status(400).json({ success: false, message: 'Debes seleccionar la empresa a la cual afiliarte.' }); return;
       }
       const queryEmp = await db.execute({
@@ -3209,7 +3246,7 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         idAfiliado,
-        af.tipo_afiliado,
+        tipoActual,
         tipo_solicitado,
         finalIdEmpresa,
         finalDatosEmpresa,
@@ -3221,9 +3258,9 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
     });
 
     res.status(201).json({ success: true, message: 'Solicitud de cambio creada con éxito.' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('crearSolicitudCambio:', error);
-    res.status(500).json({ success: false, message: 'Error interno al procesar la solicitud.' });
+    res.status(500).json({ success: false, message: 'Error interno al procesar la solicitud.', details: error?.message });
   }
 }
 
@@ -3257,6 +3294,54 @@ export const getMiSolicitudCambio = async (req: Request, res: Response): Promise
     res.status(500).json({ success: false, message: 'Error al obtener la solicitud.' });
   }
 }
+
+/**
+ * DELETE /api/afiliados/me/solicitud-cambio/:id
+ * POST /api/afiliados/me/solicitud-cambio/cancelar
+ * Cancela (elimina) una solicitud de cambio de estatus activa generada por el usuario autenticado.
+ */
+export const cancelarMiSolicitudCambio = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idAfiliado = req.user?.id_afiliado;
+    if (!idAfiliado) {
+      res.status(401).json({ success: false, message: 'No autenticado o no eres afiliado.' }); return;
+    }
+
+    const idSolicitudParam = req.params.id ? Number(req.params.id) : (req.body.id_solicitud ? Number(req.body.id_solicitud) : null);
+
+    let querySol;
+    if (idSolicitudParam && !isNaN(idSolicitudParam)) {
+      querySol = await db.execute({
+        sql: `SELECT id_solicitud, estatus FROM solicitudes_cambio_estado 
+              WHERE id_solicitud = ? AND id_afiliado = ? AND estatus IN ('Pendiente_Empresa', 'Pendiente_Admin') LIMIT 1`,
+        args: [idSolicitudParam, idAfiliado]
+      });
+    } else {
+      querySol = await db.execute({
+        sql: `SELECT id_solicitud, estatus FROM solicitudes_cambio_estado 
+              WHERE id_afiliado = ? AND estatus IN ('Pendiente_Empresa', 'Pendiente_Admin') ORDER BY creado_en DESC LIMIT 1`,
+        args: [idAfiliado]
+      });
+    }
+
+    if (querySol.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'No tienes una solicitud activa pendiente para cancelar.' }); return;
+    }
+
+    const sol = querySol.rows[0] as any;
+
+    await db.execute({
+      sql: `DELETE FROM solicitudes_cambio_estado WHERE id_solicitud = ?`,
+      args: [sol.id_solicitud]
+    });
+
+    res.json({ success: true, message: 'Solicitud de cambio de estatus cancelada exitosamente.' });
+  } catch (error) {
+    console.error('cancelarMiSolicitudCambio:', error);
+    res.status(500).json({ success: false, message: 'Error interno al cancelar la solicitud.' });
+  }
+}
+
 
 /**
  * GET /api/afiliados/empresa/solicitudes-cambio
@@ -3387,7 +3472,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
 
     const tipo = sol.tipo_solicitado;
 
-    // Transacción para garantizar integridad de datos y ejecutar todas las operaciones en la misma conexión/sesión HTTP
+    // Transacción para garantizar integridad de datos
     const tx = await db.transaction("write");
 
     try {
@@ -3403,6 +3488,9 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
         });
       } 
       else if (tipo === 'Agente Corporativo') {
+        if (!sol.id_empresa_solicitada) {
+          throw new Error('No se especificó la empresa a la cual afiliar como Agente Corporativo.');
+        }
         await tx.execute({
           sql: `UPDATE afiliados SET tipo_afiliado = 'Agente Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
           args: [sol.id_empresa_solicitada, now, sol.id_afiliado]
@@ -3414,26 +3502,24 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
         });
       } 
       else if (tipo === 'Corporativo') {
-        const datos = JSON.parse(sol.datos_empresa);
-        const docs = JSON.parse(sol.documentos_empresa);
+        const datos = typeof sol.datos_empresa === 'string' ? JSON.parse(sol.datos_empresa || '{}') : (sol.datos_empresa || {});
+        const docs = typeof sol.documentos_empresa === 'string' ? JSON.parse(sol.documentos_empresa || '[]') : (sol.documentos_empresa || []);
         const cleanedRif = String(datos.rif_numero || '').replace(/\D/g, '');
 
-        let companyId: number;
-        let existingCompany = null;
+        let companyId: number | null = null;
         if (sol.afiliado_user_id) {
           const checkCompany = await tx.execute({
             sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
             args: [sol.afiliado_user_id]
           });
           if (checkCompany.rows.length > 0) {
-            existingCompany = checkCompany.rows[0] as any;
+            companyId = Number(checkCompany.rows[0].id_empresa);
           }
         }
 
-        if (existingCompany) {
-          companyId = Number(existingCompany.id_empresa);
+        if (companyId) {
           await tx.execute({
-            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, actualizado_en=? WHERE id_empresa=?`,
+            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, eliminado_en=NULL, actualizado_en=? WHERE id_empresa=?`,
             args: [
               datos.razon_social,
               datos.rif_tipo || 'J',
@@ -3477,12 +3563,16 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
           args: [newCompanyId, now, sol.id_afiliado]
         });
 
-        for (const doc of docs) {
-          await tx.execute({
-            sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
-                  VALUES ('empresa', ?, ?, ?, ?, ?)`,
-            args: [newCompanyId, doc.tipo_doc || 'documento_empresa', doc.url, doc.nombre_archivo || null, now]
-          });
+        if (Array.isArray(docs)) {
+          for (const doc of docs) {
+            if (doc && doc.url) {
+              await tx.execute({
+                sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
+                      VALUES ('empresa', ?, ?, ?, ?, ?)`,
+                args: [newCompanyId, doc.tipo_doc || 'documento_empresa', doc.url, doc.nombre_archivo || null, now]
+              });
+            }
+          }
         }
       }
 
@@ -3496,12 +3586,16 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
       await tx.commit();
       res.json({ success: true, message: 'Solicitud aprobada y cambio aplicado exitosamente.' });
     } catch (txErr) {
-      await tx.rollback();
+      try {
+        await tx.rollback();
+      } catch (rbErr) {
+        console.error('resolverSolicitudCambioAdmin: error al hacer rollback:', rbErr);
+      }
       throw txErr;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('resolverSolicitudCambioAdmin:', error);
-    res.status(500).json({ success: false, message: 'Error interno al resolver la solicitud.' });
+    res.status(500).json({ success: false, message: 'Error interno al resolver la solicitud.', details: error?.message });
   }
 }
 
@@ -3528,7 +3622,16 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
     }
     const af = queryAf.rows[0] as any;
 
-    if (tipo_destino === af.tipo_afiliado) {
+    let tipoActual = String(af.tipo_afiliado || 'Natural').trim();
+    if (['Independiente', 'Agente Independiente', 'Agente'].includes(tipoActual)) {
+      tipoActual = 'Natural';
+    } else if (['Juridico'].includes(tipoActual)) {
+      tipoActual = 'Corporativo';
+    } else if (!['Natural', 'Corporativo', 'Agente Corporativo'].includes(tipoActual)) {
+      tipoActual = 'Natural';
+    }
+
+    if (tipo_destino === tipoActual) {
       res.status(400).json({ success: false, message: 'El tipo solicitado coincide con el tipo actual.' }); return;
     }
 
@@ -3539,21 +3642,41 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
         res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social, RIF, Email, Teléfono).' }); return;
       }
       const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
+      const cleanedEmail = String(datos_empresa.email || '').trim().toLowerCase();
+
+      // Buscar si el usuario ya posee una empresa registrada
+      let existingCompanyId: number | null = null;
+      if (af.id_user) {
+        const checkCompany = await db.execute({
+          sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
+          args: [af.id_user]
+        });
+        if (checkCompany.rows.length > 0) {
+          existingCompanyId = Number(checkCompany.rows[0].id_empresa);
+        }
+      }
+
       const queryExistingRif = await db.execute({
-        sql: `SELECT id_empresa FROM empresas WHERE rif_numero = ? AND eliminado_en IS NULL LIMIT 1`,
-        args: [cleanedRif]
+        sql: existingCompanyId 
+          ? `SELECT id_empresa FROM empresas WHERE rif_numero = ? AND id_empresa != ? AND eliminado_en IS NULL LIMIT 1`
+          : `SELECT id_empresa FROM empresas WHERE rif_numero = ? AND eliminado_en IS NULL LIMIT 1`,
+        args: existingCompanyId ? [cleanedRif, existingCompanyId] : [cleanedRif]
       });
       if (queryExistingRif.rows.length > 0) {
         res.status(400).json({ success: false, message: 'El RIF de la empresa ya se encuentra registrado.' }); return;
       }
-      // Verificar que el email no esté duplicado (columna UNIQUE en empresas)
+
+      // Verificar que el email no esté duplicado (excluyendo su propia empresa si ya existe)
       const queryExistingEmail = await db.execute({
-        sql: `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) AND eliminado_en IS NULL LIMIT 1`,
-        args: [datos_empresa.email]
+        sql: existingCompanyId
+          ? `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = ? AND id_empresa != ? AND eliminado_en IS NULL LIMIT 1`
+          : `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = ? AND eliminado_en IS NULL LIMIT 1`,
+        args: existingCompanyId ? [cleanedEmail, existingCompanyId] : [cleanedEmail]
       });
       if (queryExistingEmail.rows.length > 0) {
         res.status(400).json({ success: false, message: 'El correo electrónico de la empresa ya se encuentra registrado por otra empresa.' }); return;
       }
+
       if (!documentos_empresa || !Array.isArray(documentos_empresa)) {
         res.status(400).json({ success: false, message: 'Debes cargar los documentos de la empresa.' }); return;
       }
@@ -3563,7 +3686,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
         res.status(400).json({ success: false, message: 'Debes cargar el Registro Mercantil y el RIF de la empresa.' }); return;
       }
     } else if (tipo_destino === 'Agente Corporativo') {
-      if (!id_empresa_solicitada) {
+      if (!id_empresa_solicitada || isNaN(Number(id_empresa_solicitada))) {
         res.status(400).json({ success: false, message: 'Debes seleccionar la empresa a la cual afiliar.' }); return;
       }
       const queryEmp = await db.execute({
@@ -3602,28 +3725,27 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
       } 
       else if (tipo_destino === 'Corporativo') {
         const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
+        const cleanedEmail = String(datos_empresa.email || '').trim().toLowerCase();
 
-        let companyId: number;
-        let existingCompany = null;
+        let companyId: number | null = null;
         if (af.id_user) {
           const checkCompany = await tx.execute({
             sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
             args: [af.id_user]
           });
           if (checkCompany.rows.length > 0) {
-            existingCompany = checkCompany.rows[0] as any;
+            companyId = Number(checkCompany.rows[0].id_empresa);
           }
         }
 
-        if (existingCompany) {
-          companyId = Number(existingCompany.id_empresa);
+        if (companyId) {
           await tx.execute({
-            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, actualizado_en=? WHERE id_empresa=?`,
+            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, eliminado_en=NULL, actualizado_en=? WHERE id_empresa=?`,
             args: [
               datos_empresa.razon_social,
               datos_empresa.rif_tipo || 'J',
               cleanedRif,
-              datos_empresa.email,
+              cleanedEmail,
               datos_empresa.direccion || null,
               datos_empresa.telefono || null,
               datos_empresa.website || null,
@@ -3643,7 +3765,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
               datos_empresa.razon_social,
               datos_empresa.rif_tipo || 'J',
               cleanedRif,
-              datos_empresa.email,
+              cleanedEmail,
               datos_empresa.direccion || null,
               datos_empresa.telefono || null,
               datos_empresa.website || null,
@@ -3662,12 +3784,16 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
           args: [newCompanyId, now, idAfiliado]
         });
 
-        for (const doc of documentos_empresa) {
-          await tx.execute({
-            sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
-                  VALUES ('empresa', ?, ?, ?, ?, ?)`,
-            args: [newCompanyId, doc.tipo_doc || 'documento_empresa', doc.url, doc.nombre_archivo || null, now]
-          });
+        if (Array.isArray(documentos_empresa)) {
+          for (const doc of documentos_empresa) {
+            if (doc && doc.url) {
+              await tx.execute({
+                sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo, fecha_subida)
+                      VALUES ('empresa', ?, ?, ?, ?, ?)`,
+                args: [newCompanyId, doc.tipo_doc || 'documento_empresa', doc.url, doc.nombre_archivo || null, now]
+              });
+            }
+          }
         }
       }
 
@@ -3685,28 +3811,10 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
     const errorMsg = error?.message || error?.code || (typeof error === 'string' ? error : 'Error desconocido');
     console.error('cambiarMembresiaDirectoAdmin:', error);
 
-    // ── Diagnóstico: verificar estado de afiliados_old ──
-    try {
-      const oldCheck = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='afiliados_old'");
-      const oldExists = oldCheck.rows.length > 0;
-      const oldCount = oldExists ? Number((await db.execute('SELECT COUNT(*) as c FROM afiliados_old')).rows[0]?.c || 0) : 0;
-      const fkMode = Number((await db.execute('PRAGMA foreign_keys')).rows[0]?.foreign_keys || 0);
-      console.error('cambiarMembresiaDirectoAdmin DIAGNÓSTICO:', {
-        afiliados_old_exists: oldExists,
-        afiliados_old_count: oldCount,
-        foreign_keys: fkMode,
-        db_url_prefix: env.TURSO_DATABASE_URL.substring(0, 40),
-        error_msg: errorMsg,
-        error_cause: (error as any)?.cause?.message || 'none'
-      });
-    } catch (diagErr) {
-      console.error('cambiarMembresiaDirectoAdmin DIAGNÓSTICO ERROR:', diagErr);
-    }
-
     res.status(500).json({ 
       success: false, 
       message: 'Error interno al cambiar la membresía.',
-      error: env.NODE_ENV === 'development' ? errorMsg : undefined
+      error: errorMsg
     });
   }
 };

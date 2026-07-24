@@ -7,7 +7,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  FileCheck
+  FileCheck,
+  XCircle,
+  ArrowRight
 } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
@@ -37,13 +39,15 @@ interface SolicitudCambio {
 }
 
 export default function WidgetSolicitudCambioEstado() {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
 
   const [solicitud, setSolicitud] = useState<SolicitudCambio | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Form state
   const [tipoDestino, setTipoDestino] = useState<'Natural' | 'Corporativo' | 'Agente Corporativo' | ''>('');
@@ -164,6 +168,31 @@ export default function WidgetSolicitudCambioEstado() {
     }
   };
 
+  const handleCancelSolicitud = async (idSolicitud: number) => {
+    if (!token) return;
+    setCanceling(true);
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/me/solicitud-cambio/${idSolicitud}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        toastSuccess('Solicitud cancelada', 'Tu solicitud de cambio de estatus ha sido cancelada.');
+        setShowCancelConfirm(false);
+        await fetchSolicitud();
+      } else {
+        toastError('Error al cancelar', data.message || 'No se pudo cancelar la solicitud.');
+      }
+    } catch (err) {
+      toastError('Error de conexión', 'Ocurrió un problema de red al intentar cancelar la solicitud.');
+    } finally {
+      setCanceling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-3xl border border-gray-100 p-8 flex flex-col items-center justify-center gap-3 text-slate-400">
@@ -173,7 +202,15 @@ export default function WidgetSolicitudCambioEstado() {
     );
   }
 
-  const hasPending = solicitud && ['Pendiente_Empresa', 'Pendiente_Admin'].includes(solicitud.estatus);
+  const hasPending = Boolean(solicitud && ['Pendiente_Empresa', 'Pendiente_Admin'].includes(solicitud.estatus));
+
+  // Obtener tipo de afiliado actual (desde solicitud o desde user context)
+  let normCurrent = String(solicitud?.tipo_actual || user?.tipo_afiliado || 'Natural').trim();
+  if (['Independiente', 'Agente Independiente', 'Agente'].includes(normCurrent)) {
+    normCurrent = 'Natural';
+  } else if (['Juridico'].includes(normCurrent)) {
+    normCurrent = 'Corporativo';
+  }
 
   return (
     <DashboardCard
@@ -182,57 +219,93 @@ export default function WidgetSolicitudCambioEstado() {
       description="Solicita el cambio de tu tipo de afiliado (Natural, Corporativo o Agente Corporativo)"
     >
       <div className="space-y-6">
-        {hasPending && solicitud && (
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <Clock className="animate-pulse" size={20} />
+        {hasPending && solicitud ? (
+          <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-6 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
+                  <Clock className="animate-pulse" size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                      Solicitud de Cambio en Trámite
+                    </span>
+                    <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-full bg-amber-200/80 text-amber-900 border border-amber-300">
+                      Pendiente
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-slate-700 mt-0.5 flex items-center gap-1.5">
+                    Cambio Solicitado: <span className="text-amber-900 font-extrabold uppercase">{solicitud.tipo_solicitado}</span>
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                  Solicitud en Proceso: {solicitud.tipo_solicitado}
-                </h4>
-                <p className="text-[10px] font-bold text-slate-400">
-                  Creada el {new Date(solicitud.creado_en).toLocaleDateString()}
-                </p>
-              </div>
+
+              {!showCancelConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 hover:border-rose-300 text-xs font-black uppercase tracking-wider transition-all shadow-xs"
+                >
+                  <XCircle size={15} />
+                  Cancelar Solicitud
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 bg-white border border-rose-200 rounded-xl p-2 shadow-xs">
+                  <span className="text-[10px] font-extrabold uppercase text-rose-700 px-1">¿Cancelar solicitud?</span>
+                  <button
+                    type="button"
+                    disabled={canceling}
+                    onClick={() => handleCancelSolicitud(solicitud.id_solicitud)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700 text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                  >
+                    {canceling ? <Loader2 size={12} className="animate-spin" /> : 'Sí, cancelar'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={canceling}
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 text-[10px] font-bold uppercase tracking-wider transition-all"
+                  >
+                    No
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="text-xs font-semibold text-slate-600 leading-relaxed bg-white border border-slate-100 rounded-xl p-4 space-y-2">
-              <p>
-                <strong>Tipo Actual:</strong> <span className="uppercase">{solicitud.tipo_actual}</span>
-              </p>
-              <p>
-                <strong>Tipo Solicitado:</strong> <span className="text-emerald-600 font-extrabold uppercase">{solicitud.tipo_solicitado}</span>
-              </p>
+            <div className="text-xs font-semibold text-slate-700 leading-relaxed bg-white border border-amber-100 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-slate-500 text-[11px] font-bold pb-2 border-b border-slate-100">
+                <span>Estatus Actual ({solicitud.tipo_actual})</span>
+                <ArrowRight size={14} className="text-amber-500 shrink-0" />
+                <span className="text-amber-800 font-extrabold uppercase">Solicitado: {solicitud.tipo_solicitado}</span>
+              </div>
+
               {solicitud.tipo_solicitado === 'Agente Corporativo' && solicitud.empresa_nombre && (
-                <p>
-                  <strong>Empresa Destino:</strong> {solicitud.empresa_nombre}
+                <p className="text-xs text-slate-600">
+                  <strong>Empresa Destino Seleccionada:</strong> {solicitud.empresa_nombre}
                 </p>
               )}
 
-              <div className="pt-2 border-t border-slate-100 mt-2 flex items-center gap-2 text-emerald-700">
+              <div className="pt-2 flex items-center gap-2 text-amber-800">
                 {solicitud.estatus === 'Pendiente_Empresa' ? (
                   <>
-                    <AlertCircle size={14} className="text-amber-500" />
-                    <span className="font-extrabold text-[10px] uppercase tracking-widest text-amber-600">
-                      Esperando que la Empresa apruebe tu vinculación
+                    <AlertCircle size={15} className="text-amber-500 shrink-0" />
+                    <span className="font-extrabold text-xs">
+                      Paso 1 de 2: Esperando que la Empresa apruebe tu vinculación.
                     </span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 size={14} className="text-emerald-500" />
-                    <span className="font-extrabold text-[10px] uppercase tracking-widest text-emerald-600">
-                      Esperando aprobación final de la Cámara
+                    <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                    <span className="font-extrabold text-xs text-emerald-800">
+                      Paso 2 de 2: Aprobado por la empresa. Esperando revisión final de la Cámara Inmobiliaria.
                     </span>
                   </>
                 )}
               </div>
             </div>
           </div>
-        )}
-
-        {!hasPending && (
+        ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Show message if last request was rejected */}
             {solicitud && ['Rechazado_Empresa', 'Rechazado_Admin'].includes(solicitud.estatus) && (
@@ -257,29 +330,45 @@ export default function WidgetSolicitudCambioEstado() {
                   { key: 'Natural', label: 'Independiente (Natural)', desc: 'Trabaja por tu cuenta sin vinculación empresarial.', icon: User },
                   { key: 'Agente Corporativo', label: 'Agente Corporativo', desc: 'Asóciate a una empresa registrada en la Cámara.', icon: Building2 },
                   { key: 'Corporativo', label: 'Miembro Corporativo', desc: 'Registra tu propia empresa inmobiliaria.', icon: Building2 },
-                ] as const).map(opt => (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => setTipoDestino(opt.key)}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all ${tipoDestino === opt.key
-                        ? 'border-emerald-500 bg-emerald-50/30 ring-4 ring-emerald-500/5'
-                        : 'border-gray-200 bg-white hover:border-emerald-300'
+                ] as const).map(opt => {
+                  const isCurrent = opt.key === normCurrent;
+                  const isSelected = tipoDestino === opt.key;
+
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      disabled={isCurrent}
+                      onClick={() => !isCurrent && setTipoDestino(opt.key)}
+                      className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${
+                        isCurrent
+                          ? 'border-emerald-300 bg-emerald-50/40 cursor-default shadow-xs'
+                          : isSelected
+                          ? 'border-emerald-500 bg-emerald-50/30 ring-4 ring-emerald-500/5'
+                          : 'border-gray-200 bg-white hover:border-emerald-300'
                       }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-3">
-                      <opt.icon className={tipoDestino === opt.key ? 'text-emerald-600' : 'text-slate-400'} size={20} />
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${tipoDestino === opt.key ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'
-                        }`}>
-                        {tipoDestino === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    >
+                      <div className="flex items-center justify-between w-full mb-3">
+                        <opt.icon className={isCurrent || isSelected ? 'text-emerald-600' : 'text-slate-400'} size={20} />
+                        {isCurrent ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                            Estatus Actual
+                          </span>
+                        ) : (
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'
+                          }`}>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div>
-                      <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">{opt.label}</h5>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1 leading-snug">{opt.desc}</p>
-                    </div>
-                  </button>
-                ))}
+                      <div>
+                        <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">{opt.label}</h5>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1 leading-snug">{opt.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -6,7 +6,7 @@ import {
   listarAfiliadosCorporativos, registrarMiembroDirecto, deleteAfiliado, createAfiliado, convertirAgenteANatural, 
   establecerAccesoPanel, aprobarAfiliadoCorporativo, rechazarAfiliadoCorporativo, crearSolicitudAgenteCorporativo, 
   listarIndependientesDisponibles, vincularAfiliadoIndependiente,
-  crearSolicitudCambio, getMiSolicitudCambio, listarSolicitudesCambioEmpresa,
+  crearSolicitudCambio, getMiSolicitudCambio, cancelarMiSolicitudCambio, listarSolicitudesCambioEmpresa,
   resolverSolicitudCambioEmpresa, listarSolicitudesCambioAdmin, resolverSolicitudCambioAdmin,
   cambiarMembresiaDirectoAdmin, cambiarAccesoEmail
 } from '../controllers/afiliados.controller.js';
@@ -102,6 +102,11 @@ router.post('/me/solicitud-cambio', requireAuth, enrichUser, crearSolicitudCambi
 
 // GET /api/afiliados/me/solicitud-cambio — Obtener solicitud activa del usuario
 router.get('/me/solicitud-cambio', requireAuth, enrichUser, getMiSolicitudCambio);
+
+// DELETE /api/afiliados/me/solicitud-cambio/:id — Cancelar solicitud de cambio activa del usuario
+router.delete('/me/solicitud-cambio/:id', requireAuth, enrichUser, cancelarMiSolicitudCambio);
+router.delete('/me/solicitud-cambio', requireAuth, enrichUser, cancelarMiSolicitudCambio);
+router.post('/me/solicitud-cambio/cancelar', requireAuth, enrichUser, cancelarMiSolicitudCambio);
 
 // GET /api/afiliados/empresa/solicitudes-cambio — Lista solicitudes de Agente Corp pendientes para esta empresa
 router.get('/empresa/solicitudes-cambio', requireAuth, enrichUser, listarSolicitudesCambioEmpresa);

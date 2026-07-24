@@ -19,6 +19,35 @@ const TikTokIcon = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
+function getTipoAfiliadoMeta(tipo?: string) {
+  const norm = String(tipo || 'Natural').trim();
+  if (['Corporativo', 'Juridico'].includes(norm)) {
+    return {
+      label: 'Corporativo',
+      fullLabel: 'Corporativo',
+      badgeClass: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/40',
+      glassClass: 'bg-purple-950/80 text-purple-100 border-purple-400/30 shadow-purple-950/30',
+      dotColor: 'bg-purple-400'
+    };
+  }
+  if (['Agente Corporativo', 'Agente'].includes(norm)) {
+    return {
+      label: 'Agente Corp.',
+      fullLabel: 'Agente Corporativo',
+      badgeClass: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40',
+      glassClass: 'bg-emerald-950/80 text-emerald-100 border-emerald-400/30 shadow-emerald-950/30',
+      dotColor: 'bg-emerald-400'
+    };
+  }
+  return {
+    label: 'Agente Indep.',
+    fullLabel: 'Agente Independiente',
+    badgeClass: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/40',
+    glassClass: 'bg-slate-900/80 text-slate-100 border-slate-700/50 shadow-slate-950/30',
+    dotColor: 'bg-sky-400'
+  };
+}
+
 /** Tarjeta corporativa: foto del representante en grande (con cover); personas: foto con cover. */
 function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
   if (isCorpView) {
@@ -116,6 +145,7 @@ interface AfiliadoCardProps {
 
 export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'default', highlighted = false }: AfiliadoCardProps) => {
   const isCorpView = afiliado.tipo_afiliado === 'Corporativo' && !forceRepMode;
+  const tipoMeta = getTipoAfiliadoMeta(afiliado.tipo_afiliado);
 
   if (variant === 'mini') {
     return (
@@ -130,8 +160,8 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
               ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
               : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
           </h3>
-          <p className="text-[10px] text-slate-500 dark:text-emerald-100/50 font-medium uppercase truncate max-w-[120px]">
-            {isCorpView ? 'Corporativo' : afiliado.profesion || 'Agente'}
+          <p className="text-[10px] text-slate-500 dark:text-emerald-100/50 font-bold uppercase truncate max-w-[120px]">
+            {isCorpView ? 'Corporativo' : tipoMeta.label}
           </p>
         </div>
       </Link>
@@ -167,32 +197,34 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
 
         {/* Información del Miembro */}
         <div className="flex-1 flex flex-col justify-between p-4 pt-5 pb-3">
-          <div className="space-y-1 mb-4 w-full text-center px-2">
-            <h3 className="font-black text-slate-800 dark:text-emerald-50 text-lg md:text-xl leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors uppercase truncate flex items-center justify-center gap-1.5">
-              <span className="truncate">
-                {isCorpView
-                  ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
-                  : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
-              </span>
+          <div className="space-y-1 mb-3 w-full text-center px-2">
+            {/* Categoría / Tipo sutil */}
+            <span className="inline-block text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 mb-0.5">
+              {tipoMeta.fullLabel}
+            </span>
+
+            <h3 className="font-black text-slate-800 dark:text-emerald-50 text-lg md:text-xl leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors uppercase truncate">
+              {isCorpView
+                ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
+                : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
             </h3>
 
             {isCorpView && (
-              <p className="text-sm text-slate-500 dark:text-emerald-100/60 font-medium truncate">
+              <p className="text-xs text-slate-500 dark:text-emerald-100/60 font-medium truncate">
                 Representante legal: {afiliado.nombres ? `${afiliado.nombres} ${afiliado.apellidos}` : afiliado.nombre_completo}
               </p>
             )}
 
             {(afiliado.tipo_afiliado === 'Agente Corporativo' || afiliado.tipo_afiliado === 'Agente' || forceRepMode) && afiliado.empresa_razon_social && (
-              <p className="text-sm text-slate-500 dark:text-emerald-100/60 font-medium truncate">
+              <p className="text-xs text-slate-500 dark:text-emerald-100/60 font-medium truncate">
                 Parte de: {afiliado.empresa_razon_social}
               </p>
             )}
 
             {/* Código de Afiliado */}
             <div className="pt-2">
-              <p className="text-sm font-medium truncate">
-                <span className="text-slate-500 dark:text-emerald-100/60">Código: </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">{afiliado.codigo || '---'}</span>
+              <p className="text-xs font-medium text-slate-500 dark:text-emerald-100/60 truncate">
+                Código: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{afiliado.codigo || '---'}</span>
               </p>
             </div>
           </div>
