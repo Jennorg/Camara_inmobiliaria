@@ -30,6 +30,7 @@ interface DirectivaItem {
   id_afiliado: number;
   nombre: string;
   cargo: string;
+  cargo_canonical?: string;
   periodo?: string;
   foto_url?: string;
   orden: number;

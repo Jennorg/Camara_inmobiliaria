@@ -89,24 +89,37 @@ const formatCedulaOrRifParts = (item: AfiliadoDTO): { prefix: string; number: st
 
 const formatPhoneParts = (rawPhone: string | null | undefined): { countryCode: string; number: string; hasPhone: boolean } => {
   if (!rawPhone) return { countryCode: '+58', number: '', hasPhone: false };
-  const clean = rawPhone.trim();
-  if (!clean || clean.toLowerCase() === 'sin telefono' || clean.toLowerCase() === 'sin teléfono' || clean.toLowerCase() === 'n/a') {
+  let clean = rawPhone.trim();
+  if (!clean || ['sin telefono', 'sin teléfono', 'n/a', 'ninguno', 'none'].includes(clean.toLowerCase())) {
     return { countryCode: '+58', number: '', hasPhone: false };
   }
 
-  const match = clean.match(/^(\+\d{1,4})[\s.-]?(.*)$/);
-  if (match) {
-    const num = match[2] ? match[2].trim() : '';
-    return {
-      countryCode: match[1],
-      number: num,
-      hasPhone: !!num
-    };
+  const knownCodes = ['+58', '+507', '+503', '+502', '+504', '+505', '+506', '+593', '+591', '+595', '+598', '+57', '+54', '+55', '+56', '+52', '+51', '+34', '+1'];
+
+  let countryCode = '+58';
+  let number = clean;
+
+  if (clean.startsWith('+')) {
+    const matchedKnown = knownCodes.find(code => clean.startsWith(code));
+    if (matchedKnown) {
+      countryCode = matchedKnown;
+      number = clean.slice(matchedKnown.length).trim().replace(/^[\s.-]+/, '');
+    } else {
+      const match = clean.match(/^(\+\d{1,3})[\s.-]+(.*)$/);
+      if (match) {
+        countryCode = match[1];
+        number = match[2].trim();
+      }
+    }
+  }
+
+  if (!number) {
+    return { countryCode, number: '', hasPhone: false };
   }
 
   return {
-    countryCode: '+58',
-    number: clean,
+    countryCode,
+    number,
     hasPhone: true
   };
 };
@@ -1291,7 +1304,7 @@ export default function MiembrosPanel() {
                         const parts = formatPhoneParts(editForm.telefono);
                         const countryCodeOptions = ['+58', '+1', '+34', '+57', '+54', '+55', '+56', '+52', '+51', '+507'];
                         const currentCode = countryCodeOptions.includes(parts.countryCode) ? parts.countryCode : '+58';
-                        const numOnly = (editForm.telefono || '').replace(/^(\+\d{1,4})[\s.-]?/, '');
+                        const numOnly = parts.number;
                         return (
                           <div className="flex gap-0 w-full">
                             <div className="relative shrink-0">
@@ -1531,7 +1544,7 @@ export default function MiembrosPanel() {
                             const parts = formatPhoneParts(editForm.empresa_telefono);
                             const countryCodeOptions = ['+58', '+1', '+34', '+57', '+54', '+55', '+56', '+52', '+51', '+507'];
                             const currentCode = countryCodeOptions.includes(parts.countryCode) ? parts.countryCode : '+58';
-                            const numOnly = (editForm.empresa_telefono || '').replace(/^(\+\d{1,4})[\s.-]?/, '');
+                            const numOnly = parts.number;
                             return (
                               <div className="flex gap-0 w-full">
                                 <div className="relative shrink-0">

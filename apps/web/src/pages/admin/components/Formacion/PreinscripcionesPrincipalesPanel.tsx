@@ -44,6 +44,7 @@ type Row = {
   estudiante_profesion?: string | null
   ano_inicio_servicio?: number | null
   apto_acreditacion?: number
+  cibir_acreditado?: number | boolean | null
   completado?: number
   num_modulos?: number
   modulos_aprobados?: number

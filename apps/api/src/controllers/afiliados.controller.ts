@@ -272,6 +272,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       sql: `SELECT a.*, u.email AS acceso_email,
                    p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                    p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
+                   COALESCE(est.es_corredor_inmobiliario, 0) as es_corredor_inmobiliario,
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
                    e.rif_numero as empresa_rif_numero,
@@ -296,7 +297,8 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    END as nombre_completo
             FROM afiliados a
             JOIN personas p ON a.id_persona = p.id
-            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            LEFT JOIN estudiantes est ON est.id_persona = p.id
+            LEFT JOIN empresas e ON (a.id_empresa = e.id_empresa OR (a.tipo_afiliado = 'Corporativo' AND (e.id_representante_legal = a.id_afiliado OR e.id_user = a.id_user)))
             LEFT JOIN users u ON a.id_user = u.id
             WHERE a.id_afiliado = ?`,
       args: [Number(id)],
@@ -1435,7 +1437,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     const personaFields = ['nombres', 'apellidos', 'cedula', 'email', 'telefono', 'fecha_nacimiento', 'nivel_academico', 'direccion', 'profesion', 'foto_url'];
-    const adminOnlyFields = ['estatus', 'cibir_acreditado', 'codigo', 'id_empresa', 'activo', 'foto_url'];
+    const adminOnlyFields = ['estatus', 'cibir_acreditado', 'codigo', 'id_empresa', 'activo'];
     const afiliadoFields = [
       'estatus', 'cibir_acreditado', 'tipo_afiliado',
       'codigo', 'id_empresa', 'notas', 'activo', 'redes_sociales', 'ano_inicio_servicio', 'descripcion'
@@ -1540,14 +1542,19 @@ export const updateAfiliado = async (req: Request, res: Response) => {
           }
         }
 
-        // Validación específica para el CHECK constraint de nivel_academico
+        // Validación y normalización específica para el CHECK constraint de nivel_academico
         if (key === 'nivel_academico' && val !== null) {
-          const allowed = ['Bachiller', 'TSU', 'Nivel Profesional', 'Postgrado'];
-          if (!allowed.includes(val)) {
-            return res.status(400).json({ 
-              success: false, 
-              message: `El nivel académico debe ser uno de: ${allowed.join(', ')}.` 
-            });
+          const normVal = String(val).trim();
+          if (['Universitario', 'Licenciatura', 'Ingeniería', 'Pregrado', 'Profesional', 'Nivel Profesional'].some(v => v.toLowerCase() === normVal.toLowerCase())) {
+            val = 'Nivel Profesional';
+          } else if (['Magister', 'Maestría', 'Doctorado', 'Especialización', 'Postgrado', 'Posgrado'].some(v => v.toLowerCase() === normVal.toLowerCase())) {
+            val = 'Postgrado';
+          } else if (['Técnico', 'Tecnico', 'TSU', 'T.S.U.'].some(v => v.toLowerCase() === normVal.toLowerCase())) {
+            val = 'TSU';
+          } else if (['Bachiller', 'Secundaria'].some(v => v.toLowerCase() === normVal.toLowerCase())) {
+            val = 'Bachiller';
+          } else {
+            val = 'Nivel Profesional';
           }
         }
 
@@ -1687,6 +1694,16 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       if (fields.cibir_acreditado !== undefined) {
         await syncCibirCertificateState(Number(id), Boolean(fields.cibir_acreditado));
       }
+    }
+
+    if (stUpdates.length > 0 && idPersona) {
+      stUpdates.push('actualizado_en = ?');
+      stArgs.push(now);
+      stArgs.push(idPersona);
+      await db.execute({
+        sql: `UPDATE estudiantes SET ${stUpdates.join(', ')} WHERE id_persona = ?`,
+        args: stArgs
+      });
     }
 
     if (eUpdates.length > 0) {
@@ -1992,6 +2009,26 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 // SISTEMA DE INVITACIONES CORPORATIVAS
 // ═══════════════════════════════════════════════════════════════════
 
+/** Helper para autorizar si un usuario puede gestionar la empresa dada (admin, agente asignado, o representante legal/dueño) */
+async function canManageEmpresa(reqUser: any, targetIdEmpresa: number): Promise<boolean> {
+  if (!reqUser) return false;
+  const roles = reqUser.roles || [reqUser.rol];
+  if (roles.some((r: string) => ['admin', 'super_admin'].includes(r))) return true;
+
+  if (reqUser.id_empresa && Number(reqUser.id_empresa) === Number(targetIdEmpresa)) return true;
+
+  try {
+    const check = await db.execute({
+      sql: `SELECT id_empresa FROM empresas WHERE id_empresa = ? AND (id_representante_legal = ? OR id_user = ?) AND eliminado_en IS NULL LIMIT 1`,
+      args: [targetIdEmpresa, reqUser.id_afiliado || 0, reqUser.id || 0]
+    });
+    return check.rows.length > 0;
+  } catch (e) {
+    console.error('Error en canManageEmpresa:', e);
+    return false;
+  }
+}
+
 /**
  * POST /api/afiliados/:id/invitacion
  * Genera un link reutilizable de invitación para un afiliado corporativo.
@@ -2000,10 +2037,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 export const generarInvitacionCorporativa = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id) // This is id_empresa now
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== id) {
+    if (!(await canManageEmpresa(req.user, id))) {
       res.status(403).json({ success: false, message: 'No tienes permiso para generar invitaciones para esta empresa.' }); return
     }
 
@@ -2057,10 +2092,8 @@ export const generarInvitacionCorporativa = async (req: Request, res: Response):
 export const listarInvitacionesCorporativas = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== id) {
+    if (!(await canManageEmpresa(req.user, id))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -2106,10 +2139,8 @@ export const revocarInvitacionCorporativa = async (req: Request, res: Response):
 export const listarAfiliadosCorporativos = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id) // id_empresa
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== id) {
+    if (!(await canManageEmpresa(req.user, id))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -2186,10 +2217,8 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
 export const registrarMiembroDirecto = async (req: Request, res: Response): Promise<void> => {
   try {
     const idEmpresa = Number(req.params.id)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+    if (!(await canManageEmpresa(req.user, idEmpresa))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -2771,11 +2800,9 @@ export const aprobarAfiliadoCorporativo = async (req: Request, res: Response): P
   try {
     const idEmpresa = Number(req.params.id) // id_empresa de la URL
     const idAfiliado = Number(req.params.idAfiliado)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
     // Validar permisos
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+    if (!(await canManageEmpresa(req.user, idEmpresa))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -2845,11 +2872,9 @@ export const rechazarAfiliadoCorporativo = async (req: Request, res: Response): 
   try {
     const idEmpresa = Number(req.params.id) // id_empresa de la URL
     const idAfiliado = Number(req.params.idAfiliado)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
     // Validar permisos
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+    if (!(await canManageEmpresa(req.user, idEmpresa))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -2916,10 +2941,8 @@ export const rechazarAfiliadoCorporativo = async (req: Request, res: Response): 
 export const crearSolicitudAgenteCorporativo = async (req: Request, res: Response): Promise<void> => {
   try {
     const idEmpresa = Number(req.params.id)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
 
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+    if (!(await canManageEmpresa(req.user, idEmpresa))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
 
@@ -2998,9 +3021,7 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
 export const listarIndependientesDisponibles = async (req: Request, res: Response): Promise<void> => {
   try {
     const idEmpresa = Number(req.params.id)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+    if (!(await canManageEmpresa(req.user, idEmpresa))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
     const busqueda = String(req.query.q || '').trim()
@@ -3046,9 +3067,7 @@ export const listarIndependientesDisponibles = async (req: Request, res: Respons
 export const vincularAfiliadoIndependiente = async (req: Request, res: Response): Promise<void> => {
   try {
     const idEmpresa = Number(req.params.id)
-    const requesterId = req.user?.id_empresa
-    const requesterRole = req.user?.rol
-    if (requesterRole !== 'admin' && requesterRole !== 'super_admin' && requesterId !== idEmpresa) {
+    if (!(await canManageEmpresa(req.user, idEmpresa))) {
       res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
     }
     const { id_afiliado } = req.body
