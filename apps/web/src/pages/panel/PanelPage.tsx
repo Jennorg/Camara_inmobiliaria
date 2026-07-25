@@ -168,7 +168,7 @@ const PanelPage = () => {
 
   useEffect(() => { fetchAfiliado(); }, [user?.id_afiliado, token]);
 
-  const solicitudesPendientesCount = agentesCorp.filter(a => a.fase === 'Solicitud').length;
+  const solicitudesPendientesCount = Array.isArray(agentesCorp) ? agentesCorp.filter(a => a && a.fase === 'Solicitud').length : 0;
 
   const displayName = (afiliado?.tipo_afiliado === 'Corporativo' && afiliado?.razon_social) 
     ? afiliado.razon_social 
@@ -182,8 +182,8 @@ const PanelPage = () => {
   const buildNavItems = () => {
     let baseItems: any[] = [];
     
-    // Todos los admins y super_admins también son considerados afiliados para la vista
-    const isConsideredAfiliado = user?.roles.includes('afiliado') || isAdmin;
+    // Todos los afiliados, personas con id_afiliado, o tipo_afiliado y admins son considerados afiliados para la vista
+    const isConsideredAfiliado = (user?.roles && Array.isArray(user.roles) && user.roles.includes('afiliado')) || !!user?.id_afiliado || !!user?.tipo_afiliado || isAdmin;
 
     // Base de navegación pública o afiliada
     if (isConsideredAfiliado) {
@@ -197,7 +197,7 @@ const PanelPage = () => {
         // Acceso completo para Naturales y Corporativos (y admins)
         baseItems = [...NAV_AFILIADO];
       }
-    } else if (isEstudiante && user?.roles.length === 1) {
+    } else if (isEstudiante && (!user?.roles || user.roles.length <= 1)) {
       // Exclusivo estudiante
       baseItems = [
         { icon: LayoutDashboard, label: 'Resumen / Inicio' },
@@ -208,7 +208,8 @@ const PanelPage = () => {
     }
     
     // Si es corporativo, agregar pestaña de gestión (SIEMPRE VISIBLE)
-    if (user?.tipo_afiliado === 'Corporativo') {
+    const isCorp = user?.tipo_afiliado === 'Corporativo' || afiliado?.tipo_afiliado === 'Corporativo';
+    if (isCorp) {
       baseItems.push({ 
         icon: Users, 
         label: 'Mis Agentes',
@@ -239,7 +240,7 @@ const PanelPage = () => {
 
   const navItems = buildNavItems();
   
-  const isConsideredAfiliadoContent = user?.roles.includes('afiliado') || isAdmin;
+  const isConsideredAfiliadoContent = (user?.roles && Array.isArray(user.roles) && user.roles.includes('afiliado')) || !!user?.id_afiliado || !!user?.tipo_afiliado || isAdmin;
 
   // ── Renderizado del contenido activo ────────────────────────────────────────
 
