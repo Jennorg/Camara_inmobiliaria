@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { API_URL } from '@/config/env';
 import { AfiliadoData } from '../AfiliadoCard';
-import logoCibir from '@/assets/Logo3.png';
+import logoCibir from '@/assets/Logo3.webp';
 
 interface AfiliadoProfile extends AfiliadoData {
   afiliados_asociados?: AfiliadoData[];

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react'
-import logoImg from '@/assets/Logo2.png'
-import firmaFranciscoImg from '@/assets/firma-francisco.png'
-import firmaGracielaImg from '@/assets/firma-graciela-ledezma.png'
+import logoImg from '@/assets/Logo2.webp'
+import firmaFranciscoImg from '@/assets/firma-francisco.webp'
+import firmaGracielaImg from '@/assets/firma-graciela-ledezma.webp'
 
 export interface CertificadoProgramaViewProps {
   codigo: string

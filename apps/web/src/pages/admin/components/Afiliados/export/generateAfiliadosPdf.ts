@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import logoUrl from '@/assets/Logo2.png'
+import logoUrl from '@/assets/Logo2.webp'
 import { AfiliadoDTO } from '@/types/afiliados'
 import {
   AFILIADOS_EXPORT_COLUMNS,

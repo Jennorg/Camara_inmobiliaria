@@ -89,6 +89,25 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
       user.telefono = afi.telefono as string
       user.tipo_afiliado = afi.tipo_afiliado as string
       user.nombre_completo = (afi.persona_nombre || afi.empresa_nombre) as string
+
+      // Si es de tipo Corporativo y id_empresa no está asignado en afiliados, buscar la empresa que representa
+      if (user.tipo_afiliado === 'Corporativo' && !user.id_empresa) {
+        try {
+          const empRes = await db.execute({
+            sql: `SELECT id_empresa, razon_social FROM empresas WHERE (id_representante_legal = ? OR id_user = ?) AND eliminado_en IS NULL LIMIT 1`,
+            args: [user.id_afiliado, userId]
+          });
+          if (empRes.rows.length > 0) {
+            user.id_empresa = Number(empRes.rows[0].id_empresa);
+            if (empRes.rows[0].razon_social) {
+              user.nombre_completo = empRes.rows[0].razon_social as string;
+            }
+          }
+        } catch (e) {
+          console.error('Error enriqueciendo empresa de afiliado corporativo:', e);
+        }
+      }
+
       return user
     }
 
