@@ -152,6 +152,19 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
 .cms-slide-right{ animation: cms-slide-right 0.22s cubic-bezier(0.4,0,0.2,1) both; }
 .cms-scale-in   { animation: cms-scale-in 0.2s cubic-bezier(0.4,0,0.2,1) both; }
 
+/* ── SweetAlert2 & Admin Modal Responsive Margin Fixes ──────────────── */
+.swal2-container {
+  padding: 1rem !important;
+}
+
+.swal2-popup {
+  max-width: calc(100vw - 2rem) !important;
+  border-radius: 1.5rem !important;
+  padding: 1.25rem !important;
+  box-sizing: border-box !important;
+  margin: 0 auto !important;
+}
+
 /* ── Landing Animations ───────────────────────────────────────────────────── */
 @keyframes revealUp {
   from { opacity: 0; transform: translateY(30px); }

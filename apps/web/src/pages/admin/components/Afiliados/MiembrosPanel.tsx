@@ -2281,9 +2281,9 @@ export default function MiembrosPanel() {
       />
 
       {showChangeTypeModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowChangeTypeModal(false)} />
-          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-all duration-500 ease-in-out">
+          <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-all duration-500 ease-in-out">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
@@ -2497,8 +2497,8 @@ export default function MiembrosPanel() {
 
       {/* Delete confirmation modal */}
       {affiliateToDelete !== null && (
-        <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+        <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-3'>
               <Trash2 size={28} />
             </div>
@@ -2530,8 +2530,8 @@ export default function MiembrosPanel() {
 
       {/* Natural Transition confirmation modal */}
       {naturalTransitionTarget && (
-        <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+        <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-3'>
               <ShieldAlert size={28} />
             </div>
