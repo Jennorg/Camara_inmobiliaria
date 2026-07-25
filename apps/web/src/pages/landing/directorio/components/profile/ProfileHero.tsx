@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { formatNombreCard, getInitials, formatRif, formatWhatsAppUrl } from '@/utils/formatters';
 import { AfiliadoData } from '../AfiliadoCard';
-import logoCibir from '@/assets/Logo3.png';
+import logoCibir from '@/assets/Logo3.webp';
 
 interface ProfileHeroProps {
   afiliado: AfiliadoData;

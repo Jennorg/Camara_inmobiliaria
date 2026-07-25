@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
-import logoImg from '@/assets/Logo2.png';
-import firmaFranciscoImg from '@/assets/firma-francisco.png';
-import firmaGracielaImg from '@/assets/firma-graciela-ledezma.png';
+import logoImg from '@/assets/Logo2.webp';
+import firmaFranciscoImg from '@/assets/firma-francisco.webp';
+import firmaGracielaImg from '@/assets/firma-graciela-ledezma.webp';
 
 export function loadImageDataUrl(src: string): Promise<string> {
   return new Promise((resolve) => {

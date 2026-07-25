@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { toast } from 'sonner';
-import logo from '@/assets/Logo2.png';
+import logo from '@/assets/Logo2.webp';
 
 export default function SetupPasswordPage() {
   const [searchParams] = useSearchParams();

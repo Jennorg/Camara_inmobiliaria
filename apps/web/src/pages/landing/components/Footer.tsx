@@ -1,5 +1,5 @@
 import React from 'react'
-import logo from '@/assets/Logo3.png'
+import logo from '@/assets/Logo3.webp'
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { Instagram, Facebook, Linkedin } from 'lucide-react'

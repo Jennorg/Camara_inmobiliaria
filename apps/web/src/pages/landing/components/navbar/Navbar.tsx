@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import logoLight from '@/assets/Logo2.png' // Logo para modo claro
-import logoDark from '@/assets/Logo3.png'  // Logo para modo oscuro
+import logoLight from '@/assets/Logo2.webp' // Logo para modo claro
+import logoDark from '@/assets/Logo3.webp'  // Logo para modo oscuro
 import LoginModal from '@/pages/landing/components/LoginModal'
 import RegisterModal from '@/pages/landing/components/RegisterModal'
 import NavItem from './NavItem'

@@ -3,12 +3,14 @@ import { Image as ImageIcon } from 'lucide-react';
 import imageRatios from './image-ratios.json';
 
 // Vite-specific way to import all images in a folder
-const imagesGlob = import.meta.glob('@/assets/Photos_2026/*.jpeg', { eager: true, import: 'default' }) as Record<string, string>;
+const imagesGlob = import.meta.glob('@/assets/Photos_2026/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
 
-// Map resolved URLs with pre-calculated aspect ratios and deterministically shuffle
 const ALL_IMAGES = Object.entries(imagesGlob).map(([key, value]) => {
   const filename = key.substring(key.lastIndexOf('/') + 1);
-  const ratio = (imageRatios as Record<string, number>)[filename] || 1.5;
+  const baseName = filename.replace(/\.[^/.]+$/, '');
+  const jpegFilename = `${baseName}.jpeg`;
+  const webpFilename = `${baseName}.webp`;
+  const ratio = (imageRatios as Record<string, number>)[webpFilename] || (imageRatios as Record<string, number>)[jpegFilename] || (imageRatios as Record<string, number>)[filename] || 1.5;
   return {
     src: value,
     ratio

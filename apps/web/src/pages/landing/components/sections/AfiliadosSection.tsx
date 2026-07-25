@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import featureImg from '@/assets/empresaria_3.png'
+import featureImg from '@/assets/empresaria_3.webp'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { API_URL } from '@/config/env'

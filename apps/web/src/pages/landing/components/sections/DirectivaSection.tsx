@@ -4,16 +4,16 @@ import { STATIC } from '@/pages/landing/config/staticContent'
 import { formatNombreCard } from '@/utils/formatters'
 
 // Import directiva images from the repo
-import imgFrancisco from '@/assets/Junta_directiva/francisco.png'
-import imgZulay from '@/assets/Junta_directiva/Zulay.png'
-import imgMargaret from '@/assets/Junta_directiva/Margaret.png'
-import imgRomelia from '@/assets/Junta_directiva/Romelia.png'
-import imgMargot from '@/assets/Junta_directiva/Margot.png'
-import imgPedro from '@/assets/Junta_directiva/Pedro.png'
-import imgGraciela from '@/assets/Junta_directiva/Graciela.png'
-import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.png'
-import imgRina from '@/assets/Junta_directiva/Rina.png'
-import imgPedroC from '@/assets/Junta_directiva/Pedro_C.png'
+import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
+import imgZulay from '@/assets/Junta_directiva/Zulay.webp'
+import imgMargaret from '@/assets/Junta_directiva/Margaret.webp'
+import imgRomelia from '@/assets/Junta_directiva/Romelia.webp'
+import imgMargot from '@/assets/Junta_directiva/Margot.webp'
+import imgPedro from '@/assets/Junta_directiva/Pedro.webp'
+import imgGraciela from '@/assets/Junta_directiva/Graciela.webp'
+import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.webp'
+import imgRina from '@/assets/Junta_directiva/Rina.webp'
+import imgPedroC from '@/assets/Junta_directiva/Pedro_C.webp'
 
 const s = STATIC.directiva
 

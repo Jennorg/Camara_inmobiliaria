@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { FileDown, ArrowLeft, Loader2, Award } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import { API_URL } from '@/config/env'
-import logoImg from '@/assets/Logo4.png'
-import firmaImg from '@/assets/firma-francisco.png'
+import logoImg from '@/assets/Logo4.webp'
+import firmaImg from '@/assets/firma-francisco.webp'
 import { exportElementToPdf } from '@/utils/domToPdf'
 
 interface AfiliadoData {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import bgBolivar from "@/assets/Pzo.jpg";
+import bgBolivar from "@/assets/Pzo.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
 import Footer from "@/pages/landing/components/Footer";
 

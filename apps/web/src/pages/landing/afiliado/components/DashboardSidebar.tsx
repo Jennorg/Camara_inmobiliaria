@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import logo from '@/assets/Logo.png';
+import logo from '@/assets/Logo.webp';
 import { LogOut, X, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 
 export interface NavItem {

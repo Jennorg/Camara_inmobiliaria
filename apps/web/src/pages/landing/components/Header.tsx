@@ -1,4 +1,4 @@
-import bgBolivar from '@/assets/Pzo.jpg'
+import bgBolivar from '@/assets/Pzo.webp'
 import { Link } from 'react-router-dom'
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 import { STATIC } from '@/pages/landing/config/staticContent'

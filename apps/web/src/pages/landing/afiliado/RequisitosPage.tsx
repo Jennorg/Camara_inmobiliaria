@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import bgCibir from "@/assets/Pzo.jpg";
+import bgCibir from "@/assets/Pzo.webp";
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
-import Estudiosa from "@/assets/estudiosa1.png";
-import Estudioso from "@/assets/estudioso1.png";
+import Estudiosa from "@/assets/estudiosa1.webp";
+import Estudioso from "@/assets/estudioso1.webp";
 import PreinscripcionProgramaForm from '@/pages/landing/components/PreinscripcionProgramaForm'
 import { ClipboardList, FileText, UserCheck, ShieldCheck, GraduationCap, PartyPopper } from 'lucide-react'
 

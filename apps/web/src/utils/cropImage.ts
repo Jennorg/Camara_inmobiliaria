@@ -108,10 +108,10 @@ export default async function getCroppedImg(
     targetHeight
   )
 
-  // As a compressed blob
+  // As a compressed WebP blob
   return new Promise((resolve, reject) => {
-    const outputMimeType = mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
-    const quality = outputMimeType === 'image/jpeg' ? 0.82 : undefined;
+    const outputMimeType = 'image/webp';
+    const quality = 0.80;
     croppedCanvas.toBlob((file) => {
       resolve(file)
     }, outputMimeType, quality)

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from '@/pages/landing/components/Footer';
-import bgCibir from "@/assets/Pzo.jpg";
-import heroCibir from "@/assets/Cibir.jpg";
-import pegiImg from "@/assets/Pegi.jpg";
-import cibirImg from "@/assets/Cibir.jpg";
+import bgCibir from "@/assets/Pzo.webp";
+import heroCibir from "@/assets/Cibir.webp";
+import pegiImg from "@/assets/Pegi.webp";
+import cibirImg from "@/assets/Cibir.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
-import Estudiosa from "@/assets/estudiosa1.png";
-import Estudioso from "@/assets/estudioso1.png";
+import Estudiosa from "@/assets/estudiosa1.webp";
+import Estudioso from "@/assets/estudioso1.webp";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
 
 // --- INTERFACES ---

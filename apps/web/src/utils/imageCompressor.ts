@@ -1,14 +1,14 @@
 /**
- * Compresses and resizes an image file on the client-side.
+ * Compresses, resizes, and converts any image file to WebP format on the client-side.
  * @param file The original image File object.
- * @param maxDimension The maximum width or height allowed.
- * @param quality The quality of the output JPEG compression (0 to 1).
- * @returns A Promise resolving to a new File (compressed) or the original File if compression fails or isn't applicable.
+ * @param maxDimension The maximum width or height allowed (default 1200px).
+ * @param quality The quality of the output WebP compression (0 to 1, default 0.80).
+ * @returns A Promise resolving to a new WebP File object.
  */
 export async function compressImage(
   file: File,
-  maxDimension: number = 1000,
-  quality: number = 0.82
+  maxDimension: number = 1200,
+  quality: number = 0.80
 ): Promise<File> {
   // If it's not an image, return it unchanged
   if (!file.type.startsWith('image/')) {
@@ -50,35 +50,29 @@ export async function compressImage(
             return;
           }
 
-          // If PNG, we might want to preserve transparency, so keep it as image/png.
-          // Otherwise, we convert to image/jpeg for optimal compression.
-          const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-
           ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert all images to webp format
+          const outputType = 'image/webp';
+          const newFileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
 
           canvas.toBlob(
             (blob) => {
               if (blob) {
-                // Return a new File object
-                const compressedFile = new File([blob], file.name, {
+                const compressedFile = new File([blob], newFileName, {
                   type: outputType,
                   lastModified: Date.now(),
                 });
-                // Only return the compressed file if it's actually smaller than original
-                if (compressedFile.size < file.size) {
-                  resolve(compressedFile);
-                } else {
-                  resolve(file);
-                }
+                resolve(compressedFile);
               } else {
                 resolve(file);
               }
             },
             outputType,
-            outputType === 'image/jpeg' ? quality : undefined
+            quality
           );
         } catch (error) {
-          console.error('Error during image compression:', error);
+          console.error('Error during WebP image compression:', error);
           resolve(file);
         }
       };

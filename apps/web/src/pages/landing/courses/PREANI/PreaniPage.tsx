@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Footer from '@/pages/landing/components/Footer'
-import bgPreani from "@/assets/Pzo.jpg";
-import logoPreani from "@/assets/Preani.jpg";
+import bgPreani from "@/assets/Pzo.webp";
+import logoPreani from "@/assets/Preani.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
-import Estudiosa from "@/assets/estudiosa1.png";
-import Estudioso from "@/assets/estudioso1.png";
+import Estudiosa from "@/assets/estudiosa1.webp";
+import Estudioso from "@/assets/estudioso1.webp";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
 import ProgramTimeline, {
   type ProgramModule,

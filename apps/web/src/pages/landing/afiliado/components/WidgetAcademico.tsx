@@ -6,10 +6,10 @@ import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import Swal from 'sweetalert2';
 
-import cibirCatalog from '@/assets/cibir_catalog.png';
-import preaniCatalog from '@/assets/preani_catalog.png';
-import pegiCatalog from '@/assets/pegi_catalog.png';
-import padiCatalog from '@/assets/padi_catalog.png';
+import cibirCatalog from '@/assets/cibir_catalog.webp';
+import preaniCatalog from '@/assets/preani_catalog.webp';
+import pegiCatalog from '@/assets/pegi_catalog.webp';
+import padiCatalog from '@/assets/padi_catalog.webp';
 
 interface CursoDB {
   id_curso: number;

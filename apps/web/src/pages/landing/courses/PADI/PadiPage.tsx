@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Footer from '@/pages/landing/components/Footer'
-import bgCaracas from "@/assets/Pzo.jpg";
-import padiImg from "@/assets/Padi.jpg";
-import Estudiosa from "@/assets/estudiosa1.png";
-import Estudioso from "@/assets/estudioso1.png";
+import bgCaracas from "@/assets/Pzo.webp";
+import padiImg from "@/assets/Padi.webp";
+import Estudiosa from "@/assets/estudiosa1.webp";
+import Estudioso from "@/assets/estudioso1.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
 import ProgramTimeline, {
