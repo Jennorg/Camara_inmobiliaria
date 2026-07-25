@@ -11,7 +11,7 @@ import {
 import Swal from 'sweetalert2';
 import FileUpload from '@/components/common/FileUpload';
 
-type SettingsTab = 'personal' | 'profesional' | 'social' | 'empresa' | 'membresia' | 'documentos';
+type SettingsTab = 'personal' | 'profesional' | 'social' | 'empresa' | 'documentos';
 
 interface ProfileFormData {
   nombres?: string;
@@ -310,9 +310,8 @@ const SettingsPanel = () => {
     { id: 'personal', label: 'Información Personal', icon: User },
     { id: 'profesional', label: 'Perfil Profesional', icon: Briefcase },
     { id: 'social', label: 'Redes Sociales', icon: Globe },
-    { id: 'empresa', label: user?.tipo_afiliado === 'Corporativo' ? 'Mi Corporativo' : 'Mi Marca / Firma', icon: Building, hide: isAgente },
+    { id: 'empresa', label: 'Mi Corporativo', icon: Building, hide: !(isCorp || user?.tipo_afiliado === 'Corporativo') },
     { id: 'documentos', label: 'Expediente / Documentos', icon: FileText },
-    { id: 'membresia', label: 'Cuenta', icon: Shield },
   ];
 
   return (
@@ -375,23 +374,25 @@ const SettingsPanel = () => {
             <div className="space-y-6">
               <HeaderSection title="Información Personal" subtitle="Datos básicos que te identifican como miembro." />
               
-              <div className="flex flex-col items-center gap-3 py-4">
+              <div className="flex flex-col md:flex-row items-center justify-center gap-6 py-4 w-full max-w-full overflow-hidden">
                 {formData.foto_url && (
                   isAdmin ? (
-                    <FileUpload
-                      label="Foto de Perfil"
-                      accept="image/*"
-                      folder="fotos"
-                      initialUrl={formData.foto_url}
-                      enableCrop
-                      cropAspect={4 / 5}
-                      cropShape="rect"
-                      defaultCropPosition="bottom"
-                      onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
-                      onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
-                    />
+                    <div className="w-full max-w-xs sm:max-w-sm">
+                      <FileUpload
+                        label="Foto de Perfil"
+                        accept="image/*"
+                        folder="fotos"
+                        initialUrl={formData.foto_url}
+                        enableCrop
+                        cropAspect={4 / 5}
+                        cropShape="rect"
+                        defaultCropPosition="bottom"
+                        onUploadSuccess={(url) => setFormData(prev => ({ ...prev, foto_url: url }))}
+                        onClear={() => setFormData(prev => ({ ...prev, foto_url: '' }))}
+                      />
+                    </div>
                   ) : (
-                    <div className="flex flex-col items-center gap-3">
+                    <div className="flex flex-col items-center gap-3 shrink-0">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                         Foto de Perfil
                       </span>
@@ -400,6 +401,22 @@ const SettingsPanel = () => {
                       </div>
                     </div>
                   )
+                )}
+
+                {!(isCorp || user?.tipo_afiliado === 'Corporativo') && (
+                  <div className="w-full max-w-xs sm:max-w-sm">
+                    <FileUpload
+                      label="Logo Comercial / Marca Personal"
+                      accept="image/*"
+                      folder="logos"
+                      initialUrl={formData.empresa_logo_url}
+                      enableCrop
+                      cropAspect={1}
+                      cropShape="rect"
+                      onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
+                      onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
+                    />
+                  </div>
                 )}
               </div>
 
@@ -574,7 +591,10 @@ const SettingsPanel = () => {
               </div>
 
               <div className="mt-8 pt-8 border-t border-gray-100 space-y-6">
-                <HeaderSection title="Redes Sociales del Corporativo" subtitle="Perfiles oficiales de tu organización." />
+                <HeaderSection 
+                  title={user?.tipo_afiliado === 'Corporativo' ? "Redes Sociales del Corporativo" : "Redes Sociales de tu Marca / Firma"} 
+                  subtitle={user?.tipo_afiliado === 'Corporativo' ? "Perfiles oficiales de tu organización." : "Perfiles oficiales de tu marca o firma comercial."} 
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="URL Instagram Empresa" name="empresa_instagram" value={formData.empresa_instagram} onChange={handleInputChange} icon={Instagram} placeholder="https://instagram.com/empresa" disabled={isAgente} />
                   <Input label="URL Facebook Empresa" name="empresa_facebook" value={formData.empresa_facebook} onChange={handleInputChange} icon={Facebook} placeholder="https://facebook.com/empresa" disabled={isAgente} />
@@ -601,6 +621,7 @@ const SettingsPanel = () => {
                   label={isCorp || user?.tipo_afiliado === 'Corporativo' ? "Curriculum Vitae del Representante (CV)" : "Curriculum Vitae (CV)"} 
                   initialUrl={getDocUrl('cv')}
                   initialFileName={getDocName('cv')}
+                  disableImagePreview
                   onUploadSuccess={(url, name) => handleUploadSuccess('cv', url, name)}
                   onClear={() => handleClearDoc('cv')}
                 />
@@ -610,6 +631,7 @@ const SettingsPanel = () => {
                     label="Título Universitario / Académico" 
                     initialUrl={getDocUrl('titulo')}
                     initialFileName={getDocName('titulo')}
+                    disableImagePreview
                     onUploadSuccess={(url, name) => handleUploadSuccess('titulo', url, name)}
                     onClear={() => handleClearDoc('titulo')}
                   />
@@ -618,6 +640,7 @@ const SettingsPanel = () => {
                     label="Título del Representante Legal" 
                     initialUrl={getDocUrl('titulo_representante')}
                     initialFileName={getDocName('titulo_representante')}
+                    disableImagePreview
                     onUploadSuccess={(url, name) => handleUploadSuccess('titulo_representante', url, name)}
                     onClear={() => handleClearDoc('titulo_representante')}
                   />
@@ -629,6 +652,7 @@ const SettingsPanel = () => {
                       label="Registro Mercantil de la Empresa" 
                       initialUrl={getDocUrl('registro_mercantil')}
                       initialFileName={getDocName('registro_mercantil')}
+                      disableImagePreview
                       onUploadSuccess={(url, name) => handleUploadSuccess('registro_mercantil', url, name)}
                       onClear={() => handleClearDoc('registro_mercantil')}
                     />
@@ -637,6 +661,7 @@ const SettingsPanel = () => {
                       label="RIF de la Empresa" 
                       initialUrl={getDocUrl('rif_empresa')}
                       initialFileName={getDocName('rif_empresa')}
+                      disableImagePreview
                       onUploadSuccess={(url, name) => handleUploadSuccess('rif_empresa', url, name)}
                       onClear={() => handleClearDoc('rif_empresa')}
                     />
@@ -645,6 +670,7 @@ const SettingsPanel = () => {
                       label="Cédula del Representante Legal" 
                       initialUrl={getDocUrl('cedula_representante')}
                       initialFileName={getDocName('cedula_representante')}
+                      disableImagePreview
                       onUploadSuccess={(url, name) => handleUploadSuccess('cedula_representante', url, name)}
                       onClear={() => handleClearDoc('cedula_representante')}
                     />
@@ -654,99 +680,16 @@ const SettingsPanel = () => {
             </div>
           )}
 
-          {activeTab === 'membresia' && (
-            <div className="space-y-6">
-              <HeaderSection title="Cuenta" subtitle="Gestiona tu estatus y vinculaciones." />
-              
-              <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Tipo de Afiliado</p>
-                    <p className="text-lg font-black text-gray-900">{user?.tipo_afiliado}</p>
-                  </div>
-                  <div className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-widest">
-                    {user?.estatus || 'Afiliado'}
-                  </div>
-                </div>
-                <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Código de Afiliado</p>
-                    <p className="font-bold text-gray-900">{user?.codigo || 'En trámite'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Origen del correo de acceso (solo corporativo) */}
-              {user?.tipo_afiliado === 'Corporativo' && (
-                <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">
-                      Correo de inicio de sesión
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors pointer-events-none">
-                        <Mail size={16} />
-                      </div>
-                      <select
-                        disabled={savingAccesoEmail}
-                        value={accesoTipo}
-                        onChange={(e) => handleAccesoTipoChange(e.target.value as 'personal' | 'empresa')}
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-10 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all disabled:opacity-50 disabled:bg-gray-100 appearance-none cursor-pointer"
-                      >
-                        <option value="personal">Personal ({formData.email || '—'})</option>
-                        {formData.empresa_email && (
-                          <option value="empresa">Empresa ({formData.empresa_email})</option>
-                        )}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-colors group-hover:text-gray-600">
-                        <ChevronDown size={16} />
-                      </div>
-                    </div>
-                    {savingAccesoEmail && (
-                      <p className="text-[10px] text-gray-400 mt-2 animate-pulse">Actualizando correo de acceso...</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {isAgente && (
-                <div className="pt-6 border-t border-gray-100">
-                  <div className="p-6 rounded-3xl bg-amber-50 border border-amber-100 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="space-y-1 text-center md:text-left">
-                      <h4 className="font-black text-amber-900 flex items-center justify-center md:justify-start gap-2">
-                        <ArrowRightLeft size={18} />
-                        ¿Deseas independizarte?
-                      </h4>
-                      <p className="text-xs text-amber-800/80 font-bold">
-                        Convertirte en Afiliado Natural te desvinculará de tu corporativo actual.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleConverttoNatural}
-                      disabled={loading}
-                      className="whitespace-nowrap px-6 py-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-amber-200"
-                    >
-                      Independizarme
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab !== 'membresia' && (
-            <div className="mt-12 flex justify-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-3 px-10 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 active:scale-95"
-              >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                {loading ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
-          )}
+          <div className="mt-12 flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-3 px-10 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 active:scale-95"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+              {loading ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

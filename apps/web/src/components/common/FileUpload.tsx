@@ -27,6 +27,8 @@ interface FileUploadProps {
   defaultCropPosition?: 'center' | 'bottom';
   /** Indica si hay un error de validación externo */
   hasError?: boolean;
+  /** Si es true, desactiva el preview de imagen y muestra el icono de documento */
+  disableImagePreview?: boolean;
 }
 
 export default function FileUpload({ 
@@ -44,6 +46,7 @@ export default function FileUpload({
   cropShape = 'rect',
   defaultCropPosition = 'center',
   hasError = false,
+  disableImagePreview = false,
 }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -171,8 +174,9 @@ export default function FileUpload({
     if (!imageToCrop || !croppedAreaPixels) return;
     
     try {
-      const fileType = file?.type || 'image/jpeg';
-      const fileName = file?.name || restoredFileName || 'logo_recortado.jpg';
+      const fileType = 'image/webp';
+      const rawName = file?.name || restoredFileName || 'imagen_recortada.jpg';
+      const fileName = rawName.replace(/\.[^/.]+$/, '') + '.webp';
       
       const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels, 0, { horizontal: false, vertical: false }, fileType);
       if (croppedImageBlob) {
@@ -231,7 +235,7 @@ export default function FileUpload({
   };
 
   const isImage = file?.type.startsWith('image/');
-  const isUrlImage = !!(
+  const isUrlImage = !disableImagePreview && !!(
     isImage || 
     (uploadedUrl && (
       uploadedUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)/i) || 
@@ -242,11 +246,11 @@ export default function FileUpload({
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full max-w-full overflow-hidden">
       <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex items-center justify-between pb-1 shrink-0">
-        <span>{label} {required && <span className="text-rose-500">*</span>}</span>
+        <span className="truncate pr-2">{label} {required && <span className="text-rose-500">*</span>}</span>
         {uploadedUrl && (
-          <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100">
+          <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100 shrink-0">
             <CheckCircle2 size={12} /> CARGADO
           </span>
         )}
@@ -257,7 +261,7 @@ export default function FileUpload({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !uploadedUrl && !uploading && !disabled && fileInputRef.current?.click()}
-        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden w-full flex flex-col justify-center min-h-[120px] ${
+        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden w-full max-w-full flex flex-col justify-center min-h-[110px] ${
           disabled
             ? 'border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
             : isDragging
@@ -270,44 +274,44 @@ export default function FileUpload({
         }`}
       >
         {!file && !uploadedUrl ? (
-          <div className="w-full flex flex-col items-center justify-center py-8 px-6 text-center space-y-3">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+          <div className="w-full flex flex-col items-center justify-center py-6 px-4 text-center space-y-2">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
               isDragging ? 'bg-emerald-500 text-white scale-110' : 'bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600'
             }`}>
-              <FileUp size={24} />
+              <FileUp size={20} className="sm:w-6 sm:h-6" />
             </div>
-            <div className="space-y-1">
-              <p className="text-base font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">
+            <div className="space-y-0.5 max-w-full">
+              <p className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-emerald-700 transition-colors truncate">
                 {isDragging ? 'Suelta el archivo aquí' : 'Haz clic o arrastra un archivo'}
               </p>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-normal">
+              <p className="text-[10px] sm:text-xs text-slate-400 font-medium uppercase tracking-normal">
                 Soporta PDF, JPG, PNG (Máx 5MB)
               </p>
             </div>
           </div>
         ) : (
-          <div className="w-full flex items-center gap-4 px-5 py-5">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${
+          <div className="w-full max-w-full flex items-center gap-2 sm:gap-4 px-3 sm:px-5 py-4 min-w-0">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${
               uploading ? 'bg-emerald-100 text-emerald-600' : (isUrlImage ? 'bg-slate-50 border border-slate-100' : 'bg-emerald-500 text-white')
             }`}>
               {uploading ? (
-                <Loader2 size={24} className="animate-spin text-emerald-600" />
+                <Loader2 size={20} className="animate-spin text-emerald-600" />
               ) : isUrlImage && uploadedUrl ? (
                 <img src={uploadedUrl} alt="Preview" className="w-full h-full object-cover animate-in fade-in duration-200" />
               ) : isUrlImage && file ? (
                 <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover animate-in fade-in duration-200" />
               ) : (
-                <FileText size={24} />
+                <FileText size={20} />
               )}
             </div>
             
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-sm font-bold text-slate-800 truncate">
+            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
                 {file?.name || restoredFileName || (uploadedUrl ? uploadedUrl.split('/').pop()?.split('?')[0] || 'Archivo cargado' : 'Archivo cargado')}
               </span>
-              <div className="flex items-center gap-3 mt-0.5">
-                <span className={`text-xs font-black uppercase tracking-widest ${uploading ? 'text-emerald-500 animate-pulse' : 'text-emerald-600'}`}>
-                  {uploading ? 'Subiendo...' : 'Listo para procesar'}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mt-0.5 min-w-0">
+                <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest ${uploading ? 'text-emerald-500 animate-pulse' : 'text-emerald-600'}`}>
+                  {uploading ? 'Subiendo...' : 'Listo'}
                 </span>
                 {uploadedUrl && !uploading && (
                   <a 
@@ -315,7 +319,7 @@ export default function FileUpload({
                     target="_blank" 
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 font-bold underline uppercase tracking-widest"
+                    className="text-[10px] sm:text-xs text-emerald-600 hover:text-emerald-700 font-bold underline uppercase tracking-widest truncate"
                   >
                     Ver archivo
                   </a>
@@ -324,24 +328,24 @@ export default function FileUpload({
             </div>
 
             {!uploading && !disabled && (
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 ml-auto">
                 {enableCrop && isUrlImage && (
                   <button
                     type="button"
                     onClick={handleTriggerCrop}
-                    className="p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-all"
+                    className="p-1.5 sm:p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-all"
                     title="Recortar / Ajustar"
                   >
-                    <Crop size={18} />
+                    <Crop size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all"
+                  className="p-1.5 sm:p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all"
                   title="Eliminar archivo"
                 >
-                  <X size={20} />
+                  <X size={18} className="sm:w-5 sm:h-5" />
                 </button>
               </div>
             )}
