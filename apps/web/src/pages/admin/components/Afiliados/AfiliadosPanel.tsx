@@ -1401,7 +1401,13 @@ function CompanySearchField({
     if (!corpSearch.trim()) return true
     const q = corpSearch.toLowerCase()
     if (selectedCompany && (c.empresa_razon_social || c.nombre_completo || '') === corpSearch) return true;
-    if (corpSearchField === 'nombre') return (c.empresa_razon_social || c.nombre_completo || '').toLowerCase().includes(q)
+    if (corpSearchField === 'nombre') {
+      const razon = (c.empresa_razon_social || '').toLowerCase();
+      const nom = (c.nombre_completo || '').toLowerCase();
+      const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
+      const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
+      return razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
+    }
     if (corpSearchField === 'rif') return (c.empresa_rif_numero || c.cedula || '').toLowerCase().includes(q)
     if (corpSearchField === 'codigo') return (c.codigo || '').toLowerCase().includes(q)
     return true

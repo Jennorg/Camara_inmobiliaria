@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   RefreshCw,
   ShieldCheck,
@@ -33,6 +33,9 @@ interface SystemUser {
   persona_email: string | null
   empresa_email: string | null
   nombre_completo: string | null
+  nombres?: string | null
+  apellidos?: string | null
+  razon_social?: string | null
   codigo: string | null
   cedula_tipo: string | null
   cedula: string | null
@@ -57,11 +60,19 @@ export default function UsersPanel() {
 
   // ── Filtros ────────────────────────────────────────────────────────────────
   const [search, setSearch]             = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [searchField, setSearchField]   = useState<'nombre' | 'codigo' | 'email' | 'cedula' | 'rif'>('nombre')
   const [filtroRol, setFiltroRol]       = useState<FiltroRol>('todos')
   const [filtroActivo, setFiltroActivo] = useState<FiltroActivo>('todos')
 
-  const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 120)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }), [token])
 
   const load = async () => {
     setLoading(true)
@@ -74,40 +85,82 @@ export default function UsersPanel() {
 
   useEffect(() => { load() }, [])
 
-  // ── Filtrado local ─────────────────────────────────────────────────────────
+  // ── Pre-procesado de llaves de búsqueda ─────────────────────────────────────
+  const normalizedUsers = useMemo(() => {
+    return users.map(u => {
+      const nomComp = (u.nombre_completo || '').toLowerCase()
+      const persona = `${u.nombres || ''} ${u.apellidos || ''}`.trim().toLowerCase()
+      const razon = (u.razon_social || '').toLowerCase()
+      const cod = (u.codigo || '').toLowerCase()
+      const codClean = cod.replace(/[^a-z0-9]/g, '')
+      const uEmail = (u.email || '').toLowerCase()
+      const pEmail = (u.persona_email || '').toLowerCase()
+      const eEmail = (u.empresa_email || '').toLowerCase()
+      const ced = (u.cedula || '').toLowerCase()
+      const cedTip = (u.cedula_tipo || '').toLowerCase()
+      const rif = (u.rif_numero || '').toLowerCase()
+      const rifTip = (u.rif_tipo || '').toLowerCase()
+
+      return {
+        ...u,
+        _searchNombre: `${nomComp} ${persona} ${razon}`,
+        _searchCodigo: `${cod} ${codClean}`,
+        _searchEmail: `${uEmail} ${pEmail} ${eEmail}`,
+        _searchCedula: `${cedTip}-${ced} ${ced}`,
+        _searchRif: `${rifTip}-${rif} ${rif}`
+      }
+    })
+  }, [users])
+
+  // ── Filtrado local ultra-rápido ─────────────────────────────────────────────
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return users.filter(u => {
+    const q = debouncedSearch.trim().toLowerCase()
+    return normalizedUsers.filter(u => {
       if (filtroRol !== 'todos' && u.rol !== filtroRol) return false
       if (filtroActivo === 'activo'   && !u.activo)   return false
       if (filtroActivo === 'inactivo' &&  u.activo)   return false
-      if (q) {
-        if (searchField === 'nombre') {
-          return u.nombre_completo?.toLowerCase().includes(q) ?? false
-        }
-        if (searchField === 'codigo') {
-          return u.codigo?.toLowerCase().includes(q) ?? false
-        }
-        if (searchField === 'email') {
-          return u.email.toLowerCase().includes(q)
-        }
-        if (searchField === 'cedula') {
-          const ced = u.cedula?.toLowerCase() || ''
-          const tip = u.cedula_tipo?.toLowerCase() || ''
-          const fullCed = tip ? `${tip}-${ced}` : ced
-          return fullCed.includes(q) || ced.includes(q)
-        }
-        if (searchField === 'rif') {
-          const rif = u.rif_numero?.toLowerCase() || ''
-          const tip = u.rif_tipo?.toLowerCase() || ''
-          const fullRif = tip ? `${tip}-${rif}` : rif
-          return fullRif.includes(q) || rif.includes(q)
-        }
-        return false
+      if (!q) return true
+
+      if (searchField === 'nombre') return u._searchNombre.includes(q)
+      if (searchField === 'codigo') {
+        const qClean = q.replace(/[^a-z0-9]/g, '')
+        return u._searchCodigo.includes(q) || (qClean !== '' && u._searchCodigo.includes(qClean))
       }
-      return true
+      if (searchField === 'email') return u._searchEmail.includes(q)
+      if (searchField === 'cedula') return u._searchCedula.includes(q)
+      if (searchField === 'rif') return u._searchRif.includes(q)
+      return false
     })
-  }, [users, search, filtroRol, filtroActivo, searchField])
+  }, [normalizedUsers, debouncedSearch, filtroRol, filtroActivo, searchField])
+
+  // ── Paginación e Infinite Scroll (30 en 30) ──────────────────────────────────
+  const [visibleLimit, setVisibleLimit] = useState(30)
+  const observerTarget = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setVisibleLimit(30)
+  }, [debouncedSearch, filtroRol, filtroActivo, searchField])
+
+  useEffect(() => {
+    const target = observerTarget.current
+    if (!target) return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          setVisibleLimit(prev => Math.min(prev + 30, filtered.length))
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [filtered.length])
+
+  const visibleUsers = useMemo(() => {
+    return filtered.slice(0, visibleLimit)
+  }, [filtered, visibleLimit])
 
   const toggleActive = async (u: SystemUser) => {
     await fetch(`${API_URL}/api/users/${u.id}`, {
@@ -494,7 +547,7 @@ export default function UsersPanel() {
                 </tr>
               </thead>
               <tbody className='divide-y divide-slate-50'>
-                {filtered.map(u => (
+                {visibleUsers.map(u => (
                   <tr key={u.id} className='hover:bg-slate-50 transition'>
                     <td className='px-5 py-4'>
                       {u.tipo_afiliado === 'Corporativo' ? (
@@ -654,7 +707,7 @@ export default function UsersPanel() {
 
           {/* Mobile Cards View */}
           <div className='block md:hidden space-y-4'>
-            {filtered.map(u => (
+            {visibleUsers.map(u => (
               <div key={u.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4 relative overflow-hidden'>
                 {/* Visual Accent */}
                 <div className={`absolute top-0 left-0 w-1 h-full ${
@@ -815,6 +868,16 @@ export default function UsersPanel() {
               </div>
             ))}
           </div>
+
+          {/* Infinite Scroll Sentinel / Indicator */}
+          {visibleLimit < filtered.length && (
+            <div ref={observerTarget} className="flex flex-col items-center justify-center py-6 gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200/60 shadow-2xs">
+                <Loader2 size={14} className="animate-spin text-emerald-500" />
+                <span>Cargando más usuarios... (mostrando {visibleUsers.length} de {filtered.length})</span>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

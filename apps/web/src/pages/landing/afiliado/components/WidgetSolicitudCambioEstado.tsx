@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Building2,
   User,
@@ -9,7 +9,10 @@ import {
   Clock,
   FileCheck,
   XCircle,
-  ArrowRight
+  ArrowRight,
+  Search,
+  X,
+  ChevronDown
 } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +25,8 @@ interface EmpresaItem {
   razon_social: string;
   rif_tipo: string;
   rif_numero: string;
+  representante_legal?: string;
+  codigo?: string;
 }
 
 interface SolicitudCambio {
@@ -46,6 +51,239 @@ const formatDisplayTipo = (tipo?: string | null) => {
   if (['Corporativo', 'Juridico', 'Empresa', 'Miembro Corporativo'].includes(clean)) return 'Corporativo';
   return clean;
 };
+
+function CompanySearchSelector({
+  empresas,
+  selectedId,
+  onSelect
+}: {
+  empresas: EmpresaItem[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [searchField, setSearchField] = useState<'nombre' | 'rif' | 'codigo'>('nombre');
+  const [isOpen, setIsOpen] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  const selectedCompany = empresas.find(e => String(e.id_empresa) === String(selectedId));
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      setQuery(selectedCompany.razon_social);
+    }
+  }, [selectedCompany]);
+
+  const normalizedEmpresas = useMemo(() => {
+    return empresas.map((emp: EmpresaItem) => {
+      const nombre = (emp.razon_social || '').toLowerCase();
+      const rep = (emp.representante_legal || '').toLowerCase();
+      const rifFull = `${emp.rif_tipo || ''}-${emp.rif_numero || ''}`.toLowerCase();
+      const rifNum = (emp.rif_numero || '').toLowerCase();
+      const cod = (emp.codigo || '').toLowerCase();
+      const codClean = cod.replace(/[^a-z0-9]/g, '');
+
+      return {
+        ...emp,
+        _searchNombre: `${nombre} ${rep}`,
+        _searchRif: `${rifNum} ${rifFull}`,
+        _searchCod: `${cod} ${codClean}`
+      };
+    });
+  }, [empresas]);
+
+  const filteredEmpresas = useMemo(() => {
+    if (!debouncedQuery.trim()) return normalizedEmpresas;
+    const q = debouncedQuery.toLowerCase().trim();
+
+    return normalizedEmpresas.filter((emp: any) => {
+      if (selectedCompany && emp.id_empresa === selectedCompany.id_empresa) return true;
+
+      if (searchField === 'rif') return emp._searchRif.includes(q);
+      if (searchField === 'codigo') {
+        const qClean = q.replace(/[^a-z0-9]/g, '');
+        return emp._searchCod.includes(q) || (qClean !== '' && emp._searchCod.includes(qClean));
+      }
+
+      return emp._searchNombre.includes(q);
+    });
+  }, [normalizedEmpresas, debouncedQuery, searchField, selectedCompany]);
+
+  return (
+    <div className="space-y-2.5 w-full">
+      <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-2xl focus-within:ring-4 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-12">
+        {/* Criterion Selector */}
+        <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
+          <button
+            type="button"
+            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+            className="flex items-center gap-1 px-3.5 h-full text-[11px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            <span>
+              {searchField === 'nombre' && 'Nombre'}
+              {searchField === 'rif' && 'RIF'}
+              {searchField === 'codigo' && 'Código'}
+            </span>
+            <ChevronDown size={13} className={`text-slate-400 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+          </button>
+          {showFilterDropdown && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200">
+                {([
+                  { key: 'nombre' as const, label: 'Nombre' },
+                  { key: 'rif' as const, label: 'RIF' },
+                  { key: 'codigo' as const, label: 'Código' },
+                ]).map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      setSearchField(opt.key);
+                      setShowFilterDropdown(false);
+                      setQuery('');
+                      onSelect('');
+                    }}
+                    className={`w-full text-left px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wider transition-colors ${
+                      searchField === opt.key ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="relative flex-grow h-full flex items-center">
+          <Search className="absolute left-3.5 text-slate-400" size={15} />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setIsOpen(true);
+              if (selectedCompany && e.target.value !== selectedCompany.razon_social) {
+                onSelect('');
+              }
+            }}
+            onFocus={() => setIsOpen(true)}
+            placeholder={
+              searchField === 'nombre'
+                ? "Buscar por empresa o representante legal..."
+                : searchField === 'rif'
+                ? "Buscar por número de RIF..."
+                : "Buscar por código del representante legal..."
+            }
+            className="w-full h-full pl-10 pr-9 bg-transparent text-xs font-semibold placeholder-slate-400 outline-none text-slate-800"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('');
+                onSelect('');
+                setIsOpen(false);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-all"
+            >
+              <X size={11} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Selected Card */}
+      {selectedCompany && (
+        <div className="flex items-center justify-between gap-3 p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+              <Building2 size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-black text-slate-800 uppercase tracking-tight truncate">
+                {selectedCompany.razon_social}
+              </p>
+              <p className="text-[10px] font-bold text-emerald-700 truncate mt-0.5">
+                {selectedCompany.representante_legal ? `Rep: ${selectedCompany.representante_legal} · ` : ''}
+                RIF: {selectedCompany.rif_tipo}-{selectedCompany.rif_numero}
+                {selectedCompany.codigo ? ` · Cód. Rep: ${selectedCompany.codigo}` : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onSelect('');
+              setQuery('');
+              setIsOpen(true);
+            }}
+            className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wider transition-colors shrink-0"
+          >
+            Cambiar
+          </button>
+        </div>
+      )}
+
+      {/* Suggestions Dropdown */}
+      {isOpen && !selectedCompany && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
+          <div className="relative z-40 w-full bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
+            {filteredEmpresas.length === 0 ? (
+              <div className="p-4 text-center">
+                <p className="text-xs font-bold text-slate-400">No se encontraron empresas coincidentes</p>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {searchField === 'nombre'
+                    ? 'Prueba buscando por empresa o representante legal'
+                    : searchField === 'codigo'
+                    ? 'Prueba buscando por código del representante legal (ej. 3, 7, 18)'
+                    : `Prueba buscando por ${searchField}`}
+                </p>
+              </div>
+            ) : (
+              filteredEmpresas.slice(0, 15).map(emp => (
+                <button
+                  key={emp.id_empresa}
+                  type="button"
+                  onClick={() => {
+                    onSelect(String(emp.id_empresa));
+                    setQuery(emp.razon_social);
+                    setIsOpen(false);
+                  }}
+                  className="w-full p-3 text-left hover:bg-emerald-50/60 transition-colors flex items-center gap-3 group"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-emerald-100 text-slate-400 group-hover:text-emerald-700 flex items-center justify-center shrink-0 transition-colors">
+                    <Building2 size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h6 className="text-xs font-black text-slate-800 group-hover:text-emerald-950 uppercase tracking-tight truncate transition-colors">
+                      {emp.razon_social}
+                    </h6>
+                    <p className="text-[10px] font-bold text-slate-400 group-hover:text-emerald-700 truncate mt-0.5 transition-colors">
+                      {emp.representante_legal ? `Rep: ${emp.representante_legal} · ` : ''}RIF: {emp.rif_tipo}-{emp.rif_numero}
+                      {emp.codigo ? ` · Cód. Rep: ${emp.codigo}` : ''}
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function WidgetSolicitudCambioEstado() {
   const { user, token } = useAuth();
@@ -375,11 +613,16 @@ export default function WidgetSolicitudCambioEstado() {
             </div>
 
             {tipoDestino === 'Natural' && (
-              <div className="p-4 bg-emerald-50/20 border border-emerald-100/50 rounded-2xl space-y-2">
-                <h5 className="text-xs font-black text-emerald-900 uppercase">Confirmación de cambio a Agente Independiente</h5>
-                <p className="text-xs text-emerald-700 leading-relaxed font-medium">
-                  Al cambiar a Agente Independiente, se desvinculará tu perfil de cualquier empresa a la que pertenezcas actualmente en el sistema.
-                </p>
+              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-start gap-3">
+                <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-200/60">
+                  <CheckCircle2 size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h6 className="text-[11px] font-black uppercase tracking-wider text-emerald-900">Confirmación de cambio a Agente Independiente</h6>
+                  <p className="text-[11px] text-emerald-800/90 font-semibold leading-relaxed mt-0.5">
+                    Al cambiar a Agente Independiente, se desvinculará tu perfil de cualquier empresa a la que pertenezcas actualmente en el sistema.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -389,24 +632,22 @@ export default function WidgetSolicitudCambioEstado() {
                   <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                     Selecciona la Empresa a la que perteneces <span className="text-rose-500">*</span>
                   </label>
-                  <select
-                    value={idEmpresaSelect}
-                    required
-                    onChange={e => setIdEmpresaSelect(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-xs font-semibold text-slate-700 bg-slate-50/50 hover:bg-white focus:bg-white transition-colors"
-                  >
-                    <option value="">-- Selecciona una empresa --</option>
-                    {empresas.map(emp => (
-                      <option key={emp.id_empresa} value={emp.id_empresa}>
-                        {emp.razon_social} ({emp.rif_tipo}-{emp.rif_numero})
-                      </option>
-                    ))}
-                  </select>
+                  <CompanySearchSelector
+                    empresas={empresas}
+                    selectedId={idEmpresaSelect}
+                    onSelect={setIdEmpresaSelect}
+                  />
                 </div>
-                <div className="p-4 bg-amber-50/30 border border-amber-100 rounded-2xl">
-                  <p className="text-[11px] text-amber-800 font-bold leading-normal">
-                    ⚠️ NOTA: Al enviar esta solicitud, el representante legal de la empresa seleccionada deberá aprobar tu vinculación en su panel antes de que esta sea enviada a la Cámara para su aprobación definitiva.
-                  </p>
+                <div className="p-4 bg-amber-50/60 border border-amber-200/70 rounded-2xl flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 border border-amber-200/80">
+                    <AlertCircle size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h6 className="text-[11px] font-black uppercase tracking-wider text-amber-900">Nota importante</h6>
+                    <p className="text-[11px] text-amber-800/90 font-semibold leading-relaxed mt-0.5">
+                      Al enviar esta solicitud, el representante legal de la empresa seleccionada deberá aprobar tu vinculación en su panel antes de que sea enviada a la Cámara para su aprobación definitiva.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

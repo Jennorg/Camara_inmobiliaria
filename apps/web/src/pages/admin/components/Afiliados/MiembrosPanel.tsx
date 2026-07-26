@@ -289,7 +289,15 @@ export default function MiembrosPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [searchField, setSearchField] = useState<'nombre' | 'id' | 'codigo'>('nombre')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [search])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [showTipoDropdown, setShowTipoDropdown] = useState(false)
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos')
@@ -633,7 +641,7 @@ export default function MiembrosPanel() {
       const razonSocial = cleanString(item.empresa_razon_social)
       const cedula = cleanString(item.cedula)
       const rif = cleanString(item.empresa_rif_numero)
-      const s = cleanString(search)
+      const s = cleanString(debouncedSearch)
 
       let matchSearch = true
       if (s.trim()) {
@@ -677,7 +685,7 @@ export default function MiembrosPanel() {
     });
 
     return result;
-  }, [items, search, filterTipo, sortState])
+  }, [items, debouncedSearch, filterTipo, sortState])
 
   const handleEdit = (item: AfiliadoDTO) => {
     setSelected(item)
@@ -2676,7 +2684,13 @@ function VinculacionCorporativaSection({
   const filteredCompanies = companies.filter((c) => {
     if (!corpSearch.trim()) return true
     const q = corpSearch.toLowerCase()
-    if (corpSearchField === 'nombre') return (c.empresa_razon_social || c.nombre_completo || '').toLowerCase().includes(q)
+    if (corpSearchField === 'nombre') {
+      const razon = (c.empresa_razon_social || '').toLowerCase();
+      const nom = (c.nombre_completo || '').toLowerCase();
+      const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
+      const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
+      return razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
+    }
     if (corpSearchField === 'rif') return (c.empresa_rif_numero || c.cedula || '').toLowerCase().includes(q)
     if (corpSearchField === 'codigo') return (c.codigo || '').toLowerCase().includes(q)
     return true
@@ -2847,7 +2861,13 @@ function CompanySearchField({
     if (!corpSearch.trim()) return true
     const q = corpSearch.toLowerCase()
     if (selectedCompany && (c.empresa_razon_social || c.nombre_completo || '') === corpSearch) return true;
-    if (corpSearchField === 'nombre') return (c.empresa_razon_social || c.nombre_completo || '').toLowerCase().includes(q)
+    if (corpSearchField === 'nombre') {
+      const razon = (c.empresa_razon_social || '').toLowerCase();
+      const nom = (c.nombre_completo || '').toLowerCase();
+      const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
+      const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
+      return razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
+    }
     if (corpSearchField === 'rif') return (c.empresa_rif_numero || c.cedula || '').toLowerCase().includes(q)
     if (corpSearchField === 'codigo') return (c.codigo || '').toLowerCase().includes(q)
     return true

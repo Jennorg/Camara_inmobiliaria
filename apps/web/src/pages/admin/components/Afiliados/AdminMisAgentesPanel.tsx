@@ -81,10 +81,12 @@ export default function AdminMisAgentesPanel() {
     const query = searchCompany.trim().toLowerCase()
     if (!query) return companies
     return companies.filter((company) => {
-      const name = (company.empresa_razon_social || company.nombre_completo || '').toLowerCase()
+      const name = (company.empresa_razon_social || '').toLowerCase()
+      const persona = `${company.nombres || ''} ${company.apellidos || ''}`.trim().toLowerCase()
+      const fullName = (company.nombre_completo || '').toLowerCase()
       const email = (company.empresa_email || company.email || '').toLowerCase()
       const rif = (company.empresa_rif_numero || '').toLowerCase()
-      return name.includes(query) || email.includes(query) || rif.includes(query)
+      return name.includes(query) || persona.includes(query) || fullName.includes(query) || email.includes(query) || rif.includes(query)
     })
   }, [companies, searchCompany])
 

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 import { env } from '../config/env.js';
@@ -1587,22 +1588,17 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         let val = fields[key];
         const dbColumn = empresaFieldsMap[key];
         
-        // No permitir valores nulos/vacíos para campos obligatorios de la empresa
-        if (['razon_social', 'rif_numero', 'email'].includes(dbColumn)) {
-          if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
-            return res.status(400).json({ 
-              success: false, 
-              message: `El campo '${key}' es obligatorio para afiliados de tipo Corporativo.` 
-            });
-          }
-          val = String(val).trim();
-        } else {
-          if (typeof val === 'string' && val.trim() === '') {
-            val = null;
-          }
+        if (typeof val === 'string') {
+          val = val.trim();
         }
-        eUpdates.push(`${dbColumn} = ?`);
-        eArgs.push(val);
+
+        if (val !== undefined && val !== null && val !== '') {
+          eUpdates.push(`${dbColumn} = ?`);
+          eArgs.push(val);
+        } else if (!['razon_social', 'rif_numero', 'email'].includes(dbColumn)) {
+          eUpdates.push(`${dbColumn} = ?`);
+          eArgs.push(null);
+        }
       }
     }
 
@@ -3130,13 +3126,24 @@ export const vincularAfiliadoIndependiente = async (req: Request, res: Response)
  */
 export const publicListEmpresas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await db.execute(`SELECT id_empresa, razon_social, rif_tipo, rif_numero FROM empresas WHERE eliminado_en IS NULL ORDER BY razon_social ASC`)
-    res.json({ success: true, data: result.rows })
+    const result = await db.execute({
+      sql: `SELECT e.id_empresa, e.razon_social, e.rif_tipo, e.rif_numero,
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), '') as representante_legal,
+                   a.codigo as codigo
+            FROM empresas e
+            LEFT JOIN afiliados a ON (a.id_empresa = e.id_empresa OR a.id_afiliado = e.id_representante_legal OR a.id_user = e.id_user) AND a.tipo_afiliado = 'Corporativo'
+            LEFT JOIN personas p ON a.id_persona = p.id
+            WHERE e.eliminado_en IS NULL
+            GROUP BY e.id_empresa
+            ORDER BY e.razon_social ASC`,
+      args: []
+    });
+    res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('publicListEmpresas:', error)
-    res.status(500).json({ success: false, message: 'Error al listar las empresas.' })
+    console.error('publicListEmpresas:', error);
+    res.status(500).json({ success: false, message: 'Error al listar las empresas.' });
   }
-}
+};
 
 /**
  * POST /api/afiliados/me/solicitud-cambio
