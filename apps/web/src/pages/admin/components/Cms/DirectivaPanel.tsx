@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary } from '@/pages/admin/components/Cms/CmsShared'
 import { 
   Users, 
-  Crown, 
   Plus, 
   Search, 
   Edit3, 
@@ -18,7 +17,8 @@ import {
   X, 
   Sparkles,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  GripVertical
 } from 'lucide-react'
 import { formatNombreCard } from '@/utils/formatters'
 import { invalidateDirectivaCache } from '@/pages/landing/junta-directiva/JuntaDirectivaPage'
@@ -312,12 +312,103 @@ export const DirectivaPanel = () => {
     return result.sort((a, b) => a.orden - b.orden)
   }, [items, selectedPeriodFilter, searchMemberQuery])
 
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null)
+  const [movedRowId, setMovedRowId] = useState<string | number | null>(null)
+  const [movedDirection, setMovedDirection] = useState<'up' | 'down' | null>(null)
+  const [swappingState, setSwappingState] = useState<{
+    upId: string | number;
+    downId: string | number;
+  } | null>(null)
+
+  const createDragGhost = (e: React.DragEvent, item: DirectivaItem, rank: number) => {
+    const ghost = document.createElement('div');
+    ghost.className = 'fixed -top-[9999px] -left-[9999px] z-50 bg-white text-slate-900 px-5 py-3.5 rounded-2xl shadow-2xl border-2 border-emerald-500/80 flex items-center gap-4 font-sans pointer-events-none min-w-[380px] scale-105';
+    
+    const initial = (item.nombre || 'M').charAt(0).toUpperCase();
+    const avatarHtml = item.foto_url 
+      ? `<img src="${item.foto_url}" class="w-10 h-10 rounded-xl object-cover shadow-xs" />`
+      : `<div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm border border-slate-200">${initial}</div>`;
+
+    ghost.innerHTML = `
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-xs font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">#${rank}</span>
+      </div>
+      ${avatarHtml}
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-sm text-slate-900 truncate">${item.nombre}</div>
+        <div class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider truncate">${item.cargo}</div>
+      </div>
+      <div class="text-[10px] bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-xs">
+        Moviendo
+      </div>
+    `;
+    
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 50, 30);
+    
+    setTimeout(() => {
+      if (document.body.contains(ghost)) {
+        document.body.removeChild(ghost);
+      }
+    }, 0);
+  };
+
+  const getRowDisplacement = (index: number) => {
+    if (draggedIndex === null || dragOverIndex === null || draggedIndex === index) return '';
+    const targetIndex = calculateTargetIndex(draggedIndex, dragOverIndex, dropPosition);
+
+    if (draggedIndex < targetIndex && index > draggedIndex && index <= targetIndex) {
+      return '-translate-y-2.5 transition-transform duration-200 ease-out';
+    }
+    if (draggedIndex > targetIndex && index >= targetIndex && index < draggedIndex) {
+      return 'translate-y-2.5 transition-transform duration-200 ease-out';
+    }
+    return '';
+  };
+
+  const getSwapAnimationClass = (itemId: string | number) => {
+    if (!swappingState) return '';
+    if (swappingState.upId === itemId) {
+      return '-translate-y-full scale-[1.02] shadow-xl z-30 bg-emerald-50/95 border-l-4 border-l-emerald-600 ring-1 ring-emerald-500/30 transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
+    }
+    if (swappingState.downId === itemId) {
+      return 'translate-y-full scale-[0.98] opacity-75 shadow-xs z-10 bg-slate-100/90 transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
+    }
+    return '';
+  };
+
+  const calculateTargetIndex = (fromIdx: number, overIdx: number, pos: 'top' | 'bottom' | null) => {
+    if (!pos) return overIdx;
+    let target = pos === 'top' ? overIdx : overIdx + 1;
+    if (fromIdx < target) {
+      target -= 1;
+    }
+    return Math.max(0, Math.min(target, filteredItems.length - 1));
+  };
+
   const moveItem = async (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= filteredItems.length) return;
 
     const currentItem = filteredItems[index];
     const swapItem = filteredItems[targetIndex];
+
+    const upId = direction === 'up' ? currentItem.id : swapItem.id;
+    const downId = direction === 'up' ? swapItem.id : currentItem.id;
+
+    setSwappingState({ upId, downId });
+
+    await new Promise(resolve => setTimeout(resolve, 330));
+
+    setSwappingState(null);
+    setMovedDirection(direction);
+    setMovedRowId(currentItem.id);
+    setTimeout(() => {
+      setMovedRowId(null);
+      setMovedDirection(null);
+    }, 800);
 
     const newOrdenCurrent = swapItem.orden;
     const newOrdenSwap = currentItem.orden;
@@ -342,6 +433,42 @@ export const DirectivaPanel = () => {
       purgeCache();
     } catch (e) {
       console.error('Error al cambiar el orden:', e);
+      load();
+    }
+  };
+
+  const handleReorder = async (fromIndex: number, toIndex: number, position: 'top' | 'bottom' | null = null) => {
+    const finalTarget = position ? calculateTargetIndex(fromIndex, toIndex, position) : toIndex;
+    if (fromIndex === finalTarget || fromIndex < 0 || finalTarget < 0 || fromIndex >= filteredItems.length || finalTarget >= filteredItems.length) return;
+
+    const reordered = [...filteredItems];
+    const [movedItem] = reordered.splice(fromIndex, 1);
+    reordered.splice(finalTarget, 0, movedItem);
+
+    const direction = fromIndex > finalTarget ? 'up' : 'down';
+    setMovedDirection(direction);
+    setMovedRowId(movedItem.id);
+    setTimeout(() => {
+      setMovedRowId(null);
+      setMovedDirection(null);
+    }, 800);
+
+    // Assign sequential order starting from 1
+    const updatedList = reordered.map((item, idx) => ({ ...item, orden: idx + 1 }));
+
+    // Optimistic UI update
+    setItems(prev => prev.map(item => {
+      const found = updatedList.find(u => u.id === item.id);
+      return found ? found : item;
+    }));
+
+    try {
+      await Promise.all(
+        updatedList.map(item => api.put(`/api/cms/directiva/${item.id}`, { orden: item.orden }))
+      );
+      purgeCache();
+    } catch (e) {
+      console.error('Error al reordenar elementos:', e);
       load();
     }
   };
@@ -423,11 +550,12 @@ export const DirectivaPanel = () => {
 
     setSaving(true)
     try {
+      const payload = { ...form, activo: true }
       let resp;
       if (editingItem) {
-        resp = await api.put(`/api/cms/directiva/${editingItem.id}`, form)
+        resp = await api.put(`/api/cms/directiva/${editingItem.id}`, payload)
       } else {
-        resp = await api.post('/api/cms/directiva', form)
+        resp = await api.post('/api/cms/directiva', payload)
       }
       if (resp.success) {
         purgeCache()
@@ -725,97 +853,178 @@ export const DirectivaPanel = () => {
         </div>
       ) : (
         /* HIGH DENSITY TABLE VIEW */
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[700px]">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <th className="px-5 py-4 w-16 text-center">ORDEN</th>
-                <th className="px-5 py-4">AUTORIDAD / CARGO</th>
-                <th className="px-5 py-4">PERÍODO</th>
-                <th className="px-5 py-4 text-center">ESTATUS</th>
-                <th className="px-5 py-4 text-right">ACCIONES</th>
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-auto max-h-[calc(100vh-280px)] custom-scrollbar">
+          <table className="w-full text-left text-xs min-w-[700px] border-separate border-spacing-0">
+            <thead className="sticky top-0 z-10 bg-slate-50 shadow-xs">
+              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <th className="px-5 py-4 w-20 text-center bg-slate-50 border-b border-slate-200">ORDEN</th>
+                <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">AUTORIDAD / CARGO</th>
+                <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">PERÍODO</th>
+                <th className="px-5 py-4 text-center bg-slate-50 border-b border-slate-200">ESTATUS</th>
+                <th className="px-5 py-4 text-right bg-slate-50 border-b border-slate-200">ACCIONES</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredItems.map((item, index) => (
-                <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-5 py-3.5 text-center font-bold text-slate-400">
-                    <div className="flex items-center justify-center gap-1">
-                      <span>#{index + 1}</span>
-                      <div className="flex flex-col gap-0.5">
-                        <button
-                          type="button"
-                          disabled={index === 0}
-                          onClick={() => moveItem(index, 'up')}
-                          className="text-slate-400 hover:text-slate-900 disabled:opacity-20 transition-all"
+              {filteredItems.map((item, index) => {
+                const rank = index + 1;
+                const isBeingDragged = draggedIndex === index;
+                const isHoverTarget = dragOverIndex === index && draggedIndex !== index;
+
+                return (
+                  <tr
+                    key={item.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedIndex(index);
+                      createDragGhost(e, item, rank);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const offsetY = e.clientY - rect.top;
+                      const pos = offsetY < rect.height / 2 ? 'top' : 'bottom';
+                      
+                      if (dragOverIndex !== index || dropPosition !== pos) {
+                        setDragOverIndex(index);
+                        setDropPosition(pos);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverIndex === index) {
+                        setDragOverIndex(null);
+                        setDropPosition(null);
+                      }
+                    }}
+                    onDragEnd={() => {
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                      setDropPosition(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedIndex !== null && draggedIndex !== index) {
+                        handleReorder(draggedIndex, index, dropPosition);
+                      }
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                      setDropPosition(null);
+                    }}
+                    className={`transition-all duration-300 ease-in-out group ${getSwapAnimationClass(item.id)} ${getRowDisplacement(index)} ${
+                      movedRowId === item.id
+                        ? 'bg-emerald-50/90 border-l-4 border-l-emerald-600 transition-colors duration-500'
+                        : isBeingDragged
+                        ? 'opacity-30 bg-slate-100/70 border-dashed border-2 border-slate-300'
+                        : isHoverTarget
+                        ? `${dropPosition === 'top' ? 'border-t-2 border-t-emerald-600' : 'border-b-2 border-b-emerald-600'} bg-emerald-50/40`
+                        : 'hover:bg-slate-50/70'
+                    }`}
+                  >
+                    <td className="px-5 py-3.5 text-center font-bold text-slate-400">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <div 
+                          className="p-1 rounded-lg text-slate-300 group-hover:text-slate-500 hover:bg-slate-100 cursor-grab active:cursor-grabbing transition-colors shrink-0" 
+                          title="Arrastrar para reordenar"
                         >
-                          <ArrowUp size={11} />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={index === filteredItems.length - 1}
-                          onClick={() => moveItem(index, 'down')}
-                          className="text-slate-400 hover:text-slate-900 disabled:opacity-20 transition-all"
-                        >
-                          <ArrowDown size={11} />
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0">
-                        {item.foto_url ? (
-                          <img src={item.foto_url} alt={item.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
-                        ) : (
-                          formatNombreCard(item.nombre).charAt(0)
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 text-sm leading-tight">
-                          {formatNombreCard(item.nombre)}
-                        </p>
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
-                          {item.cargo}
+                          <GripVertical size={14} />
+                        </div>
+
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border min-w-[34px] text-center flex items-center justify-center gap-1 transition-all ${
+                          movedRowId === item.id 
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold scale-105 shadow-xs' 
+                            : 'text-slate-500 bg-slate-100 border-slate-200/60'
+                        }`}>
+                          {movedRowId === item.id && movedDirection === 'up' && (
+                            <ArrowUp size={11} className="text-emerald-600 animate-bounce shrink-0" />
+                          )}
+                          {movedRowId === item.id && movedDirection === 'down' && (
+                            <ArrowDown size={11} className="text-emerald-600 animate-bounce shrink-0" />
+                          )}
+                          <span>#{rank}</span>
                         </span>
+
+                        <div className="flex flex-col gap-0.5 ml-0.5">
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => moveItem(index, 'up')}
+                            className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20 transition-colors rounded-md"
+                            title="Mover arriba"
+                          >
+                            <ArrowUp size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === filteredItems.length - 1}
+                            onClick={() => moveItem(index, 'down')}
+                            className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20 transition-colors rounded-md"
+                            title="Mover abajo"
+                          >
+                            <ArrowDown size={11} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-600 font-semibold">
-                    {formatPeriodoDisplay(item.periodo)}
-                  </td>
-                  <td className="px-5 py-3.5 text-center">
-                    <button
-                      onClick={() => toggleStatus(item)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        item.activo
-                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
-                    >
-                      {item.activo ? 'Activo' : 'Inactivo'}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1">
+                    </td>
+
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0 border border-slate-200/50">
+                          {item.foto_url ? (
+                            <img src={item.foto_url} alt={item.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
+                          ) : (
+                            formatNombreCard(item.nombre).charAt(0)
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm leading-tight">
+                            {formatNombreCard(item.nombre)}
+                          </p>
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+                            {item.cargo}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-3.5 text-slate-600 font-semibold">
+                      {formatPeriodoDisplay(item.periodo)}
+                    </td>
+
+                    <td className="px-5 py-3.5 text-center">
                       <button
-                        onClick={() => openEditModal(item)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        title="Editar"
+                        onClick={() => toggleStatus(item)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          item.activo
+                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
                       >
-                        <Edit3 size={15} />
+                        {item.activo ? 'Activo' : 'Inactivo'}
                       </button>
-                      <button
-                        onClick={() => remove(item.id)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                        title="Eliminar"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Editar"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          onClick={() => remove(item.id)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -997,22 +1206,6 @@ export const DirectivaPanel = () => {
 
                 </div>
               </FormField>
-
-
-
-              {/* Status Toggle */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/60 rounded-2xl">
-                <div>
-                  <p className="text-xs font-bold text-slate-800">Estatus en el Portal Público</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Determina si la autoridad aparece visible en el organigrama web</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={form.activo}
-                  onChange={(e) => setForm(p => ({ ...p, activo: e.target.checked }))}
-                  className="w-5 h-5 text-emerald-600 border-slate-300 rounded-lg focus:ring-emerald-500 cursor-pointer"
-                />
-              </div>
 
             </div>
 

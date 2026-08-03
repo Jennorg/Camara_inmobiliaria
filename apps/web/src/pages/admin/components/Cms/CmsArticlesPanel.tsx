@@ -84,7 +84,7 @@ export default function CmsArticlesPanel({ externalTab = 'config' }: { externalT
   // ── ConfigPanel renders its own split screen ───────────────────────────────
   if (externalTab === 'config') {
     return (
-      <div className="flex h-full overflow-hidden">
+      <div className="flex-1 w-full h-full min-w-0 overflow-y-auto bg-slate-50">
         <ConfigPanel />
       </div>
     )

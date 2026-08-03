@@ -440,12 +440,13 @@ export const getConfig = async (_req: Request, res: Response) => {
 
 export const upsertConfig = async (req: Request, res: Response) => {
   try {
-    const { clave, valor, descripcion } = req.body;
+    const { clave, valor } = req.body;
     if (!clave || valor === undefined) return res.status(400).json({ success: false, message: 'clave y valor son requeridos' });
+    const now = new Date().toISOString();
     await db.execute({
-      sql: `INSERT INTO cms_configuracion (clave, valor, descripcion) VALUES (?, ?, ?)
-            ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor, descripcion=excluded.descripcion`,
-      args: [clave, String(valor), descripcion ?? null]
+      sql: `INSERT INTO cms_configuracion (clave, valor, actualizado_en) VALUES (?, ?, ?)
+            ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor, actualizado_en=excluded.actualizado_en`,
+      args: [clave, String(valor), now]
     });
     return res.json({ success: true, message: 'Configuración guardada', data: { clave, valor } });
   } catch (error) {
@@ -456,15 +457,16 @@ export const upsertConfig = async (req: Request, res: Response) => {
 
 export const upsertConfigBatch = async (req: Request, res: Response) => {
   try {
-    const entries: { clave: string; valor: string; descripcion?: string }[] = req.body;
+    const entries: { clave: string; valor: string }[] = req.body;
     if (!Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({ success: false, message: 'Se espera un array de objetos {clave, valor}' });
     }
+    const now = new Date().toISOString();
     for (const entry of entries) {
       await db.execute({
-        sql: `INSERT INTO cms_configuracion (clave, valor, descripcion) VALUES (?, ?, ?)
-              ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor, descripcion=excluded.descripcion`,
-        args: [entry.clave, String(entry.valor), entry.descripcion ?? null]
+        sql: `INSERT INTO cms_configuracion (clave, valor, actualizado_en) VALUES (?, ?, ?)
+              ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor, actualizado_en=excluded.actualizado_en`,
+        args: [entry.clave, String(entry.valor ?? ''), now]
       });
     }
     return res.json({ success: true, message: `${entries.length} valores de configuración guardados` });

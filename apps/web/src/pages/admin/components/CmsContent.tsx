@@ -85,6 +85,7 @@ const PANELS: Record<string, React.ReactNode> = {
   cms: <CmsArticlesPanel externalTab="config" />, 
   formacion: <FormacionPanel />,
   preinscripciones: <PreinscripcionesPrincipalesPanel />,
+  solicitudes_cambio: <AfiliadosPanel defaultViewMode="solicitudes" hideViewModeTabs />,
   media: <Placeholder title='Media Library' icon={icons.media} />,
   afiliados: <AfiliadosPanel />,
   estudiantes: <EstudiantesRegularesPanel />,
