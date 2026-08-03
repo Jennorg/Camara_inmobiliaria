@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, Download, ExternalLink, FileCheck, FileCode, FileImage, FileBox, Loader2, Calendar } from 'lucide-react';
+import { FileText, Download, ExternalLink, FileCheck, FileImage, FileBox, Loader2, Calendar } from 'lucide-react';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
@@ -35,48 +35,59 @@ const getFileIcon = (url: string) => {
 };
 
 const WidgetExpediente = () => {
-  const { user, token } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.id_afiliado || !token) return;
+    if (authLoading) return;
+
+    if (!token || !user?.id_afiliado) {
+      setDocumentos([]);
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
 
     const fetchDocs = async () => {
+      setLoading(true);
       try {
         const res = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
-        if (data.success) {
-          setDocumentos(data.data.documentos || []);
+        if (isMounted) {
+          if (data.success && data.data) {
+            setDocumentos(data.data.documentos || []);
+          } else {
+            setDocumentos([]);
+          }
         }
       } catch (err) {
         console.error('Error fetching dossier documents:', err);
+        if (isMounted) setDocumentos([]);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchDocs();
-  }, [user?.id_afiliado, token]);
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id_afiliado, token, authLoading]);
+
+  return (
+    <div className="space-y-6">
+      {loading || authLoading ? (
         <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación cargada en el sistema">
           <div className="flex justify-center py-12">
             <Loader2 className="animate-spin text-emerald-600" size={32} />
           </div>
         </DashboardCard>
-        <WidgetSolicitudCambioEstado />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {documentos.length === 0 ? (
+      ) : documentos.length === 0 ? (
         <DashboardCard title="Mi Expediente Digital" icon={FileText} description="Documentación cargada en el sistema">
           <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500 bg-white border border-gray-100 rounded-2xl">
             <FileBox size={48} className="text-gray-200 mb-4" />
@@ -90,7 +101,9 @@ const WidgetExpediente = () => {
             {documentos.map((doc) => {
               const Icon = getFileIcon(doc.url);
               const label = TIPO_LABELS[doc.tipo_doc] || doc.tipo_doc;
-              const date = new Date(doc.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+              const date = doc.creado_en 
+                ? new Date(doc.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+                : 'Fecha no registrada';
 
               return (
                 <div 

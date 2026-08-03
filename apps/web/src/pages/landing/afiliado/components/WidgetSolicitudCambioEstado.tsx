@@ -344,8 +344,13 @@ export default function WidgetSolicitudCambioEstado() {
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchSolicitud(), fetchEmpresas()]);
-    setLoading(false);
+    try {
+      await fetchSolicitud();
+    } finally {
+      setLoading(false);
+    }
+    // Cargar empresas en segundo plano para no bloquear el renderizado inicial del widget
+    fetchEmpresas();
   };
 
   useEffect(() => {

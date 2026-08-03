@@ -157,8 +157,8 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
         ORDER BY ic.creado_en DESC
       `,
       args: [
-        idEstudiante || null, idEstudiante || null, 
-        userEmail, userEmail, 
+        idEstudiante || null, idEstudiante || null,
+        userEmail, userEmail,
         userEmail, userEmail
       ]
     });
@@ -168,7 +168,7 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
 
     for (const row of inscripciones.rows) {
       const cursoData: any = { ...row };
-      
+
       // Si es de AFILIACION, pero el estatus del afiliado es '5_CIBIR'
       // lo convertimos visualmente en el programa CIBIR para el estudiante
       if (row.programa_codigo === 'AFILIACION') {
@@ -188,7 +188,7 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
         cursoData.curso_nombre = cursoData.programa_codigo === 'CIBIR' ? 'Programa CIBIR' : cursoData.programa_codigo;
         cursoData.nivel_academico = 'Profesional'; // default fallback
       }
-      
+
       const finalIdAfiliado = row.id_afiliado || idAfiliado;
       if (cursoData.programa_codigo === 'CIBIR' && finalIdAfiliado) {
         const modulos = await db.execute({
@@ -226,13 +226,13 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
         if (templateModulos.length === 0) {
           templateModulos = [{ nombre_modulo: 'Módulo General', id_profesor: null, profesor: null }]
         }
-        
+
         const miRes = await db.execute({
           sql: `SELECT nombre_modulo, estatus, fecha_evaluacion, nota_admin FROM modulos_inscripcion WHERE id_inscripcion = ?`,
           args: [row.id_inscripcion]
         })
         const progressModulos = miRes.rows as any[]
-        
+
         cursoData.num_modulos = templateModulos.length
         cursoData.modulos = templateModulos.map(tm => {
           const prog = progressModulos.find(pm => pm.nombre_modulo === tm.nombre_modulo)
@@ -246,7 +246,7 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
           }
         })
       }
-      
+
       cursosConModulos.push(cursoData);
     }
 
@@ -324,9 +324,9 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                ))
             ORDER BY fecha_subida ASC`,
       args: [
-        afiliado.id_afiliado, 
-        afiliado.id_empresa || -1, 
-        afiliado.id_persona, 
+        afiliado.id_afiliado,
+        afiliado.id_empresa || -1,
+        afiliado.id_persona,
         afiliado.id_empresa || -1
       ]
     })
@@ -877,7 +877,7 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
             WHERE id_afiliado = ? RETURNING *`,
       args: [fechaCambio, fechaCambio, id]
     });
- 
+
     // Sincronizar la inscripción al programa 'AFILIACION' a Rechazado
     try {
       const queryEst = await db.execute({
@@ -901,7 +901,7 @@ export const rechazarAfiliado = async (req: Request, res: Response) => {
     try {
       const isCorp = afiliado.tipo_afiliado === 'Corporativo';
       const emailOriginal = isCorp ? (afiliado.empresa_email || afiliado.email) : afiliado.email;
-      const nombre = isCorp 
+      const nombre = isCorp
         ? (afiliado.razon_social || `${afiliado.nombres || ''} ${afiliado.apellidos || ''}`.trim())
         : `${afiliado.nombres || ''} ${afiliado.apellidos || ''}`.trim();
 
@@ -946,15 +946,15 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     //
     // Backward compat: ?q=&tipo= still works (redirected to new params)
     // ──────────────────────────────────────────────────────────────────────────
-    const page  = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1)
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1)
     const limit = Math.min(1000, Math.max(1, parseInt(String(req.query.limit ?? '20'), 10) || 20))
     const offset = (page - 1) * limit
 
     // Support both new and old param names
     const search = String(req.query.search ?? req.query.q ?? '').trim()
     const reqTipo = String(req.query.tipo ?? '').toLowerCase()
-    const searchField = String(req.query.search_field ?? '').toLowerCase() || 
-                         (['rif', 'v', 'e', 'j', 'g', 'p'].includes(reqTipo) ? 'cedula' : 'nombre')
+    const searchField = String(req.query.search_field ?? '').toLowerCase() ||
+      (['rif', 'v', 'e', 'j', 'g', 'p'].includes(reqTipo) ? 'cedula' : 'nombre')
     const tipoAfiliado = String(req.query.tipo_afiliado ?? '').trim()
     const conFoto = req.query.con_foto === 'true' || req.query.con_foto === '1'
 
@@ -1061,11 +1061,11 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
       redes_sociales: {
         instagram: row.instagram || '',
-        linkedin:  row.linkedin  || '',
-        facebook:  row.facebook  || '',
-        twitter:   row.twitter   || '',
-        tiktok:    row.tiktok    || '',
-        website:   row.website   || ''
+        linkedin: row.linkedin || '',
+        facebook: row.facebook || '',
+        twitter: row.twitter || '',
+        tiktok: row.tiktok || '',
+        website: row.website || ''
       }
     }))
 
@@ -1476,8 +1476,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     if (current.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Afiliado no encontrado' });
     }
-    const { 
-      id_persona: idPersona, 
+    const {
+      id_persona: idPersona,
       id_empresa: idEmpresa,
       id_user: idUser,
       persona_email: oldPersonaEmail,
@@ -1587,7 +1587,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       } else if (empresaFieldsMap[key]) {
         let val = fields[key];
         const dbColumn = empresaFieldsMap[key];
-        
+
         if (typeof val === 'string') {
           val = val.trim();
         }
@@ -1715,11 +1715,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         const finalNombre = (oldNombres || '').trim() + ' ' + (oldApellidos || '').trim();
         const rSocial = fields.empresa_razon_social ? String(fields.empresa_razon_social).trim() : (finalNombre.trim() !== '' ? 'Firma de ' + finalNombre.trim() : 'Firma de Afiliado');
         const rTipo = fields.empresa_rif_tipo ? String(fields.empresa_rif_tipo).trim() : 'V';
-        
-        let rNum = fields.empresa_rif_numero && String(fields.empresa_rif_numero).trim() !== '' 
-          ? String(fields.empresa_rif_numero).replace(/\D/g, '') 
+
+        let rNum = fields.empresa_rif_numero && String(fields.empresa_rif_numero).trim() !== ''
+          ? String(fields.empresa_rif_numero).replace(/\D/g, '')
           : (oldPersonaCedula ? String(oldPersonaCedula).replace(/\D/g, '') : null);
-        
+
         if (!rNum) {
           rNum = '999' + id + String(Date.now()).slice(-6);
         }
@@ -1735,7 +1735,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
         if (existingCompany.rows.length > 0) {
           const foundEmpresaId = existingCompany.rows[0].id_empresa as number;
-          
+
           // Vincular el afiliado a la empresa existente
           await db.execute({
             sql: `UPDATE afiliados SET id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
@@ -1769,8 +1769,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
             attempts++;
           }
 
-          let eEmail = fields.empresa_email && String(fields.empresa_email).trim() !== '' 
-            ? String(fields.empresa_email).trim().toLowerCase() 
+          let eEmail = fields.empresa_email && String(fields.empresa_email).trim() !== ''
+            ? String(fields.empresa_email).trim().toLowerCase()
             : (oldPersonaEmail ? String(oldPersonaEmail).trim().toLowerCase() : `firma_${id}_${Date.now()}@camarainmobiliaria.org`);
 
           let attemptsEmail = 0;
@@ -1796,11 +1796,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
                   RETURNING id_empresa`,
             args: [rSocial, rTipo, rNumFinal, eEmail, eTel, eWeb, eLogo, now, Number(id)]
           });
-          
-          const newEmpresaId = insRes.lastInsertRowid 
-            ? Number(insRes.lastInsertRowid) 
+
+          const newEmpresaId = insRes.lastInsertRowid
+            ? Number(insRes.lastInsertRowid)
             : (insRes.rows[0]?.id_empresa as number || null);
-            
+
           if (newEmpresaId) {
             await db.execute({
               sql: `UPDATE afiliados SET id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
@@ -1813,7 +1813,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     // ── Auto-sincronización del correo de acceso ─────────────────────────────
     let effectiveIdUser = idUser;
-    
+
     // Si idUser no está vinculado al afiliado, buscar el usuario por el correo actual de la persona
     if (!effectiveIdUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
       const lookupEmail = ((oldPersonaEmail as string) || '').trim().toLowerCase();
@@ -1923,24 +1923,6 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         } else {
           return res.status(400).json({ success: false, message: `El correo de acceso debe ser tu correo personal o el de tu empresa.` });
         }
-      }
-    }
-
-    if (stUpdates.length > 0) {
-      stUpdates.push('actualizado_en = ?');
-      stArgs.push(now);
-      // Necesitamos el id_estudiante
-      const stCheck = await db.execute({
-        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ?`,
-        args: [idPersona]
-      });
-      if (stCheck.rows.length > 0) {
-        const idEstudiante = stCheck.rows[0].id_estudiante;
-        stArgs.push(idEstudiante);
-        await db.execute({
-          sql: `UPDATE estudiantes SET ${stUpdates.join(', ')} WHERE id_estudiante = ?`,
-          args: stArgs
-        });
       }
     }
 
@@ -2495,16 +2477,16 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
     // 3. Ejecutar todo en una transacción atómica
     await db.batch(batch, 'write');
 
-    res.json({ 
-      success: true, 
-      message: 'Afiliado y todos sus registros asociados han sido eliminados. Ahora puede volver a registrarlo con los mismos datos si lo desea.' 
+    res.json({
+      success: true,
+      message: 'Afiliado y todos sus registros asociados han sido eliminados. Ahora puede volver a registrarlo con los mismos datos si lo desea.'
     });
 
   } catch (error) {
     console.error('Error en deleteAfiliado (Hard Delete):', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error interno al intentar realizar el borrado completo del afiliado.' 
+    res.status(500).json({
+      success: false,
+      message: 'Error interno al intentar realizar el borrado completo del afiliado.'
     });
   }
 };
@@ -2576,13 +2558,13 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
         sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, direccion, website, redes_sociales, logo_url)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
         args: [
-          empresa_razon_social || '', 
-          empresa_rif_tipo || 'J', 
-          cedulaNumero, 
-          empresa_email || email, 
-          empresa_telefono || telefono || null, 
-          empresa_direccion || direccion || null, 
-          empresa_website || website || null, 
+          empresa_razon_social || '',
+          empresa_rif_tipo || 'J',
+          cedulaNumero,
+          empresa_email || email,
+          empresa_telefono || telefono || null,
+          empresa_direccion || direccion || null,
+          empresa_website || website || null,
           empresa_redes,
           empresa_logo_url || null
         ]
@@ -3153,7 +3135,7 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
   try {
     const idAfiliado = req.user?.id_afiliado;
     if (!idAfiliado) {
-      res.status(401).json({ success: false, message: 'No autenticado o no eres afiliado.' }); return;
+      res.status(403).json({ success: false, message: 'No tienes un perfil de afiliado activo.' }); return;
     }
 
     // Asegurar que la tabla solicitudes_cambio_estado exista
@@ -3172,7 +3154,7 @@ export const crearSolicitudCambio = async (req: Request, res: Response): Promise
       creado_en              TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
       actualizado_en         TEXT
     )`);
-    
+
     // Obtener información actual del afiliado
     const queryAf = await db.execute({
       sql: `SELECT id_afiliado, id_user, tipo_afiliado, id_empresa, estatus FROM afiliados WHERE id_afiliado = ? AND eliminado_en IS NULL LIMIT 1`,
@@ -3298,7 +3280,7 @@ export const getMiSolicitudCambio = async (req: Request, res: Response): Promise
   try {
     const idAfiliado = req.user?.id_afiliado;
     if (!idAfiliado) {
-      res.status(401).json({ success: false, message: 'No autorizado.' }); return;
+      res.json({ success: true, data: null }); return;
     }
 
     const result = await db.execute({
@@ -3330,7 +3312,7 @@ export const cancelarMiSolicitudCambio = async (req: Request, res: Response): Pr
   try {
     const idAfiliado = req.user?.id_afiliado;
     if (!idAfiliado) {
-      res.status(401).json({ success: false, message: 'No autenticado o no eres afiliado.' }); return;
+      res.status(403).json({ success: false, message: 'No tienes un perfil de afiliado activo.' }); return;
     }
 
     const idSolicitudParam = req.params.id ? Number(req.params.id) : (req.body.id_solicitud ? Number(req.body.id_solicitud) : null);
@@ -3512,7 +3494,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
           sql: `UPDATE empresas SET id_representante_legal = NULL WHERE id_representante_legal = ?`,
           args: [sol.id_afiliado]
         });
-      } 
+      }
       else if (tipo === 'Agente Corporativo') {
         if (!sol.id_empresa_solicitada) {
           throw new Error('No se especificó la empresa a la cual afiliar como Agente Corporativo.');
@@ -3526,7 +3508,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
           sql: `UPDATE empresas SET id_representante_legal = NULL WHERE id_representante_legal = ? AND id_empresa != ?`,
           args: [sol.id_afiliado, sol.id_empresa_solicitada]
         });
-      } 
+      }
       else if (tipo === 'Corporativo') {
         const datos = typeof sol.datos_empresa === 'string' ? JSON.parse(sol.datos_empresa || '{}') : (sol.datos_empresa || {});
         const docs = typeof sol.documentos_empresa === 'string' ? JSON.parse(sol.documentos_empresa || '[]') : (sol.documentos_empresa || []);
@@ -3683,7 +3665,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
       }
 
       const queryExistingRif = await db.execute({
-        sql: existingCompanyId 
+        sql: existingCompanyId
           ? `SELECT id_empresa FROM empresas WHERE rif_numero = ? AND id_empresa != ? AND eliminado_en IS NULL LIMIT 1`
           : `SELECT id_empresa FROM empresas WHERE rif_numero = ? AND eliminado_en IS NULL LIMIT 1`,
         args: existingCompanyId ? [cleanedRif, existingCompanyId] : [cleanedRif]
@@ -3737,7 +3719,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
           sql: `UPDATE empresas SET id_representante_legal = NULL WHERE id_representante_legal = ?`,
           args: [idAfiliado]
         });
-      } 
+      }
       else if (tipo_destino === 'Agente Corporativo') {
         await tx.execute({
           sql: `UPDATE afiliados SET tipo_afiliado = 'Agente Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
@@ -3748,7 +3730,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
           sql: `UPDATE empresas SET id_representante_legal = NULL WHERE id_representante_legal = ? AND id_empresa != ?`,
           args: [idAfiliado, id_empresa_solicitada]
         });
-      } 
+      }
       else if (tipo_destino === 'Corporativo') {
         const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
         const cleanedEmail = String(datos_empresa.email || '').trim().toLowerCase();
@@ -3837,8 +3819,8 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
     const errorMsg = error?.message || error?.code || (typeof error === 'string' ? error : 'Error desconocido');
     console.error('cambiarMembresiaDirectoAdmin:', error);
 
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Error interno al cambiar la membresía.',
       error: errorMsg
     });
