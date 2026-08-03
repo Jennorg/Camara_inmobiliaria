@@ -20,6 +20,7 @@ import {
   UserCog,
   FileText,
   UserPlus,
+  UserCheck,
   ClipboardList,
   RefreshCw,
   Hammer,
@@ -73,6 +74,7 @@ const NAV_ADMIN_CORE = [
   { icon: ClipboardList, label: 'Preinscripciones' },
   { icon: BookOpen, label: 'Gestión de Formación' },
   { icon: UserPlus, label: 'Solicitudes de Agentes' },
+  { icon: UserCheck, label: 'Solicitudes de Cambio' },
   { icon: BarChart, label: 'Análisis y Métricas' },
 ];
 
@@ -129,6 +131,40 @@ const PanelPage = () => {
     razon_social?: string;
     id_empresa?: number;
   } | null>(null);
+
+  const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
+  const [preinscripcionesCount, setPreinscripcionesCount] = useState(0);
+
+  useEffect(() => {
+    if (!token || !isAdmin) return;
+
+    // 1. Solicitudes de Cambio pendientes
+    fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data)) {
+          const pending = d.data.filter((s: any) =>
+            ['Pendiente_Admin', 'Pendiente_Empresa'].includes(s.estatus)
+          );
+          setSolicitudesCambioCount(pending.length > 0 ? pending.length : d.data.length);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Preinscripciones pendientes
+    fetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.data)) {
+          setPreinscripcionesCount(d.data.length);
+        }
+      })
+      .catch(() => {});
+  }, [token, isAdmin]);
 
   const [agentesCorp, setAgentesCorp] = useState<any[]>([]);
   const [loadingAgentes, setLoadingAgentes] = useState(false);
@@ -213,7 +249,8 @@ const PanelPage = () => {
       baseItems.push({ 
         icon: Users, 
         label: 'Mis Agentes',
-        count: solicitudesPendientesCount > 0 ? solicitudesPendientesCount : undefined 
+        count: solicitudesPendientesCount > 0 ? solicitudesPendientesCount : undefined,
+        hasPendingDot: solicitudesPendientesCount > 0
       });
     }
 
@@ -221,9 +258,29 @@ const PanelPage = () => {
     baseItems.push({ icon: Settings, label: 'Configuración' });
 
     if (isAdmin) {
+      const navAdminCoreWithCounts = [
+        { icon: Users, label: 'Directorio de Miembros' },
+        { icon: ShieldCheck, label: 'Control de Acceso' },
+        { 
+          icon: ClipboardList, 
+          label: 'Preinscripciones', 
+          count: preinscripcionesCount > 0 ? preinscripcionesCount : undefined,
+          hasPendingDot: preinscripcionesCount > 0
+        },
+        { icon: BookOpen, label: 'Gestión de Formación' },
+        { icon: UserPlus, label: 'Solicitudes de Agentes' },
+        { 
+          icon: UserCheck, 
+          label: 'Solicitudes de Cambio', 
+          count: solicitudesCambioCount > 0 ? solicitudesCambioCount : undefined,
+          hasPendingDot: solicitudesCambioCount > 0
+        },
+        { icon: BarChart, label: 'Análisis y Métricas' },
+      ];
+
       let adminItems = [
         NAV_DIVIDER_ADMIN as any,
-        ...NAV_ADMIN_CORE,
+        ...navAdminCoreWithCounts,
       ];
       if (isSuperAdmin) {
         adminItems = [...adminItems, ...NAV_SUPER_ADMIN];
@@ -347,6 +404,9 @@ const PanelPage = () => {
     if (activeTab === 'Solicitudes de Agentes') {
       return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
     }
+    if (activeTab === 'Solicitudes de Cambio') {
+      return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><AfiliadosPanel defaultViewMode="solicitudes" hideViewModeTabs /></div>;
+    }
     if (activeTab === 'Configuración') return <SettingsPanel />;
 
     // 2. Sección Administrativa
@@ -383,7 +443,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Finanzas', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>

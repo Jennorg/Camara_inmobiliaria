@@ -8,6 +8,7 @@ export interface NavItem {
   label: string;
   isDivider?: boolean;
   count?: number;
+  hasPendingDot?: boolean;
   children?: NavItem[];
 }
 
@@ -150,12 +151,20 @@ const SidebarContent = ({
                     : 'text-white/60 hover:text-white hover:bg-white/10',
                 ].join(' ')}
               >
-                <item.icon size={20} className={activeTab === itemId ? '' : 'group-hover:scale-110 transition-transform'} />
+                <div className="relative flex-shrink-0">
+                  <item.icon size={20} className={activeTab === itemId ? '' : 'group-hover:scale-110 transition-transform'} />
+                  {(item.hasPendingDot || (item.count !== undefined && item.count > 0)) && (
+                    <span
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00D084] ring-2 ring-slate-900 animate-pulse"
+                      title={`${item.count || 1} pendiente(s)`}
+                    />
+                  )}
+                </div>
                 <div className={`flex-1 flex items-center justify-between overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-full opacity-100 ml-3'}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
                     {item.count !== undefined && item.count > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-white text-[9px] font-black leading-none">
+                      <span className="px-1.5 py-0.5 rounded-md bg-[#00D084] text-white text-[9px] font-black leading-none">
                         {item.count}
                       </span>
                     )}

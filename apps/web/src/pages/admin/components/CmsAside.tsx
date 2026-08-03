@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import logo from '@/assets/Logo.webp'
 import { useAuth } from '@/context/AuthContext'
+import { API_URL } from '@/config/env'
 
 interface NavItem {
   id: string
@@ -153,6 +154,14 @@ const icons = {
       <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
     </svg>
   ),
+  solicitudesCambio: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M19 8l3 3-3 3" />
+      <path d="M14 11h8" />
+    </svg>
+  ),
   balance: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <line x1="12" y1="1" x2="12" y2="23" />
@@ -188,6 +197,7 @@ const NAV_MAIN: NavGroup[] = [
   { id: 'preinscripciones', label: 'Preinscripciones', icon: icons.solicitudes },
   { id: 'media', label: 'Medios', icon: icons.media },
   { id: 'afiliados', label: 'Afiliados', icon: icons.users },
+  { id: 'solicitudes_cambio', label: 'Solicitudes de Cambio', icon: icons.solicitudesCambio },
   { id: 'estudiantes', label: 'Estudiantes', icon: icons.formacion },
   { id: 'users', label: 'Usuarios', icon: icons.users },
   { id: 'admin_users', label: 'Administradores', icon: icons.admin_users },
@@ -260,8 +270,41 @@ const SidebarContent = ({
   onLogout?: () => void
   isMobile?: boolean
 }) => {
-  const { user } = useAuth()
+  const { token, user } = useAuth()
   const [expandedGroups, setExpandedGroups] = React.useState<string[]>(['normativas'])
+  const [solicitudesCambioCount, setSolicitudesCambioCount] = React.useState(0)
+  const [preinscripcionesCount, setPreinscripcionesCount] = React.useState(0)
+
+  useEffect(() => {
+    if (!token) return
+
+    // 1. Solicitudes de Cambio pendientes
+    fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && Array.isArray(json.data)) {
+          const pending = json.data.filter((s: any) =>
+            ['Pendiente_Admin', 'Pendiente_Empresa'].includes(s.estatus)
+          )
+          setSolicitudesCambioCount(pending.length > 0 ? pending.length : json.data.length)
+        }
+      })
+      .catch(() => {})
+
+    // 2. Preinscripciones pendientes (programas PREANI, PEGI, PADI, Cursos)
+    fetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && Array.isArray(json.data)) {
+          setPreinscripcionesCount(json.data.length)
+        }
+      })
+      .catch(() => {})
+  }, [token])
 
   const toggleGroup = (id: string) => {
     setExpandedGroups(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id])
@@ -311,6 +354,9 @@ const SidebarContent = ({
           const isGroupActive = activeId === item.id || allChildIds.includes(activeId)
           const isOpen = expandedGroups.includes(item.id)
 
+          const hasPendingSolicitudes = item.id === 'solicitudes_cambio' && solicitudesCambioCount > 0
+          const hasPendingPreinscripciones = item.id === 'preinscripciones' && preinscripcionesCount > 0
+
           return (
             <React.Fragment key={item.id}>
               <button
@@ -332,8 +378,27 @@ const SidebarContent = ({
                   hasChildren && isOpen ? 'text-slate-700 font-semibold' : ''
                 ].join(' ')}
               >
-                <span className="flex-shrink-0">{item.icon}</span>
+                <span className="flex-shrink-0 relative">
+                  {item.icon}
+                  {/* Punto distintivo encima del ícono para solicitudes pendientes */}
+                  {(hasPendingSolicitudes || hasPendingPreinscripciones) && (
+                    <span 
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00D084] rounded-full ring-2 ring-white animate-pulse"
+                      title={hasPendingSolicitudes ? `${solicitudesCambioCount} solicitudes pendientes` : `${preinscripcionesCount} preinscripciones pendientes`}
+                    />
+                  )}
+                </span>
                 {!isCollapsed && <span className="text-sm font-medium truncate flex-1">{item.label}</span>}
+                {!isCollapsed && hasPendingSolicitudes && (
+                  <span className="min-w-[18px] h-[18px] px-1.5 bg-[#00D084] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs shrink-0">
+                    {solicitudesCambioCount}
+                  </span>
+                )}
+                {!isCollapsed && hasPendingPreinscripciones && (
+                  <span className="min-w-[18px] h-[18px] px-1.5 bg-[#00D084] text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs shrink-0">
+                    {preinscripcionesCount}
+                  </span>
+                )}
                 {!isCollapsed && hasChildren && (
                   <span className={['transition-transform duration-200 text-slate-400', isOpen ? 'rotate-90' : ''].join(' ')}>
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
