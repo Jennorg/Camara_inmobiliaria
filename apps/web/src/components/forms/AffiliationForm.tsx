@@ -165,8 +165,8 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
           )}
 
           {errorMsg && (
-            <div className="flex items-center gap-3 text-red-100 bg-red-500/20 border border-red-400/40 p-5 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">
-              <AlertCircle size={18} className="text-red-400" />
+            <div className="flex items-center gap-3 text-white bg-red-600 border border-red-700 p-5 rounded-2xl text-xs font-bold justify-center shadow-md shadow-red-600/20 animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle size={18} className="text-white shrink-0" />
               {errorMsg}
             </div>
           )}

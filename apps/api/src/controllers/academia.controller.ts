@@ -1826,13 +1826,13 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
 
 export const adminListPreinscripciones = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Auto-curación: si hay inscripciones de 'AFILIACION' como 'Preinscrito'/'Entrevista' pero el afiliado ya está como 'Afiliado' o 'Rechazado',
+    // Auto-curación: si hay inscripciones de 'AFILIACION' o 'CIBIR' como 'Preinscrito'/'Entrevista' pero el afiliado ya está como 'Afiliado' o 'Rechazado',
     // actualizamos la inscripción correspondientemente.
     try {
       await db.execute({
         sql: `UPDATE inscripciones_cursos 
-              SET estatus = 'Inscrito', actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
-              WHERE programa_codigo = 'AFILIACION' 
+              SET estatus = 'Inscrito', completado = 1, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+              WHERE programa_codigo IN ('AFILIACION', 'CIBIR') 
                 AND id_curso IS NULL 
                 AND estatus IN ('Preinscrito', 'Entrevista')
                 AND id_estudiante IN (
@@ -1846,7 +1846,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
       await db.execute({
         sql: `UPDATE inscripciones_cursos 
               SET estatus = 'Rechazado', actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
-              WHERE programa_codigo = 'AFILIACION' 
+              WHERE programa_codigo IN ('AFILIACION', 'CIBIR') 
                 AND id_curso IS NULL 
                 AND estatus IN ('Preinscrito', 'Entrevista')
                 AND id_estudiante IN (
@@ -1873,8 +1873,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const baseWhere: string[] = []
     const countArgs: any[] = []
 
-    // Excluir preinscripciones de afiliación de personas/empresas que ya tienen un estatus final en afiliados (Afiliado, Rechazado, etc.)
-    baseWhere.push("NOT (ic.programa_codigo = 'AFILIACION' AND COALESCE(af.estatus, '') IN ('Afiliado', 'Rechazado', 'Moroso', 'Suspendido'))")
+    // Excluir preinscripciones de afiliación/CIBIR de personas/empresas que ya tienen un estatus final en afiliados (Afiliado, Rechazado, etc.)
+    baseWhere.push("NOT (ic.programa_codigo IN ('AFILIACION', 'CIBIR') AND COALESCE(af.estatus, '') IN ('Afiliado', 'Rechazado', 'Moroso', 'Suspendido'))")
 
     if (onlyCursos) {
       // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR

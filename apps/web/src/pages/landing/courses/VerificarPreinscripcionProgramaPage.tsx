@@ -627,7 +627,7 @@ export default function VerificarPreinscripcionProgramaPage() {
             <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
             <div>
               <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
-                ¿Deseas optar por Acreditación de Conocimientos (CIBIR)?
+                ¿Deseas optar por Acreditación?
               </h3>
             </div>
           </div>
@@ -639,24 +639,22 @@ export default function VerificarPreinscripcionProgramaPage() {
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, optarAcreditacion: true }))}
-            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${
-              formData.optarAcreditacion === true
-                ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md shadow-emerald-500/10'
-                : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
-            }`}
+            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${formData.optarAcreditacion === true
+              ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md shadow-emerald-500/10'
+              : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
+              }`}
           >
             Sí, deseo optar
           </button>
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, optarAcreditacion: false, diplomados: [] }))}
-            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${
-              formData.optarAcreditacion === false
-                ? 'border-slate-300 bg-slate-50 text-slate-700 shadow-inner'
-                : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
-            }`}
+            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${formData.optarAcreditacion === false
+              ? 'border-slate-300 bg-slate-50 text-slate-700 shadow-inner'
+              : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
+              }`}
           >
-            No, curso regular
+            No, haré el CIBIR
           </button>
         </div>
 

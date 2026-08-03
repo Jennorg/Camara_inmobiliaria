@@ -10,6 +10,10 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
     title: 'Preinscripciones',
     subtitle: '',
   },
+  solicitudes_cambio: {
+    title: 'Solicitudes de Cambio',
+    subtitle: 'Revisión y aprobación de solicitudes de actualización de datos de afiliados',
+  },
   cms: { title: 'Contenido', subtitle: 'Todas las secciones de la Landing' },
   noticias: { title: 'Noticias', subtitle: 'Últimas novedades y artículos' },
   convenios: { title: 'Convenios', subtitle: 'Alianzas y beneficios para afiliados' },

@@ -49,12 +49,12 @@ export default function Historia() {
           setHitos(data.data.map((h: any) => ({ año: h.anio, titulo: h.titulo, descripcion: h.descripcion })))
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
   return (
     <div className='min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth'>
-      <SEO 
-        title="Nuestra Historia" 
+      <SEO
+        title="Nuestra Historia"
         description="Conoce la trayectoria de la Cámara Inmobiliaria del Estado Bolívar. Décadas impulsando el profesionalismo inmobiliario en la región."
       />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
@@ -75,7 +75,7 @@ export default function Historia() {
           <div className='max-w-4xl mx-auto text-center mb-20 space-y-6'>
             <h2 className='text-3xl font-black text-[#022c22] uppercase tracking-tight'>Reseña Histórica</h2>
             <p className='text-slate-600 leading-relaxed text-lg md:text-center text-justify'>
-              La Cámara Inmobiliaria del Estado Bolívar, también conocida como CIEBO, es una asociación civil sin fines de lucro que agrupa a personas jurídicas y naturales en el área inmobiliaria. De igual manera, difunde las políticas inmobiliarias de la región del estado Bolívar, asegurando el buen ejercicio de la profesión y la protección de los intereses de sus miembros. Esta cámara nace y se constituye en Ciudad Guayana el 29 de julio de 1999 con el fin de asistir, asesorar y dar asistencia a todos sus agremiados en materia inmobiliaria, además de servir como enlace con las demás cámaras que hacen vida en la región.
+              La Cámara Inmobiliaria del Estado Bolívar, también conocida como CIEBO, es una asociación civil sin fines de lucro que agrupa a personas jurídicas y naturales en el área inmobiliaria. De igual manera, difunde las políticas inmobiliarias de la región del estado Bolívar, asegurando el buen ejercicio de la profesión y la protección de los intereses de sus miembros. Esta cámara nace y se constituye en Ciudad Guayana el 28 de julio de 1999 con el fin de asistir, asesorar y dar asistencia a todos sus agremiados en materia inmobiliaria, además de servir como enlace con las demás cámaras que hacen vida en la región.
             </p>
           </div>
           <div className='relative'>

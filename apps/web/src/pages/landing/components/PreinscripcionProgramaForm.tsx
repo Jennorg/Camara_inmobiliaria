@@ -501,8 +501,9 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
         </button>
 
           {errorMsg && (
-            <div className="flex items-center gap-2 text-red-100 bg-red-500/20 border border-red-400/40 p-4 rounded-xl text-xs font-bold justify-center">
-              <AlertCircle size={14} />{errorMsg}
+            <div className="flex items-center gap-2 text-white bg-red-600 border border-red-700 p-4 rounded-xl text-xs font-bold justify-center shadow-md shadow-red-600/20">
+              <AlertCircle size={16} className="text-white shrink-0" />
+              {errorMsg}
             </div>
           )}
 
