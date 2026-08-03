@@ -579,13 +579,15 @@ export default function UsersPanel() {
                       ) : (
                         <p className='font-semibold text-slate-700'>{u.email}</p>
                       )}
-                      <div className='flex items-center gap-1 mt-0.5'>
-                        {u.nombre_completo ? (
-                          <p className='text-xs text-slate-500 truncate max-w-[180px]'>
+                      <div className='flex items-center gap-1.5 mt-0.5'>
+                        {u.nombre_completo && u.nombre_completo !== 'Sin registro de persona' && u.nombre_completo !== 'Nombre no definido' ? (
+                          <p className='text-xs font-medium text-slate-600 truncate max-w-[200px]'>
                             {u.nombre_completo}
                           </p>
                         ) : (
-                          <span className='text-[10px] font-bold text-slate-300 uppercase tracking-tighter'>Sin nombre</span>
+                          <span className='text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md tracking-tight'>
+                            {u.email ? u.email.split('@')[0] : 'Cuenta sin vincular'}
+                          </span>
                         )}
                         {u.codigo && (
                           <>

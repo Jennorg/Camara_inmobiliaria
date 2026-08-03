@@ -16,47 +16,6 @@ const parseRoles = (rolesField: unknown): string[] => {
 }
 
 /**
- * GET /api/users
- * Lista todos los usuarios del sistema (solo admin).
- */
-export const getUsers = async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const result = await db.execute({
-      sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
-                   a.id_afiliado, a.tipo_afiliado,
-                   p.email AS persona_email,
-                   e.email AS empresa_email,
-                    COALESCE(
-                      NULLIF(TRIM(e.razon_social), ''), 
-                      NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''),
-                      'Nombre no definido'
-                    ) as nombre_completo,
-                    p.nombres,
-                    p.apellidos,
-                    e.razon_social,
-                   a.codigo, a.estatus as estatus_afiliado,
-                   p.cedula_tipo, p.cedula,
-                   e.rif_tipo, e.rif_numero
-            FROM users u
-            LEFT JOIN afiliados a ON u.id = a.id_user
-            LEFT JOIN personas p ON a.id_persona = p.id
-            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-            ORDER BY u.creado_en DESC`,
-      args: [],
-    })
-    const rows = result.rows.map(r => {
-      const roles = parseRoles(r.roles)
-      const rol = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : 'afiliado'
-      return { ...r, roles, rol }
-    })
-    res.status(200).json({ success: true, data: rows })
-  } catch (error) {
-    console.error('Error en getUsers:', error)
-    res.status(500).json({ success: false, message: 'Error interno del servidor' })
-  }
-}
-
-/**
  * POST /api/users
  * Crea un nuevo usuario.
  * Afiliados normales solo por admin/super_admin. 
@@ -194,6 +153,60 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     res.status(200).json({ success: true, data: result.rows[0] })
   } catch (error) {
     console.error('Error en updateUser:', error)
+    res.status(500).json({ success: false, message: 'Error interno del servidor' })
+  }
+}
+
+/**
+ * GET /api/users
+ * Lista todos los usuarios del sistema (solo admin).
+ */
+export const getUsers = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db.execute({
+      sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
+                   a.id_afiliado, a.tipo_afiliado,
+                   COALESCE(p.email, p_by_email.email, p_est.email) AS persona_email,
+                   COALESCE(e.email, e_by_email.email) AS empresa_email,
+                   COALESCE(
+                     NULLIF(TRIM(e.razon_social), ''),
+                     NULLIF(TRIM(e_by_email.razon_social), ''),
+                     NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''),
+                     NULLIF(TRIM(COALESCE(p_by_email.nombres, '') || ' ' || COALESCE(p_by_email.apellidos, '')), ''),
+                     NULLIF(TRIM(COALESCE(p_est.nombres, '') || ' ' || COALESCE(p_est.apellidos, '')), ''),
+                     CASE 
+                       WHEN u.roles LIKE '%admin%' THEN 'Usuario Administrador'
+                       ELSE 'Sin registro de persona'
+                     END
+                   ) as nombre_completo,
+                   COALESCE(p.nombres, p_by_email.nombres, p_est.nombres) as nombres,
+                   COALESCE(p.apellidos, p_by_email.apellidos, p_est.apellidos) as apellidos,
+                   COALESCE(e.razon_social, e_by_email.razon_social) as razon_social,
+                   a.codigo, a.estatus as estatus_afiliado,
+                   COALESCE(p.cedula_tipo, p_by_email.cedula_tipo, p_est.cedula_tipo) as cedula_tipo,
+                   COALESCE(p.cedula, p_by_email.cedula, p_est.cedula) as cedula,
+                   COALESCE(e.rif_tipo, e_by_email.rif_tipo) as rif_tipo,
+                   COALESCE(e.rif_numero, e_by_email.rif_numero) as rif_numero
+            FROM users u
+            LEFT JOIN afiliados a ON u.id = a.id_user
+            LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN personas p_by_email ON LOWER(TRIM(p_by_email.email)) = LOWER(TRIM(u.email))
+            LEFT JOIN estudiantes est ON u.id = est.id_user
+            LEFT JOIN personas p_est ON est.id_persona = p_est.id
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            LEFT JOIN empresas e_by_email ON LOWER(TRIM(e_by_email.email)) = LOWER(TRIM(u.email))
+            GROUP BY u.id
+            ORDER BY u.creado_en DESC`,
+      args: [],
+    })
+    const rows = result.rows.map(r => {
+      const roles = parseRoles(r.roles)
+      const rol = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : 'afiliado'
+      return { ...r, roles, rol }
+    })
+    res.status(200).json({ success: true, data: rows })
+  } catch (error) {
+    console.error('Error en getUsers:', error)
     res.status(500).json({ success: false, message: 'Error interno del servidor' })
   }
 }
