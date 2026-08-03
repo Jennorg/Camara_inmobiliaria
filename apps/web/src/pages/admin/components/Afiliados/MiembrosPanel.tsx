@@ -290,7 +290,7 @@ export default function MiembrosPanel() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [searchField, setSearchField] = useState<'nombre' | 'id' | 'codigo'>('nombre')
+  const [searchField, setSearchField] = useState<'nombre' | 'id' | 'codigo' | 'email'>('nombre')
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -479,12 +479,17 @@ export default function MiembrosPanel() {
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${item.id_afiliado}`, { headers: authHeaders })
       const json = await res.json()
-      if (json.success) {
-        setSelected(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, ...json.data } : prev)
-        setEditForm(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, ...json.data } : prev)
+      if (json.success && json.data) {
+        setSelected(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, ...json.data, documentos: json.data.documentos || [] } : prev)
+        setEditForm(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, ...json.data, documentos: json.data.documentos || [] } : prev)
+      } else {
+        setSelected(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, documentos: [] } : prev)
+        setEditForm(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, documentos: [] } : prev)
       }
     } catch (err) {
       console.error('Error al cargar documentos del afiliado:', err)
+      setSelected(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, documentos: [] } : prev)
+      setEditForm(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, documentos: [] } : prev)
     }
   }
 
@@ -650,14 +655,22 @@ export default function MiembrosPanel() {
           matchSearch = terms.every(term => cedula.includes(term) || rif.includes(term))
         } else if (searchField === 'codigo') {
           matchSearch = terms.every(term => cleanString(item.codigo).includes(term))
+        } else if (searchField === 'email') {
+          const emailPersona = cleanString(item.email || (item as any).persona_email || '')
+          const emailEmpresa = cleanString(item.empresa_email || '')
+          matchSearch = terms.every(term => emailPersona.includes(term) || emailEmpresa.includes(term))
         } else { // nombre (inclusivo)
           const repNombre = cleanString(item.representante_nombre || (item.nombres && item.apellidos ? `${item.nombres} ${item.apellidos}` : ''))
+          const emailPersona = cleanString(item.email || (item as any).persona_email || '')
+          const emailEmpresa = cleanString(item.empresa_email || '')
           matchSearch = terms.every(term =>
             nombre.includes(term) ||
             razonSocial.includes(term) ||
             repNombre.includes(term) ||
             cleanString(item.nombres).includes(term) ||
-            cleanString(item.apellidos).includes(term)
+            cleanString(item.apellidos).includes(term) ||
+            emailPersona.includes(term) ||
+            emailEmpresa.includes(term)
           )
         }
       }
@@ -688,8 +701,7 @@ export default function MiembrosPanel() {
   }, [items, debouncedSearch, filterTipo, sortState])
 
   const handleEdit = (item: AfiliadoDTO) => {
-    setSelected(item)
-    setEditForm(item)
+    handleSelect(item)
     setIsEditing(true)
   }
 
@@ -918,6 +930,7 @@ export default function MiembrosPanel() {
                     {searchField === 'nombre' && 'Nombre'}
                     {searchField === 'id' && 'ID / RIF'}
                     {searchField === 'codigo' && 'Código'}
+                    {searchField === 'email' && 'Correo'}
                   </span>
                   <ChevronDown size={10} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -925,11 +938,12 @@ export default function MiembrosPanel() {
                 {showSearchDropdown && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-10a0">
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] animate-in fade-in slide-in-from-top-1 duration-100">
                       {([
                         { key: 'nombre', label: 'Nombre' },
                         { key: 'id', label: 'Cédula / RIF' },
                         { key: 'codigo', label: 'Código' },
+                        { key: 'email', label: 'Correo' },
                       ] as const).map(option => (
                         <button
                           key={option.key}
@@ -955,8 +969,9 @@ export default function MiembrosPanel() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder={`Buscar por ${searchField === 'nombre' ? 'nombre / representante' :
-                    searchField === 'id' ? 'cédula o RIF' : 'código'
+                  placeholder={`Buscar por ${searchField === 'nombre' ? 'nombre / rep / correo' :
+                    searchField === 'id' ? 'cédula o RIF' :
+                    searchField === 'codigo' ? 'código' : 'correo electrónico'
                     }...`}
                   className="w-full h-full pl-6 pr-8 bg-transparent text-xs font-semibold placeholder-slate-400 outline-none"
                 />
@@ -1057,7 +1072,7 @@ export default function MiembrosPanel() {
             filteredItems.map(item => (
               <button
                 key={item.id_afiliado}
-                onClick={() => { setSelected(item); setIsEditing(false); }}
+                onClick={() => handleSelect(item)}
                 className={`w-full p-4 text-left hover:bg-slate-50 transition-colors group flex items-center justify-between ${selected?.id_afiliado === item.id_afiliado ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'border-l-4 border-transparent'}`}
               >
                 <div className="min-w-0">
@@ -1648,7 +1663,12 @@ export default function MiembrosPanel() {
               </div>
 
               <div className="space-y-4">
-                {selected.documentos && selected.documentos.length > 0 ? (
+                {selected.documentos === undefined ? (
+                  <div className="p-8 text-center border border-dashed border-slate-200 rounded-[2rem] bg-slate-50/50 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400">
+                    <RefreshCw size={16} className="animate-spin text-emerald-500" />
+                    Cargando expediente...
+                  </div>
+                ) : selected.documentos && selected.documentos.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {selected.documentos.map((doc: any) => (
                       <DocLink
@@ -1697,7 +1717,7 @@ export default function MiembrosPanel() {
                     {associatedMembers.map(m => (
                       <div
                         key={m.id_afiliado}
-                        onClick={() => setSelected(m)}
+                        onClick={() => handleSelect(m)}
                         className="group flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer shadow-sm hover:shadow-md"
                       >
                         <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
@@ -1795,20 +1815,20 @@ export default function MiembrosPanel() {
                   <DataInput label="Nombres" placeholder="Ej: Juan" value={(newForm as any).nombres || ''} onChange={(v: string) => setNewForm({ ...newForm, nombres: v } as any)} isRequired hasError={formErrors.nombres} />
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} isRequired hasError={formErrors.apellidos} />
 
-                  <div className="space-y-1.5">
+                  <div className="sm:col-span-2 space-y-1.5 relative z-0 focus-within:z-20">
                     <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${formErrors.cedula ? 'text-red-500' : 'text-slate-400'}`}>
                       {isNewCorporativo ? "Cédula del representante" : "Cédula"} <span className="text-emerald-500">*</span>
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 relative z-10">
                       <select
-                        className={`w-20 bg-slate-50 border rounded-2xl px-3 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
+                        className={`w-20 bg-slate-50 border rounded-2xl px-3 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
                         value={newForm.cedula_tipo || 'V'}
                         onChange={(e) => setNewForm({ ...newForm, cedula_tipo: e.target.value })}
                       >
                         {['V', 'E', 'P'].map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                       <input
-                        className={`flex-1 bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
+                        className={`flex-1 bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
                         placeholder="12345678"
                         inputMode="numeric"
                         value={newForm.cedula || ''}
@@ -1820,14 +1840,11 @@ export default function MiembrosPanel() {
                   <DataInput label="Fecha de nacimiento" type="date" value={newForm.fecha_nacimiento || ''} onChange={(v: string) => setNewForm({ ...newForm, fecha_nacimiento: v })} />
                   <DataInput label="Correo electrónico" type="email" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} isRequired hasError={formErrors.email} />
                   <DataInput label="Teléfono" type="tel" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
-                  <div className="sm:col-span-2">
-                    <DataInput label="Dirección de habitación" placeholder="Av. Principal..." value={newForm.direccion || ''} onChange={(v: string) => setNewForm({ ...newForm, direccion: v })} />
-                  </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 relative z-0 focus-within:z-20">
                     <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${formErrors.nivel_academico ? 'text-red-500' : 'text-slate-400'}`}>Nivel académico</label>
                     <div className="relative">
                       <select
-                        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${formErrors.nivel_academico ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:ring-emerald-500/10'}`}
+                        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${formErrors.nivel_academico ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
                         value={newForm.nivel_academico || ''}
                         onChange={(e) => setNewForm({ ...newForm, nivel_academico: e.target.value })}
                       >
@@ -2065,8 +2082,8 @@ export default function MiembrosPanel() {
 
             <div className="px-8 pb-8 flex flex-col gap-4 bg-white">
               {createError && (
-                <div className="flex items-center gap-3 text-red-100 bg-red-500/20 border border-red-400/40 p-4 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">
-                  <AlertCircle size={16} className="text-red-400 shrink-0" />
+                <div className="flex items-center gap-3 text-white bg-red-600 border border-red-700 p-4 rounded-2xl text-xs font-bold justify-center shadow-md shadow-red-600/20 animate-in slide-in-from-top-2 duration-300">
+                  <AlertCircle size={18} className="text-white shrink-0" />
                   {createError}
                 </div>
               )}
@@ -2647,16 +2664,16 @@ function FormSection({
 
 function DataInput({ label, placeholder, value, onChange, type = 'text', isRequired = false, hasError = false }: any) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 relative z-0 focus-within:z-20">
       <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
         {label} {isRequired && <span className="text-emerald-500">*</span>}
       </label>
       <input
         type={type}
         placeholder={placeholder}
-        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 transition-all ${hasError
+        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${hasError
           ? 'border-red-500 ring-4 ring-red-500/10 focus:ring-red-500/20'
-          : 'border-gray-100 focus:ring-emerald-500/10 focus:border-emerald-500'
+          : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'
           }`}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
