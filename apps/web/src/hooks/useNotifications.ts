@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '@/config/env';
+import { useAuth } from '@/context/AuthContext';
 
 export interface Notification {
   id: number;
@@ -14,33 +15,42 @@ export interface Notification {
 }
 
 export function useNotifications() {
+  const { token } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchNotifications = useCallback(async () => {
+    if (!token) return;
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/notifications`, {
         credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       const json = await res.json();
       if (json.success) {
-        setNotifications(json.data);
-        setUnreadCount(json.unreadCount ?? json.data.filter((n: Notification) => n.leido === 0).length);
+        setNotifications(json.data || []);
+        setUnreadCount(json.unreadCount ?? (json.data ? json.data.filter((n: Notification) => n.leido === 0).length : 0));
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   const markAsRead = async (id: number) => {
+    if (!token) return;
     try {
       const res = await fetch(`${API_URL}/api/notifications/${id}/read`, {
         method: 'PATCH',
         credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       const json = await res.json();
       if (json.success) {
@@ -55,10 +65,14 @@ export function useNotifications() {
   };
 
   const markAllAsRead = async () => {
+    if (!token) return;
     try {
       const res = await fetch(`${API_URL}/api/notifications/read-all`, {
         method: 'PATCH',
         credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       const json = await res.json();
       if (json.success) {

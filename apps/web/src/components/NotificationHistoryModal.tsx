@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Notification } from '@/hooks/useNotifications';
 import { API_URL } from '@/config/env';
+import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -56,6 +57,7 @@ interface Props {
 const PAGE_SIZE = 15;
 
 export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMarkAllAsRead }: Props) => {
+  const { token }                         = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading]             = useState(false);
   const [loadingMore, setLoadingMore]     = useState(false);
@@ -67,12 +69,18 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
 
   // ── Fetch página ──────────────────────────────────────────────────────────
   const fetchPage = useCallback(async (offset: number, reset = false) => {
+    if (!token) return;
     if (reset) setLoading(true); else setLoadingMore(true);
     try {
-      const res  = await fetch(`${API_URL}/api/notifications?limit=${PAGE_SIZE}&offset=${offset}`, { credentials: 'include' });
+      const res  = await fetch(`${API_URL}/api/notifications?limit=${PAGE_SIZE}&offset=${offset}`, {
+        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       const json = await res.json();
       if (json.success) {
-        const incoming: Notification[] = json.data;
+        const incoming: Notification[] = json.data || [];
         setNotifications(prev => reset ? incoming : [...prev, ...incoming]);
         setUnreadCount(json.unreadCount ?? 0);
         setHasMore(incoming.length === PAGE_SIZE);
@@ -84,7 +92,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [token]);
 
   // ── Carga inicial cuando se abre ─────────────────────────────────────────
   useEffect(() => {
@@ -106,10 +114,14 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
 
   // ── Marcar como leída (local + callback) ─────────────────────────────────
   const handleMarkAsRead = async (id: number) => {
+    if (!token) return;
     try {
       const res = await fetch(`${API_URL}/api/notifications/${id}/read`, {
         method: 'PATCH',
         credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       const json = await res.json();
       if (json.success) {
@@ -124,10 +136,14 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
 
   // ── Marcar todas como leídas ──────────────────────────────────────────────
   const handleMarkAllAsRead = async () => {
+    if (!token) return;
     try {
       const res = await fetch(`${API_URL}/api/notifications/read-all`, {
         method: 'PATCH',
         credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       const json = await res.json();
       if (json.success) {
