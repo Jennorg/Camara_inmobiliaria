@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
-import { Upload, CheckCircle, Trash2 } from 'lucide-react'
+import { Upload, CheckCircle, Trash2, ArrowLeft } from 'lucide-react'
 
 interface NoticiaItem {
   id: string | number;
@@ -38,9 +38,19 @@ export const NoticiasPanel = () => {
   })
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isHiding, setIsHiding] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+
+  const closeForm = () => {
+    setIsHiding(true)
+    setTimeout(() => {
+      setSelectedId(null)
+      setIsEditing(false)
+      setIsHiding(false)
+    }, 180)
+  }
 
   const uploadImage = async (file: File) => {
     setUploadError(null)
@@ -166,234 +176,293 @@ export const NoticiasPanel = () => {
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value }))
 
   const formBody = () => (
-    <div className="flex flex-col gap-6 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-      <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-        <div>
-          <h3 className="text-base font-black text-slate-800 leading-tight">
-            {selectedId === 'new' ? 'Nueva Noticia' : 'Editar Noticia'}
-          </h3>
-          <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Portal de Actualidad</p>
+    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl max-w-5xl mx-auto transition-all duration-200 ${
+      isHiding ? 'opacity-0 scale-95 -translate-x-4 pointer-events-none' : 'animate-in fade-in zoom-in-95 duration-200'
+    }`}>
+      {/* Encabezado del Formulario */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={closeForm}
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
+            title="Volver a la lista"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">
+              {selectedId === 'new' ? 'Nueva Noticia' : 'Editar Noticia'}
+            </h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+              Publicación en Portal Web de la Cámara
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-all select-none">
+            <input 
+              type="checkbox" 
+              checked={form.publicado} 
+              onChange={f('publicado')} 
+              className="w-4 h-4 rounded accent-emerald-500 border-slate-300" 
+            />
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Publicar</span>
+          </label>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5">
-        <FormField label="Título de la Noticia">
-          <Input 
-            value={form.titulo} 
-            onChange={f('titulo')} 
-            placeholder="Ej. Nuevas tendencias del mercado inmobiliario..." 
-            className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
-          />
-        </FormField>
+      {/* Grid Principal: Izquierda Formulario / Derecha Previsualización de Portada */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* COLUMNA IZQUIERDA: Campos de la noticia (7 columnas) */}
+        <div className="lg:col-span-7 space-y-5">
+          <FormField label="Título de la Noticia">
+            <Input 
+              value={form.titulo} 
+              onChange={f('titulo')} 
+              placeholder="Ej. Nuevas tendencias del mercado inmobiliario..." 
+              className="!text-sm !py-3 bg-slate-50/70 border-slate-200 focus:bg-white transition-all font-bold"
+            />
+          </FormField>
 
-        <FormField label="Extracto / Resumen (Vista previa)">
-          <Textarea 
-            value={form.extracto} 
-            onChange={f('extracto')} 
-            placeholder="Breve resumen de 1 o 2 líneas para la tarjeta de vista previa..." 
-            rows={2} 
-            className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all resize-none"
-          />
-        </FormField>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Categoría">
+              <Input 
+                value={form.categoria} 
+                onChange={f('categoria')} 
+                placeholder="Noticias, Eventos..." 
+                className="!text-xs !py-2.5 bg-slate-50/70 border-slate-200" 
+              />
+            </FormField>
 
-        <FormField label="Cuerpo / Contenido Completo">
-          <Textarea 
-            value={form.contenido} 
-            onChange={f('contenido')} 
-            placeholder="Desarrolle el contenido completo de la noticia aquí..." 
-            rows={5} 
-            className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all resize-y min-h-[120px]"
-          />
-        </FormField>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Imagen de Portada</span>
-            {form.imagen_url && (
-              <button 
-                onClick={() => setForm(p => ({ ...p, imagen_url: '' }))}
-                className="flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
-              >
-                <Trash2 size={12} />
-                Quitar imagen
-              </button>
-            )}
+            <FormField label="Etiqueta / Tag">
+              <Input 
+                value={form.tag} 
+                onChange={f('tag')} 
+                placeholder="Ej. Mercado, Legal..." 
+                className="!text-xs !py-2.5 bg-slate-50/70 border-slate-200" 
+              />
+            </FormField>
           </div>
 
-          <div className="relative group">
-            <input
-              type="file"
-              accept="image/*,.svg,.png,.jpg,.jpeg,.webp"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) uploadImage(file)
-              }}
-              disabled={uploading}
-              onDragEnter={() => setIsDraggingOver(true)}
-              onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true) }}
-              onDragLeave={() => setIsDraggingOver(false)}
-              onDrop={() => setIsDraggingOver(false)}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+          <FormField label="Extracto / Resumen Corto (Aparece en la Tarjeta)">
+            <Textarea 
+              value={form.extracto} 
+              onChange={f('extracto')} 
+              placeholder="Breve resumen de 1 a 2 líneas para la tarjeta de la landing..." 
+              rows={2} 
+              className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-none font-medium"
             />
-            <div className={`flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed rounded-2xl transition-all duration-300 ${
-              uploading 
-                ? 'border-emerald-200 bg-emerald-50/30' 
-                : isDraggingOver
-                  ? 'border-emerald-500 bg-emerald-100 scale-[1.02] shadow-xl shadow-emerald-500/10'
-                  : form.imagen_url 
-                    ? 'border-emerald-400 bg-emerald-50/50' 
-                    : 'border-slate-200 group-hover:border-emerald-400 group-hover:bg-emerald-50/10'
-            }`}>
-              
-              {uploading ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-[11px] font-bold text-emerald-700">Subiendo imagen...</span>
-                </div>
-              ) : form.imagen_url ? (
-                <div className="flex flex-col items-center gap-3 animate-in fade-in zoom-in duration-300">
-                  <div className="relative">
-                    <img 
-                      src={form.imagen_url} 
-                      alt="Preview" 
-                      className="w-24 h-24 object-cover rounded-xl shadow-md border-2 border-white ring-4 ring-emerald-50"
-                      style={{ objectPosition: form.posicion_imagen }}
-                    />
-                    <div className="absolute -top-2 -right-2 bg-emerald-500 text-white p-1 rounded-full shadow-lg ring-2 ring-white">
-                      <CheckCircle size={14} strokeWidth={3} />
-                    </div>
-                  </div>
-                  <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-100/50 px-3 py-1 rounded-full">¡Imagen cargada!</p>
-                  <p className="text-[9px] text-emerald-600/60 font-bold uppercase tracking-widest">Haga clic o arrastre para cambiar</p>
-                </div>
-              ) : (
-                <>
-                  <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
-                    <Upload size={24} className="text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                  </div>
-                  <p className="text-[11px] font-bold text-slate-600 group-hover:text-emerald-700">
-                    Arrastre su imagen aquí
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter font-bold">o haga clic para seleccionar archivo</p>
-                </>
+          </FormField>
+
+          <FormField label="Cuerpo / Contenido Completo">
+            <Textarea 
+              value={form.contenido} 
+              onChange={f('contenido')} 
+              placeholder="Escriba aquí el contenido detallado de la noticia..." 
+              rows={6} 
+              className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-y min-h-[140px]"
+            />
+          </FormField>
+
+          {/* Resaltado de Evento (Opcional) */}
+          <div className="bg-emerald-50/40 border border-emerald-100 rounded-2xl p-4 space-y-3">
+            <div>
+              <h4 className="text-[11px] font-black uppercase tracking-wider text-emerald-950">
+                Resaltar Evento (Opcional)
+              </h4>
+              <p className="text-[10px] text-emerald-700/70 font-medium">
+                Complete estos datos si la noticia corresponde a una actividad con fecha y hora.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <FormField label="Fecha Evento">
+                <Input type="date" value={form.fecha_evento} onChange={f('fecha_evento')} className="!text-xs !py-2 bg-white" />
+              </FormField>
+              <FormField label="Hora Evento">
+                <Input type="time" value={form.hora_evento} onChange={f('hora_evento')} className="!text-xs !py-2 bg-white" />
+              </FormField>
+              <FormField label="Lugar Evento">
+                <Input value={form.lugar_evento} onChange={f('lugar_evento')} placeholder="Puerto Ordaz..." className="!text-xs !py-2 bg-white" />
+              </FormField>
+            </div>
+          </div>
+        </div>
+
+        {/* COLUMNA DERECHA: Carga de Imagen y Vista Previa Real en Landing (5 columnas) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-600">
+                Imagen de Portada
+              </span>
+              {form.imagen_url && (
+                <button 
+                  onClick={() => setForm(p => ({ ...p, imagen_url: '' }))}
+                  className="flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
+                >
+                  <Trash2 size={12} />
+                  Quitar imagen
+                </button>
               )}
             </div>
-          </div>
-          {uploadError && <p className="text-[11px] text-rose-600 font-bold px-2">× {uploadError}</p>}
-        </div>
 
-        {/* Control de Encuadre de Imagen (object-position) */}
-        {form.imagen_url && (
-          <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-3">
-            <div>
-              <span className="text-[11px] font-black uppercase tracking-widest text-slate-700">Ajuste de Encuadre / Foco</span>
-              <p className="text-[9px] text-slate-400 font-bold uppercase">Seleccione el punto de anclaje para encuadrar la imagen dentro de la tarjeta.</p>
-            </div>
-            
-            <div className="flex gap-6 items-center">
-              {/* Mini previsualizador con recorte */}
-              <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
-                <img 
-                  src={form.imagen_url} 
-                  alt="Previsualización" 
-                  className="w-full h-full object-cover transition-all duration-300"
-                  style={{ objectPosition: form.posicion_imagen }}
-                />
-              </div>
-              
-              {/* Selector táctil/clic 3x3 */}
-              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/60 rounded-2xl w-24 h-24 border border-slate-200/30">
-                {[
-                  { val: 'top left', label: '↖️' },
-                  { val: 'top center', label: '⬆️' },
-                  { val: 'top right', label: '↗️' },
-                  { val: 'center left', label: '⬅️' },
-                  { val: 'center center', label: '•' },
-                  { val: 'center right', label: '➡️' },
-                  { val: 'bottom left', label: '↙️' },
-                  { val: 'bottom center', label: '⬇️' },
-                  { val: 'bottom right', label: '↘️' }
-                ].map((pos) => (
-                  <button
-                    key={pos.val}
-                    type="button"
-                    onClick={() => setForm(p => ({ ...p, posicion_imagen: pos.val }))}
-                    className={`flex items-center justify-center text-[10px] rounded-lg font-bold transition-all ${
-                      form.posicion_imagen === pos.val 
-                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-[1.08]' 
-                        : 'hover:bg-slate-200 text-slate-400 hover:text-slate-600'
-                    }`}
-                    title={`Alineación: ${pos.val}`}
-                  >
-                    {pos.label}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="text-[10px] text-slate-500 font-bold max-w-[160px] leading-relaxed uppercase">
-                Haga clic en las flechas para alinear la imagen (ej: use la flecha arriba si se cortan las cabezas).
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Resaltado de Evento (Fecha, Hora, Lugar) */}
-        <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 space-y-4">
-          <div>
-            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Resaltar Evento (Fecha, Hora, Lugar)</h4>
-            <p className="text-[9px] text-slate-400 font-bold uppercase">Si la noticia corresponde a un evento, complete estos campos para destacarlos visualmente.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <FormField label="Fecha del Evento">
-              <Input type="date" value={form.fecha_evento} onChange={f('fecha_evento')} className="!text-xs !py-2 bg-white" />
-            </FormField>
-            <FormField label="Hora del Evento">
-              <Input type="time" value={form.hora_evento} onChange={f('hora_evento')} className="!text-xs !py-2 bg-white" />
-            </FormField>
-            <FormField label="Lugar del Evento">
-              <Input value={form.lugar_evento} onChange={f('lugar_evento')} placeholder="Ej. Altavista, Puerto Ordaz" className="!text-xs !py-2 bg-white" />
-            </FormField>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label="Categoría">
-            <Input value={form.categoria} onChange={f('categoria')} className="!text-xs !py-2.5 bg-slate-50 border-slate-200" />
-          </FormField>
-          <FormField label="Etiqueta (Tag)">
-            <Input value={form.tag} onChange={f('tag')} placeholder="Legal, Mercado..." className="!text-xs !py-2.5 bg-slate-50 border-slate-200" />
-          </FormField>
-          <FormField label="Fecha de Publicación">
-            <Input type="date" value={form.fecha} onChange={f('fecha')} className="!text-xs !py-2.5 bg-slate-50 border-slate-200" />
-          </FormField>
-          <div className="flex items-center h-full pt-4">
-            <label className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-all w-full">
-              <input 
-                type="checkbox" 
-                checked={form.publicado} 
-                onChange={f('publicado')} 
-                className="w-4 h-4 rounded accent-emerald-500 border-slate-300" 
+            {/* Zona de Drop & Upload */}
+            <div className="relative group">
+              <input
+                type="file"
+                accept="image/*,.svg,.png,.jpg,.jpeg,.webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) uploadImage(file)
+                }}
+                disabled={uploading}
+                onDragEnter={() => setIsDraggingOver(true)}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true) }}
+                onDragLeave={() => setIsDraggingOver(false)}
+                onDrop={() => setIsDraggingOver(false)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
               />
-              <span className="text-[11px] font-black uppercase tracking-widest text-slate-600">Publicar noticia</span>
-            </label>
+              <div className={`flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed rounded-2xl transition-all duration-300 ${
+                uploading 
+                  ? 'border-emerald-300 bg-emerald-50/50' 
+                  : isDraggingOver
+                    ? 'border-emerald-500 bg-emerald-100 scale-[1.01] shadow-lg shadow-emerald-500/10'
+                    : form.imagen_url 
+                      ? 'border-emerald-300 bg-emerald-50/20' 
+                      : 'border-slate-200 group-hover:border-emerald-400 group-hover:bg-emerald-50/10'
+              }`}>
+                {uploading ? (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[11px] font-bold text-emerald-700">Subiendo archivo...</span>
+                  </div>
+                ) : form.imagen_url ? (
+                  <div className="flex items-center gap-2 py-1">
+                    <CheckCircle size={16} className="text-emerald-500" />
+                    <span className="text-xs font-bold text-emerald-700">Imagen cargada correctamente</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase ml-2">(Clic para reemplazar)</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center py-2 text-center">
+                    <Upload size={22} className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-1.5" />
+                    <p className="text-xs font-bold text-slate-700">Seleccionar o arrastrar imagen</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">PNG, JPG, WEBP recomendados</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            {uploadError && <p className="text-[11px] text-rose-600 font-bold px-2">× {uploadError}</p>}
+          </div>
+
+          {/* VISTA PREVIA REALISTA DE LA TARJETA EN LA LANDING */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-700">
+                Vista previa de la Tarjeta (Landing Page)
+              </span>
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                Foco Real
+              </span>
+            </div>
+
+            {/* Simulación exacta de la card en la Landing */}
+            <div className="w-full bg-slate-50 border border-slate-200/80 rounded-3xl p-4 shadow-sm space-y-3">
+              <div className="relative w-full aspect-[16/10] bg-slate-200 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+                {form.imagen_url ? (
+                  <img 
+                    src={form.imagen_url} 
+                    alt="Preview Noticia" 
+                    className="w-full h-full object-cover transition-all duration-300"
+                    style={{ objectPosition: form.posicion_imagen }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
+                    <Upload size={28} className="opacity-40" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider opacity-60">Sin portada</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Ajuste de Foco / Encuadre (flechas 3x3) */}
+              {form.imagen_url && (
+                <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200/70">
+                  <div className="space-y-0.5 flex-1 min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 block">Encuadre / Punto de Foco</span>
+                    <span className="text-[9px] text-slate-400 font-medium block truncate">Alinee la imagen para evitar que se corten rostros o textos.</span>
+                  </div>
+                  
+                  {/* Selector 3x3 mini */}
+                  <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+                    {[
+                      { val: 'top left', label: '↖️' },
+                      { val: 'top center', label: '⬆️' },
+                      { val: 'top right', label: '↗️' },
+                      { val: 'center left', label: '⬅️' },
+                      { val: 'center center', label: '•' },
+                      { val: 'center right', label: '➡️' },
+                      { val: 'bottom left', label: '↙️' },
+                      { val: 'bottom center', label: '⬇️' },
+                      { val: 'bottom right', label: '↘️' }
+                    ].map((pos) => (
+                      <button
+                        key={pos.val}
+                        type="button"
+                        onClick={() => setForm(p => ({ ...p, posicion_imagen: pos.val }))}
+                        className={`w-5 h-5 flex items-center justify-center text-[9px] rounded font-bold transition-all ${
+                          form.posicion_imagen === pos.val 
+                            ? 'bg-emerald-500 text-white shadow-xs scale-110' 
+                            : 'hover:bg-slate-200 text-slate-400'
+                        }`}
+                        title={`Alineación: ${pos.val}`}
+                      >
+                        {pos.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Simulación del contenido de la tarjeta */}
+              <div className="space-y-2 px-1 pt-1">
+                <div className="flex items-center justify-between text-[10px] text-emerald-600 font-black uppercase tracking-widest">
+                  <span>{form.categoria || 'NOTICIAS'}</span>
+                  <span>{form.fecha || 'HOY'}</span>
+                </div>
+                <h4 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">
+                  {form.titulo || 'Título de la Noticia...'}
+                </h4>
+                <p className="text-xs text-slate-500 line-clamp-2 font-normal leading-relaxed">
+                  {form.extracto || 'El extracto de la noticia aparecerá formateado en este espacio de la tarjeta en la página de inicio...'}
+                </p>
+                {form.lugar_evento && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md mt-1">
+                    📍 {form.lugar_evento}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3 pt-4 border-t border-gray-50">
-          <BtnPrimary 
-            onClick={save} 
-            disabled={saving || uploading}
-            className="!rounded-xl !py-3 flex-1"
-          >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
-          </BtnPrimary>
-          <BtnSecondary 
-            onClick={() => { setSelectedId(null); setIsEditing(false) }}
-            className="!rounded-xl !py-3 flex-1"
-          >
-            Cancelar
-          </BtnSecondary>
-        </div>
+      </div>
+
+      {/* Barra de Acciones */}
+      <div className="flex items-center justify-end gap-3 pt-5 border-t border-slate-100">
+        <BtnSecondary 
+          onClick={closeForm}
+          className="!rounded-2xl !px-6 !py-3 font-bold"
+        >
+          Cancelar
+        </BtnSecondary>
+        <BtnPrimary 
+          onClick={save} 
+          disabled={saving || uploading}
+          className="!rounded-2xl !px-8 !py-3 font-bold shadow-lg shadow-emerald-500/20"
+        >
+          {saving ? 'Guardando Noticia...' : (selectedId === 'new' ? 'Crear Noticia' : 'Guardar Cambios')}
+        </BtnPrimary>
       </div>
     </div>
   )
