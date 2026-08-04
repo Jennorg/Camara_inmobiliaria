@@ -4,29 +4,41 @@ import { compressImage } from '@/utils/imageCompressor'
 
 export const API = API_URL
 
+const getAuthHeaders = (extra: Record<string, string> = {}) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('ciebo_token') : null
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  }
+}
+
 export const api = {
-  get: (path: string) => fetch(`${API}${path}`).then(r => r.json()),
+  get: (path: string) =>
+    fetch(`${API}${path}`, {
+      credentials: 'include',
+      headers: getAuthHeaders(),
+    }).then(r => r.json()),
   post: <T,>(path: string, body: T) => {
     return fetch(`${API}${path}`, { 
       method: 'POST', 
-      headers: { 
-        'Content-Type': 'application/json',
-      }, 
+      credentials: 'include',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
       body: JSON.stringify(body) 
     }).then(r => r.json())
   },
   put: <T,>(path: string, body: T) => {
     return fetch(`${API}${path}`, { 
       method: 'PUT', 
-      headers: { 
-        'Content-Type': 'application/json',
-      }, 
+      credentials: 'include',
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
       body: JSON.stringify(body) 
     }).then(r => r.json())
   },
   delete: (path: string) => {
     return fetch(`${API}${path}`, { 
       method: 'DELETE',
+      credentials: 'include',
+      headers: getAuthHeaders(),
     }).then(r => r.json())
   },
 }
@@ -267,18 +279,18 @@ export function ListDetail<T extends { id?: string | number }>({
           {loading ? <Loading /> : (
             <div className="cms-stagger">
               {items.map(item => (
-                <button
+                <div
                   key={item.id}
                   onClick={() => setSelectedId(item.id ?? null)}
                   className={[
-                    'w-full text-left px-4 py-3 transition-all duration-150 group',
+                    'w-full text-left px-4 py-3 transition-all duration-150 group cursor-pointer select-none',
                     String(selectedId) === String(item.id)
                       ? 'bg-[#E9FAF4] border-l-2 border-[#00D084]'
                       : 'hover:bg-slate-50 border-l-2 border-transparent',
                   ].join(' ')}
                 >
                   {renderRow(item, String(selectedId) === String(item.id))}
-                </button>
+                </div>
               ))}
               {items.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-10">Sin registros</p>

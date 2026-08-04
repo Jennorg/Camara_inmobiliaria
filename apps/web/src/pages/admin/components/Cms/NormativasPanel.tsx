@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2 } from 'lucide-react'
+import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink } from 'lucide-react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
 
 interface NormativaItem {
@@ -37,6 +37,74 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   const [deletingBatch, setDeletingBatch] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<NormativaItem | null>(null)
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [isHiding, setIsHiding] = useState(false)
+
+  const closeForm = () => {
+    setIsHiding(true)
+    setTimeout(() => {
+      setSelectedId(null)
+      setIsEditing(false)
+      setIsHiding(false)
+    }, 180)
+  }
+
+  const persistReorder = async (reordered: NormativaItem[]) => {
+    const sorted = [...reordered].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+    setItems(sorted)
+    try {
+      await api.put('/api/cms/normativas-reorder', {
+        items: sorted.map((it, idx) => ({ id: it.id, orden: idx }))
+      })
+    } catch (e) {
+      console.error('Error reordering normativas:', e)
+    }
+  }
+
+  const moveUp = (index: number) => {
+    if (index <= 0) return
+    const newFiltered = [...filteredItems]
+    const temp = newFiltered[index]
+    newFiltered[index] = newFiltered[index - 1]
+    newFiltered[index - 1] = temp
+
+    const updatedItems = [...items]
+    newFiltered.forEach((item, idx) => {
+      const globalIdx = updatedItems.findIndex(x => String(x.id) === String(item.id))
+      if (globalIdx !== -1) updatedItems[globalIdx] = { ...item, orden: idx }
+    })
+    persistReorder(updatedItems)
+  }
+
+  const moveDown = (index: number) => {
+    if (index >= filteredItems.length - 1) return
+    const newFiltered = [...filteredItems]
+    const temp = newFiltered[index]
+    newFiltered[index] = newFiltered[index + 1]
+    newFiltered[index + 1] = temp
+
+    const updatedItems = [...items]
+    newFiltered.forEach((item, idx) => {
+      const globalIdx = updatedItems.findIndex(x => String(x.id) === String(item.id))
+      if (globalIdx !== -1) updatedItems[globalIdx] = { ...item, orden: idx }
+    })
+    persistReorder(updatedItems)
+  }
+
+  const handleDrop = (srcIdx: number, dropIndex: number) => {
+    if (srcIdx === dropIndex || srcIdx < 0 || srcIdx >= filteredItems.length) return
+    const newFiltered = [...filteredItems]
+    const [moved] = newFiltered.splice(srcIdx, 1)
+    newFiltered.splice(dropIndex, 0, moved)
+
+    const updatedItems = [...items]
+    newFiltered.forEach((item, idx) => {
+      const globalIdx = updatedItems.findIndex(x => String(x.id) === String(item.id))
+      if (globalIdx !== -1) updatedItems[globalIdx] = { ...item, orden: idx }
+    })
+    setDraggedIndex(null)
+    persistReorder(updatedItems)
+  }
 
   const toggleSelect = (id: string | number) => {
     setSelectedIds(prev =>
@@ -162,7 +230,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       descripcion: '', 
       url_archivo: '', 
       categoria: fixedCategory || (activeTab !== 'Todas' ? activeTab : ''), 
-      orden: 0, 
+      orden: items.length, 
       activo: true 
     })
     setIsEditing(true)
@@ -219,18 +287,24 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   const filteredItems = activeTab === 'Todas' ? items : items.filter(it => it.categoria === activeTab)
 
   const formBody = () => (
-    <div className="flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-sm">
-      <div className="flex items-center justify-between border-b border-gray-50 pb-4 mb-2">
+    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-all duration-200 ${
+      isHiding ? 'opacity-0 scale-95 -translate-x-4 pointer-events-none' : 'animate-in fade-in zoom-in-95 duration-200'
+    }`}>
+      <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
-            <FileText size={20} strokeWidth={2.5} />
-          </div>
-
+          <button
+            type="button"
+            onClick={closeForm}
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
+            title="Volver a la lista"
+          >
+            <ArrowLeft size={20} />
+          </button>
           <div>
-            <h3 className="text-base font-black text-slate-800 leading-tight">
-              {selectedId === 'new' ? 'Nuevo documento' : 'Editar documento'}
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">
+              {selectedId === 'new' ? 'Nuevo Documento' : 'Editar Documento'}
             </h3>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Marco Legal</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Marco Legal de la Cámara</p>
           </div>
         </div>
       </div>
@@ -242,7 +316,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               value={form.titulo} 
               onChange={f('titulo')} 
               placeholder="Ej. Ley de Arrendamiento Inmobiliario" 
-              className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
+              className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all font-bold"
             />
           </FormField>
         </div>
@@ -287,12 +361,18 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors">
                 <Upload size={22} strokeWidth={2} />
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-black text-slate-700">
-                  {uploading ? 'Subiendo archivo...' : uploadedFileName ? uploadedFileName : 'Haz clic o arrastra un archivo PDF aquí'}
+              <div className="flex flex-col gap-0.5 max-w-full">
+                <span className="text-xs font-black text-slate-800 break-all px-2">
+                  {uploading 
+                    ? 'Subiendo archivo...' 
+                    : uploadedFileName 
+                      ? uploadedFileName 
+                      : form.url_archivo 
+                        ? decodeURIComponent(form.url_archivo.split('/').pop() || '').replace(/^[a-f0-9-]{30,}-/i, '') 
+                        : 'Haz clic o arrastra un archivo PDF aquí'}
                 </span>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  {uploadedFileName ? 'Archivo cargado correctamente' : 'PDF (Máx. 25MB)'}
+                  {uploadedFileName || form.url_archivo ? 'Archivo PDF cargado correctamente' : 'PDF (Máx. 25MB)'}
                 </span>
               </div>
               {uploadError && (
@@ -319,35 +399,37 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
           </FormField>
         </div>
 
-        <div>
-          <FormField label="Prioridad / Orden">
-            <Input 
-              type="number" 
-              value={form.orden} 
-              onChange={f('orden')} 
-              className="!text-sm !py-3 bg-slate-50/50 border-slate-200"
-            />
-          </FormField>
-        </div>
-
-        <div className="md:col-span-2 pt-2">
-          <label className="flex items-center gap-3 p-4 rounded-xl bg-slate-50/50 border border-slate-100 cursor-pointer hover:bg-white hover:border-emerald-200 transition-all group">
-            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-              form.activo ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 bg-white group-hover:border-emerald-400'
-            }`}>
-              <input 
-                type="checkbox" 
-                checked={form.activo} 
-                onChange={(e) => setForm((p) => ({ ...p, activo: e.target.checked }))} 
-                className="hidden"
-              />
-              {form.activo && <CheckCircle size={14} strokeWidth={3} />}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-black text-slate-700">Visibilidad Pública</span>
-              <span className="text-[10px] text-slate-400">Si está activo, aparecerá en el portal web público.</span>
-            </div>
-          </label>
+        {/* Nuevo Switch de Visibilidad Pública */}
+        <div className="md:col-span-2 space-y-2 pt-2">
+          <span className="text-[11px] font-black uppercase tracking-widest text-slate-700 block">
+            Visibilidad en Portal Web
+          </span>
+          <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200/80">
+            <button
+              type="button"
+              onClick={() => setForm(p => ({ ...p, activo: true }))}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                form.activo
+                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-[1.01]'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+              }`}
+            >
+              <Eye size={16} />
+              <span>Público / Visible en Portal</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm(p => ({ ...p, activo: false }))}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                !form.activo
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20 scale-[1.01]'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+              }`}
+            >
+              <EyeOff size={16} />
+              <span>Borrador / Oculto</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -371,10 +453,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
           </BtnDanger>
         )}
         <BtnSecondary
-          onClick={() => {
-            setSelectedId(null)
-            setIsEditing(false)
-          }}
+          onClick={closeForm}
           className="px-6 !py-3.5 !rounded-xl !text-xs !font-black uppercase tracking-widest"
         >
           Descartar
@@ -452,56 +531,154 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
           isEditing={isEditing}
           setIsEditing={setIsEditing}
           onNew={openNew}
-          renderRow={(item, sel) => (
-            <div className="flex items-center justify-between gap-3 min-w-0 group cursor-pointer pr-2">
-              <div className="flex items-center gap-3 min-w-0">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(item.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => toggleSelect(item.id)}
-                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
-                />
+          renderRow={(item, sel) => {
+            const index = filteredItems.findIndex(it => String(it.id) === String(item.id))
+            const isPublic = item.activo === 1 || item.activo === true
+            return (
+              <div 
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', String(index))
+                  e.dataTransfer.effectAllowed = 'move'
+                  setDraggedIndex(index)
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const rawSrc = e.dataTransfer.getData('text/plain')
+                  const srcIdx = rawSrc !== '' ? Number(rawSrc) : draggedIndex
+                  if (srcIdx !== null && !isNaN(srcIdx)) {
+                    handleDrop(srcIdx, index)
+                  }
+                }}
+                className={`flex items-center justify-between gap-2 min-w-0 group cursor-pointer pr-2 transition-all rounded-xl p-1 border border-transparent ${
+                  draggedIndex === index ? 'opacity-40 bg-emerald-50 border-emerald-300' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {/* Grip / Drag & Drop handle */}
+                  <div 
+                    className="p-1 text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 hover:bg-slate-100 rounded-md transition-colors"
+                    title="Arrastrar para reordenar"
+                  >
+                    <GripVertical size={16} />
+                  </div>
 
-                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500 shrink-0">
-                  <FileText size={18} strokeWidth={2.5} />
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(item.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelect(item.id)}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
+                  />
+
+                  <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500 shrink-0">
+                    <FileText size={18} strokeWidth={2.5} />
+                  </div>
+
+                  <div className="flex flex-col min-w-0 flex-1 py-0.5">
+                    <span 
+                      className={['text-sm font-bold leading-snug line-clamp-2', sel ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}
+                      title={item.titulo}
+                    >
+                      {item.titulo}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      {isPublic ? (
+                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 shrink-0">
+                          <Eye size={10} /> Público
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 shrink-0">
+                          <EyeOff size={10} /> Oculto
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter truncate">
+                        {item.categoria || 'Sin categoría'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-col min-w-0">
-                  <span className={['text-sm font-semibold truncate', sel ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>{item.titulo}</span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">{item.categoria || 'Sin categoría'}</span>
+                {/* Botones de Reordenar (Arriba/Abajo) y Acciones */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={(e) => { e.stopPropagation(); moveUp(index); }}
+                    className="p-1 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    title="Mover arriba"
+                  >
+                    <ArrowUp size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === filteredItems.length - 1}
+                    onClick={(e) => { e.stopPropagation(); moveDown(index); }}
+                    className="p-1 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    title="Mover abajo"
+                  >
+                    <ArrowDown size={13} />
+                  </button>
+                  <a 
+                    href={item.url_archivo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors ml-1"
+                    title="Abrir documento en ventana nueva"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); openEdit(item); }}
+                    className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
+                    title="Editar"
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); remove(item); }}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); openEdit(item); }}
-                  className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors"
-                >
-                  <Edit size={14} />
-                </button>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); remove(item); }}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          )}
+            )
+          }}
           renderDetail={(item) => (
             <div className="flex flex-col gap-4 bg-white rounded-2xl p-5 border border-gray-100">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-sm font-bold text-slate-800">{item.titulo}</h3>
+                <div>
+                  <h3 className="text-base font-black text-slate-800">{item.titulo}</h3>
+                  <div className="mt-1 flex items-center gap-2">
+                    {item.activo === 1 || item.activo === true ? (
+                      <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                        <Eye size={11} /> Público en Web
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[10px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                        <EyeOff size={11} /> Oculto / Borrador
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <div className="flex gap-2 shrink-0">
                   <BtnSecondary onClick={() => openEdit(item)}>Editar</BtnSecondary>
                   <BtnDanger onClick={() => remove(item)}>Eliminar</BtnDanger>
                 </div>
               </div>
-              {item.descripcion && <p className="text-xs text-slate-600">{item.descripcion}</p>}
+              {item.descripcion && <p className="text-xs text-slate-600 font-medium">{item.descripcion}</p>}
               {item.categoria && (
-                <span className="inline-block text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg w-fit">{item.categoria}</span>
+                <span className="inline-block text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100">{item.categoria}</span>
               )}
+
               <a
                 href={item.url_archivo}
                 target="_blank"
@@ -512,17 +689,25 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                   <FileText size={24} strokeWidth={2.5} />
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-xs font-black text-slate-700 uppercase tracking-tight">Archivo PDF</span>
-                  <span className="text-[10px] text-slate-400 truncate max-w-[280px]">
-                    {item.url_archivo.split('/').pop() || 'Ver documento legal'}
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Archivo PDF Adjunto</span>
+                  <span className="text-xs text-slate-700 font-bold break-all leading-snug mt-0.5">
+                    {decodeURIComponent(item.url_archivo.split('/').pop() || '').replace(/^[a-f0-9-]{30,}-/i, '') || item.titulo}
                   </span>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-red-500 group-hover:border-red-100 transition-colors">
-                   <FolderSearch size={16} />
+                  <FolderSearch size={16} />
                 </div>
               </a>
 
-              <p className="text-xs text-slate-400">Orden: {item.orden} · {item.activo === 1 || item.activo === true ? 'Activo' : 'Oculto'}</p>
+              <a
+                href={item.url_archivo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-95 mt-1"
+              >
+                <ExternalLink size={15} />
+                <span>Abrir documento en ventana nueva</span>
+              </a>
             </div>
           )}
           renderForm={formBody}

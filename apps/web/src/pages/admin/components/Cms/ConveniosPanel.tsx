@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
-import { Edit, Upload, CheckCircle, Trash2, Globe } from 'lucide-react'
+import { Edit, Upload, CheckCircle, Trash2, Globe, ArrowLeft } from 'lucide-react'
 import { sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
 
 interface ConvenioItem {
@@ -21,6 +21,16 @@ export const ConveniosPanel = () => {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [isHiding, setIsHiding] = useState(false)
+
+  const closeForm = () => {
+    setIsHiding(true)
+    setTimeout(() => {
+      setSelectedId(null)
+      setIsEditing(false)
+      setIsHiding(false)
+    }, 180)
+  }
 
   const uploadLogo = async (file: File) => {
     setUploadError(null)
@@ -116,13 +126,25 @@ export const ConveniosPanel = () => {
     setForm(p => ({ ...p, [k]: e.target.value }))
 
   const formBody = () => (
-    <div className="flex flex-col gap-6 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm h-full overflow-y-auto">
-      <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-        <div>
-          <h3 className="text-base font-black text-slate-800 leading-tight">
-            {selectedId === 'new' ? 'Nuevo Convenio' : 'Editar Convenio'}
-          </h3>
-          <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Alianzas y Convenios</p>
+    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-all duration-200 h-full overflow-y-auto ${
+      isHiding ? 'opacity-0 scale-95 -translate-x-4 pointer-events-none' : 'animate-in fade-in zoom-in-95 duration-200'
+    }`}>
+      <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={closeForm}
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
+            title="Volver a la lista"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">
+              {selectedId === 'new' ? 'Nuevo Convenio' : 'Editar Convenio'}
+            </h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Alianzas y Convenios</p>
+          </div>
         </div>
       </div>
 
@@ -132,7 +154,7 @@ export const ConveniosPanel = () => {
             value={form.nombre}
             onChange={f('nombre')}
             placeholder="Ej. Banco de Venezuela, UCAB, etc."
-            className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
+            className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all font-bold"
           />
         </FormField>
 
@@ -244,7 +266,7 @@ export const ConveniosPanel = () => {
             </BtnDanger>
           )}
           <BtnSecondary
-            onClick={() => { setSelectedId(null); setIsEditing(false) }}
+            onClick={closeForm}
             className="!rounded-xl !py-3 flex-1"
           >
             Cancelar

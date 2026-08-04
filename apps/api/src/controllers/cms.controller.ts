@@ -659,3 +659,24 @@ export const deleteBatchNormativas = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'Error al eliminar documentos en lote' });
   }
 };
+
+export const reorderNormativas = async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body as { items: Array<{ id: string | number; orden: number }> };
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ success: false, message: 'Debe proporcionar un arreglo de items con id y orden' });
+    }
+
+    for (const item of items) {
+      await db.execute({
+        sql: `UPDATE cms_normativas SET orden = ? WHERE id_normativa = ?`,
+        args: [Number(item.orden), String(item.id)],
+      });
+    }
+
+    return res.json({ success: true, message: 'Orden de normativas actualizado' });
+  } catch (error) {
+    console.error('reorderNormativas:', error);
+    return res.status(500).json({ success: false, message: 'Error al reordenar normativas' });
+  }
+};
