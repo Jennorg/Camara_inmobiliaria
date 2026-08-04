@@ -29,6 +29,7 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   finanzas: { title: 'Finanzas', subtitle: 'Libros contables y flujo de caja' },
   analytics: { title: 'Análisis', subtitle: 'Métricas y rendimiento general' },
   settings: { title: 'Configuración del Sistema', subtitle: 'Ajustes del sistema y preferencias' },
+  denuncias: { title: 'Denuncias', subtitle: 'Gestión y seguimiento de denuncias ciudadanas e institucionales' },
 }
 
 const SIDEBAR_COLLAPSED = 72    // icon-only width
