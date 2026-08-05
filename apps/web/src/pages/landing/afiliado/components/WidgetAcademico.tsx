@@ -99,10 +99,15 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         }
         
         if (inscripcionesJson.success && inscripcionesJson.data) {
-          const codes = inscripcionesJson.data
+          // Filtrar inscripciones activas (excluir aprobadas, rechazadas o canceladas)
+          const activeInscripciones = inscripcionesJson.data.filter((c: any) => {
+            return c.estatus_academico !== 'Aprobado' && c.estatus !== 'Rechazado' && c.estatus !== 'Cancelado';
+          });
+
+          const codes = activeInscripciones
             .filter((c: any) => c.programa_codigo)
             .map((c: any) => c.programa_codigo);
-          const ids = inscripcionesJson.data
+          const ids = activeInscripciones
             .filter((c: any) => c.id_curso)
             .map((c: any) => c.id_curso);
           setEnrolledCodes(codes);
