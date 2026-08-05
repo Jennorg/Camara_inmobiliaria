@@ -6,21 +6,26 @@ import {
   CheckCircle2, AlertCircle, Globe, Phone, MapPin, 
   Briefcase, GraduationCap, Instagram, Facebook, 
   Linkedin, Twitter, Save, Loader2, ChevronRight, ChevronDown, Clock,
-  Music2, FileText
+  Music2, FileText, Hash, Calendar
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import FileUpload from '@/components/common/FileUpload';
 
-type SettingsTab = 'personal' | 'profesional' | 'social' | 'empresa' | 'documentos';
+type SettingsTab = 'personal' | 'social' | 'empresa' | 'documentos';
 
 interface ProfileFormData {
   nombres?: string;
   apellidos?: string;
   cedula?: string;
+  cedula_tipo?: string;
+  cedula_num?: string;
   email?: string;
   telefono?: string;
+  telefono_prefix?: string;
+  telefono_num?: string;
   direccion?: string;
   fecha_nacimiento?: string;
+  birth_formatted?: string;
   nivel_academico?: string;
   profesion?: string;
   descripcion?: string;
@@ -173,14 +178,35 @@ const SettingsPanel = () => {
       const data = await res.json();
       if (data.success) {
         const af = data.data;
+        const cedulaStr = af.cedula || '';
+        const match = cedulaStr.match(/^([VEP])?-?(.+)$/i);
+        const cedulaTipo = match && match[1] ? match[1].toUpperCase() : 'V';
+        const cedulaNum = match ? match[2] : cedulaStr;
+
+        const telStr = af.telefono || '';
+        const telMatch = telStr.match(/^(\+\d+)?\s*(.+)$/);
+        const telPrefix = telMatch && telMatch[1] ? telMatch[1] : '+58';
+        const telNum = telMatch ? telMatch[2] : telStr;
+
+        const birthDateStr = af.fecha_nacimiento || '';
+        let birthFormatted = '';
+        if (birthDateStr) {
+          const parts = birthDateStr.split('-');
+          if (parts.length === 3) {
+            birthFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
+          }
+        }
+
         setFormData({
           nombres: af.nombres || '',
           apellidos: af.apellidos || '',
-          cedula: af.cedula || '',
+          cedula_tipo: cedulaTipo,
+          cedula_num: cedulaNum,
           email: af.email || '',
-          telefono: af.telefono || '',
+          telefono_prefix: telPrefix,
+          telefono_num: telNum,
           direccion: af.direccion || '',
-          fecha_nacimiento: af.fecha_nacimiento || '',
+          birth_formatted: birthFormatted,
           nivel_academico: af.nivel_academico || '',
           profesion: af.profesion || '',
           descripcion: af.descripcion || af.notas || '',
@@ -225,18 +251,86 @@ const SettingsPanel = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, ''); // keep only numbers
+    if (val.length > 8) val = val.substring(0, 8);
+    
+    // Format as DD/MM/YYYY
+    let formatted = '';
+    if (val.length > 0) {
+      formatted += val.substring(0, 2);
+    }
+    if (val.length > 2) {
+      formatted += '/' + val.substring(2, 4);
+    }
+    if (val.length > 4) {
+      formatted += '/' + val.substring(4, 8);
+    }
+    setFormData(prev => ({ ...prev, birth_formatted: formatted }));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
     try {
+      const payload: any = { ...formData, documentos };
+      if (formData.cedula_tipo || formData.cedula_num) {
+        payload.cedula = `${formData.cedula_tipo || 'V'}-${formData.cedula_num || ''}`;
+      }
+      delete payload.cedula_tipo;
+      delete payload.cedula_num;
+
+      if (formData.telefono_prefix || formData.telefono_num) {
+        payload.telefono = `${formData.telefono_prefix || '+58'}${formData.telefono_num || ''}`;
+      }
+      delete payload.telefono_prefix;
+      delete payload.telefono_num;
+
+      let birthYearValue: number | null = null;
+      if (formData.birth_formatted) {
+        const parts = formData.birth_formatted.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          const year = parseInt(parts[2], 10);
+          
+          const currentYear = new Date().getFullYear();
+          if (
+            day >= 1 && day <= 31 &&
+            month >= 1 && month <= 12 &&
+            year >= 1900 && year <= currentYear
+          ) {
+            payload.fecha_nacimiento = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            birthYearValue = year;
+          } else {
+            throw new Error('Fecha de nacimiento inválida (use el formato DD/MM/AAAA)');
+          }
+        } else if (formData.birth_formatted.trim() === '') {
+          payload.fecha_nacimiento = null;
+        } else {
+          throw new Error('Fecha de nacimiento incompleta (use el formato DD/MM/AAAA)');
+        }
+      } else {
+        payload.fecha_nacimiento = null;
+      }
+      delete payload.birth_formatted;
+
+      // Validar año de inicio en el sector vs año de nacimiento
+      if (formData.ano_inicio_servicio && birthYearValue !== null) {
+        const startYear = parseInt(String(formData.ano_inicio_servicio), 10);
+        if (startYear <= birthYearValue) {
+          throw new Error('El año de inicio en el sector debe ser mayor que el año de nacimiento');
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/afiliados/${user?.id_afiliado}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ...formData, documentos })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -308,7 +402,6 @@ const SettingsPanel = () => {
 
   const tabs: { id: SettingsTab, label: string, icon: any, hide?: boolean }[] = [
     { id: 'personal', label: 'Información Personal', icon: User },
-    { id: 'profesional', label: 'Perfil Profesional', icon: Briefcase },
     { id: 'social', label: 'Redes Sociales', icon: Globe },
     { id: 'empresa', label: 'Mi Corporativo', icon: Building, hide: !(isCorp || user?.tipo_afiliado === 'Corporativo') },
     { id: 'documentos', label: 'Expediente / Documentos', icon: FileText },
@@ -423,13 +516,117 @@ const SettingsPanel = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Nombres" name="nombres" value={formData.nombres} onChange={handleInputChange} icon={User} />
                 <Input label="Apellidos" name="apellidos" value={formData.apellidos} onChange={handleInputChange} icon={User} />
-                <Input label="Cédula / RIF" name="cedula" value={formData.cedula} onChange={handleInputChange} icon={Shield} />
-                <Input label="Email de Contacto" name="email" value={formData.email} onChange={handleInputChange} icon={Mail} />
-                <Input label="Teléfono" name="telefono" value={formData.telefono} onChange={handleInputChange} icon={Phone} />
-                <Input label="Fecha de Nacimiento" name="fecha_nacimiento" value={formData.fecha_nacimiento} onChange={handleInputChange} type="date" />
-                <div className="md:col-span-2">
-                  <Input label="Dirección de Habitación" name="direccion" value={formData.direccion} onChange={handleInputChange} icon={MapPin} />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Cédula</label>
+                  <div className="flex gap-2">
+                    <div className="relative w-28">
+                      <select
+                        name="cedula_tipo"
+                        value={formData.cedula_tipo || 'V'}
+                        onChange={handleInputChange}
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all appearance-none cursor-pointer text-center pr-6"
+                      >
+                        <option value="V">V</option>
+                        <option value="E">E</option>
+                        <option value="P">P</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <ChevronDown size={16} />
+                      </div>
+                    </div>
+                    <div className="relative flex-1 group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">
+                        <Hash size={16} />
+                      </div>
+                      <input
+                        type="text"
+                        name="cedula_num"
+                        value={formData.cedula_num || ''}
+                        onChange={handleInputChange}
+                        placeholder="Número de cédula"
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
                 </div>
+                <Input label="Email de Contacto" name="email" value={formData.email} onChange={handleInputChange} icon={Mail} />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Teléfono</label>
+                  <div className="flex gap-2">
+                    <div className="relative w-28">
+                      <select
+                        name="telefono_prefix"
+                        value={formData.telefono_prefix || '+58'}
+                        onChange={handleInputChange}
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="+58">🇻🇪 +58</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+57">🇨🇴 +57</option>
+                        <option value="+507">🇵🇦 +507</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <ChevronDown size={16} />
+                      </div>
+                    </div>
+                    <div className="relative flex-1 group">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">
+                        <Phone size={16} />
+                      </div>
+                      <input
+                        type="text"
+                        name="telefono_num"
+                        value={formData.telefono_num || ''}
+                        onChange={handleInputChange}
+                        placeholder="Número de teléfono"
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Input
+                  label="Fecha de Nacimiento (DD/MM/AAAA)"
+                  name="birth_formatted"
+                  value={formData.birth_formatted || ''}
+                  onChange={handleBirthDateChange}
+                  placeholder="DD/MM/AAAA"
+                  icon={Calendar}
+                />
+
+                {/* Perfil Profesional */}
+                <div className="md:col-span-2 pt-6 border-t border-gray-100">
+                  <h4 className="text-sm font-black uppercase tracking-widest text-emerald-600 mb-2">Perfil Profesional</h4>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Comparte tu trayectoria y nivel académico.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Nivel Académico</label>
+                  <div className="relative">
+                    <select
+                      name="nivel_academico"
+                      value={formData.nivel_academico}
+                      onChange={handleInputChange}
+                      className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Bachiller">Bachiller</option>
+                      <option value="TSU">TSU</option>
+                      <option value="Nivel Profesional">Nivel Profesional</option>
+                      <option value="Postgrado">Postgrado</option>
+                      <option value="Doctorado">Doctorado</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                      <ChevronDown size={16} />
+                    </div>
+                  </div>
+                </div>
+
+                {formData.nivel_academico !== 'Bachiller' && (
+                  <Input label="Profesión" name="profesion" value={formData.profesion} onChange={handleInputChange} icon={Briefcase} />
+                )}
+
+                <Input label="Año de inicio en el sector" name="ano_inicio_servicio" value={formData.ano_inicio_servicio} onChange={handleInputChange} type="number" icon={Clock} />
+
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Descripción / Biografía Profesional</label>
                   <textarea
@@ -440,53 +637,6 @@ const SettingsPanel = () => {
                     rows={4}
                     className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
                   />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'profesional' && (
-            <div className="space-y-6">
-              <HeaderSection title="Perfil Profesional" subtitle="Comparte tu trayectoria y nivel académico." />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Nivel Académico</label>
-                  <select
-                    name="nivel_academico"
-                    value={formData.nivel_academico}
-                    onChange={handleInputChange}
-                    className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  >
-                    <option value="Bachiller">Bachiller</option>
-                    <option value="TSU">TSU</option>
-                    <option value="Nivel Profesional">Nivel Profesional</option>
-                    <option value="Postgrado">Postgrado</option>
-                    <option value="Doctorado">Doctorado</option>
-                  </select>
-                </div>
-                {formData.nivel_academico !== 'Bachiller' && (
-                  <Input label="Profesión" name="profesion" value={formData.profesion} onChange={handleInputChange} icon={Briefcase} />
-                )}
-                <Input label="Año de inicio en el sector" name="ano_inicio_servicio" value={formData.ano_inicio_servicio} onChange={handleInputChange} type="number" icon={Clock} />
-                
-                <div className="md:col-span-2 py-4">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        name="es_corredor_inmobiliario"
-                        checked={!!formData.es_corredor_inmobiliario}
-                        onChange={(e) => setFormData(prev => ({ ...prev, es_corredor_inmobiliario: e.target.checked }))}
-                        className="sr-only" 
-                      />
-                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 ${formData.es_corredor_inmobiliario ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
-                      <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${formData.es_corredor_inmobiliario ? 'translate-x-6' : ''}`}></div>
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-gray-700 group-hover:text-emerald-600 transition-colors">¿Eres Corredor Inmobiliario Certificado?</span>
-                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">Marca esta opción si posees certificación oficial.</p>
-                    </div>
-                  </label>
                 </div>
               </div>
             </div>
