@@ -2976,11 +2976,11 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
       args: [idEstudiante, now, now, idEmpresa]
     })
 
-    // 4. Crear Afiliado en 1_PREINSCRIPCION
+    // 4. Crear Afiliado en 2_EXPEDIENTE (aprobado automáticamente por la empresa al haber sido creado por ella)
     await db.execute({
-      sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, fecha_registro, actualizado_en)
-            VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)`,
-      args: [idPersona, idEmpresa, now, now]
+      sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, fecha_registro, actualizado_en, fecha_ultimo_cambio_estatus)
+            VALUES (?, ?, 'Agente Corporativo', '2_EXPEDIENTE', ?, ?, ?)`,
+      args: [idPersona, idEmpresa, now, now, now]
     })
 
     res.status(201).json({ success: true, message: 'Solicitud de agente creada con éxito.' })
