@@ -2978,7 +2978,7 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
 
     // 4. Crear Afiliado en 1_PREINSCRIPCION
     await db.execute({
-      sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, creado_en, actualizado_en)
+      sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, fecha_registro, actualizado_en)
             VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?)`,
       args: [idPersona, idEmpresa, now, now]
     })
