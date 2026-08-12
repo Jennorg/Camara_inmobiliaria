@@ -356,6 +356,7 @@ const statements = [
     periodo         TEXT,
     orden           INTEGER DEFAULT 0,
     activo          INTEGER DEFAULT 1 CHECK (activo IN (0,1)),
+    foto_junta_url  TEXT,
     creado_en       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en  TEXT
   )`,

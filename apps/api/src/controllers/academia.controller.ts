@@ -208,12 +208,23 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   emailRepresentante?: string | null
   empresaTelefono?: string | null
   id_empresa?: number | null
+  aprobadoPorEmpresa?: boolean
 }): Promise<{ token: string, fechaExpiracion: string }> {
   const {
     nombreCompleto, nombres, apellidos, cedulaRif, email, telefono, programaCodigo,
     tipoAfiliado, nivelProfesional, profesion, esCorredorInmobiliario,
-    razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa
+    razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa,
+    aprobadoPorEmpresa
   } = params
+
+  let finalNombres = nombres;
+  let finalApellidos = apellidos;
+  if (!finalNombres && nombreCompleto) {
+    const parts = nombreCompleto.trim().split(' ');
+    const mid = Math.ceil(parts.length / 2);
+    finalNombres = parts.slice(0, mid).join(' ');
+    finalApellidos = parts.length > 1 ? parts.slice(mid).join(' ') : '';
+  }
 
   const expiracion = new Date()
   expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
@@ -237,8 +248,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   })
 
   const dataJson = JSON.stringify({
-    nombres: nombres || null,
-    apellidos: apellidos || null,
+    nombres: finalNombres || null,
+    apellidos: finalApellidos || null,
     cedula: cleanedCedulaRif || null,
     telefono: telefono || null,
     programa_interes: programaCodigo,
@@ -252,7 +263,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
     representante_legal_cedula: cleanedCedulaRep ?? null,
     representante_legal_email: emailRepresentante ?? null,
     empresa_telefono: empresaTelefono ?? null,
-    id_empresa: id_empresa ?? null
+    id_empresa: id_empresa ?? null,
+    aprobado_por_empresa: aprobadoPorEmpresa || false
   })
 
   await db.execute({
@@ -1131,18 +1143,22 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           const idPersonaAC = resP.rows[0].id as number
 
           // 2. Upsert Afiliado con tipo 'Agente Corporativo' y la empresa vinculada
+          const aprobadoPorEmpresa = !!registro.aprobado_por_empresa;
+          const initialEstatus = aprobadoPorEmpresa ? '2_EXPEDIENTE' : '1_PREINSCRIPCION';
+
           const resA = await db.execute({
-            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, optar_acreditacion, actualizado_en)
-                  VALUES (?, ?, 'Agente Corporativo', '1_PREINSCRIPCION', ?, ?, ?)
+            sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, ano_inicio_servicio, optar_acreditacion, actualizado_en, fecha_ultimo_cambio_estatus)
+                  VALUES (?, ?, 'Agente Corporativo', ?, ?, ?, ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = COALESCE(excluded.id_empresa, afiliados.id_empresa),
                     tipo_afiliado = 'Agente Corporativo',
-                    estatus = CASE WHEN afiliados.estatus = 'Requiere Acción' THEN afiliados.estatus ELSE '1_PREINSCRIPCION' END,
+                    estatus = CASE WHEN afiliados.estatus = 'Requiere Acción' THEN afiliados.estatus ELSE excluded.estatus END,
                     ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
                     optar_acreditacion = excluded.optar_acreditacion,
-                    actualizado_en = excluded.actualizado_en
+                    actualizado_en = excluded.actualizado_en,
+                    fecha_ultimo_cambio_estatus = COALESCE(excluded.fecha_ultimo_cambio_estatus, afiliados.fecha_ultimo_cambio_estatus)
                   RETURNING id_afiliado`,
-            args: [idPersonaAC, empresaId, anoInicioServicio, optarAcreditacion, now]
+            args: [idPersonaAC, empresaId, initialEstatus, anoInicioServicio, optarAcreditacion, now, now]
           })
           const idAfiliadoAC = resA.rows[0].id_afiliado as number
 
@@ -2438,10 +2454,11 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
           sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
           args: [row.email]
         })
+        const tokenHash = sha256(tokenToUse)
         await db.execute({
           sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
                 VALUES (?, 'reset_password', ?, 0, ?)`,
-          args: [tokenToUse, row.email, expiracion.toISOString()]
+          args: [tokenHash, row.email, expiracion.toISOString()]
         })
       }
     } catch (err) {
@@ -2593,10 +2610,11 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
           sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
           args: [row.email]
         })
+        const tokenHash = sha256(tokenToUse)
         await db.execute({
           sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
                 VALUES (?, 'reset_password', ?, 0, ?)`,
-          args: [tokenToUse, row.email, expiracion.toISOString()]
+          args: [tokenHash, row.email, expiracion.toISOString()]
         })
       }
     } catch (err) {
@@ -3245,10 +3263,11 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
             sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
             args: [row.email]
           })
+          const tokenHash = sha256(tokenToUse)
           await db.execute({
             sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
                   VALUES (?, 'reset_password', ?, 0, ?)`,
-            args: [tokenToUse, row.email, expiracion.toISOString()]
+            args: [tokenHash, row.email, expiracion.toISOString()]
           })
         }
 

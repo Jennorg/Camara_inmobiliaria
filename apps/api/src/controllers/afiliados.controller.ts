@@ -273,6 +273,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       sql: `SELECT a.*, u.email AS acceso_email,
                    p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                    p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
+                   (SELECT dc.foto_junta_url FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
                    COALESCE(est.es_corredor_inmobiliario, 0) as es_corredor_inmobiliario,
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
@@ -647,6 +648,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
       SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
              p.nombres, p.apellidos, 
              (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico, p.foto_url,
+             (SELECT dc.foto_junta_url FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
              e.razon_social as empresa_razon_social, 
              e.rif_tipo as empresa_rif_tipo,
              e.rif_numero as empresa_rif_numero,
@@ -966,6 +968,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              END as nombre_completo,
              NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') as representante_nombre,
              p.nombres, p.apellidos, a.codigo, p.foto_url,
+             (SELECT dc.foto_junta_url FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
              (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
              (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
              (p.cedula_tipo || '-' || p.cedula) as cedula,
@@ -1116,6 +1119,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
 export const getAfiliadoPublicById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const numId = isNaN(Number(id)) ? -1 : Number(id);
     const result = await db.execute({
       sql: `
         SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
@@ -1125,6 +1129,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                END as nombre_completo, 
                p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
+                (SELECT dc.foto_junta_url FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
                e.razon_social as empresa_razon_social, 
                (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
                e.rif_tipo as empresa_rif_tipo,
@@ -1149,9 +1154,11 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                  CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.twitter') ELSE NULL END as twitter
           FROM empresas
         ) e_redes ON a.id_empresa = e_redes.id_empresa
-        WHERE a.id_afiliado = ? AND a.estatus = 'Afiliado' AND a.activo = 1
+        WHERE (a.codigo = ? OR a.id_afiliado = ?) AND a.estatus = 'Afiliado' AND a.activo = 1
+        ORDER BY CASE WHEN a.codigo = ? THEN 0 ELSE 1 END
+        LIMIT 1
       `,
-      args: [Number(id)]
+      args: [String(id), numId, String(id)]
     });
 
     if (result.rows.length === 0) {
@@ -2930,10 +2937,19 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
       res.status(400).json({ success: false, message: 'Nombre, Cédula y Email son requeridos.' }); return
     }
 
+    // Obtener info de la empresa
+    const corp = await db.execute({
+      sql: `SELECT razon_social FROM empresas WHERE id_empresa = ? LIMIT 1`,
+      args: [idEmpresa]
+    })
+    if (corp.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Empresa no encontrada.' }); return
+    }
+    const empresa = corp.rows[0] as any
+
     // Verificar si ya existe en personas
     const cedulaInput = String(cedulaRif || '').trim();
     const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
-    const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
     const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
 
     const existing = await db.execute({
@@ -2944,46 +2960,34 @@ export const crearSolicitudAgenteCorporativo = async (req: Request, res: Respons
       res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o cédula.' }); return
     }
 
-    const now = new Date().toISOString()
+    // Crear Verificación de Preinscripción ( Academy Flow ) con aprobación de la empresa pre-otorgada
+    const { token: tokenVerif } = await crearVerificacionPreinscripcionPrograma({
+      nombreCompleto,
+      cedulaRif,
+      email,
+      telefono: telefono || null,
+      programaCodigo: 'AFILIACION',
+      tipoAfiliado: 'Agente Corporativo',
+      nivelProfesional: nivelProfesional || null,
+      esCorredorInmobiliario: !!esCorredorInmobiliario,
+      id_empresa: idEmpresa,
+      aprobadoPorEmpresa: true
+    });
 
-    // 1. Crear Persona
-    const nameParts = nombreCompleto.trim().split(' ')
-    const mid = Math.ceil(nameParts.length / 2)
-    const nombres = nameParts.slice(0, mid).join(' ')
-    const apellidos = nameParts.length > 1 ? nameParts.slice(mid).join(' ') : ''
-
-    const resP = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, creado_en, actualizado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id`,
-      args: [nombres, apellidos, cedulaTipo, cedulaNumero, email, telefono || null, nivelProfesional || null, now, now]
-    })
-    const idPersona = Number(resP.rows[0].id)
-
-    // 2. Crear Estudiante
-    const resEst = await db.execute({
-      sql: `INSERT INTO estudiantes (id_persona, tipo, es_corredor_inmobiliario, programa_interes, creado_en, actualizado_en)
-            VALUES (?, 'Afiliado', ?, 'AFILIACION', ?, ?)
-            RETURNING id_estudiante`,
-      args: [idPersona, esCorredorInmobiliario ? 1 : 0, now, now]
-    })
-    const idEstudiante = Number(resEst.rows[0].id_estudiante)
-
-    // 3. Crear Inscripción
-    await db.execute({
-      sql: `INSERT INTO inscripciones_cursos (id_estudiante, programa_codigo, tipo_inscripcion, estatus, creado_en, actualizado_en, id_empresa)
-            VALUES (?, 'AFILIACION', 'programa', 'Preinscrito', ?, ?, ?)`,
-      args: [idEstudiante, now, now, idEmpresa]
+    // Enviar Email con link a Academia
+    const nombreEmpresa = empresa.razon_social
+    await enviarCorreoInvitacionCorporativa({
+      nombre: nombreCompleto,
+      emailOriginal: email,
+      nombreEmpresa,
+      token: tokenVerif
     })
 
-    // 4. Crear Afiliado en 2_EXPEDIENTE (aprobado automáticamente por la empresa al haber sido creado por ella)
-    await db.execute({
-      sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, fecha_registro, actualizado_en, fecha_ultimo_cambio_estatus)
-            VALUES (?, ?, 'Agente Corporativo', '2_EXPEDIENTE', ?, ?, ?)`,
-      args: [idPersona, idEmpresa, now, now, now]
+    res.status(201).json({ 
+      success: true, 
+      message: 'Invitación de agente corporativo creada con éxito. Se ha enviado un correo al destinatario.',
+      data: { token: tokenVerif }
     })
-
-    res.status(201).json({ success: true, message: 'Solicitud de agente creada con éxito.' })
   } catch (error) {
     console.error('crearSolicitudAgenteCorporativo:', error)
     res.status(500).json({ success: false, message: 'Error interno al crear la solicitud.' })

@@ -42,4 +42,9 @@ describe('Public Endpoints', () => {
     const res = await request(app).get('/api/public/paginas/inicio')
     expect([200, 404]).toContain(res.status)
   })
+
+  it('GET /api/public/afiliados/:id - should return member profile or 404', async () => {
+    const res = await request(app).get('/api/public/afiliados/1001')
+    expect([200, 404]).toContain(res.status)
+  })
 })
