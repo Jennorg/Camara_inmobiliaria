@@ -204,11 +204,19 @@ const PanelPage = () => {
     if (typeof redes === 'string') {
       try { redes = JSON.parse(redes); } catch { redes = {}; }
     }
+    if (redes?.prefer_junta_photo) {
+      return (
+        redes?.foto_junta_carnet_url ||
+        afiliado.foto_junta_url ||
+        redes?.foto_carnet_url ||
+        afiliado.foto_url
+      );
+    }
     return (
       redes?.foto_carnet_url ||
+      afiliado.foto_url ||
       redes?.foto_junta_carnet_url ||
       afiliado.foto_junta_url ||
-      afiliado.foto_url ||
       (afiliado.tipo_afiliado === 'Corporativo' ? afiliado.empresa_logo_url : null)
     );
   })();

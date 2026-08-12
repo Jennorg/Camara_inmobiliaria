@@ -50,6 +50,13 @@ export default function WidgetCarnetAfiliado({
     }
   }, [showCropper]);
 
+  useEffect(() => {
+    if (afiliado) {
+      const redes = parseRedes(afiliado.redes_sociales);
+      setUseJuntaPhoto(!!redes?.prefer_junta_photo);
+    }
+  }, [afiliado]);
+
   // Helper para parsear redes_sociales
   const parseRedes = (redes: any): Record<string, any> => {
     if (!redes) return {};
@@ -167,7 +174,10 @@ export default function WidgetCarnetAfiliado({
         [useJuntaPhoto ? 'junta_carnet_crop' : 'carnet_crop']: cropData,
       };
 
-      const payload = { redes_sociales: updatedRedes };
+      const payload: any = { redes_sociales: updatedRedes };
+      if (!useJuntaPhoto) {
+        payload.foto_url = publicUrl;
+      }
       const updateRes = await fetch(
         `${API_URL}/api/afiliados/${afiliado.id_afiliado}`,
         {
@@ -198,6 +208,45 @@ export default function WidgetCarnetAfiliado({
       toast.error(err.message || 'Error al guardar el nuevo encuadre');
     } finally {
       setSavingCrop(false);
+    }
+  };
+
+  const handleTogglePhoto = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!afiliado) return;
+    const nextVal = !useJuntaPhoto;
+    setUseJuntaPhoto(nextVal);
+    try {
+      const currentRedes = parseRedes(afiliado.redes_sociales);
+      const updatedRedes = {
+        ...currentRedes,
+        prefer_junta_photo: nextVal
+      };
+      const newFotoUrl = nextVal 
+        ? (updatedRedes.foto_junta_carnet_url || afiliado.foto_junta_url)
+        : (updatedRedes.foto_carnet_url || afiliado.foto_url);
+      const payload: any = { 
+        redes_sociales: updatedRedes,
+        foto_url: newFotoUrl || null
+      };
+      const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Error al guardar preferencia');
+      }
+      toast.success(nextVal ? 'Usando foto de Junta Directiva' : 'Usando foto de perfil normal');
+      onUpdateAfiliado?.(payload);
+    } catch (err: any) {
+      console.error('Error toggling photo preference:', err);
+      toast.error('No se pudo guardar la preferencia de foto');
+      setUseJuntaPhoto(!nextVal);
     }
   };
 
@@ -402,13 +451,10 @@ export default function WidgetCarnetAfiliado({
                 )}
 
                 {/* Botón para alternar foto de perfil / junta directiva */}
-                {afiliado?.foto_junta_url && (
+                {typeof afiliado?.foto_junta_url === 'string' && (
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUseJuntaPhoto(!useJuntaPhoto);
-                    }}
+                    onClick={handleTogglePhoto}
                     className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
                     title="Cambiar foto (Perfil / Junta Directiva)"
                   >
