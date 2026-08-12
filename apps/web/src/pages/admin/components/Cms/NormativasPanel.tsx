@@ -263,11 +263,16 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     setItemToDelete(item)
   }
 
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    let val = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.type === 'number' ? Number(e.target.value) : e.target.value;
+    if (k === 'titulo' && typeof val === 'string') {
+      val = val.toUpperCase();
+    }
     setForm((p) => ({
       ...p,
-      [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.type === 'number' ? Number(e.target.value) : e.target.value,
-    }))
+      [k]: val,
+    }));
+  };
 
   const uploadFile = async (file: File) => {
     setUploadError(null)

@@ -11,9 +11,12 @@ function requireSupabaseConfig() {
   return missing
 }
 
-function sanitizeFilename(name: string): string {
-  return name
-    .trim()
+function sanitizeFilename(name: string, isUppercase = false): string {
+  let clean = name.trim();
+  if (isUppercase) {
+    clean = clean.toUpperCase();
+  }
+  return clean
     .replace(/[/\\\\]/g, '-')         // no paths
     .replace(/[^\w.\-() ]+/g, '')     // keep it simple
     .replace(/\s+/g, '_')
@@ -22,7 +25,8 @@ function sanitizeFilename(name: string): string {
 
 function buildKey(folder: string, filename: string) {
   const safeFolder = folder.trim().replace(/^\/+|\/+$/g, '').replace(/[^\w\-\/]/g, '')
-  const safeName = sanitizeFilename(filename || 'documento')
+  const isNormativas = safeFolder.toLowerCase() === 'normativas'
+  const safeName = sanitizeFilename(filename || 'documento', isNormativas)
   const id = randomUUID()
   return `${safeFolder}/${id}-${safeName}`
 }
