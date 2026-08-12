@@ -339,6 +339,7 @@ export default function WidgetCarnetAfiliado({
       title="Mi Credencial Digital"
       icon={Award}
       description="Identificación digital oficial de CIEBO"
+      scrollable
     >
       <div
         id="dashboard-carnet-widget"

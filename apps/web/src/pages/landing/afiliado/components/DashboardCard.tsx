@@ -8,6 +8,8 @@ interface DashboardCardProps {
   actionText?: string;
   actionIcon?: React.ElementType;
   onAction?: () => void;
+  /** When true, constrains the body to a max height and enables vertical scrolling */
+  scrollable?: boolean;
 }
 
 const DashboardCard = ({
@@ -18,6 +20,7 @@ const DashboardCard = ({
   actionText,
   actionIcon: ActionIcon,
   onAction,
+  scrollable = false,
 }: DashboardCardProps) => (
   <div
     className="rounded-2xl overflow-hidden flex flex-col hover:shadow-md transition-shadow"
@@ -60,7 +63,10 @@ const DashboardCard = ({
       )}
     </div>
 
-    <div className="p-6 flex-grow">{children}</div>
+    <div
+      className={`p-6 flex-grow${scrollable ? ' custom-scrollbar-light' : ''}`}
+      style={scrollable ? { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', overflowX: 'hidden' } : undefined}
+    >{children}</div>
   </div>
 );
 
