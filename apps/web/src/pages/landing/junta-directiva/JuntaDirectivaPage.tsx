@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import bgBolivar from '@/assets/Pzo.webp'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
+import { apiUrl } from '@/config/env'
 
 // Import directiva images from the repo
 import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
@@ -36,12 +38,14 @@ const useScrollReveal = () => {
 }
 
 interface MiembroDirectiva {
+  id_afiliado?: number | string
+  codigo?: string
   nombre: string
   cargo: string
   foto: string
 }
 
-const directiva: MiembroDirectiva[] = [
+const hardcodedDirectiva: MiembroDirectiva[] = [
   { nombre: 'Francisco Piñango', cargo: 'Presidente', foto: imgFrancisco },
   { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto: imgZulay },
   { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto: imgMargaret },
@@ -51,37 +55,98 @@ const directiva: MiembroDirectiva[] = [
   { nombre: 'Graciela Ledezma', cargo: 'Directora de Formación', foto: imgGraciela },
   { nombre: 'Yorjharry Vicent', cargo: 'Director de Eventos', foto: imgYorjharry },
   { nombre: 'Rina Centeno', cargo: 'Directora de Responsabilidad Social', foto: imgRina },
-  { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto: imgPedroC }
+  { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto: imgPedroC },
 ]
 
-const DirectorCard = ({ nombre, cargo, foto, index }: { nombre: string; cargo: string; foto: string; index: number }) => {
+const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_afiliado?: number | string; codigo?: string; nombre: string; cargo: string; foto: string; index: number }) => {
   const setReveal = useScrollReveal()
-  return (
-    <div ref={setReveal} style={{ transitionDelay: `${index * 0.1}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[2.5rem] bg-white p-6 border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-emerald-900/20 transition-all duration-700 hover:-translate-y-2'>
-      <div className='relative overflow-hidden rounded-[2rem] aspect-square mb-6 bg-gradient-to-br from-emerald-100 to-slate-200'>
+  const targetIdentifier = codigo || id_afiliado;
+  const cardContent = (
+    <>
+      <div className='relative overflow-hidden rounded-[2rem] aspect-[4/5] mb-6 bg-gradient-to-br from-slate-50 to-slate-100'>
         {foto ? (
-          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover object-top transition-all duration-700 ease-in-out group-hover:scale-110' />
+          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover object-top transition-all duration-700 ease-in-out group-hover:scale-105' />
         ) : (
-          <div className='w-full h-full flex items-center justify-center text-6xl font-black text-emerald-300'>
+          <div className='w-full h-full flex items-center justify-center text-6xl font-black text-slate-300 bg-slate-50'>
             {nombre.charAt(0)}
           </div>
         )}
-        <div className='absolute inset-0 bg-gradient-to-t from-[#022c22]/80 via-[#022c22]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500' />
       </div>
-      <div className='text-center space-y-3 relative z-10'>
-        <h3 className='text-xl font-black text-[#022c22] leading-tight transition-colors duration-500 group-hover:text-emerald-500'>{nombre}</h3>
-        <p className='text-emerald-700 font-bold uppercase tracking-[0.15em] text-[10px] bg-gradient-to-r from-emerald-50 to-emerald-100/80 py-2 px-4 rounded-full inline-block border border-emerald-200/50'>{cargo}</p>
+      <div className='text-center space-y-2 relative z-10'>
+        <h3 className='text-lg font-extrabold text-slate-800 leading-tight transition-colors duration-300'>{nombre}</h3>
+        <p className='text-slate-500 font-bold uppercase tracking-[0.12em] text-[10px] bg-slate-100/80 py-1.5 px-3.5 rounded-full inline-block border border-slate-200/40'>{cargo}</p>
       </div>
-      <div className='absolute -bottom-20 -right-20 w-40 h-40 bg-emerald-500/5 rounded-full group-hover:scale-[4] transition-transform duration-700 ease-out' />
+    </>
+  )
+
+  if (targetIdentifier) {
+    return (
+      <Link 
+        to={`/miembros/${targetIdentifier}`} 
+        ref={setReveal as any} 
+        style={{ transitionDelay: `${index * 0.05}s` }} 
+        className='reveal-on-scroll group relative overflow-hidden rounded-[2.5rem] bg-white p-6 border border-slate-200 shadow-md hover:shadow-xl transition-all duration-500 hover:-translate-y-1.5 block cursor-pointer'
+      >
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return (
+    <div ref={setReveal} style={{ transitionDelay: `${index * 0.05}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[2.5rem] bg-white p-6 border border-slate-200 shadow-md hover:shadow-xl transition-all duration-500 hover:-translate-y-1.5'>
+      {cardContent}
     </div>
   )
 }
 
 export default function EquipoDirectivo() {
   const [darkMode, setDarkMode] = useState(false)
+  const [directiva, setDirectiva] = useState<MiembroDirectiva[]>([])
+  const [periodo, setPeriodo] = useState('Gestión 2024 - 2026')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     window.scrollTo(0, 0)
+
+    const fetchDirectiva = async () => {
+      try {
+        const res = await fetch(apiUrl('/api/cms/directiva'))
+        const data = await res.json()
+        if (data && data.success && Array.isArray(data.data)) {
+          const activeMembers = data.data
+            .filter((m: any) => (m.activo === 1 || m.activo === true) && m.foto_url)
+            
+          if (activeMembers.length > 0) {
+            const firstPeriod = activeMembers[0].periodo
+            if (firstPeriod && typeof firstPeriod === 'string') {
+              setPeriodo(`Gestión ${firstPeriod.replace('/', ' - ')}`)
+            } else if (firstPeriod) {
+              setPeriodo(`Gestión ${firstPeriod}`)
+            }
+            
+            const mapped = activeMembers.map((m: any) => ({
+              id_afiliado: m.id_afiliado,
+              codigo: m.codigo,
+              nombre: m.nombre,
+              cargo: m.cargo,
+              foto: m.foto_url
+            }))
+            setDirectiva(mapped)
+          } else {
+            setDirectiva(hardcodedDirectiva)
+          }
+        } else {
+          setDirectiva(hardcodedDirectiva)
+        }
+      } catch (err) {
+        console.error('Error fetching directiva:', err)
+        setDirectiva(hardcodedDirectiva)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDirectiva()
   }, [])
 
   return (
@@ -97,7 +162,7 @@ export default function EquipoDirectivo() {
           <h1 style={{ animationDelay: '0.4s', opacity: 0 }} className='text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white'>
             Junta <span className='text-emerald-500 italic'>Directiva</span>
           </h1>
-          <p className='text-emerald-100/60 text-sm tracking-widest uppercase font-medium animate-header-text' style={{ animationDelay: '0.5s', opacity: 0 }}>Gestión 2024 - 2026</p>
+          <p className='text-emerald-100/60 text-sm tracking-widest uppercase font-medium animate-header-text' style={{ animationDelay: '0.5s', opacity: 0 }}>{periodo}</p>
         </div>
       </header>
       <main className='bg-[#f1f5f9] text-slate-900 rounded-t-[4rem] -mt-12 relative z-10 px-6 lg:px-20 py-24'>
@@ -107,11 +172,25 @@ export default function EquipoDirectivo() {
             <p className='text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed'>Profesionales comprometidos con el desarrollo y fortalecimiento del sector inmobiliario en el estado Bolívar.</p>
           </div>
 
-          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10'>
-            {directiva.map((miembro, index) => (
-              <DirectorCard key={index} index={index} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto} />
-            ))}
-          </div>
+          {loading ? (
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10'>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className='animate-pulse rounded-[2.5rem] bg-white p-6 border border-slate-200 shadow-lg space-y-6'>
+                  <div className='bg-slate-200 rounded-[2rem] aspect-square w-full' />
+                  <div className='space-y-3 flex flex-col items-center'>
+                    <div className='bg-slate-200 h-6 w-3/4 rounded-md' />
+                    <div className='bg-slate-200 h-4 w-1/2 rounded-full' />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10'>
+              {directiva.map((miembro, index) => (
+                <DirectorCard key={index} index={index} id_afiliado={miembro.id_afiliado} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto} />
+              ))}
+            </div>
+          )}
 
           <div className='mt-24 relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#022c22] via-[#044b3a] to-[#022c22] text-white text-center p-12 space-y-8 shadow-2xl shadow-emerald-900/30'>
             <div className='absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -mr-40 -mt-40 blur-3xl' />

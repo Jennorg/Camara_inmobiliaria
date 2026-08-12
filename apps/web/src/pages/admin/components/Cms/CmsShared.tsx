@@ -44,10 +44,10 @@ export const api = {
 }
 
 
-export const uploadFileSupabase = async (file: File, folder: string): Promise<string> => {
+export const uploadFileSupabase = async (file: File, folder: string, skipCompress = false): Promise<string> => {
   // Compress image client-side if it is an image
   let fileToUpload = file;
-  if (file.type.startsWith('image/')) {
+  if (file.type.startsWith('image/') && !skipCompress) {
     try {
       fileToUpload = await compressImage(file, 1000, 0.82);
     } catch (compressErr) {

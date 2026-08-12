@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { formatNombreCard } from '@/utils/formatters'
+import { apiUrl } from '@/config/env'
 
 // Import directiva images from the repo
 import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
@@ -17,7 +18,15 @@ import imgPedroC from '@/assets/Junta_directiva/Pedro_C.webp'
 
 const s = STATIC.directiva
 
-const directivaMembers = [
+interface MiembroDirectiva {
+  id_afiliado?: number | string
+  codigo?: string
+  nombre: string
+  cargo: string
+  foto_url: string
+}
+
+const fallbackDirectiva: MiembroDirectiva[] = [
   { nombre: 'Francisco Piñango', cargo: 'Presidente', foto_url: imgFrancisco },
   { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto_url: imgZulay },
   { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto_url: imgMargaret },
@@ -31,7 +40,38 @@ const directivaMembers = [
 ]
 
 export default function DirectivaSection() {
+  const [directivaMembers, setDirectivaMembers] = useState<MiembroDirectiva[]>([])
+  const [loading, setLoading] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const fetchDirectiva = async () => {
+      try {
+        const res = await fetch(apiUrl('/api/cms/directiva'))
+        const data = await res.json()
+        if (data && data.success && Array.isArray(data.data)) {
+          const activeMembers = data.data
+            .filter((m: any) => (m.activo === 1 || m.activo === true) && m.foto_url)
+            .map((m: any) => ({
+              id_afiliado: m.id_afiliado,
+              codigo: m.codigo,
+              nombre: m.nombre,
+              cargo: m.cargo,
+              foto_url: m.foto_url
+            }))
+          setDirectivaMembers(activeMembers.length > 0 ? activeMembers : fallbackDirectiva)
+        } else {
+          setDirectivaMembers(fallbackDirectiva)
+        }
+      } catch (err) {
+        console.error('Error fetching directiva for section:', err)
+        setDirectivaMembers(fallbackDirectiva)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDirectiva()
+  }, [])
 
   const scroll = useCallback((direction: 'left' | 'right') => {
     const current = scrollRef.current
@@ -59,7 +99,7 @@ export default function DirectivaSection() {
   }, [scroll])
 
   return (
-    <section id='directiva' className='bg-white px-6 lg:px-20 pt-0 pb-24 scroll-mt-24 overflow-hidden relative'>
+    <section id='directiva' className='bg-white px-6 lg:px-20 pt-20 lg:pt-24 pb-24 scroll-mt-24 overflow-hidden relative'>
       <div className='max-w-7xl mx-auto space-y-16 relative'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
@@ -85,23 +125,58 @@ export default function DirectivaSection() {
             className="flex gap-8 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory w-full"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {directivaMembers.map((m, i) => (
-              <div key={i} className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
-                <div className="relative w-40 h-40 lg:w-48 lg:h-48 rounded-[2.5rem] overflow-hidden shadow-xl ring-4 ring-emerald-50 transition-all group-hover:ring-emerald-500/20">
-                  <img
-                    src={m.foto_url}
-                    alt={m.nombre}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                  />
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
+                  <div className="w-40 h-50 lg:w-48 lg:h-60 rounded-[2.5rem] bg-slate-200" />
+                  <div className="space-y-2 flex flex-col items-center w-full">
+                    <div className="bg-slate-200 h-5 w-3/4 rounded-md animate-pulse" />
+                    <div className="bg-slate-200 h-3.5 w-1/2 rounded-full animate-pulse" />
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xl font-bold text-[#022c22]">{formatNombreCard(m.nombre)}</h4>
-                  <p className="text-xs font-black text-emerald-600 uppercase tracking-widest mt-1 opacity-80">{m.cargo}</p>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              directivaMembers.map((m, i) => {
+                const cardInner = (
+                  <>
+                    <div className="relative w-40 h-50 lg:w-48 lg:h-60 rounded-[2.5rem] overflow-hidden shadow-md ring-4 ring-slate-100 transition-all group-hover:ring-slate-200 aspect-[4/5]">
+                      <img
+                        src={m.foto_url}
+                        alt={m.nombre}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-800">{formatNombreCard(m.nombre)}</h4>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{m.cargo}</p>
+                    </div>
+                  </>
+                )
+
+                if (m.id_afiliado || m.codigo) {
+                  return (
+                    <Link
+                      key={i}
+                      to={`/miembros/${m.codigo || m.id_afiliado}`}
+                      className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs cursor-pointer"
+                    >
+                      {cardInner}
+                    </Link>
+                  )
+                }
+
+                return (
+                  <div
+                    key={i}
+                    className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs"
+                  >
+                    {cardInner}
+                  </div>
+                )
+              })
+            )}
           </div>
 
           <button 

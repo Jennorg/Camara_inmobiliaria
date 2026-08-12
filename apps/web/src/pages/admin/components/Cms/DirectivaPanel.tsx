@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary } from '@/pages/admin/components/Cms/CmsShared'
+import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
 import { 
   Users, 
   Plus, 
@@ -18,12 +18,15 @@ import {
   Sparkles,
   ChevronRight,
   UserCheck,
-  GripVertical
+  GripVertical,
+  Upload
 } from 'lucide-react'
 import { formatNombreCard } from '@/utils/formatters'
 import { invalidateDirectivaCache } from '@/pages/landing/junta-directiva/JuntaDirectivaPage'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
+import Cropper from 'react-easy-crop'
+import getCroppedImg from '@/utils/cropImage'
 
 interface DirectivaItem {
   id: string | number;
@@ -33,6 +36,8 @@ interface DirectivaItem {
   cargo_canonical?: string;
   periodo?: string;
   foto_url?: string;
+  foto_url_miembro?: string;
+  foto_junta_url?: string;
   orden: number;
   activo: number | boolean;
 }
@@ -186,9 +191,66 @@ export const DirectivaPanel = () => {
     cargo_canonical: '',
     periodo: '', 
     orden: 0, 
-    activo: true 
+    activo: true,
+    foto_junta_url: ''
   })
   const [saving, setSaving] = useState(false)
+
+  // Subida de foto específica para la junta directiva (landing) con recorte/encuadre
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadPhotoError, setUploadPhotoError] = useState<string | null>(null)
+
+  // Estados para el recorte de la foto
+  const [showCropModal, setShowCropModal] = useState(false)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [cropPreview, setCropPreview] = useState<string | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [cropAspectChoice, setCropAspectChoice] = useState<number>(4 / 5)
+
+  const handleSelectFile = (file: File) => {
+    setCropFile(file)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setCropPreview(reader.result as string)
+      setCrop({ x: 0, y: -10 })
+      setZoom(1.1)
+      setCropAspectChoice(4 / 5)
+      setShowCropModal(true)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleConfirmCrop = async () => {
+    if (!cropPreview || !croppedAreaPixels || !cropFile) return
+    setUploadPhotoError(null)
+    setUploadingPhoto(true)
+    setShowCropModal(false)
+    try {
+      const croppedImageBlob = await getCroppedImg(
+        cropPreview,
+        croppedAreaPixels,
+        0,
+        { horizontal: false, vertical: false },
+        cropFile.type
+      )
+      if (croppedImageBlob) {
+        const webpName = cropFile.name.replace(/\.[^/.]+$/, '') + '.webp'
+        const croppedFile = new File([croppedImageBlob], webpName, { type: 'image/webp' })
+        const publicUrl = await uploadFileSupabase(croppedFile, 'directiva', true)
+        setForm(p => ({ ...p, foto_junta_url: publicUrl }))
+        toast.success('Foto de junta directiva recortada y subida con éxito.')
+      }
+    } catch (e: any) {
+      setUploadPhotoError(e.message || 'Error al recortar/subir la imagen')
+      toast.error('No se pudo recortar o subir la foto.')
+    } finally {
+      setUploadingPhoto(false)
+      setCropPreview(null)
+      setCropFile(null)
+    }
+  }
   
   // Search and Filter states
   const [searchMemberQuery, setSearchMemberQuery] = useState('')
@@ -516,7 +578,8 @@ export const DirectivaPanel = () => {
       cargo_canonical: '',
       periodo: targetPeriod,
       orden: maxOrden + 1,
-      activo: true
+      activo: true,
+      foto_junta_url: ''
     })
     setIsModalOpen(true)
   }
@@ -539,7 +602,8 @@ export const DirectivaPanel = () => {
       cargo_canonical: item.cargo_canonical || item.cargo,
       periodo: item.periodo || '',
       orden: item.orden,
-      activo: item.activo === true || item.activo === 1
+      activo: item.activo === true || item.activo === 1,
+      foto_junta_url: item.foto_junta_url || ''
     })
     setIsModalOpen(true)
   }
@@ -977,8 +1041,16 @@ export const DirectivaPanel = () => {
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 text-sm leading-tight">
+                          <p className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
                             {formatNombreCard(item.nombre)}
+                            {item.foto_junta_url && (
+                              <span 
+                                className="inline-block text-[8px] bg-amber-50 text-amber-700 border border-amber-200/60 font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0" 
+                                title="Tiene una foto específica asignada para la landing de Junta Directiva"
+                              >
+                                Foto Junta
+                              </span>
+                            )}
                           </p>
                           <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
                             {item.cargo}
@@ -1147,6 +1219,72 @@ export const DirectivaPanel = () => {
                   </div>
                 </div>
               )}
+
+              {/* Foto de Junta Directiva (Landing) */}
+              <FormField label="Foto Específica para Junta Directiva (Landing)">
+                <div className="space-y-3.5">
+                  <p className="text-[10px] text-slate-400 leading-relaxed ml-1">
+                    Por defecto se usará la foto de perfil del afiliado. Sube una foto aquí si deseas que muestre una imagen distinta (ej. una foto formal corporativa) en la sección de Junta Directiva de la landing page.
+                  </p>
+                  
+                  <div className="flex items-center gap-4">
+                    {/* Visualización de la foto actual para Junta Directiva */}
+                    <div className="w-20 h-20 rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center shrink-0 relative shadow-sm">
+                      {form.foto_junta_url ? (
+                        <>
+                          <img 
+                            src={form.foto_junta_url} 
+                            alt="Foto Junta" 
+                            className="w-full h-full object-cover object-top" 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setForm(p => ({ ...p, foto_junta_url: '' }))}
+                            className="absolute top-1 right-1 p-1 rounded-full bg-rose-500 text-white hover:bg-rose-600 transition-colors shadow-sm"
+                            title="Remover foto específica"
+                          >
+                            <X size={10} />
+                          </button>
+                        </>
+                      ) : selectedAffiliate?.foto_url ? (
+                        <div className="w-full h-full relative">
+                          <img 
+                            src={selectedAffiliate.foto_url} 
+                            alt="Foto Perfil (Default)" 
+                            className="w-full h-full object-cover object-top opacity-50" 
+                          />
+                          <div className="absolute inset-0 bg-slate-900/30 flex items-center justify-center">
+                            <span className="text-[9px] text-white font-bold bg-slate-900/60 px-1.5 py-0.5 rounded-md">Perfil</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <Users className="text-slate-300" size={24} />
+                      )}
+                    </div>
+
+                    {/* Botón de carga */}
+                    <div className="flex-1 min-w-0">
+                      <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition-all border border-slate-200">
+                        <Upload size={14} />
+                        {uploadingPhoto ? 'Subiendo...' : 'Subir Foto Específica'}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          disabled={uploadingPhoto}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleSelectFile(file);
+                          }}
+                        />
+                      </label>
+                      {uploadPhotoError && (
+                        <p className="text-[10px] text-rose-600 font-bold mt-1">× {uploadPhotoError}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </FormField>
 
               {/* Cargo / Posición Dropdown and Display Title */}
               <FormField label="Cargo / Posición">
@@ -1403,6 +1541,112 @@ export const DirectivaPanel = () => {
                 type="button"
                 onClick={() => setShowCreatePeriodModal(false)}
                 className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Recorte de Foto de Junta Directiva */}
+      {showCropModal && cropPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 relative flex flex-col gap-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-base">Ajustar Encuadre</h3>
+                <p className="text-[10px] text-slate-400 font-medium">Recorta la foto para la junta directiva</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowCropModal(false); setCropPreview(null); setCropFile(null); }}
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Contenedor del Cropper */}
+            <div className="relative w-full h-72 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+              <Cropper
+                image={cropPreview}
+                crop={crop}
+                zoom={zoom}
+                minZoom={1}
+                maxZoom={4}
+                restrictPosition={true}
+                aspect={cropAspectChoice}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                cropShape="rect"
+                showGrid={true}
+                onMediaLoaded={() => {
+                  setZoom(1.1)
+                  setCrop({ x: 0, y: -10 })
+                }}
+              />
+            </div>
+
+            {/* Selectores de Encuadre */}
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCropAspectChoice(1)}
+                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Cuadrado (1:1)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCropAspectChoice(4 / 5)}
+                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-all ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Perfil (4:5)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCropAspectChoice(16 / 9)}
+                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Horizontal (16:9)
+                </button>
+              </div>
+            </div>
+
+            {/* Control de Zoom deslizante */}
+            <div className="space-y-1.5 px-1">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Zoom</span>
+                <span className="text-[10px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={4}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+              />
+            </div>
+
+            {/* Acciones del Modal */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmCrop}
+                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20"
+              >
+                Confirmar Recorte
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowCropModal(false); setCropPreview(null); setCropFile(null); }}
+                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 text-xs font-bold transition-all"
               >
                 Cancelar
               </button>
