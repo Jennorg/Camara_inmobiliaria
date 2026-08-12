@@ -123,6 +123,7 @@ export interface AfiliadoDTO {
   linkedin?: string;
   cedula_personal?: string; // Para compatibilidad con lógica de representantes
   foto_url?: string | null;
+  foto_junta_url?: string | null;
   fecha_inicio_servicio?: string;
   fecha_afiliacion?: string | null;
   razon_social?: string;

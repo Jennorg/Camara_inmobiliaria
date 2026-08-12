@@ -19,6 +19,16 @@ const TikTokIcon = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
+const CarnetIcon = ({ w = 12, h = 12 }: { w?: number; h?: number }) => {
+  const combined_d = "M3 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H3zm0 2h18v12H3V6zm3 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 1a1 1 0 1 0 0 2h5a1 1 0 1 0 0-2h-5zm0 4a1 1 0 1 0 0 2h5a1 1 0 1 0 0-2h-5z";
+  return (
+    <svg width={w} height={h} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fillRule="evenodd" fill="currentColor" d={combined_d} />
+    </svg>
+  );
+};
+
+
 function getTipoAfiliadoMeta(tipo?: string) {
   const norm = String(tipo || 'Natural').trim();
   if (['Corporativo', 'Juridico'].includes(norm)) {
@@ -141,16 +151,25 @@ interface AfiliadoCardProps {
   forceRepMode?: boolean;
   variant?: 'default' | 'mini';
   highlighted?: boolean;
+  onViewCarnet?: (afiliado: AfiliadoData) => void;
 }
 
-export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'default', highlighted = false }: AfiliadoCardProps) => {
+export const AfiliadoCard = ({ 
+  afiliado, 
+  forceRepMode = false, 
+  variant = 'default', 
+  highlighted = false,
+  onViewCarnet
+}: AfiliadoCardProps) => {
   const isCorpView = afiliado.tipo_afiliado === 'Corporativo' && !forceRepMode;
   const tipoMeta = getTipoAfiliadoMeta(afiliado.tipo_afiliado);
+
+  const targetIdentifier = afiliado.codigo || afiliado.id_afiliado;
 
   if (variant === 'mini') {
     return (
       <Link
-        to={forceRepMode ? `/miembros/${afiliado.id_afiliado}?mode=rep` : `/miembros/${afiliado.id_afiliado}`}
+        to={forceRepMode ? `/miembros/${targetIdentifier}?mode=rep` : `/miembros/${targetIdentifier}`}
         className="group flex flex-col items-center gap-1 focus:outline-none"
       >
         <CardImage afiliado={afiliado} isCorpView={isCorpView} size="mini" />
@@ -188,7 +207,7 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
       <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-500/5 rounded-full group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
 
       <Link
-        to={forceRepMode ? `/miembros/${afiliado.id_afiliado}?mode=rep` : `/miembros/${afiliado.id_afiliado}`}
+        to={forceRepMode ? `/miembros/${targetIdentifier}?mode=rep` : `/miembros/${targetIdentifier}`}
         className="flex-1 flex flex-col cursor-pointer"
       >
         <div className="relative w-full shrink-0">
@@ -232,8 +251,21 @@ export const AfiliadoCard = ({ afiliado, forceRepMode = false, variant = 'defaul
       </Link>
 
       {/* Acciones de Contacto */}
-      {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok || afiliado.website || (isCorpView && afiliado.empresa_website) || phoneNumber) && (
+      {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok || afiliado.website || (isCorpView && afiliado.empresa_website) || phoneNumber || (onViewCarnet && afiliado.codigo)) && (
         <div className="flex gap-2 items-center justify-center px-4 pt-3 pb-5 border-t border-slate-100 dark:border-emerald-50/10 w-full mt-auto">
+          {onViewCarnet && afiliado.codigo && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onViewCarnet(afiliado);
+              }}
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-all duration-300 border border-slate-100/50 dark:border-emerald-800/10"
+              title="Ver Carnet de Afiliado"
+            >
+              <CarnetIcon w={12} h={12} />
+            </button>
+          )}
           {(isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) && (
             <a
               href={`mailto:${isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email}`}

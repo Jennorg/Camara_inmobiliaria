@@ -10,16 +10,30 @@ import {
   ChevronRight, Building2, User as UserIcon, Users, CheckCircle2, AlertCircle,
   Mail, Phone, MapPin, BadgeCheck, FileText, Calendar, CreditCard,
   ShieldAlert, ArrowUpDown, ChevronDown, ImageIcon, Upload, Loader2,
-  Briefcase, StickyNote, Globe, FileDown, Music2, Facebook, Instagram, Linkedin,
+  Briefcase, StickyNote, Globe, FileDown, Download, Music2, Facebook, Instagram, Linkedin,
   ExternalLink, GraduationCap
 } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/utils/cropImage'
+import CarnetAfiliadoModal from '@/components/CarnetAfiliadoModal'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
+import { toPng } from 'html-to-image'
+import LogoBgImg from '@/assets/Logo4.webp'
+import JSZip from 'jszip'
+
+
+const CarnetIcon = ({ w = 16, h = 16 }: { w?: number; h?: number }) => {
+  const combined_d = "M3 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H3zm0 2h18v12H3V6zm3 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 1a1 1 0 1 0 0 2h5a1 1 0 1 0 0-2h-5zm0 4a1 1 0 1 0 0 2h5a1 1 0 1 0 0-2h-5z";
+  return (
+    <svg width={w} height={h} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path fillRule="evenodd" fill="currentColor" d={combined_d} />
+    </svg>
+  );
+};
 
 
 const ID_PREFIXES = ['V', 'E', 'J', 'G', 'P']
@@ -321,10 +335,11 @@ export default function MiembrosPanel() {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
-  const [cropAspectChoice, setCropAspectChoice] = useState<number>(1)
+  const [cropAspectChoice, setCropAspectChoice] = useState<number>(4 / 5)
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
+  const [showCarnetModal, setShowCarnetModal] = useState(false)
 
   // Documentos para nuevo miembro manual
   const [newUrlCv, setNewUrlCv] = useState('')
@@ -344,6 +359,103 @@ export default function MiembrosPanel() {
   const [naturalTransitionTarget, setNaturalTransitionTarget] = useState<any | null>(null)
   const [empresas, setEmpresas] = useState<any[]>([])
   const [selectedEmpresaId, setSelectedEmpresaId] = useState('')
+
+  const [batchDownloading, setBatchDownloading] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchCurrent, setBatchCurrent] = useState(0);
+  const [currentMember, setCurrentMember] = useState<any>(null);
+  const [currentMemberQrUrl, setCurrentMemberQrUrl] = useState('');
+  const bulkCardRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(false);
+
+  const handleBatchDownload = async () => {
+    if (batchDownloading) return;
+    setBatchDownloading(true);
+    setIsCanceling(false);
+    setBatchTotal(0);
+    setBatchCurrent(0);
+    cancelRef.current = false;
+
+    try {
+      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?con_foto=true&limit=1000`);
+      const json = await res.json();
+      if (!json.success || !Array.isArray(json.data)) {
+        throw new Error('No se pudo obtener el listado de afiliados.');
+      }
+
+      const activeMembers = json.data;
+      if (activeMembers.length === 0) {
+        toast.info('No se encontraron afiliados activos con fotografía.');
+        setBatchDownloading(false);
+        return;
+      }
+
+      setBatchTotal(activeMembers.length);
+
+      const zip = new JSZip();
+      let generatedCount = 0;
+
+      for (let i = 0; i < activeMembers.length; i++) {
+        if (cancelRef.current) {
+          break;
+        }
+
+        const member = activeMembers[i];
+        setBatchCurrent(i + 1);
+        setCurrentMember(member);
+        
+        const pUrl = `${window.location.origin}/miembros/${member.codigo || member.id_afiliado}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pUrl)}`;
+        setCurrentMemberQrUrl(qrUrl);
+
+        // Esperar a que se actualice el DOM y cargue la foto/QR
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        if (bulkCardRef.current) {
+          try {
+            const dataUrl = await toPng(bulkCardRef.current, {
+              quality: 1.0,
+              pixelRatio: 3,
+              backgroundColor: '#ffffff',
+              style: {
+                transform: 'none',
+                borderRadius: '0px',
+              }
+            });
+            
+            const base64Data = dataUrl.split(',')[1];
+            const filename = `carnet-${member.codigo || member.id_afiliado}.png`;
+            zip.file(filename, base64Data, { base64: true });
+            generatedCount++;
+          } catch (cardErr) {
+            console.error(`Error procesando carnet de ${member.codigo}:`, cardErr);
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      if (generatedCount > 0) {
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = `carnets-ciebo-${new Date().toISOString().slice(0, 10)}.zip`;
+        link.click();
+      } else {
+        toast.error('No se pudo generar ninguna credencial.');
+      }
+    } catch (err: any) {
+      console.error('Error en descarga masiva:', err);
+      toast.error(err.message || 'Ocurrió un error en la descarga masiva.');
+    } finally {
+      setBatchDownloading(false);
+      setIsCanceling(false);
+      setCurrentMember(null);
+      setCurrentMemberQrUrl('');
+      cancelRef.current = false;
+    }
+  };
   const [razonSocial, setRazonSocial] = useState('')
   const [rifTipo, setRifTipo] = useState('J')
   const [rifNumero, setRifNumero] = useState('')
@@ -544,12 +656,14 @@ export default function MiembrosPanel() {
           imageFile.type
         )
         if (croppedImageBlob) {
-          const croppedFile = new File([croppedImageBlob], imageFile.name, { type: imageFile.type })
+          const webpName = imageFile.name.replace(/\.[^/.]+$/, '') + '.webp'
+          const croppedFile = new File([croppedImageBlob], webpName, { type: 'image/webp' })
           finalUrl = await uploadFileSupabase(
             croppedFile,
             isLogo
               ? (selected.tipo_afiliado === 'Corporativo' ? 'logos/empresas' : 'logos/marcas')
-              : 'fotos/afiliados'
+              : 'fotos/afiliados',
+            true
           )
         }
       } else if (imageFile) {
@@ -902,6 +1016,19 @@ export default function MiembrosPanel() {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
+                onClick={handleBatchDownload}
+                disabled={batchDownloading}
+                title="Descargar todos los Carnets (Activos con Foto)"
+                className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-colors disabled:opacity-50"
+              >
+                {batchDownloading ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Download size={18} />
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowExportModal(true)}
                 title="Exportar listado en PDF"
                 className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-colors"
@@ -1134,15 +1261,23 @@ export default function MiembrosPanel() {
                 {!isEditing ? (
                   <>
                     <button
+                      onClick={() => setShowCarnetModal(true)}
+                      className="px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs shadow-xs border border-emerald-200/40"
+                      title="Ver Carnet de Afiliado"
+                    >
+                      <CarnetIcon w={16} h={16} />
+                      <span>Ver Carnet</span>
+                    </button>
+                    <button
                       onClick={() => handleEdit(selected)}
-                      className="p-2.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 transition-colors"
+                      className="p-2.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 active:scale-95 transition-colors"
                       title="Editar"
                     >
                       <Edit3 size={18} />
                     </button>
                     <button
                       onClick={() => handleDelete(selected.id_afiliado)}
-                      className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 transition-colors"
+                      className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors"
                       title="Eliminar"
                     >
                       <Trash2 size={18} />
@@ -2159,9 +2294,9 @@ export default function MiembrosPanel() {
                     image={imagePreview}
                     crop={crop}
                     zoom={zoom}
-                    minZoom={0.2}
+                    minZoom={imageEditKind === 'logo' ? 0.2 : 1}
                     maxZoom={4}
-                    restrictPosition={false}
+                    restrictPosition={imageEditKind === 'logo' ? false : true}
                     aspect={cropAspectChoice}
                     onCropChange={setCrop}
                     onZoomChange={setZoom}
@@ -2289,6 +2424,234 @@ export default function MiembrosPanel() {
                 {imageUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                 {imageUploading ? 'Subiendo...' : imageEditKind === 'logo' ? (selected.tipo_afiliado === 'Corporativo' ? 'Guardar Logo Empresa' : 'Guardar Logo Personal') : 'Guardar Foto'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Widget de Progreso de Descarga Masiva */}
+      {batchDownloading && (
+        <div className="fixed bottom-6 right-6 z-[120] bg-white border border-gray-200 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 min-w-[280px] animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Descarga Masiva
+            </span>
+            <Loader2 className="animate-spin text-emerald-600" size={16} />
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm font-bold text-slate-800">
+              {isCanceling ? 'Cancelando...' : `Procesando ${batchCurrent} de ${batchTotal}`}
+            </div>
+            {currentMember && (
+              <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate max-w-[250px]">
+                {currentMember.nombre_completo || currentMember.representante_nombre}
+              </div>
+            )}
+          </div>
+          {/* Progress Bar */}
+          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+            <div 
+              className="bg-emerald-500 h-full transition-all duration-300"
+              style={{ width: `${(batchCurrent / batchTotal) * 100}%` }}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={isCanceling}
+            onClick={() => {
+              cancelRef.current = true;
+              setIsCanceling(true);
+            }}
+            className="mt-1 text-center w-full py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {/* Contenedor Oculto para Captura de Carnet en Lote */}
+      {currentMember && (
+        <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', pointerEvents: 'none' }}>
+          <div
+            ref={bulkCardRef}
+            id="carnet-card-capture"
+            className="w-[310px] h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
+            style={{
+              backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
+            }}
+          >
+            {/* Fondo de agua con logo sin letras (mayor opacidad para visibilidad clara, levemente desplazado hacia abajo) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none z-0">
+              <img
+                src={LogoBgImg}
+                alt="Fondo de agua"
+                className="h-200 w-auto object-contain opacity-[0.14] filter blur-[1.5px] transform translate-y-5"
+              />
+            </div>
+
+            <div className="absolute -bottom-22 -left-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
+              <img
+                src={LogoBgImg}
+                alt="Fondo de agua secundario"
+                className="w-full h-full object-contain opacity-[0.14]"
+              />
+            </div>
+
+            <div className="absolute -bottom-22 -right-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
+              <img
+                src={LogoBgImg}
+                alt="Fondo de agua secundario"
+                className="w-full h-full object-contain opacity-[0.14]"
+              />
+            </div>
+
+            {/* 1. Encabezado del Carnet Minimalista Centrado */}
+            <div className="relative z-10 flex items-center justify-center gap-0 w-full border-b border-emerald-600/10 py-2.5">
+              <img
+                src={LogoBgImg}
+                alt="Logo CIEBO"
+                className="h-20 w-auto object-contain"
+              />
+              <p className="text-[15px] font-extrabold text-black leading-tight uppercase text-center">
+                <span className="block whitespace-nowrap text-emerald-800">Cámara Inmobiliaria</span>
+                <span className="block whitespace-nowrap text-emerald-800">de Bolívar</span>
+              </p>
+            </div>
+
+            {/* 2. Cuerpo del Carnet (Máxima relevancia a la foto con espaciado ajustado) */}
+            <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-2 pt-1 pb-1">
+
+              {/* Photo Container */}
+              <div className="w-[155px] h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
+                {(() => {
+                  const rawRedes = currentMember?.redes_sociales;
+                  const redes = rawRedes
+                    ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
+                    : {};
+                  const carnetPhotoUrl = redes?.foto_carnet_url;
+                  const activePhoto = carnetPhotoUrl || currentMember.foto_url;
+                  
+                  if (activePhoto) {
+                    const isCropped = !!carnetPhotoUrl;
+                    
+                    return (
+                      <img
+                        src={activePhoto}
+                        alt="Foto"
+                        className="w-full h-full object-cover"
+                        style={isCropped ? {
+                          objectPosition: 'center center'
+                        } : {
+                          transform: 'scale(2)',
+                          transformOrigin: 'center top'
+                        }}
+                        crossOrigin="anonymous"
+                      />
+                    );
+                  }
+                  
+                  return (
+                    <div className="w-full h-full flex items-center justify-center font-black text-6xl text-emerald-700 bg-emerald-50">
+                      {currentMember.nombres ? currentMember.nombres.charAt(0) : 'A'}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Bloque Nombre, Apellido y Código */}
+              <div className="text-center leading-none my-1">
+                <div className="text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
+                  <span className="font-extrabold">Nombre:</span> {currentMember.nombres || currentMember.representante_nombre || currentMember.nombre_completo}
+                  <br />
+                  <span className="font-extrabold">Apellido:</span> {currentMember.apellidos || ''}
+                </div>
+                <span className="text-[9px] font-extrabold text-black tracking-wider block mt-0.5">
+                  <span className='font-extrabold'>CÓDIGO:</span> {currentMember.codigo}
+                </span>
+                {/* Tipo de afiliado debajo del código */}
+                {currentMember.tipo_afiliado && (() => {
+                  const tipoLabel: Record<string, string | string[]> = {
+                    'Natural':            'Agente Independiente',
+                    'Agente':             'Agente Independiente',
+                    'Agente Corporativo': 'Agente Corporativo',
+                    'Corporativo':        ['Corporativo', 'Repr. Legal'],
+                  };
+                  const label = tipoLabel[currentMember.tipo_afiliado] ?? currentMember.tipo_afiliado;
+                  return (
+                    <span className="text-[8.5px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
+                      {Array.isArray(label)
+                        ? label.map((line, i) => <span key={i} className="block">{line}</span>)
+                        : label}
+                    </span>
+                  );
+                })()}
+                <span className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-[0.2em] block mt-1 opacity-90">
+                  Miembro Activo
+                </span>
+              </div>
+
+              {/* Bloque Código QR y Detalles de la Empresa en horizontal (Simétrico) */}
+              <div className="flex flex-row items-center justify-center gap-2 w-full px-2 min-h-[82px]">
+                {/* QR Code Column */}
+                <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
+                  <div className="w-[64px] h-[64px] flex items-center justify-center shrink-0 relative">
+                    {(() => {
+                      const pUrl = `${window.location.origin}/miembros/${currentMember.codigo || currentMember.id_afiliado}`;
+                      const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(pUrl)}&dark=000000&light=0000&ecLevel=H&size=180`;
+                      return (
+                        <img
+                          src={qrUrl}
+                          alt="QR"
+                          className="w-full h-full"
+                          crossOrigin="anonymous"
+                        />
+                      );
+                    })()}
+                  </div>
+                  <span className="text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                    Verificar QR
+                  </span>
+                </div>
+
+                {/* Logo de Empresa/Marca si aplica */}
+                {(() => {
+                  const logo = currentMember.empresa_logo_url;
+                  const razonSocial = currentMember.empresa_razon_social;
+                  
+                  if (!logo && !razonSocial) return null;
+
+                  return (
+                    <>
+                      {/* Línea divisoria vertical */}
+                      <div className="w-[1px] h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
+                      
+                      {/* Logo Column */}
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        {logo ? (
+                          <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+                            <img
+                              src={logo}
+                              alt="Logo Empresa"
+                              crossOrigin="anonymous"
+                              className="max-h-full max-w-full object-contain"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        ) : razonSocial ? (
+                          <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
+                              {razonSocial}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
             </div>
           </div>
         </div>
@@ -2588,6 +2951,22 @@ export default function MiembrosPanel() {
           </div>
         </div>
       )}
+
+      <CarnetAfiliadoModal
+        isOpen={showCarnetModal}
+        onClose={() => setShowCarnetModal(false)}
+        afiliado={selected}
+        onUpdateAfiliado={(updatedFields) => {
+          if (selected) {
+            const updated = {
+              ...selected,
+              ...updatedFields
+            };
+            setSelected(updated);
+            setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item));
+          }
+        }}
+      />
     </div>
   )
 }

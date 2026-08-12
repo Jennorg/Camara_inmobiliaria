@@ -76,10 +76,10 @@ export default async function getCroppedImg(
     return null
   }
 
-  // Limit output dimensions to a maximum of 800px to optimize file size
+  // Limit output dimensions to a maximum of 1200px to optimize file size and preserve high quality
   let targetWidth = pixelCrop.width
   let targetHeight = pixelCrop.height
-  const maxDimension = 800
+  const maxDimension = 1200
 
   if (targetWidth > maxDimension || targetHeight > maxDimension) {
     if (targetWidth > targetHeight) {
@@ -111,7 +111,7 @@ export default async function getCroppedImg(
   // As a compressed WebP blob
   return new Promise((resolve, reject) => {
     const outputMimeType = 'image/webp';
-    const quality = 0.80;
+    const quality = 0.90;
     croppedCanvas.toBlob((file) => {
       resolve(file)
     }, outputMimeType, quality)

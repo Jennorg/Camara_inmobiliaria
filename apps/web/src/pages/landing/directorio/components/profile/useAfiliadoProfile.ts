@@ -35,7 +35,8 @@ export const useAfiliadoProfile = (): UseAfiliadoProfileResult => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/public/afiliados/${id}`);
+        if (!id) return;
+        const res = await fetch(`${API_URL}/api/public/afiliados/${encodeURIComponent(id)}`);
         const json = await res.json();
         if (json.success) {
           setAfiliado(json.data);

@@ -5,6 +5,8 @@ import { AfiliadoCard, AfiliadoData } from './components/AfiliadoCard';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
 import { API_URL } from '@/config/env';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 const PAGE_SIZE = 50;
 
@@ -33,6 +35,7 @@ function SkeletonCard() {
 }
 
 const DirectorioPage = () => {
+  const { user } = useAuth();
   const [afiliados, setAfiliados] = useState<AfiliadoData[]>([]);
   // true only on first page load (shows full skeleton grid)
   const [loadingFirst, setLoadingFirst] = useState(true);
@@ -127,6 +130,8 @@ const DirectorioPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filterType]);
 
+
+
   // ── Infinite scroll: observe sentinel element ────────────────────────
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -177,6 +182,8 @@ const DirectorioPage = () => {
             <p className="text-lg text-emerald-800/70 dark:text-emerald-100/70 max-w-2xl mx-auto font-medium">
               Verifica y contacta a los profesionales inmobiliarios certificados que forman parte de nuestra cámara.
             </p>
+
+
 
             {/* Buscador */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
