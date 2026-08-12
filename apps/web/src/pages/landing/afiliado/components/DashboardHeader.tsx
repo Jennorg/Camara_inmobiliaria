@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Menu, User, X, Download, Loader2, Award, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ const DashboardHeader = ({
 
   const { token, isAdmin } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const carnetPanelRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,9 +60,14 @@ const DashboardHeader = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showCropper) return;
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      const target = event.target as Node;
+      if (
+        dropdownRef.current?.contains(target) ||
+        carnetPanelRef.current?.contains(target)
+      ) {
+        return;
       }
+      setIsOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -288,6 +295,8 @@ const DashboardHeader = ({
             node.classList.contains('hide-on-export')
           ),
         style: {
+          width: '310px',
+          height: '490px',
           transform: 'none',
           borderRadius: '0px',
         },
@@ -380,12 +389,21 @@ const DashboardHeader = ({
             </div>
           </div>
 
-          {/* Floating Dropdown */}
-          {isOpen && (
-            <div
-              className="absolute right-0 top-full mt-3 bg-white dark:bg-[#022c22] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-emerald-500/20 z-50 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-200"
-              style={{ width: '360px' }}
-            >
+          {/* Floating Dropdown — portal + altura fija (top/bottom) para scroll real en pantallas bajas */}
+          {isOpen && createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-[100] bg-transparent"
+                aria-hidden="true"
+                onClick={() => setIsOpen(false)}
+              />
+              <div
+                ref={carnetPanelRef}
+                className="fixed z-[101] top-[4.5rem] right-4 sm:right-8 bottom-4 bg-white dark:bg-[#022c22] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-200 overflow-y-scroll overflow-x-hidden overscroll-y-contain custom-scrollbar-light pr-1"
+                style={{ width: 'min(360px, calc(100vw - 2rem))', WebkitOverflowScrolling: 'touch' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+              <div className="flex flex-col items-center gap-4">
               {hasCredential ? (
                 <>
                   <div className="text-center w-full">
@@ -402,7 +420,7 @@ const DashboardHeader = ({
                     <div
                       ref={cardRef}
                       id="carnet-card-capture"
-                      className="w-[310px] h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
+                      className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
                       style={{
                         backgroundImage:
                           'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)',
@@ -434,13 +452,13 @@ const DashboardHeader = ({
                       </div>
 
                       {/* Header minimalista */}
-                      <div className="relative z-10 flex items-center justify-center gap-0 w-full border-b border-emerald-600/10 py-2.5">
+                      <div className="relative z-10 flex items-center justify-center gap-0.5 w-full border-b border-emerald-600/10 py-1.5 xs:py-2.5">
                         <img
                           src={LogoBgImg}
                           alt="Logo CIEBO"
-                          className="h-16 w-auto object-contain"
+                          className="h-12 xs:h-16 w-auto object-contain"
                         />
-                        <p className="text-[15px] font-bold text-black leading-tight uppercase text-center">
+                        <p className="text-[12px] xs:text-[15px] font-bold text-black leading-tight uppercase text-center">
                           <span className="block whitespace-nowrap text-emerald-800">
                             Cámara Inmobiliaria
                           </span>
@@ -451,8 +469,8 @@ const DashboardHeader = ({
                       </div>
 
                       {/* Foto */}
-                      <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-2 pt-1 pb-1">
-                        <div className="w-[155px] h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
+                      <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-1.5 xs:gap-2 pt-1 pb-1">
+                        <div className="w-[130px] xs:w-[155px] h-[155px] xs:h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
                           {(() => {
                             const redes = parseRedes(afiliado?.redes_sociales);
                             const carnetPhotoUrl = useJuntaPhoto
@@ -484,7 +502,7 @@ const DashboardHeader = ({
                                 }
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center font-black text-6xl text-emerald-700 bg-emerald-50">
+                              <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
                                 {afiliado.nombres ? afiliado.nombres.charAt(0) : 'A'}
                               </div>
                             );
@@ -523,11 +541,11 @@ const DashboardHeader = ({
                         </div>
 
                         {/* Detalles */}
-                        <div className="text-center leading-none my-1">
-                          <div className="text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
+                        <div className="text-center leading-none my-0.5 xs:my-1">
+                          <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
                             {afiliado.nombres} {afiliado.apellidos}
                           </div>
-                          <span className="text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
+                          <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
                             <span className="font-extrabold">AFILIADO - CÓDIGO:</span>{' '}
                             {afiliado.codigo}
                           </span>
@@ -542,7 +560,7 @@ const DashboardHeader = ({
                               const label =
                                 tipoLabel[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado;
                               return (
-                                <span className="text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
+                                <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
                                   {Array.isArray(label)
                                     ? label.map((line, i) => (
                                         <span key={i} className="block">
@@ -556,12 +574,12 @@ const DashboardHeader = ({
                         </div>
 
                         {/* QR / Logo */}
-                        <div className="flex flex-row items-center justify-center gap-2 w-full px-2 pt-4 min-h-[82px]">
-                          <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
-                            <div className="w-[64px] h-[64px] flex items-center justify-center shrink-0 relative">
+                        <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[70px] xs:min-h-[82px]">
+                          <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                            <div className="w-[50px] xs:w-[64px] h-[50px] xs:h-[64px] flex items-center justify-center shrink-0 relative">
                               <img src={qrCodeUrl} alt="QR" crossOrigin="anonymous" className="w-full h-full" />
                             </div>
-                            <span className="text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                            <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
                               Verificar QR
                             </span>
                           </div>
@@ -574,10 +592,10 @@ const DashboardHeader = ({
 
                             return (
                               <>
-                                <div className="w-[1px] h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
+                                <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
                                 <div className="flex-1 flex flex-col items-center justify-center">
                                   {logo ? (
-                                    <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+                                    <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
                                       <img
                                         src={logo}
                                         alt="Logo"
@@ -589,8 +607,8 @@ const DashboardHeader = ({
                                       />
                                     </div>
                                   ) : razonSocial ? (
-                                    <div className="h-[64px] w-full flex items-center justify-center shrink-0">
-                                      <span className="text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
+                                    <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
+                                      <span className="text-[8px] xs:text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
                                         {razonSocial}
                                       </span>
                                     </div>
@@ -637,7 +655,10 @@ const DashboardHeader = ({
                   </p>
                 </div>
               )}
-            </div>
+              </div>
+              </div>
+            </>,
+            document.body
           )}
         </div>
       </div>
@@ -654,13 +675,14 @@ const DashboardHeader = ({
       {/* Modal Cropper Overlay */}
       {showCropper && imageToCrop && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => !savingCrop && setShowCropper(false)}
         >
-          <div
-            className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-black text-slate-800 text-lg">Encuadrar Foto</h3>
@@ -762,7 +784,8 @@ const DashboardHeader = ({
             </div>
           </div>
         </div>
-      )}
+      </div>
+    )}
     </header>
   );
 };
