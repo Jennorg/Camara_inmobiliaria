@@ -39,6 +39,8 @@ import WidgetSolicitudAfiliacion from '@/pages/landing/afiliado/components/Widge
 import WidgetGestionAfiliadosCorp from '@/pages/landing/afiliado/components/WidgetGestionAfiliadosCorp';
 import AdminMisAgentesPanel from '@/pages/admin/components/Afiliados/AdminMisAgentesPanel';
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel';
+import WidgetCarnetAfiliado from '@/pages/landing/afiliado/components/WidgetCarnetAfiliado';
+import { AfiliadoDTO } from '@/types/afiliados';
 
 // Componentes Administrativos
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel';
@@ -120,17 +122,7 @@ const PanelPage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [loadingAfiliado, setLoadingAfiliado] = useState(true);
-  const [afiliado, setAfiliado] = useState<{
-    nombre_completo: string;
-    nombres: string | null;
-    apellidos: string | null;
-    codigo: string | null;
-    estatus: string;
-    inscripcion_pagada: number;
-    tipo_afiliado?: string;
-    razon_social?: string;
-    id_empresa?: number;
-  } | null>(null);
+  const [afiliado, setAfiliado] = useState<AfiliadoDTO | null>(null);
 
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
   const [preinscripcionesCount, setPreinscripcionesCount] = useState(0);
@@ -205,6 +197,21 @@ const PanelPage = () => {
   useEffect(() => { fetchAfiliado(); }, [user?.id_afiliado, token]);
 
   const solicitudesPendientesCount = Array.isArray(agentesCorp) ? agentesCorp.filter(a => a && a.fase === 'Solicitud').length : 0;
+
+  const carnetFotoUrl = (() => {
+    if (!afiliado) return null;
+    let redes = afiliado.redes_sociales;
+    if (typeof redes === 'string') {
+      try { redes = JSON.parse(redes); } catch { redes = {}; }
+    }
+    return (
+      redes?.foto_carnet_url ||
+      redes?.foto_junta_carnet_url ||
+      afiliado.foto_junta_url ||
+      afiliado.foto_url ||
+      (afiliado.tipo_afiliado === 'Corporativo' ? afiliado.empresa_logo_url : null)
+    );
+  })();
 
   const displayName = (afiliado?.tipo_afiliado === 'Corporativo' && afiliado?.razon_social) 
     ? afiliado.razon_social 
@@ -367,10 +374,24 @@ const PanelPage = () => {
                     </div>
                   </div>
                 )}
-                {/* <div className="lg:col-span-2"><WidgetFinanciero loading={loadingAfiliado} /></div> */}
-                {/* <div className="lg:col-span-1"><WidgetNotificaciones loading={loadingAfiliado} /></div> */}
-                <div className="lg:col-span-3"><WidgetMisCursos /></div>
-                <div className="lg:col-span-3"><WidgetAcademico /></div>
+                <div className="lg:col-span-1">
+                  <WidgetCarnetAfiliado
+                    afiliado={afiliado}
+                    loading={loadingAfiliado}
+                    onUpdateAfiliado={(updatedFields) => {
+                      if (afiliado) {
+                        setAfiliado({
+                          ...afiliado,
+                          ...updatedFields,
+                        });
+                      }
+                    }}
+                  />
+                </div>
+                <div className="lg:col-span-2 space-y-6 lg:space-y-8">
+                  <WidgetMisCursos />
+                  <WidgetAcademico />
+                </div>
               </>
             )
           )}
@@ -461,6 +482,16 @@ const PanelPage = () => {
           onMenuOpen={() => setMobileOpen(true)}
           userName={displayName}
           userCode={displayCode}
+          userFotoUrl={carnetFotoUrl || (user as any)?.foto_url}
+          afiliado={afiliado}
+          onUpdateAfiliado={(updatedFields) => {
+            if (afiliado) {
+              setAfiliado({
+                ...afiliado,
+                ...updatedFields,
+              });
+            }
+          }}
         />
 
         <div className={`flex-1 min-h-0 ${isFullPanel ? 'h-full' : 'overflow-y-auto p-4 sm:p-6 lg:p-8'}`}>
