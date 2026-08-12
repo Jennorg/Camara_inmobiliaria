@@ -295,7 +295,7 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
       args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo === false ? 0 : 1, foto_junta_url ?? null]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -561,7 +561,7 @@ export const getNormativas = async (req: Request, res: Response) => {
 export const createNormativa = async (req: Request, res: Response) => {
   try {
     const { titulo, descripcion, url_archivo, categoria, orden, activo } = req.body as Record<string, unknown>;
-    const t = typeof titulo === 'string' ? titulo.trim() : '';
+    const t = typeof titulo === 'string' ? titulo.trim().toUpperCase() : '';
     const u = typeof url_archivo === 'string' ? url_archivo.trim() : '';
     
     if (!t || !u) {
@@ -597,7 +597,7 @@ export const updateNormativa = async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id ?? '').trim();
     const { titulo, descripcion, url_archivo, categoria, orden, activo } = req.body as Record<string, unknown>;
-    const t = typeof titulo === 'string' ? titulo.trim() : '';
+    const t = typeof titulo === 'string' ? titulo.trim().toUpperCase() : '';
     const u = typeof url_archivo === 'string' ? url_archivo.trim() : '';
     
     if (!t || !u) {

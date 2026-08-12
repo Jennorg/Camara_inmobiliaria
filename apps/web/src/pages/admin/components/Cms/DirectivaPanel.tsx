@@ -75,6 +75,7 @@ const PRESET_CARGOS = [
   'Director de Eventos',
   'Director de Responsabilidad Social',
   'Director de Relaciones Interinstitucionales',
+  'Director de Atención al Agremiado',
   'Vocal',
   'Otro'
 ]
@@ -93,6 +94,7 @@ export function getGenericCargoName(cargoText: string): string {
   if (key.includes('eventos') || key.includes('evento')) return 'Director(a) de Eventos';
   if (key.includes('responsabilidad_social') || (key.includes('responsabilidad') && key.includes('social'))) return 'Director(a) de Responsabilidad Social';
   if (key.includes('relaciones_interinstitucionales') || (key.includes('relaciones') && key.includes('inter'))) return 'Director(a) de Relaciones Interinstitucionales';
+  if (key.includes('atencion') || key.includes('agremiado')) return 'Director(a) de Atención al Agremiado';
   
   if (key.startsWith('director') || key.startsWith('directora')) {
     let rest = cargoText.trim().substring(8).trim();
@@ -1292,7 +1294,7 @@ export const DirectivaPanel = () => {
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Cargo de Referencia (Interno)</span>
                     <select
-                      value={PRESET_CARGOS.includes(form.cargo_canonical) ? form.cargo_canonical : (form.cargo_canonical ? 'Otro' : '')}
+                      value={isCustomCargo ? 'Otro' : (PRESET_CARGOS.includes(form.cargo_canonical) ? form.cargo_canonical : (form.cargo_canonical ? 'Otro' : ''))}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === 'Otro') {
@@ -1320,7 +1322,17 @@ export const DirectivaPanel = () => {
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Especificar Cargo de Referencia (Masculino)</span>
                       <Input
                         value={form.cargo_canonical}
-                        onChange={(e) => setForm(p => ({ ...p, cargo_canonical: e.target.value, cargo: form.cargo || e.target.value }))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm(p => {
+                            const syncCargo = !p.cargo || p.cargo === p.cargo_canonical;
+                            return {
+                              ...p,
+                              cargo_canonical: val,
+                              cargo: syncCargo ? val : p.cargo
+                            };
+                          });
+                        }}
                         placeholder="Ej. Director de Relaciones Públicas"
                         className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-all text-slate-800 w-full rounded-2xl"
                       />
