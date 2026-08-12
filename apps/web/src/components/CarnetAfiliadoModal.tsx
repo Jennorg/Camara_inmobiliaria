@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, Loader2, Award, CheckCircle, RefreshCw, Pencil, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
@@ -207,6 +208,8 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
         backgroundColor: '#ffffff',
         filter: (node) => !(node instanceof Element && node.classList.contains('hide-on-export')),
         style: {
+          width: '310px',
+          height: '490px',
           transform: 'none',
           borderRadius: '0px', // Quitar borde redondeado durante exportación para un corte limpio
         }
@@ -236,20 +239,32 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
   // Estatus de la credencial
   const isActive = afiliado?.estatus === '5_CIBIR' || afiliado?.estatus === 'Afiliado';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+  return createPortal(
+    <>
       <div
-        className="bg-white dark:bg-[#022c22] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 dark:border-emerald-500/20 relative flex flex-col items-center gap-6 animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+      <div
+        className="fixed inset-0 z-[101] overflow-y-auto overscroll-y-contain"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {/* Botón de Cerrar */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-emerald-950/40 text-slate-400 hover:text-slate-600 dark:hover:text-emerald-200 transition-colors"
-          title="Cerrar ventana"
-        >
-          <X size={20} />
-        </button>
+        <div className="flex min-h-full items-center justify-center p-4">
+          <div
+            className="relative bg-white dark:bg-[#022c22] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 dark:border-emerald-500/20 my-4 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botón de Cerrar */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-emerald-950/40 text-slate-400 hover:text-slate-600 dark:hover:text-emerald-200 transition-colors z-50"
+              title="Cerrar ventana"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-full flex flex-col items-center gap-6">
 
         {hasCredential ? (
           <>
@@ -263,11 +278,11 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
             </div>
 
             {/* AREA DE CAPTURA DEL CARNET */}
-            <div className="p-1 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner overflow-hidden">
+            <div className="p-1 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner overflow-hidden select-none">
               <div
                 ref={cardRef}
                 id="carnet-card-capture"
-                className="w-[310px] h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
+                className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
                 style={{
                   backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
                 }}
@@ -299,23 +314,23 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                 </div>
 
                 {/* 1. Encabezado del Carnet Minimalista Centrado */}
-                <div className="relative z-10 flex items-center justify-center gap-0 w-full border-b border-emerald-600/10 py-2.5">
+                <div className="relative z-10 flex items-center justify-center gap-0.5 w-full border-b border-emerald-600/10 py-1.5 xs:py-2.5">
                   <img
                     src={LogoBgImg}
                     alt="Logo CIEBO"
-                    className="h-16 w-auto object-contain"
+                    className="h-12 xs:h-16 w-auto object-contain"
                   />
-                  <p className="text-[15px] font-bold text-black leading-tight uppercase text-center">
+                  <p className="text-[12px] xs:text-[15px] font-bold text-black leading-tight uppercase text-center">
                     <span className="block whitespace-nowrap text-emerald-800">Cámara Inmobiliaria</span>
                     <span className="block whitespace-nowrap text-emerald-800">de Bolívar</span>
                   </p>
                 </div>
 
                 {/* 2. Cuerpo del Carnet (Máxima relevancia a la foto con espaciado ajustado) */}
-                <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-2 pt-1 pb-1">
+                <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-1.5 xs:gap-2 pt-1 pb-1">
 
                   {/* Contenedor de Fotografía Ampliado */}
-                  <div className="w-[155px] h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
+                  <div className="w-[130px] xs:w-[155px] h-[155px] xs:h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
                     {(() => {
                       const redes = parseRedes(afiliado?.redes_sociales);
                       const carnetPhotoUrl = useJuntaPhoto
@@ -339,7 +354,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center font-black text-6xl text-emerald-700 bg-emerald-50">
+                        <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
                           {afiliado.nombres ? afiliado.nombres.charAt(0) : 'A'}
                         </div>
                       );
@@ -372,11 +387,11 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                   </div>
 
                   {/* Bloque Nombre, Apellido y Código */}
-                  <div className="text-center leading-none my-1">
-                    <div className="text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
+                  <div className="text-center leading-none my-0.5 xs:my-1">
+                    <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
                       {afiliado.nombres}  {afiliado.apellidos}
                     </div>
-                    <span className="text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
+                    <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
                       <span className='font-extrabold'>AFILIADO - CÓDIGO:</span> {afiliado.codigo}
                     </span>
                     {/* Tipo de afiliado debajo del código */}
@@ -389,7 +404,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                       };
                       const label = tipoLabel[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado;
                       return (
-                        <span className="text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
+                        <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
                           {Array.isArray(label)
                             ? label.map((line, i) => <span key={i} className="block">{line}</span>)
                             : label}
@@ -399,10 +414,10 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                   </div>
 
                   {/* Bloque Código QR y Detalles de la Empresa en horizontal (Simétrico) */}
-                  <div className="flex flex-row items-center justify-center gap-2 w-full px-2 pt-4 min-h-[82px]">
+                  <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[70px] xs:min-h-[82px]">
                     {/* QR Code Column */}
-                    <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
-                      <div className="w-[64px] h-[64px] flex items-center justify-center shrink-0 relative">
+                    <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                      <div className="w-[50px] xs:w-[64px] h-[50px] xs:h-[64px] flex items-center justify-center shrink-0 relative">
                         <img
                           src={qrCodeUrl}
                           alt="Código QR Perfil"
@@ -410,7 +425,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                           className="w-full h-full"
                         />
                       </div>
-                      <span className="text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                      <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
                         Verificar QR
                       </span>
                     </div>
@@ -425,12 +440,12 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                       return (
                         <>
                           {/* Línea divisoria vertical */}
-                          <div className="w-[1px] h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
+                          <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
 
                           {/* Logo Column */}
                           <div className="flex-1 flex flex-col items-center justify-center">
                             {logo ? (
-                              <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+                              <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
                                 <img
                                   src={logo}
                                   alt="Logo Empresa"
@@ -442,8 +457,8 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                                 />
                               </div>
                             ) : razonSocial ? (
-                              <div className="h-[64px] w-full flex items-center justify-center shrink-0">
-                                <span className="text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
+                              <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
+                                <span className="text-[8px] xs:text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
                                   {razonSocial}
                                 </span>
                               </div>
@@ -507,12 +522,16 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
             </button>
           </div>
         )}
+          </div>
+        </div>
+      </div>
       </div>
 
       {/* ── MODAL DEL CROPPER DE FOTO PARA EL CARNET (Fondo difuminado z-[99999]) ── */}
       {showCropper && imageToCrop && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !savingCrop && setShowCropper(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !savingCrop && setShowCropper(false)}>
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-black text-slate-800 text-lg">Encuadrar Foto de Credencial</h3>
@@ -615,7 +634,9 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
             </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
+    </>,
+    document.body
   );
 }
