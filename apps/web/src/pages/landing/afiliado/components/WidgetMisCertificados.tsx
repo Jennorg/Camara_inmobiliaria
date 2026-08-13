@@ -79,9 +79,11 @@ const WidgetMisCertificados: React.FC = () => {
     window.open(`${origin}/comprobante/${encodeURIComponent(codigo)}`, '_blank', 'noopener,noreferrer')
   }
 
+  const afiliacionId = afiliadoData?.codigo || user?.codigo || user?.id_afiliado;
+
   const abrirCertificadoAfiliacion = () => {
-    if (user?.id_afiliado) {
-      window.open(`${origin}/comprobante/afiliacion/${user.id_afiliado}`, '_blank', 'noopener,noreferrer')
+    if (afiliacionId) {
+      window.open(`${origin}/comprobante/afiliacion/${afiliacionId}`, '_blank', 'noopener,noreferrer')
     }
   }
 
@@ -91,7 +93,7 @@ const WidgetMisCertificados: React.FC = () => {
   
   console.log('DEBUG: isAfiliadoActivo:', isAfiliadoActivo, 'esCibirAprobado:', esCibirAprobado, 'mostrarWidget:', mostrarWidget);
   
-  const urlAfiliacion = user?.id_afiliado ? `${origin}/comprobante/afiliacion/${user.id_afiliado}` : ''
+  const urlAfiliacion = afiliacionId ? `${origin}/comprobante/afiliacion/${afiliacionId}` : ''
 
   return (
     <DashboardCard title="Mis certificados y comprobantes" icon={Award}>
@@ -109,7 +111,7 @@ const WidgetMisCertificados: React.FC = () => {
                   <ShieldCheck size={11} /> {afiliadoData?.estatus === 'Afiliado' ? 'Miembro Activo' : 'CIBIR Aprobado'}
                 </span>
                 <span className="text-slate-400 text-xs font-bold font-mono">
-                  ID: #{afiliadoData?.codigo || user?.id_afiliado}
+                  ID: #{afiliadoData?.codigo || user?.codigo || user?.id_afiliado}
                 </span>
               </div>
               <h4 className="font-extrabold text-base text-emerald-950">
@@ -123,7 +125,7 @@ const WidgetMisCertificados: React.FC = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-auto">
-              {user?.id_afiliado && (
+              {afiliacionId && (
                 <>
                   <button
                     type="button"
