@@ -58,13 +58,54 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
     return redes;
   };
 
+  // Cargar preferencia guardada de foto (Perfil / Junta Directiva)
+  useEffect(() => {
+    if (afiliado) {
+      const redes = parseRedes(afiliado.redes_sociales);
+      setUseJuntaPhoto(Boolean(redes?.use_junta_photo));
+    }
+  }, [afiliado]);
+
+  const handleToggleJuntaPhoto = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!afiliado) return;
+
+    const nextVal = !useJuntaPhoto;
+    setUseJuntaPhoto(nextVal);
+
+    try {
+      const currentRedes = parseRedes(afiliado.redes_sociales);
+      const updatedRedes = {
+        ...currentRedes,
+        use_junta_photo: nextVal
+      };
+      const payload = { redes_sociales: updatedRedes };
+
+      const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        onUpdateAfiliado?.(payload);
+        toast.success(nextVal ? 'Usando foto de Junta Directiva para la credencial' : 'Usando foto principal para la credencial');
+      }
+    } catch (err) {
+      console.error('Error al guardar preferencia de foto de credencial:', err);
+    }
+  };
+
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
 
     // Recuperamos las coordenadas guardadas de carnet_crop para no perder el encuadre anterior.
     const redes = parseRedes(afiliado?.redes_sociales);
-    const activePhoto = (useJuntaPhoto && afiliado?.foto_junta_url) 
-      ? afiliado.foto_junta_url 
+    const activePhoto = (useJuntaPhoto && afiliado?.foto_junta_url)
+      ? afiliado.foto_junta_url
       : (redes?.foto_original_url || afiliado?.foto_url);
 
     if (activePhoto) {
@@ -154,7 +195,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
       // 4. Guardar tanto la URL recortada física como las coordenadas del cropper en redes_sociales
       const currentRedes = parseRedes(afiliado.redes_sociales);
       const cropData = { x: crop.x, y: crop.y, zoom: cropperZoom };
-      
+
       let originalUrl = currentRedes.foto_original_url || (!afiliado.foto_url?.includes('foto_carnet_') ? afiliado.foto_url : null);
       if (imageFile) {
         try {
@@ -306,262 +347,262 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
 
             <div className="w-full flex flex-col items-center gap-6">
 
-        {hasCredential ? (
-          <>
-            <div className="text-center space-y-1">
-              <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center justify-center gap-2">
-                Credencial Digital
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-emerald-100/70 font-medium">
-                Esta es tu identificación digital oficial de CIEBO.
-              </p>
-            </div>
+              {hasCredential ? (
+                <>
+                  <div className="text-center space-y-1">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center justify-center gap-2">
+                      Credencial Digital
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-emerald-100/70 font-medium">
+                      Esta es tu identificación digital oficial de CIEBO.
+                    </p>
+                  </div>
 
-            {/* AREA DE CAPTURA DEL CARNET */}
-            <div className="p-1 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner overflow-hidden select-none">
-              <div
-                ref={cardRef}
-                id="carnet-card-capture"
-                className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
-                style={{
-                  backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
-                }}
-              >
-                {/* Fondo de agua con logo sin letras (mayor opacidad para visibilidad clara, levemente desplazado hacia abajo) */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none z-0">
-                  <img
-                    src={LogoBgImg}
-                    alt="Fondo de agua"
-                    className="h-200 w-auto object-contain opacity-[0.14] filter blur-[1.5px] transform translate-y-5"
-                  />
-                </div>
-
-
-                <div className="absolute -bottom-22 -left-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-                  <img
-                    src={LogoBgImg}
-                    alt="Fondo de agua secundario"
-                    className="w-full h-full object-contain opacity-[0.14]"
-                  />
-                </div>
-
-                <div className="absolute -bottom-22 -right-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-                  <img
-                    src={LogoBgImg}
-                    alt="Fondo de agua secundario"
-                    className="w-full h-full object-contain opacity-[0.14]"
-                  />
-                </div>
-
-                {/* 1. Encabezado del Carnet Minimalista Centrado */}
-                <div className="relative z-10 flex items-center justify-center gap-0.5 w-full border-b border-emerald-600/10 py-1.5 xs:py-2.5">
-                  <img
-                    src={LogoBgImg}
-                    alt="Logo CIEBO"
-                    className="h-12 xs:h-16 w-auto object-contain"
-                  />
-                  <p className="text-[12px] xs:text-[15px] font-bold text-black leading-tight uppercase text-center">
-                    <span className="block whitespace-nowrap text-emerald-800">Cámara Inmobiliaria</span>
-                    <span className="block whitespace-nowrap text-emerald-800">de Bolívar</span>
-                  </p>
-                </div>
-
-                {/* 2. Cuerpo del Carnet (Máxima relevancia a la foto con espaciado ajustado) */}
-                <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-1.5 xs:gap-2 pt-1 pb-1">
-
-                  {/* Contenedor de Fotografía Ampliado */}
-                  <div className="w-[130px] xs:w-[155px] h-[155px] xs:h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
-                    {(() => {
-                      const redes = parseRedes(afiliado?.redes_sociales);
-                      const carnetPhotoUrl = useJuntaPhoto
-                        ? redes?.foto_junta_carnet_url
-                        : redes?.foto_carnet_url;
-
-                      const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && afiliado?.foto_junta_url) ? afiliado.foto_junta_url : afiliado?.foto_url);
-                      const isCropped = !!carnetPhotoUrl;
-
-                      return activePhoto ? (
-                        <img
-                          src={activePhoto}
-                          alt="Foto Afiliado"
-                          crossOrigin="anonymous"
-                          className="w-full h-full object-cover"
-                          style={isCropped ? {
-                            objectPosition: 'center center'
-                          } : {
-                            transform: 'scale(2)',
-                            transformOrigin: 'center top'
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
-                          {afiliado.nombres ? afiliado.nombres.charAt(0) : 'A'}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Botón flotante para EDITAR/RECORTAR (Lápiz) */}
-                    <button
-                      type="button"
-                      onClick={handleEditClick}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
-                      title="Ajustar encuadre / recortar foto"
+                  {/* AREA DE CAPTURA DEL CARNET */}
+                  <div className="p-1 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner overflow-hidden select-none">
+                    <div
+                      ref={cardRef}
+                      id="carnet-card-capture"
+                      className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
+                      style={{
+                        backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
+                      }}
                     >
-                      <Pencil size={12} />
-                    </button>
-
-                    {/* Botón para alternar foto de perfil / junta directiva */}
-                    {afiliado?.foto_junta_url && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUseJuntaPhoto(!useJuntaPhoto);
-                        }}
-                        className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
-                        title="Cambiar foto (Perfil / Junta Directiva)"
-                      >
-                        <RefreshCw size={12} className={useJuntaPhoto ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Bloque Nombre, Apellido y Código */}
-                  <div className="text-center leading-none my-0.5 xs:my-1">
-                    <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-                      {afiliado.nombres}  {afiliado.apellidos}
-                    </div>
-                    <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
-                      <span className='font-extrabold'>AFILIADO - CÓDIGO:</span> {afiliado.codigo}
-                    </span>
-                    {/* Tipo de afiliado debajo del código */}
-                    {afiliado.tipo_afiliado && (() => {
-                      const tipoLabel: Record<string, string | string[]> = {
-                        'Natural': 'Agente Independiente',
-                        'Agente': 'Agente Independiente',
-                        'Agente Corporativo': 'Agente Corporativo',
-                        'Corporativo': ['Corporativo', 'Repr. Legal'],
-                      };
-                      const label = tipoLabel[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado;
-                      return (
-                        <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
-                          {Array.isArray(label)
-                            ? label.map((line, i) => <span key={i} className="block">{line}</span>)
-                            : label}
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Bloque Código QR y Detalles de la Empresa en horizontal (Simétrico) */}
-                  <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[82px] xs:min-h-[96px]">
-                    {/* QR Code Column */}
-                    <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                      <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 relative">
+                      {/* Fondo de agua con logo sin letras (mayor opacidad para visibilidad clara, levemente desplazado hacia abajo) */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none z-0">
                         <img
-                          src={qrCodeUrl}
-                          alt="Código QR Perfil"
-                          crossOrigin="anonymous"
-                          className="w-full h-full"
+                          src={LogoBgImg}
+                          alt="Fondo de agua"
+                          className="h-200 w-auto object-contain opacity-[0.14] filter blur-[1.5px] transform translate-y-5"
                         />
                       </div>
-                      <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
-                        Verificar QR
-                      </span>
-                    </div>
 
-                    {/* Logo de Empresa/Marca si aplica */}
-                    {(() => {
-                      const logo = afiliado?.empresa_logo_url;
 
-                      // Sin logo → solo se muestra el QR, sin columna extra
-                      if (!logo) return null;
+                      <div className="absolute -bottom-22 -left-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
+                        <img
+                          src={LogoBgImg}
+                          alt="Fondo de agua secundario"
+                          className="w-full h-full object-contain opacity-[0.14]"
+                        />
+                      </div>
 
-                      return (
-                        <>
-                          {/* Línea divisoria vertical */}
-                          <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
+                      <div className="absolute -bottom-22 -right-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
+                        <img
+                          src={LogoBgImg}
+                          alt="Fondo de agua secundario"
+                          className="w-full h-full object-contain opacity-[0.14]"
+                        />
+                      </div>
 
-                          {/* Logo Column */}
-                          <div className="flex-1 flex flex-col items-center justify-center">
-                            <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
+                      {/* 1. Encabezado del Carnet Minimalista Centrado */}
+                      <div className="relative z-10 flex items-center justify-center gap-0.5 w-full border-b border-emerald-600/10 py-1.5 xs:py-2.5">
+                        <img
+                          src={LogoBgImg}
+                          alt="Logo CIEBO"
+                          className="h-12 xs:h-16 w-auto object-contain"
+                        />
+                        <p className="text-[12px] xs:text-[15px] font-bold text-black leading-tight uppercase text-center">
+                          <span className="block whitespace-nowrap text-emerald-800">Cámara Inmobiliaria</span>
+                          <span className="block whitespace-nowrap text-emerald-800">de Bolívar</span>
+                        </p>
+                      </div>
+
+                      {/* 2. Cuerpo del Carnet (Máxima relevancia a la foto con espaciado ajustado) */}
+                      <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-1.5 xs:gap-2 pt-1 pb-1">
+
+                        {/* Contenedor de Fotografía Ampliado */}
+                        <div className="w-[130px] xs:w-[155px] h-[155px] xs:h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
+                          {(() => {
+                            const redes = parseRedes(afiliado?.redes_sociales);
+                            const carnetPhotoUrl = useJuntaPhoto
+                              ? redes?.foto_junta_carnet_url
+                              : redes?.foto_carnet_url;
+
+                            const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && afiliado?.foto_junta_url) ? afiliado.foto_junta_url : afiliado?.foto_url);
+                            const isCropped = !!carnetPhotoUrl;
+
+                            return activePhoto ? (
                               <img
-                                src={logo}
-                                alt="Logo Empresa"
+                                src={activePhoto}
+                                alt="Foto Afiliado"
                                 crossOrigin="anonymous"
-                                className="max-h-full max-w-full object-contain"
-                                onError={(e) => {
-                                  if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                    e.currentTarget.removeAttribute('crossOrigin');
-                                    e.currentTarget.src = logo;
-                                  } else {
-                                    e.currentTarget.style.display = 'none';
-                                  }
+                                className="w-full h-full object-cover"
+                                style={isCropped ? {
+                                  objectPosition: 'center center'
+                                } : {
+                                  transform: 'scale(2)',
+                                  transformOrigin: 'center top'
                                 }}
                               />
-                            </div>
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
+                                {afiliado.nombres ? afiliado.nombres.charAt(0) : 'A'}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Botón flotante para EDITAR/RECORTAR (Lápiz) */}
+                          <button
+                            type="button"
+                            onClick={handleEditClick}
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
+                            title="Ajustar encuadre / recortar foto"
+                          >
+                            <Pencil size={12} />
+                          </button>
+
+                          {/* Botón para alternar foto de perfil / junta directiva */}
+                          {afiliado?.foto_junta_url && (
+                            <button
+                              type="button"
+                              onClick={handleToggleJuntaPhoto}
+                              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
+                              title="Cambiar foto (Perfil / Junta Directiva)"
+                            >
+                              <RefreshCw size={12} className={useJuntaPhoto ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Bloque Nombre, Apellido y Código */}
+                        <div className="text-center leading-none my-0.5 xs:my-1">
+                          <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
+                            {afiliado.nombres}  {afiliado.apellidos}
                           </div>
-                        </>
-                      );
-                    })()}
+                          <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
+                            <span className='font-extrabold'>AFILIADO - CÓDIGO:</span> {afiliado.codigo}
+                          </span>
+                          {/* Tipo de afiliado debajo del código */}
+                          {afiliado.tipo_afiliado && (() => {
+                            const tipoLabel: Record<string, string | string[]> = {
+                              'Natural': 'Agente Independiente',
+                              'Agente': 'Agente Independiente',
+                              'Agente Corporativo': 'Agente Corporativo',
+                              'Corporativo': ['Corporativo', 'Repr. Legal'],
+                            };
+                            const label = tipoLabel[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado;
+                            return (
+                              <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
+                                {Array.isArray(label)
+                                  ? label.map((line, i) => <span key={i} className="block">{line}</span>)
+                                  : label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Bloque Código QR y Detalles de la Empresa en horizontal (Simétrico) */}
+                        <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[82px] xs:min-h-[96px]">
+                          {/* QR Code Column */}
+                          <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                            <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 relative">
+                              <img
+                                src={qrCodeUrl}
+                                alt="Código QR Perfil"
+                                crossOrigin="anonymous"
+                                className="w-full h-full"
+                              />
+                            </div>
+                            <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                              Verificar QR
+                            </span>
+                          </div>
+
+                          {/* Logo de Empresa/Marca si aplica */}
+                          {(() => {
+                            const logo = afiliado?.empresa_logo_url;
+
+                            // Sin logo → solo se muestra el QR, sin columna extra
+                            if (!logo) return null;
+
+                            return (
+                              <>
+                                {/* Línea divisoria vertical */}
+                                <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
+
+                                {/* Logo Column */}
+                                <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                                  <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0">
+                                    <img
+                                      src={logo}
+                                      alt="Logo Empresa"
+                                      crossOrigin="anonymous"
+                                      className="max-h-full max-w-full object-contain"
+                                      onError={(e) => {
+                                        if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                          e.currentTarget.removeAttribute('crossOrigin');
+                                          e.currentTarget.src = logo;
+                                        } else {
+                                          e.currentTarget.style.display = 'none';
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  {/* <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                              {afiliado.tipo_afiliado === 'Corporativo' ? 'Empresa' : 'Marca / Firma'}
+                            </span> */}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Input de archivo invisible para subir foto si no tiene */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+                  {/* Input de archivo invisible para subir foto si no tiene */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
 
-            {/* BOTÓN DE ACCIÓN: DESCARGAR */}
-            <button
-              onClick={handleDownload}
-              disabled={exporting}
-              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm tracking-wide uppercase shadow-lg shadow-emerald-500/20 hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none active:scale-95 mt-4"
-            >
-              {exporting ? (
-                <>
-                  <Loader2 className="animate-spin" size={18} />
-                  Generando Imagen...
+                  {/* BOTÓN DE ACCIÓN: DESCARGAR */}
+                  <button
+                    onClick={handleDownload}
+                    disabled={exporting}
+                    className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm tracking-wide uppercase shadow-lg shadow-emerald-500/20 hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none active:scale-95 mt-4"
+                  >
+                    {exporting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={18} />
+                        Generando Imagen...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={18} />
+                        Descargar Credencial (PNG)
+                      </>
+                    )}
+                  </button>
                 </>
               ) : (
-                <>
-                  <Download size={18} />
-                  Descargar Credencial (PNG)
-                </>
+                <div className="py-8 text-center space-y-4 max-w-sm flex flex-col items-center">
+                  <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/20 rounded-full flex items-center justify-center text-amber-500">
+                    <Award size={36} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white">Credencial No Disponible</h3>
+                  <p className="text-sm text-slate-500 dark:text-emerald-100/70 leading-relaxed">
+                    Las credenciales gremiales digitales están reservadas exclusivamente para los miembros afiliados que tengan un código de membresía activo en el sistema.
+                  </p>
+                  {afiliado && !afiliado.codigo && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/20 px-4 py-2 rounded-xl">
+                      Estado actual: Tu expediente aún no tiene un código asignado. Contacta a administración para formalizar.
+                    </p>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="mt-2 bg-slate-100 hover:bg-slate-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/60 text-slate-700 dark:text-emerald-100 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors"
+                  >
+                    Entendido
+                  </button>
+                </div>
               )}
-            </button>
-          </>
-        ) : (
-          <div className="py-8 text-center space-y-4 max-w-sm flex flex-col items-center">
-            <div className="w-16 h-16 bg-amber-50 dark:bg-amber-950/20 rounded-full flex items-center justify-center text-amber-500">
-              <Award size={36} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Credencial No Disponible</h3>
-            <p className="text-sm text-slate-500 dark:text-emerald-100/70 leading-relaxed">
-              Las credenciales gremiales digitales están reservadas exclusivamente para los miembros afiliados que tengan un código de membresía activo en el sistema.
-            </p>
-            {afiliado && !afiliado.codigo && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/20 px-4 py-2 rounded-xl">
-                Estado actual: Tu expediente aún no tiene un código asignado. Contacta a administración para formalizar.
-              </p>
-            )}
-            <button
-              onClick={onClose}
-              className="mt-2 bg-slate-100 hover:bg-slate-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/60 text-slate-700 dark:text-emerald-100 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors"
-            >
-              Entendido
-            </button>
-          </div>
-        )}
           </div>
         </div>
-      </div>
       </div>
 
       {/* ── MODAL DEL CROPPER DE FOTO PARA EL CARNET (Fondo difuminado z-[99999]) ── */}
@@ -569,110 +610,110 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
         <div className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !savingCrop && setShowCropper(false)}>
           <div className="flex min-h-full items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-black text-slate-800 text-lg">Encuadrar Foto de Credencial</h3>
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Aspecto exacto del carnet (155x185)</p>
-              </div>
-              <button
-                type="button"
-                disabled={savingCrop}
-                onClick={() => setShowCropper(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors disabled:opacity-50"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Contenedor del cropper con react-easy-crop */}
-            <div className="relative w-full h-72 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100">
-              {isCropperReady ? (
-                <>
-                  <Cropper
-                    image={imageToCrop}
-                    crop={crop}
-                    zoom={cropperZoom}
-                    minZoom={1}
-                    maxZoom={8}
-                    restrictPosition={true}
-                    objectFit="cover"
-                    aspect={155 / 185}
-                    onCropChange={setCrop}
-                    onZoomChange={setCropperZoom}
-                    onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
-                    cropShape="rect"
-                    showGrid={true}
-                  />
-                  {/* Guía central vertical de encuadre */}
-                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] border-l-2 border-dashed border-white/60 drop-shadow-md pointer-events-none z-10" />
-                </>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-                  <Loader2 className="animate-spin text-emerald-600" size={24} />
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-black text-slate-800 text-lg">Encuadrar Foto de Credencial</h3>
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Aspecto exacto del carnet (155x185)</p>
                 </div>
-              )}
-            </div>
-
-            {/* Slider de Zoom */}
-            <div className="px-2">
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
-                <span className="text-[10px] font-bold text-slate-600">{Math.round(cropperZoom * 100)}%</span>
+                <button
+                  type="button"
+                  disabled={savingCrop}
+                  onClick={() => setShowCropper(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <input
-                type="range"
-                value={cropperZoom}
-                min={1}
-                max={8}
-                step={0.02}
-                disabled={savingCrop}
-                onChange={(e) => setCropperZoom(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500 disabled:opacity-50"
-              />
-            </div>
 
-            {/* Botón para cambiar de foto */}
-            <button
-              type="button"
-              disabled={savingCrop}
-              onClick={() => {
-                fileInputRef.current?.click();
-              }}
-              className="w-full text-[10px] font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center justify-center gap-1 uppercase tracking-widest"
-            >
-              <ImageIcon size={12} /> Cargar una foto diferente
-            </button>
-
-            {/* Botones de acción del cropper */}
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                disabled={savingCrop}
-                onClick={() => setShowCropper(false)}
-                className="flex-1 bg-slate-100 text-slate-600 text-sm font-bold py-3 rounded-2xl hover:bg-slate-200 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={savingCrop}
-                onClick={handleCropSave}
-                className="flex-[2] bg-emerald-600 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-75"
-              >
-                {savingCrop ? (
+              {/* Contenedor del cropper con react-easy-crop */}
+              <div className="relative w-full h-72 bg-slate-100 rounded-2xl overflow-hidden border border-slate-100">
+                {isCropperReady ? (
                   <>
-                    <Loader2 className="animate-spin" size={16} />
-                    Guardando...
+                    <Cropper
+                      image={imageToCrop}
+                      crop={crop}
+                      zoom={cropperZoom}
+                      minZoom={1}
+                      maxZoom={8}
+                      restrictPosition={true}
+                      objectFit="cover"
+                      aspect={155 / 185}
+                      onCropChange={setCrop}
+                      onZoomChange={setCropperZoom}
+                      onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                      cropShape="rect"
+                      showGrid={true}
+                    />
+                    {/* Guía central vertical de encuadre */}
+                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] border-l-2 border-dashed border-white/60 drop-shadow-md pointer-events-none z-10" />
                   </>
                 ) : (
-                  'Aplicar Recorte'
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+                    <Loader2 className="animate-spin text-emerald-600" size={24} />
+                  </div>
                 )}
+              </div>
+
+              {/* Slider de Zoom */}
+              <div className="px-2">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+                  <span className="text-[10px] font-bold text-slate-600">{Math.round(cropperZoom * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  value={cropperZoom}
+                  min={1}
+                  max={8}
+                  step={0.02}
+                  disabled={savingCrop}
+                  onChange={(e) => setCropperZoom(Number(e.target.value))}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500 disabled:opacity-50"
+                />
+              </div>
+
+              {/* Botón para cambiar de foto */}
+              <button
+                type="button"
+                disabled={savingCrop}
+                onClick={() => {
+                  fileInputRef.current?.click();
+                }}
+                className="w-full text-[10px] font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center justify-center gap-1 uppercase tracking-widest"
+              >
+                <ImageIcon size={12} /> Cargar una foto diferente
               </button>
+
+              {/* Botones de acción del cropper */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={savingCrop}
+                  onClick={() => setShowCropper(false)}
+                  className="flex-1 bg-slate-100 text-slate-600 text-sm font-bold py-3 rounded-2xl hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={savingCrop}
+                  onClick={handleCropSave}
+                  className="flex-[2] bg-emerald-600 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-75"
+                >
+                  {savingCrop ? (
+                    <>
+                      <Loader2 className="animate-spin" size={16} />
+                      Guardando...
+                    </>
+                  ) : (
+                    'Aplicar Recorte'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </>,
     document.body
   );

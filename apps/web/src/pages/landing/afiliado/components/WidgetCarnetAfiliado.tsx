@@ -115,9 +115,8 @@ export default function WidgetCarnetAfiliado({
     setSavingCrop(true);
     try {
       const fileType = 'image/webp';
-      const fileName = `foto_carnet_${
-        afiliado.codigo || afiliado.id_afiliado
-      }_${Date.now()}.webp`;
+      const fileName = `foto_carnet_${afiliado.codigo || afiliado.id_afiliado
+        }_${Date.now()}.webp`;
 
       // 1. Recortar la imagen
       const croppedImageBlob = await getCroppedImg(
@@ -258,7 +257,7 @@ export default function WidgetCarnetAfiliado({
         ...currentRedes,
         prefer_junta_photo: nextVal
       };
-      const payload: any = { 
+      const payload: any = {
         redes_sociales: updatedRedes
       };
       const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
@@ -456,12 +455,12 @@ export default function WidgetCarnetAfiliado({
                       style={
                         isCropped
                           ? {
-                              objectPosition: 'center center',
-                            }
+                            objectPosition: 'center center',
+                          }
                           : {
-                              transform: 'scale(2)',
-                              transformOrigin: 'center top',
-                            }
+                            transform: 'scale(2)',
+                            transformOrigin: 'center top',
+                          }
                       }
                     />
                   ) : (
@@ -526,10 +525,10 @@ export default function WidgetCarnetAfiliado({
                       <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
                         {Array.isArray(label)
                           ? label.map((line, i) => (
-                              <span key={i} className="block">
-                                {line}
-                              </span>
-                            ))
+                            <span key={i} className="block">
+                              {line}
+                            </span>
+                          ))
                           : label}
                       </span>
                     );
@@ -561,8 +560,8 @@ export default function WidgetCarnetAfiliado({
                   return (
                     <>
                       <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
-                      <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                        <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0">
                           <img
                             src={logo}
                             alt="Logo Empresa"
@@ -578,6 +577,9 @@ export default function WidgetCarnetAfiliado({
                             }}
                           />
                         </div>
+                        {/* <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                          {afiliado.tipo_afiliado === 'Corporativo' ? 'Empresa' : 'Marca / Firma'}
+                        </span> */}
                       </div>
                     </>
                   );

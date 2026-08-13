@@ -624,24 +624,27 @@ const DashboardHeader = ({
                             return (
                               <>
                                 <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
-                                <div className="flex-1 flex flex-col items-center justify-center">
-                                  <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
-                                    <img
-                                      src={logo}
-                                      alt="Logo"
-                                      crossOrigin="anonymous"
-                                      className="max-h-full max-w-full object-contain"
-                                      onError={(e) => {
-                                        if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                          e.currentTarget.removeAttribute('crossOrigin');
-                                          e.currentTarget.src = logo;
-                                        } else {
-                                          e.currentTarget.style.display = 'none';
-                                        }
-                                      }}
-                                    />
-                                  </div>
-                                </div>
+                                <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                                   <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0">
+                                     <img
+                                       src={logo}
+                                       alt="Logo"
+                                       crossOrigin="anonymous"
+                                       className="max-h-full max-w-full object-contain"
+                                       onError={(e) => {
+                                         if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                           e.currentTarget.removeAttribute('crossOrigin');
+                                           e.currentTarget.src = logo;
+                                         } else {
+                                           e.currentTarget.style.display = 'none';
+                                         }
+                                       }}
+                                     />
+                                   </div>
+                                   <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                                     {afiliado.tipo_afiliado === 'Corporativo' ? 'Empresa' : 'Marca / Firma'}
+                                   </span>
+                                 </div>
                               </>
                             );
                           })()}
