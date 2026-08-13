@@ -2734,9 +2734,6 @@ export default function MiembrosPanel() {
                             }}
                           />
                         </div>
-                        <span className="text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
-                          {currentMember.tipo_afiliado === 'Corporativo' ? 'Empresa' : 'Marca / Firma'}
-                        </span>
                       </div>
                     </>
                   );

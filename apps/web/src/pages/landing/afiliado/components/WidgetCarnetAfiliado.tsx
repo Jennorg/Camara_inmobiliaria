@@ -577,9 +577,6 @@ export default function WidgetCarnetAfiliado({
                             }}
                           />
                         </div>
-                        {/* <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
-                          {afiliado.tipo_afiliado === 'Corporativo' ? 'Empresa' : 'Marca / Firma'}
-                        </span> */}
                       </div>
                     </>
                   );
