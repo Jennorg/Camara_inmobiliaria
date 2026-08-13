@@ -1132,47 +1132,67 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
 export const getAfiliadoPublicById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const by = req.query.by as string | undefined;
     const numId = isNaN(Number(id)) ? -1 : Number(id);
-    const result = await db.execute({
-      sql: `
-        SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
-               CASE 
-                 WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
-                 ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
-               END as nombre_completo, 
-               p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
-               p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
-                (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
-               e.razon_social as empresa_razon_social, 
-               (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
-               e.rif_tipo as empresa_rif_tipo,
-               e.rif_numero as empresa_rif_numero,
-               COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url,
-               e.website as empresa_website,
-               e.email as empresa_email,
-               e.telefono as empresa_telefono,
-               COALESCE(e_redes.instagram, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END) as instagram,
-               COALESCE(e_redes.facebook, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END) as facebook,
-               COALESCE(e_redes.linkedin, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END) as linkedin,
-               COALESCE(e_redes.twitter, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END) as twitter,
-               NULL as empresa_banner_url
-        FROM afiliados a
-        JOIN personas p ON a.id_persona = p.id
-        LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-        LEFT JOIN (
-          SELECT id_empresa, 
-                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.instagram') ELSE NULL END as instagram,
-                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.facebook') ELSE NULL END as facebook,
-                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
-                 CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.twitter') ELSE NULL END as twitter
-          FROM empresas
-        ) e_redes ON a.id_empresa = e_redes.id_empresa
-        WHERE (a.codigo = ? OR a.id_afiliado = ?) AND a.estatus = 'Afiliado' AND a.activo = 1
-        ORDER BY CASE WHEN a.codigo = ? THEN 0 ELSE 1 END
-        LIMIT 1
-      `,
-      args: [String(id), numId, String(id)]
-    });
+
+    const baseSql = `
+      SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
+             CASE 
+               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(e.razon_social, COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, ''))
+               ELSE COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') 
+             END as nombre_completo, 
+             p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
+             p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
+              (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
+             e.razon_social as empresa_razon_social, 
+             (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
+             e.rif_tipo as empresa_rif_tipo,
+             e.rif_numero as empresa_rif_numero,
+             COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url,
+             e.website as empresa_website,
+             e.email as empresa_email,
+             e.telefono as empresa_telefono,
+             COALESCE(e_redes.instagram, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END) as instagram,
+             COALESCE(e_redes.facebook, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook') ELSE NULL END) as facebook,
+             COALESCE(e_redes.linkedin, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END) as linkedin,
+             COALESCE(e_redes.twitter, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END) as twitter,
+             NULL as empresa_banner_url
+      FROM afiliados a
+      JOIN personas p ON a.id_persona = p.id
+      LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+      LEFT JOIN (
+        SELECT id_empresa, 
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.instagram') ELSE NULL END as instagram,
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.facebook') ELSE NULL END as facebook,
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.linkedin') ELSE NULL END as linkedin,
+               CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.twitter') ELSE NULL END as twitter
+        FROM empresas
+      ) e_redes ON a.id_empresa = e_redes.id_empresa
+    `;
+
+    let result;
+
+    // Si viene parametro explícito ?by=id, buscar estrictamente por id_afiliado
+    if (by === 'id') {
+      result = await db.execute({
+        sql: `${baseSql} WHERE a.id_afiliado = ? AND (a.estatus = 'Afiliado' OR a.estatus = '5_CIBIR') AND a.activo = 1 LIMIT 1`,
+        args: [numId]
+      });
+    } else {
+      // De lo contrario, buscar primero por código de afiliado
+      result = await db.execute({
+        sql: `${baseSql} WHERE a.codigo = ? AND (a.estatus = 'Afiliado' OR a.estatus = '5_CIBIR') AND a.activo = 1 LIMIT 1`,
+        args: [String(id)]
+      });
+
+      // Si no existe ninguna coincidencia por código, intentar fallback por id_afiliado
+      if (result.rows.length === 0 && numId > 0) {
+        result = await db.execute({
+          sql: `${baseSql} WHERE a.id_afiliado = ? AND (a.estatus = 'Afiliado' OR a.estatus = '5_CIBIR') AND a.activo = 1 LIMIT 1`,
+          args: [numId]
+        });
+      }
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Miembro no encontrado o no activo' });

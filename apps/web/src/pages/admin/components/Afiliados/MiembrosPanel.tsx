@@ -24,6 +24,7 @@ import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
 import LogoBgImg from '@/assets/Logo4.webp'
 import JSZip from 'jszip'
+import QRCode from 'qrcode'
 
 
 const CarnetIcon = ({ w = 16, h = 16 }: { w?: number; h?: number }) => {
@@ -406,8 +407,17 @@ export default function MiembrosPanel() {
         setBatchCurrent(i + 1);
         setCurrentMember(member);
         
-        const pUrl = `${window.location.origin}/miembros/${member.codigo || member.id_afiliado}`;
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pUrl)}`;
+        const mCode = (member.codigo && String(member.codigo).trim() !== '') ? String(member.codigo).trim() : null;
+        const pUrl = mCode ? `${window.location.origin}/miembros/${mCode}` : `${window.location.origin}/miembros/${member.id_afiliado}?by=id`;
+        const qrUrl = await QRCode.toDataURL(pUrl, {
+          margin: 1,
+          width: 240,
+          color: {
+            dark: '#000000',
+            light: '#00000000'
+          },
+          errorCorrectionLevel: 'H'
+        });
         setCurrentMemberQrUrl(qrUrl);
 
         // Esperar a que se actualice el DOM y cargue la foto/QR
@@ -2687,8 +2697,7 @@ export default function MiembrosPanel() {
                 <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
                   <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0 relative">
                     {(() => {
-                      const pUrl = `${window.location.origin}/miembros/${currentMember.codigo || currentMember.id_afiliado}`;
-                      const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(pUrl)}&dark=000000&light=0000&ecLevel=H&size=180`;
+                      const qrUrl = currentMemberQrUrl;
                       return (
                         <img
                           src={qrUrl}

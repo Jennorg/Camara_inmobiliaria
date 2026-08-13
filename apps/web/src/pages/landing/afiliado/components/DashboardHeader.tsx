@@ -11,6 +11,7 @@ import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
 import { compressImage } from '@/utils/imageCompressor';
 import NotificationCenter from '@/components/NotificationCenter';
+import QRCode from 'qrcode';
 
 interface DashboardHeaderProps {
   onMenuOpen: () => void;
@@ -35,6 +36,7 @@ const DashboardHeader = ({
   const [isOpen, setIsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [useJuntaPhoto, setUseJuntaPhoto] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
 
   const { token, isAdmin } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -346,15 +348,29 @@ const DashboardHeader = ({
     }
   };
 
-  const hasCredential = afiliado && afiliado.id_afiliado && afiliado.codigo;
-
+  const memberCode = (afiliado?.codigo && String(afiliado.codigo).trim() !== '') ? String(afiliado.codigo).trim() : null;
   const profileUrl = afiliado
-    ? `${window.location.origin}/miembros/${afiliado.codigo || afiliado.id_afiliado}`
+    ? (memberCode
+        ? `${window.location.origin}/miembros/${memberCode}`
+        : `${window.location.origin}/miembros/${afiliado.id_afiliado}?by=id`)
     : window.location.origin;
 
-  const qrCodeUrl = `https://quickchart.io/qr?text=${encodeURIComponent(
-    profileUrl
-  )}&dark=000000&light=0000&ecLevel=H&size=180`;
+  useEffect(() => {
+    if (!profileUrl) return;
+    QRCode.toDataURL(profileUrl, {
+      margin: 1,
+      width: 240,
+      color: {
+        dark: '#000000',
+        light: '#00000000'
+      },
+      errorCorrectionLevel: 'H'
+    })
+      .then(setQrCodeUrl)
+      .catch(console.error);
+  }, [profileUrl]);
+
+  const hasCredential = Boolean(afiliado && afiliado.id_afiliado && afiliado.codigo);
 
   return (
     <header
@@ -534,7 +550,7 @@ const DashboardHeader = ({
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
-                                {afiliado.nombres ? afiliado.nombres.charAt(0) : 'A'}
+                                {afiliado?.nombres ? afiliado.nombres.charAt(0) : 'A'}
                               </div>
                             );
                           })()}
@@ -574,13 +590,13 @@ const DashboardHeader = ({
                         {/* Detalles */}
                         <div className="text-center leading-none my-0.5 xs:my-1">
                           <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-                            {afiliado.nombres} {afiliado.apellidos}
+                            {afiliado?.nombres} {afiliado?.apellidos}
                           </div>
                           <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
                             <span className="font-extrabold">AFILIADO - CÓDIGO:</span>{' '}
-                            {afiliado.codigo}
+                            {afiliado?.codigo}
                           </span>
-                          {afiliado.tipo_afiliado &&
+                          {afiliado?.tipo_afiliado &&
                             (() => {
                               const tipoLabel: Record<string, string | string[]> = {
                                 Natural: 'Agente Independiente',

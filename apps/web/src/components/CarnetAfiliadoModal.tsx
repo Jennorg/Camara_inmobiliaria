@@ -12,6 +12,8 @@ import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
 import { compressImage } from '@/utils/imageCompressor';
 
+import QRCode from 'qrcode';
+
 interface CarnetAfiliadoModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,6 +25,31 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
   const cardRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [useJuntaPhoto, setUseJuntaPhoto] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+
+  // URL del perfil público para el QR — usamos el código (estable) en lugar del id_afiliado (variable)
+  const memberCode = (afiliado?.codigo && String(afiliado.codigo).trim() !== '') ? String(afiliado.codigo).trim() : null;
+  const profileUrl = afiliado
+    ? (memberCode
+        ? `${window.location.origin}/miembros/${memberCode}`
+        : `${window.location.origin}/miembros/${afiliado.id_afiliado}?by=id`)
+    : window.location.origin;
+
+  // Generación cliente de QR en base64 Data URL (100% compatible con html-to-image y sin fallos CORS)
+  useEffect(() => {
+    if (!profileUrl) return;
+    QRCode.toDataURL(profileUrl, {
+      margin: 1,
+      width: 240,
+      color: {
+        dark: '#000000',
+        light: '#00000000'
+      },
+      errorCorrectionLevel: 'H'
+    })
+      .then(setQrCodeUrl)
+      .catch(console.error);
+  }, [profileUrl]);
 
   const { token } = useAuth();
 
@@ -308,14 +335,6 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
       setExporting(false);
     }
   };
-
-  // URL del perfil público para el QR — usamos el código (estable) en lugar del id_afiliado (variable)
-  const profileUrl = afiliado
-    ? `${window.location.origin}/miembros/${afiliado.codigo || afiliado.id_afiliado}`
-    : window.location.origin;
-
-  // QR Code URL de QuickChart con fondo transparente (light=0000), color negro (dark=000000) y corrección H
-  const qrCodeUrl = `https://quickchart.io/qr?text=${encodeURIComponent(profileUrl)}&dark=000000&light=0000&ecLevel=H&size=180`;
 
   // Estatus de la credencial
   const isActive = afiliado?.estatus === '5_CIBIR' || afiliado?.estatus === 'Afiliado';
