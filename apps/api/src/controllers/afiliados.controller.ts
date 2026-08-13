@@ -278,7 +278,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
                    e.rif_numero as empresa_rif_numero,
-                   COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
+                   COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url,
                    e.website as empresa_website,
                    e.email as empresa_email,
                    e.telefono as empresa_telefono,
@@ -652,7 +652,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
              e.razon_social as empresa_razon_social, 
              e.rif_tipo as empresa_rif_tipo,
              e.rif_numero as empresa_rif_numero,
-             COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
+             COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url,
              e.website as empresa_website,
              e.email as empresa_email,
              e.telefono as empresa_telefono,
@@ -973,9 +973,9 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
              (p.cedula_tipo || '-' || p.cedula) as cedula,
              e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
-             a.tipo_afiliado,
+             a.tipo_afiliado, a.redes_sociales,
              e.razon_social as empresa_razon_social,
-             COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url, e.website as empresa_website,
+             COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url, e.website as empresa_website,
              p.email as email,
              e.email as empresa_email,
              e.telefono as empresa_telefono,
@@ -1059,18 +1059,31 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     const dataSql = `${BASE_SELECT} ${whereClauses} ${ORDER_BY} LIMIT ? OFFSET ?`
     const result = await db.execute({ sql: dataSql, args: [...args, limit, offset] })
 
-    const mappedData = result.rows.map((row) => ({
-      ...row,
-      foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
-      redes_sociales: {
-        instagram: row.instagram || '',
-        linkedin: row.linkedin || '',
-        facebook: row.facebook || '',
-        twitter: row.twitter || '',
-        tiktok: row.tiktok || '',
-        website: row.website || ''
+    const mappedData = result.rows.map((row) => {
+      let origRedes: Record<string, any> = {};
+      if (row.redes_sociales) {
+        if (typeof row.redes_sociales === 'string') {
+          try {
+            origRedes = JSON.parse(row.redes_sociales);
+          } catch {}
+        } else {
+          origRedes = row.redes_sociales as Record<string, any>;
+        }
       }
-    }))
+      return {
+        ...row,
+        foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
+        redes_sociales: {
+          ...origRedes,
+          instagram: row.instagram || origRedes.instagram || '',
+          linkedin: row.linkedin || origRedes.linkedin || '',
+          facebook: row.facebook || origRedes.facebook || '',
+          twitter: row.twitter || origRedes.twitter || '',
+          tiktok: row.tiktok || origRedes.tiktok || '',
+          website: row.website || origRedes.website || ''
+        }
+      };
+    })
 
     // ── Category Breakdown Counts ───────────────────────────────────
     const countsSql = `
@@ -1134,7 +1147,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
                (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
                e.rif_tipo as empresa_rif_tipo,
                e.rif_numero as empresa_rif_numero,
-               COALESCE(e.logo_url, a.marca_logo_url) as empresa_logo_url,
+               COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url,
                e.website as empresa_website,
                e.email as empresa_email,
                e.telefono as empresa_telefono,
@@ -1167,15 +1180,27 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
 
     const row = result.rows[0];
 
+    let origRedes: Record<string, any> = {};
+    if (row.redes_sociales) {
+      if (typeof row.redes_sociales === 'string') {
+        try {
+          origRedes = JSON.parse(row.redes_sociales);
+        } catch {}
+      } else {
+        origRedes = row.redes_sociales as Record<string, any>;
+      }
+    }
+
     const mappedData: any = {
       ...row,
       foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
       redes_sociales: {
-        instagram: row.instagram || '',
-        linkedin: row.linkedin || '',
-        facebook: row.facebook || '',
-        twitter: row.twitter || '',
-        website: row.website || ''
+        ...origRedes,
+        instagram: row.instagram || origRedes.instagram || '',
+        linkedin: row.linkedin || origRedes.linkedin || '',
+        facebook: row.facebook || origRedes.facebook || '',
+        twitter: row.twitter || origRedes.twitter || '',
+        website: row.website || origRedes.website || ''
       }
     };
 
@@ -1468,11 +1493,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     // 1. Obtener el registro actual para saber qué id_persona, id_empresa, id_user, etc. tiene
     const current = await db.execute({
-      sql: `SELECT a.id_persona, a.id_empresa, a.id_user, a.tipo_afiliado,
+      sql: `SELECT a.id_persona, a.id_empresa, a.id_user, a.tipo_afiliado, a.marca_logo_url,
                    p.email AS persona_email,
                    p.cedula AS persona_cedula,
                    p.nombres, p.apellidos, p.telefono AS persona_telefono,
-                   e.email AS empresa_email
+                   e.email AS empresa_email, e.logo_url as empresa_logo_url
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -1492,7 +1517,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       persona_cedula: oldPersonaCedula,
       nombres: oldNombres,
       apellidos: oldApellidos,
-      persona_telefono: oldPersonaTelefono
+      persona_telefono: oldPersonaTelefono,
+      marca_logo_url: oldMarcaLogoUrl,
+      empresa_logo_url: oldEmpresaLogoUrl
     } = current.rows[0] as any;
 
     if (fields.cedula) {
@@ -1526,8 +1553,24 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok', 'website'];
 
     const currentTipoAfiliado = current.rows[0]?.tipo_afiliado || 'Natural';
-    if (currentTipoAfiliado !== 'Corporativo') {
-      if (fields.empresa_logo_url !== undefined && currentTipoAfiliado === 'Natural') {
+    const targetTipoAfiliado = fields.tipo_afiliado !== undefined ? fields.tipo_afiliado : currentTipoAfiliado;
+
+    // Sincronizar logotipos en la conversión de tipo de afiliado
+    if (currentTipoAfiliado === 'Natural' && targetTipoAfiliado === 'Corporativo') {
+      aUpdates.push('marca_logo_url = ?');
+      aArgs.push(null);
+      if (fields.empresa_logo_url === undefined && oldMarcaLogoUrl) {
+        fields.empresa_logo_url = oldMarcaLogoUrl;
+      }
+    } else if (currentTipoAfiliado === 'Corporativo' && targetTipoAfiliado === 'Natural') {
+      if (fields.empresa_logo_url === undefined) {
+        aUpdates.push('marca_logo_url = ?');
+        aArgs.push(oldEmpresaLogoUrl || null);
+      }
+    }
+
+    if (targetTipoAfiliado !== 'Corporativo') {
+      if (fields.empresa_logo_url !== undefined && targetTipoAfiliado === 'Natural') {
         aUpdates.push('marca_logo_url = ?');
         aArgs.push(fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null);
       }
