@@ -310,36 +310,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       return
     }
 
-    // --- BLOQUEO DE 90 DÍAS PARA AFILIACIÓN ---
-    if (programaCodigo === 'AFILIACION') {
-      const existingRejection = await db.execute({
-        sql: `SELECT a.estatus, a.actualizado_en as fecha_ultimo_cambio_estatus 
-              FROM afiliados a
-              JOIN personas p ON a.id_persona = p.id
-              WHERE (p.email = ? OR (p.cedula = ? AND p.cedula IS NOT NULL)) 
-                AND a.estatus = 'Rechazado' 
-              LIMIT 1`,
-        args: [email, cedulaRif],
-      })
-
-      if (existingRejection.rows.length > 0) {
-        const row = existingRejection.rows[0] as any
-        const fechaRechazo = new Date(row.fecha_ultimo_cambio_estatus || row.actualizado_en || Date.now())
-        const diasTranscurridos = Math.floor((Date.now() - fechaRechazo.getTime()) / (1000 * 60 * 60 * 24))
-        const DIAS_BLOQUEO = 90
-
-        if (diasTranscurridos < DIAS_BLOQUEO) {
-          const diasRestantes = DIAS_BLOQUEO - diasTranscurridos
-          res.status(403).json({
-            success: false,
-            message: `Tu solicitud previa fue rechazada definitivamente. Podrás realizar una nueva solicitud en ${diasRestantes} días.`
-          })
-          return
-        }
-      }
-    }
-
-    // --- ESTADO DE CORRECCIÓN (REQUIERE ACCIÓN) ---
+    // --- CONTROL DE ESTADO DE AFILIACIÓN ---
     if (programaCodigo === 'AFILIACION') {
       const activeAfiliado = await db.execute({
         sql: `SELECT a.estatus FROM afiliados a
@@ -351,10 +322,24 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
 
       if (activeAfiliado.rows.length > 0) {
         const row = activeAfiliado.rows[0] as any
+        if (['1_PREINSCRIPCION', '2_EXPEDIENTE', '3_ENTREVISTA'].includes(row.estatus)) {
+          res.status(409).json({
+            success: false,
+            message: 'Ya posees una solicitud de afiliación en proceso de revisión administrativa.'
+          })
+          return
+        }
         if (row.estatus === 'Requiere Acción') {
           res.status(200).json({
             success: true,
             message: 'Ya posees una solicitud de afiliación activa que requiere correcciones. Por favor, revisa tu correo electrónico para encontrar el enlace de edición y completar tu registro.'
+          })
+          return
+        }
+        if (['Afiliado', 'CIBIR', 'Aprobado'].includes(row.estatus)) {
+          res.status(409).json({
+            success: false,
+            message: 'Ya eres un miembro afiliado activo de la Cámara Inmobiliaria.'
           })
           return
         }
@@ -1083,7 +1068,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = excluded.id_empresa,
                     tipo_afiliado = 'Corporativo',
-                    estatus = CASE WHEN afiliados.estatus = '1_PREINSCRIPCION' THEN '2_EXPEDIENTE' ELSE afiliados.estatus END,
+                    estatus = CASE WHEN afiliados.estatus IN ('Afiliado', 'Aprobado', 'CIBIR') THEN afiliados.estatus ELSE '2_EXPEDIENTE' END,
                     ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
                     optar_acreditacion = excluded.optar_acreditacion,
                     actualizado_en = excluded.actualizado_en
@@ -1209,7 +1194,7 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
                   VALUES (?, NULL, 'Natural', '2_EXPEDIENTE', ?, ?, ?)
                   ON CONFLICT(id_persona) DO UPDATE SET
                     id_empresa = NULL,
-                    estatus = CASE WHEN afiliados.estatus = '1_PREINSCRIPCION' THEN '2_EXPEDIENTE' ELSE afiliados.estatus END,
+                    estatus = CASE WHEN afiliados.estatus IN ('Afiliado', 'Aprobado', 'CIBIR') THEN afiliados.estatus ELSE '2_EXPEDIENTE' END,
                     ano_inicio_servicio = COALESCE(excluded.ano_inicio_servicio, afiliados.ano_inicio_servicio),
                     optar_acreditacion = excluded.optar_acreditacion,
                     actualizado_en = excluded.actualizado_en
