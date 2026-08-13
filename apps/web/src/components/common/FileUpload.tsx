@@ -29,6 +29,8 @@ interface FileUploadProps {
   hasError?: boolean;
   /** Si es true, desactiva el preview de imagen y muestra el icono de documento */
   disableImagePreview?: boolean;
+  /** Si es true, bloquea la relación de aspecto y no permite cambiarla en el modal */
+  lockAspect?: boolean;
 }
 
 export default function FileUpload({ 
@@ -47,6 +49,7 @@ export default function FileUpload({
   defaultCropPosition = 'center',
   hasError = false,
   disableImagePreview = false,
+  lockAspect = false,
 }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -408,32 +411,61 @@ export default function FileUpload({
               <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] border-l-2 border-dashed border-white/60 drop-shadow-md pointer-events-none z-10" />
             </div>
 
-            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedAspect(1)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Cuadrado (1:1)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAspect(4 / 5)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  4:5
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAspect(16 / 9)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  16:9
-                </button>
+            {lockAspect ? (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+                <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white text-emerald-700 shadow-sm">
+                  Fijo 1:1 (Cuadrado)
+                </span>
               </div>
-            </div>
+            ) : (folder.includes('logo') || (label && label.toLowerCase().includes('logo'))) ? (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre Logo:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAspect(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Cuadrado (1:1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAspect(16 / 9)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Horizontal (16:9)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAspect(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Cuadrado (1:1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAspect(4 / 5)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    4:5
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAspect(16 / 9)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    16:9
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="px-2">
               <div className="flex justify-between items-center mb-2">

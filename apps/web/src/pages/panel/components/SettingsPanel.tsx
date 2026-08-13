@@ -506,6 +506,7 @@ const SettingsPanel = () => {
                       enableCrop
                       cropAspect={1}
                       cropShape="rect"
+                      lockAspect={true}
                       onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
                       onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
                     />
@@ -672,6 +673,7 @@ const SettingsPanel = () => {
                   enableCrop
                   cropAspect={1}
                   cropShape="rect"
+                  lockAspect={true}
                   onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
                   onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
                 />

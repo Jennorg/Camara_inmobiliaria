@@ -115,20 +115,32 @@ export default function UsersPanel() {
   // ── Filtrado local ultra-rápido ─────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase()
+    const terms = q.split(/\s+/).filter(Boolean)
+
     return normalizedUsers.filter(u => {
       if (filtroRol !== 'todos' && u.rol !== filtroRol) return false
       if (filtroActivo === 'activo'   && !u.activo)   return false
       if (filtroActivo === 'inactivo' &&  u.activo)   return false
-      if (!q) return true
+      if (terms.length === 0) return true
 
-      if (searchField === 'nombre') return u._searchNombre.includes(q)
-      if (searchField === 'codigo') {
-        const qClean = q.replace(/[^a-z0-9]/g, '')
-        return u._searchCodigo.includes(q) || (qClean !== '' && u._searchCodigo.includes(qClean))
+      if (searchField === 'nombre') {
+        return terms.every(term => u._searchNombre.includes(term))
       }
-      if (searchField === 'email') return u._searchEmail.includes(q)
-      if (searchField === 'cedula') return u._searchCedula.includes(q)
-      if (searchField === 'rif') return u._searchRif.includes(q)
+      if (searchField === 'codigo') {
+        return terms.every(term => {
+          const termClean = term.replace(/[^a-z0-9]/g, '')
+          return u._searchCodigo.includes(term) || (termClean !== '' && u._searchCodigo.includes(termClean))
+        })
+      }
+      if (searchField === 'email') {
+        return terms.every(term => u._searchEmail.includes(term))
+      }
+      if (searchField === 'cedula') {
+        return terms.every(term => u._searchCedula.includes(term))
+      }
+      if (searchField === 'rif') {
+        return terms.every(term => u._searchRif.includes(term))
+      }
       return false
     })
   }, [normalizedUsers, debouncedSearch, filtroRol, filtroActivo, searchField])
