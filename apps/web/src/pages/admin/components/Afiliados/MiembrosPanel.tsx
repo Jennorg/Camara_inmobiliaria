@@ -316,6 +316,7 @@ export default function MiembrosPanel() {
   const [showTipoDropdown, setShowTipoDropdown] = useState(false)
   const [filterTipo, setFilterTipo] = useState<'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'>('Todos')
   const [showFilterDropdown, setShowFilterDropdown] = useState(false)
+  const [filterFoto, setFilterFoto] = useState<'todos' | 'con_foto' | 'sin_foto'>('todos')
   const [sortState, setSortState] = useState<'nombre_asc' | 'nombre_desc' | 'codigo_asc' | 'codigo_desc'>('codigo_asc')
 
   const [selected, setSelected] = useState<AfiliadoDTO | null>(null)
@@ -808,7 +809,14 @@ export default function MiembrosPanel() {
         matchTipo = item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
       }
 
-      return matchSearch && matchTipo
+      let matchFoto = true
+      if (filterFoto === 'con_foto') {
+        matchFoto = Boolean(item.foto_url || item.empresa_logo_url)
+      } else if (filterFoto === 'sin_foto') {
+        matchFoto = !item.foto_url && !item.empresa_logo_url
+      }
+
+      return matchSearch && matchTipo && matchFoto
     })
 
     result.sort((a, b) => {
@@ -826,7 +834,7 @@ export default function MiembrosPanel() {
     });
 
     return result;
-  }, [items, debouncedSearch, filterTipo, sortState])
+  }, [items, debouncedSearch, filterTipo, filterFoto, sortState])
 
   const handleEdit = (item: AfiliadoDTO) => {
     handleSelect(item)
@@ -836,17 +844,22 @@ export default function MiembrosPanel() {
   const handleSave = async () => {
     if (!selected) return
     try {
+      // Filtrar campos de solo lectura y auxiliares para la actualización
+      const { nombre_completo, acceso_email, creado_en, actualizado_en, ...payload } = editForm as any;
+
       const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
         headers: authHeaders,
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(payload)
       })
       const json = await res.json()
       if (res.ok && json.success) {
         setIsEditing(false)
-        load()
-        setSelected(json.data)
-        toast.success('Afiliado actualizado con éxito')
+        await load()
+        if (json.data) {
+          setSelected(json.data)
+        }
+        toast.success(json.message || 'Afiliado actualizado con éxito')
       } else {
         toast.error(json.message || 'Error al actualizar')
       }
@@ -1202,6 +1215,43 @@ export default function MiembrosPanel() {
               </>
             )}
           </div>
+
+          {/* Filtro por fotografía */}
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-gray-100">
+            <button
+              type="button"
+              onClick={() => setFilterFoto('todos')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                filterFoto === 'todos'
+                  ? 'bg-slate-800 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterFoto('con_foto')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                filterFoto === 'con_foto'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-emerald-700'
+              }`}
+            >
+              Con Foto
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterFoto('sin_foto')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                filterFoto === 'sin_foto'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-amber-700'
+              }`}
+            >
+              Sin Foto
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-gray-50">
@@ -1270,17 +1320,19 @@ export default function MiembrosPanel() {
               Volver a la lista
             </button>
             {/* Cabecera de Detalle */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 flex gap-2">
+            <div className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-gray-100 flex flex-col gap-4 relative">
+              {/* Barra de Acciones */}
+              <div className="flex items-center justify-end gap-2 w-full z-10">
                 {!isEditing ? (
                   <>
                     <button
                       onClick={() => setShowCarnetModal(true)}
-                      className="px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs shadow-xs border border-emerald-200/40"
+                      className="px-3 sm:px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs shadow-xs border border-emerald-200/40"
                       title="Ver Carnet de Afiliado"
                     >
                       <CarnetIcon w={16} h={16} />
-                      <span>Ver Carnet</span>
+                      <span className="hidden sm:inline">Ver Carnet</span>
+                      <span className="sm:hidden">Carnet</span>
                     </button>
                     <button
                       onClick={() => handleEdit(selected)}
@@ -2349,32 +2401,54 @@ export default function MiembrosPanel() {
               />
             </div>
 
-            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCropAspectChoice(1)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Cuadrado (1:1)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCropAspectChoice(4 / 5)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Perfil (4:5)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCropAspectChoice(16 / 9)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Horizontal (16:9)
-                </button>
+            {imageEditKind === 'logo' ? (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre Logo:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCropAspectChoice(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Cuadrado (1:1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropAspectChoice(16 / 9)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Horizontal (16:9)
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCropAspectChoice(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Cuadrado (1:1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropAspectChoice(4 / 5)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Perfil (4:5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropAspectChoice(16 / 9)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Horizontal (16:9)
+                  </button>
+                </div>
+              </div>
+            )}
 
             {imagePreview && (
               <div className="space-y-4">
@@ -2542,8 +2616,11 @@ export default function MiembrosPanel() {
                   const redes = rawRedes
                     ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
                     : {};
-                  const carnetPhotoUrl = redes?.foto_carnet_url;
-                  const activePhoto = carnetPhotoUrl || currentMember.foto_url;
+                  const useJuntaPhoto = Boolean(redes?.use_junta_photo);
+                  const carnetPhotoUrl = useJuntaPhoto
+                    ? (redes?.foto_junta_carnet_url || currentMember.foto_junta_url)
+                    : redes?.foto_carnet_url;
+                  const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && currentMember.foto_junta_url) ? currentMember.foto_junta_url : currentMember.foto_url);
                   
                   if (activePhoto) {
                     const isCropped = !!carnetPhotoUrl;
@@ -2640,8 +2717,8 @@ export default function MiembrosPanel() {
                       <div className="w-[1px] h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
                       
                       {/* Logo Column */}
-                      <div className="flex-1 flex flex-col items-center justify-center">
-                        <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
+                        <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0">
                           <img
                             src={logo}
                             alt="Logo Empresa"
@@ -2657,6 +2734,9 @@ export default function MiembrosPanel() {
                             }}
                           />
                         </div>
+                        <span className="text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                          {currentMember.tipo_afiliado === 'Corporativo' ? 'Empresa' : 'Marca / Firma'}
+                        </span>
                       </div>
                     </>
                   );

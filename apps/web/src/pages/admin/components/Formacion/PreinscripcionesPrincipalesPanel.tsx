@@ -512,26 +512,60 @@ export default function PreinscripcionesPrincipalesPanel({
 
   const aprobarDirecto = async (id: number) => {
     try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Aprobando preinscripción y otorgando estatus de Afiliado...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/aprobar-directo`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo aprobar')
+
+      Swal.fire({
+        title: '¡Aprobación Exitosa!',
+        text: 'El aspirante ha sido aprobado y registrado como Miembro Afiliado Oficial.',
+        icon: 'success',
+        timer: 2200,
+        showConfirmButton: false
+      })
+
       await fetchData()
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) {
+      Swal.fire({ title: 'Error', text: e.message || 'Error al aprobar', icon: 'error' })
+    }
   }
 
   const remitirACibir = async (id: number) => {
     try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Remitiendo aspirante al programa CIBIR...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/remitir-cibir`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo remitir')
+
+      Swal.fire({
+        title: '¡Remitido a CIBIR!',
+        text: 'El aspirante ha sido movido al estatus 5_CIBIR.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+
       await fetchData()
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) {
+      Swal.fire({ title: 'Error', text: e.message || 'Error al remitir', icon: 'error' })
+    }
   }
 
   const cambiarEtapa = async (idInscripcion: number, etapa: number, labelEtapa: string) => {
@@ -546,6 +580,12 @@ export default function PreinscripcionesPrincipalesPanel({
     })
     if (!result.isConfirmed) return
     try {
+      Swal.fire({
+        title: 'Procesando...',
+        text: 'Actualizando etapa del trámite...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      })
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${idInscripcion}/cambiar-etapa`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -553,6 +593,15 @@ export default function PreinscripcionesPrincipalesPanel({
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la etapa')
+
+      Swal.fire({
+        title: '¡Etapa Actualizada!',
+        text: json.message || `El aspirante ha sido movido a ${labelEtapa}.`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+
       await fetchData()
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message, icon: 'error' })
@@ -1253,92 +1302,90 @@ export default function PreinscripcionesPrincipalesPanel({
                 </div>
               </div>
             ) : (
-              ((['Preinscrito', 'Entrevista'].includes(selected.estatus)) || 
-                (selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '6_INSCRIPCION') || 
-                (selected.afiliado_estatus === '5_CIBIR')) && (
-                <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-3">
-                  {selected.estatus === 'Preinscrito' && selected.afiliado_estatus !== '5_CIBIR' && (
-                    <div className="w-full">
-                      {selected.num_documentos && selected.num_documentos > 0 ? (
-                        <>
-                          <div className="flex gap-2">
-                            {selected.programa_codigo === 'AFILIACION' ? (
-                              <>
-                                {selected.apto_acreditacion ? (
-                                  <>
-                                    <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar Acreditación</button>
-                                    <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Remitir a CIBIR</button>
-                                  </>
-                                ) : (
-                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Remitir a CIBIR</button>
-                                )}
-                                <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">Agendar Cita</button>
-                              </>
-                            ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar</button>}
-                            <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all">Rechazar</button>
-                          </div>
-                          <button 
-                            onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
-                            className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                            Reenviar Enlace de Expediente
-                          </button>
-                        </>
-                      ) : (
-                        <div className="flex gap-2 w-full">
-                          <button 
-                            onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
-                            className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                            Reenviar Enlace
-                          </button>
-                          <button 
-                            onClick={() => rechazar(selected.id_inscripcion)} 
-                            className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-all"
-                          >
-                            Rechazar
-                          </button>
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-3 mb-4">
+                {selected.estatus === 'Preinscrito' && selected.afiliado_estatus !== '5_CIBIR' && (
+                  <div className="w-full">
+                    {selected.num_documentos && selected.num_documentos > 0 ? (
+                      <>
+                        <div className="flex gap-2">
+                          {selected.programa_codigo === 'AFILIACION' ? (
+                            <>
+                              {selected.apto_acreditacion ? (
+                                <>
+                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar Acreditación y Afiliar</button>
+                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Remitir a CIBIR</button>
+                                </>
+                              ) : (
+                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Remitir a CIBIR</button>
+                              )}
+                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">Agendar Cita</button>
+                            </>
+                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar y Afiliar</button>}
+                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all">Rechazar</button>
                         </div>
-                      )}
-                    </div>
-                  )}
-                  {selected.estatus === 'Entrevista' && (
-                    <div className="flex flex-col gap-3">
-                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">Entrevista: {selected.entrevista_fecha} @ {selected.entrevista_hora}</div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setShowModalFinalizar(true)} className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[10px] font-black uppercase tracking-widest">Dar Veredicto</button>
-                        <button onClick={() => setShowModalAgendar(true)} className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest">Reprogramar</button>
+                        <button 
+                          onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
+                          className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Reenviar Enlace de Expediente
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex gap-2 w-full">
+                        <button 
+                          onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
+                          className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Reenviar Enlace
+                        </button>
+                        <button 
+                          onClick={() => rechazar(selected.id_inscripcion)} 
+                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Rechazar
+                        </button>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {selected.estatus === 'Entrevista' && (
+                  <div className="flex flex-col gap-3">
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">Entrevista: {selected.entrevista_fecha} @ {selected.entrevista_hora}</div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowModalFinalizar(true)} className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[10px] font-black uppercase tracking-widest">Dar Veredicto</button>
+                      <button onClick={() => setShowModalAgendar(true)} className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest">Reprogramar</button>
                     </div>
-                  )}
-                  {selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '6_INSCRIPCION' && (
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de Inscripción</span>
-                      <button
-                        onClick={() => cambiarEtapa(selected.id_inscripcion, 6, 'Afiliación')}
-                        className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                        Finalizar y Afiliar
-                      </button>
-                    </div>
-                  )}
-                  {selected.afiliado_estatus === '5_CIBIR' && (
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
-                      <button
-                        onClick={handleAprobarEtapaCibir}
-                        className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                        Aprobar
-                      </button>
-                    </div>
-                  )}
+                  </div>
+                )}
+
+                {selected.afiliado_estatus === '5_CIBIR' && (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
+                    <button
+                      onClick={handleAprobarEtapaCibir}
+                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                      Aprobar CIBIR y Afiliar
+                    </button>
+                  </div>
+                )}
+
+                {/* Botón principal de Afiliación Oficial (Siempre visible si no es Afiliado aun) */}
+                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aprobación Final</span>
+                  <button
+                    onClick={() => cambiarEtapa(selected.id_inscripcion, 6, 'Afiliación')}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                    Finalizar y Convertir en Miembro Afiliado Oficial
+                  </button>
                 </div>
-              )
+              </div>
             )}
 
             <button onClick={() => eliminarSolicitud(selected.id_inscripcion)} className="w-full mt-4 py-3 rounded-xl text-[9px] font-black text-red-300 hover:text-red-500 uppercase tracking-widest transition-colors">Eliminar Solicitud del Sistema</button>

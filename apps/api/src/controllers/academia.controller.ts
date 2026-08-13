@@ -2267,37 +2267,59 @@ async function promocionarYVincularAfiliado(
 
   const convalidadoVal = ['Afiliado', '6_INSCRIPCION'].includes(targetStatus) ? 1 : 0
 
+  const safeEmpresaId = est.id_empresa ?? null
+  const safeNextCode = nextCode ?? null
+  const safeFechaAfiliacion = fechaAfiliacionVal ?? null
+  const safeUserId = userId ?? null
+
+  // Determinar tipo_afiliado consistente con la restricción chk_empresa_asignada
+  const existingAf = await db.execute({
+    sql: `SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?`,
+    args: [finalIdPersona]
+  })
+  const existingTipo = existingAf.rows[0]?.tipo_afiliado as string | undefined
+
+  let determinedTipoAfiliado = 'Natural'
+  if (safeEmpresaId) {
+    if (existingTipo === 'Agente Corporativo' || existingTipo === 'Agente') {
+      determinedTipoAfiliado = 'Agente Corporativo'
+    } else {
+      determinedTipoAfiliado = 'Corporativo'
+    }
+  } else {
+    determinedTipoAfiliado = 'Natural'
+  }
+
   // 4. Insertar/Actualizar afiliado en estatus deseado
   const resIns = await db.execute({
     sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, codigo, fecha_afiliacion, actualizado_en, activo, id_user, cibir_acreditado)
-          VALUES (?, ?, COALESCE(
-            (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
-            CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
-          ), ?, ?, ?, ?, 1, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
           ON CONFLICT(id_persona) DO UPDATE SET
+            id_empresa = excluded.id_empresa,
+            tipo_afiliado = excluded.tipo_afiliado,
             estatus = ?,
             codigo = COALESCE(afiliados.codigo, ?),
             fecha_afiliacion = COALESCE(afiliados.fecha_afiliacion, ?),
-            actualizado_en = excluded.actualizado_en,
+            actualizado_en = ?,
             activo = 1,
             id_user = COALESCE(afiliados.id_user, ?),
             cibir_acreditado = ?
           RETURNING id_afiliado`,
     args: [
       finalIdPersona,
-      est.id_empresa,
-      finalIdPersona,
-      est.id_empresa,
+      safeEmpresaId,
+      determinedTipoAfiliado,
       targetStatus,
-      nextCode,
-      fechaAfiliacionVal,
+      safeNextCode,
+      safeFechaAfiliacion,
       now,
-      userId,
+      safeUserId,
       convalidadoVal,
       targetStatus,
-      nextCode,
-      fechaAfiliacionVal,
-      userId,
+      safeNextCode,
+      safeFechaAfiliacion,
+      now,
+      safeUserId,
       convalidadoVal
     ]
   })
@@ -3307,24 +3329,42 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
         if (est) {
           const finalIdPersona = est.id_persona || est.rep_id_persona
           if (finalIdPersona) {
+            const safeEmpresaId = est.id_empresa ?? null
+
+            const existingAf = await db.execute({
+              sql: `SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?`,
+              args: [finalIdPersona]
+            })
+            const existingTipo = existingAf.rows[0]?.tipo_afiliado as string | undefined
+
+            let determinedTipoAfiliado = 'Natural'
+            if (safeEmpresaId) {
+              if (existingTipo === 'Agente Corporativo' || existingTipo === 'Agente') {
+                determinedTipoAfiliado = 'Agente Corporativo'
+              } else {
+                determinedTipoAfiliado = 'Corporativo'
+              }
+            } else {
+              determinedTipoAfiliado = 'Natural'
+            }
+
             await db.execute({
               sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en, activo)
-                    VALUES (?, ?, COALESCE(
-                      (SELECT tipo_afiliado FROM afiliados WHERE id_persona = ?),
-                      CASE WHEN ? IS NOT NULL THEN 'Corporativo' ELSE 'Natural' END
-                    ), ?, ?, 1)
+                    VALUES (?, ?, ?, ?, ?, 1)
                     ON CONFLICT(id_persona) DO UPDATE SET
+                      id_empresa = excluded.id_empresa,
+                      tipo_afiliado = excluded.tipo_afiliado,
                       estatus = ?,
-                      actualizado_en = excluded.actualizado_en,
+                      actualizado_en = ?,
                       activo = 1`,
               args: [
                 finalIdPersona,
-                est.id_empresa,
-                finalIdPersona,
-                est.id_empresa,
+                safeEmpresaId,
+                determinedTipoAfiliado,
                 targetAfiliadoStatus,
                 now,
-                targetAfiliadoStatus
+                targetAfiliadoStatus,
+                now
               ]
             })
           }

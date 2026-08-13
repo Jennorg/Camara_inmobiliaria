@@ -155,12 +155,7 @@ const DirectorioPage = () => {
     return () => observerRef.current?.disconnect();
   }, [hasMore, loadingMore, loadingFirst, page, fetchPage]);
 
-  const gridCols =
-    afiliados.length === 1 ? 'max-w-sm mx-auto' :
-      afiliados.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
-        afiliados.length === 3 ? 'sm:grid-cols-2 md:grid-cols-3 max-w-4xl mx-auto' :
-          afiliados.length === 4 ? 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto' :
-            'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full';
+  const gridCols = 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 w-full';
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
@@ -320,11 +315,21 @@ const DirectorioPage = () => {
             </div>
           ) : afiliados.length > 0 ? (
             <>
-              <div className={`grid grid-cols-1 ${gridCols} gap-4 md:gap-6 justify-center`}>
-                {afiliados.map((afiliado) => (
-                  <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
-                ))}
-              </div>
+              {(debouncedSearch.trim() || filterType !== 'Todos') ? (
+                <div className="flex flex-wrap justify-center gap-4 md:gap-6">
+                  {afiliados.map((afiliado) => (
+                    <div key={afiliado.id_afiliado} style={{ width: '280px', minWidth: '240px', maxWidth: '320px', flexShrink: 0 }}>
+                      <AfiliadoCard afiliado={afiliado} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`grid grid-cols-1 ${gridCols} gap-4 md:gap-6`}>
+                  {afiliados.map((afiliado) => (
+                    <AfiliadoCard key={afiliado.id_afiliado} afiliado={afiliado} />
+                  ))}
+                </div>
+              )}
 
               {/* Sentinel + bottom loader */}
               <div ref={sentinelRef} className="h-20 flex items-center justify-center mt-12 w-full">
