@@ -8,23 +8,19 @@ const imagesGlob = import.meta.glob('@/assets/photos/*.webp', { eager: true, imp
 const ALL_IMAGES = Object.entries(imagesGlob).map(([key, value]) => {
   const filename = key.substring(key.lastIndexOf('/') + 1);
   const baseName = filename.replace(/\.[^/.]+$/, '');
-  const jpegFilename = `${baseName}.jpeg`;
-  const webpFilename = `${baseName}.webp`;
-  const ratio = (imageRatios as Record<string, number>)[webpFilename] || (imageRatios as Record<string, number>)[jpegFilename] || (imageRatios as Record<string, number>)[filename] || 1.5;
+  const num = parseInt(baseName.replace(/\D/g, ''), 10) || 0;
+  const ratio = (imageRatios as Record<string, number>)[filename] || (imageRatios as Record<string, number>)[`${baseName}.jpeg`] || 1.5;
   return {
+    filename,
+    num,
     src: value,
     ratio
   };
-}).sort((a, b) => {
-  const hash = (str: string) => {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) {
-      h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
-    }
-    return h;
-  };
-  return Math.sin(hash(a.src)) - Math.sin(hash(b.src));
-});
+}).sort((a, b) => a.num - b.num);
+
+// Dividir imágenes entre las dos filas para que no coincida la misma foto consecutivamente
+const ROW_1_IMAGES = ALL_IMAGES.filter((_, idx) => idx % 2 === 0);
+const ROW_2_IMAGES = ALL_IMAGES.filter((_, idx) => idx % 2 !== 0);
 
 /* ─────────────────────────────────────────────────────────────────────────────
    BENTO HORIZONTAL GALLERY
@@ -54,7 +50,7 @@ export default function BentoGallerySection() {
   if (ALL_IMAGES.length === 0) return null;
 
   // Stable animation duration: ~3.2 seconds per image
-  const marqueeDuration = ALL_IMAGES.length * 3.2;
+  const marqueeDuration = ROW_1_IMAGES.length * 4.5;
 
   return (
     <section className="py-24 bg-[#011a14] overflow-hidden relative border-t border-white/5">
@@ -74,7 +70,7 @@ export default function BentoGallerySection() {
 
       {/* Marquee Rows */}
       <div className="space-y-6 relative">
-        {/* Row 1: Right-to-Left */}
+        {/* Row 1: Right-to-Left (Imágenes pares) */}
         <div className="flex relative overflow-hidden group">
           <div
             className="flex gap-4 animate-marquee hover:[animation-play-state:paused] will-change-transform h-[240px] md:h-[380px]"
@@ -82,13 +78,13 @@ export default function BentoGallerySection() {
               animationDuration: `${marqueeDuration}s`
             }}
           >
-            {[...ALL_IMAGES, ...ALL_IMAGES].map(({ src, ratio }, idx) => (
+            {[...ROW_1_IMAGES, ...ROW_1_IMAGES].map(({ src, ratio }, idx) => (
               <GalleryCell key={`row1-${idx}`} src={src} ratio={ratio} />
             ))}
           </div>
         </div>
 
-        {/* Row 2: Left-to-Right */}
+        {/* Row 2: Left-to-Right (Imágenes impares) */}
         <div className="flex relative overflow-hidden group">
           <div
             className="flex gap-4 animate-marquee-reverse hover:[animation-play-state:paused] will-change-transform h-[240px] md:h-[380px]"
@@ -96,7 +92,7 @@ export default function BentoGallerySection() {
               animationDuration: `${marqueeDuration}s`
             }}
           >
-            {[...ALL_IMAGES, ...ALL_IMAGES].reverse().map(({ src, ratio }, idx) => (
+            {[...ROW_2_IMAGES, ...ROW_2_IMAGES].map(({ src, ratio }, idx) => (
               <GalleryCell key={`row2-${idx}`} src={src} ratio={ratio} />
             ))}
           </div>
