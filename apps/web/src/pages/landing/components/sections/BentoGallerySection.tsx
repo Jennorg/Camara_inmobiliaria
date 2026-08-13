@@ -3,7 +3,7 @@ import { Image as ImageIcon } from 'lucide-react';
 import imageRatios from './image-ratios.json';
 
 // Vite-specific way to import all images in a folder
-const imagesGlob = import.meta.glob('@/assets/Photos_2026/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
+const imagesGlob = import.meta.glob('@/assets/photos/*.webp', { eager: true, import: 'default' }) as Record<string, string>;
 
 const ALL_IMAGES = Object.entries(imagesGlob).map(([key, value]) => {
   const filename = key.substring(key.lastIndexOf('/') + 1);
@@ -34,7 +34,7 @@ const ALL_IMAGES = Object.entries(imagesGlob).map(([key, value]) => {
 
 function GalleryCell({ src, ratio }: { src: string; ratio: number }) {
   return (
-    <div 
+    <div
       className="h-full flex-shrink-0 rounded-2xl overflow-hidden shadow-xl group relative bg-black/40 border border-white/5"
       style={{ aspectRatio: ratio }}
     >
@@ -63,15 +63,12 @@ export default function BentoGallerySection() {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto px-6 lg:px-20 mb-16 text-center relative z-10">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <ImageIcon className="text-emerald-500" size={20} />
-          <p className="text-emerald-500 font-black uppercase tracking-[0.3em] text-xs">
-            Vida Institucional
-          </p>
-        </div>
-        <h2 className="text-4xl lg:text-5xl font-black text-white tracking-tighter uppercase mb-6">
+        <h2 className="text-4xl lg:text-5xl font-black text-white tracking-tighter uppercase mb-2">
           Nuestra Comunidad <span className="text-emerald-500 italic">en Acción</span>
         </h2>
+        <p className="text-emerald-400 font-black uppercase tracking-[0.3em] text-xs sm:text-sm mb-6">
+          2da Edición
+        </p>
         <div className="w-20 h-1.5 bg-emerald-500 mx-auto rounded-full" />
       </div>
 
@@ -79,9 +76,9 @@ export default function BentoGallerySection() {
       <div className="space-y-6 relative">
         {/* Row 1: Right-to-Left */}
         <div className="flex relative overflow-hidden group">
-          <div 
+          <div
             className="flex gap-4 animate-marquee hover:[animation-play-state:paused] will-change-transform h-[240px] md:h-[380px]"
-            style={{ 
+            style={{
               animationDuration: `${marqueeDuration}s`
             }}
           >
@@ -93,9 +90,9 @@ export default function BentoGallerySection() {
 
         {/* Row 2: Left-to-Right */}
         <div className="flex relative overflow-hidden group">
-          <div 
+          <div
             className="flex gap-4 animate-marquee-reverse hover:[animation-play-state:paused] will-change-transform h-[240px] md:h-[380px]"
-            style={{ 
+            style={{
               animationDuration: `${marqueeDuration}s`
             }}
           >
