@@ -675,7 +675,21 @@ export default function MiembrosPanel() {
         )
       }
 
-      const payload = isLogo ? { empresa_logo_url: finalUrl } : { foto_url: finalUrl }
+      let payload: any = isLogo ? { empresa_logo_url: finalUrl } : { foto_url: finalUrl };
+      if (!isLogo) {
+        const rawRedes = selected.redes_sociales;
+        const currentRedes = rawRedes
+          ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
+          : {};
+        const updatedRedes = {
+          ...currentRedes,
+          foto_original_url: finalUrl,
+          foto_carnet_url: null,
+          carnet_crop: null
+        };
+        payload.redes_sociales = updatedRedes;
+      }
+
       const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
@@ -684,7 +698,7 @@ export default function MiembrosPanel() {
       if (res.ok) {
         const updated = isLogo
           ? { ...selected, empresa_logo_url: finalUrl }
-          : { ...selected, foto_url: finalUrl }
+          : { ...selected, foto_url: finalUrl, redes_sociales: payload.redes_sociales }
         setSelected(updated)
         setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
         closeImageEditor()
@@ -2616,11 +2630,9 @@ export default function MiembrosPanel() {
                 {/* Logo de Empresa/Marca si aplica */}
                 {(() => {
                   const logo = currentMember.empresa_logo_url;
-                  const razonSocial = currentMember.empresa_razon_social;
-                  const isAgente = currentMember.tipo_afiliado === 'Agente Corporativo';
-                  
-                  if (isAgente && !logo) return null;
-                  if (!logo && !razonSocial) return null;
+
+                  // Sin logo → solo se muestra el QR, sin columna extra
+                  if (!logo) return null;
 
                   return (
                     <>
@@ -2629,30 +2641,22 @@ export default function MiembrosPanel() {
                       
                       {/* Logo Column */}
                       <div className="flex-1 flex flex-col items-center justify-center">
-                        {logo ? (
-                          <div className="h-[64px] w-full flex items-center justify-center shrink-0">
-                            <img
-                              src={logo}
-                              alt="Logo Empresa"
-                              crossOrigin="anonymous"
-                              className="max-h-full max-w-full object-contain"
-                              onError={(e) => {
-                                if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                  e.currentTarget.removeAttribute('crossOrigin');
-                                  e.currentTarget.src = logo;
-                                } else {
-                                  e.currentTarget.style.display = 'none';
-                                }
-                              }}
-                            />
-                          </div>
-                        ) : razonSocial ? (
-                          <div className="h-[64px] w-full flex items-center justify-center shrink-0">
-                            <span className="text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
-                              {razonSocial}
-                            </span>
-                          </div>
-                        ) : null}
+                        <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+                          <img
+                            src={logo}
+                            alt="Logo Empresa"
+                            crossOrigin="anonymous"
+                            className="max-h-full max-w-full object-contain"
+                            onError={(e) => {
+                              if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                e.currentTarget.removeAttribute('crossOrigin');
+                                e.currentTarget.src = logo;
+                              } else {
+                                e.currentTarget.style.display = 'none';
+                              }
+                            }}
+                          />
+                        </div>
                       </div>
                     </>
                   );
