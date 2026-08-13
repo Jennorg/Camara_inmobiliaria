@@ -2591,10 +2591,10 @@ export default function MiembrosPanel() {
               </div>
 
               {/* Bloque Código QR y Detalles de la Empresa en horizontal (Simétrico) */}
-              <div className="flex flex-row items-center justify-center gap-2 w-full px-2 min-h-[82px]">
+              <div className="flex flex-row items-center justify-center gap-2 w-full px-2 min-h-[96px]">
                 {/* QR Code Column */}
                 <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
-                  <div className="w-[64px] h-[64px] flex items-center justify-center shrink-0 relative">
+                  <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0 relative">
                     {(() => {
                       const pUrl = `${window.location.origin}/miembros/${currentMember.codigo || currentMember.id_afiliado}`;
                       const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(pUrl)}&dark=000000&light=0000&ecLevel=H&size=180`;
@@ -2617,7 +2617,9 @@ export default function MiembrosPanel() {
                 {(() => {
                   const logo = currentMember.empresa_logo_url;
                   const razonSocial = currentMember.empresa_razon_social;
+                  const isAgente = currentMember.tipo_afiliado === 'Agente Corporativo';
                   
+                  if (isAgente && !logo) return null;
                   if (!logo && !razonSocial) return null;
 
                   return (
@@ -2635,7 +2637,12 @@ export default function MiembrosPanel() {
                               crossOrigin="anonymous"
                               className="max-h-full max-w-full object-contain"
                               onError={(e) => {
-                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                  e.currentTarget.removeAttribute('crossOrigin');
+                                  e.currentTarget.src = logo;
+                                } else {
+                                  e.currentTarget.style.display = 'none';
+                                }
                               }}
                             />
                           </div>

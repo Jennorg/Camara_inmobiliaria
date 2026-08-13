@@ -58,13 +58,20 @@ function getTipoAfiliadoMeta(tipo?: string) {
   };
 }
 
-/** Tarjeta corporativa: foto del representante en grande (con cover); personas: foto con cover. */
 function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
+  let redes = afiliado.redes_sociales;
+  if (typeof redes === 'string') {
+    try { redes = JSON.parse(redes); } catch { redes = {}; }
+  }
+  const carnetFotoUrl = redes?.prefer_junta_photo
+    ? (redes?.foto_junta_carnet_url || afiliado.foto_junta_url || redes?.foto_carnet_url || afiliado.foto_url)
+    : (redes?.foto_carnet_url || afiliado.foto_url || redes?.foto_junta_carnet_url || afiliado.foto_junta_url);
+
   if (isCorpView) {
-    const url = afiliado.foto_url || afiliado.empresa_logo_url || null;
+    const url = carnetFotoUrl || afiliado.empresa_logo_url || null;
     return { url };
   }
-  return { url: afiliado.foto_url || null };
+  return { url: carnetFotoUrl || null };
 }
 
 /** Skeleton pulse placeholder shown while an image is loading */

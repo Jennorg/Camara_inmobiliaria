@@ -44,6 +44,27 @@ export const ProfileHero = ({
 
   const yearsExp = afiliado.anos_servicio || (afiliado.ano_inicio_servicio ? (new Date().getFullYear() - afiliado.ano_inicio_servicio) : null) || 0;
 
+  const activePhoto = (() => {
+    let redes = afiliado.redes_sociales;
+    if (typeof redes === 'string') {
+      try { redes = JSON.parse(redes); } catch { redes = {}; }
+    }
+    if (redes?.prefer_junta_photo) {
+      return (
+        redes?.foto_junta_carnet_url ||
+        afiliado.foto_junta_url ||
+        redes?.foto_carnet_url ||
+        afiliado.foto_url
+      );
+    }
+    return (
+      redes?.foto_carnet_url ||
+      afiliado.foto_url ||
+      redes?.foto_junta_carnet_url ||
+      afiliado.foto_junta_url
+    );
+  })();
+
   const phoneForWa = isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono;
   const waLink = phoneForWa ? formatWhatsAppUrl(phoneForWa) : null;
 
@@ -100,9 +121,9 @@ END:VCARD`;
 
         {/* LADO IZQUIERDO: Foto del representante */}
         <div className="w-full lg:w-[40%] bg-slate-900 relative shrink-0 overflow-hidden flex items-stretch">
-          {afiliado.foto_url ? (
+          {activePhoto ? (
             <img
-              src={afiliado.foto_url}
+              src={activePhoto}
               alt={`Foto de ${afiliado.nombres}`}
               className="w-full h-full object-cover min-h-[350px] lg:min-h-full transition-transform duration-700 hover:scale-105 relative z-0"
             />

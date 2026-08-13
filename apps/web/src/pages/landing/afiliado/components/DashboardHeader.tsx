@@ -46,7 +46,7 @@ const DashboardHeader = ({
   const [showCropper, setShowCropper] = useState(false);
   const [isCropperReady, setIsCropperReady] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [cropperZoom, setCropperZoom] = useState(1);
+  const [cropperZoom, setCropperZoom] = useState(1.4);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -120,7 +120,7 @@ const DashboardHeader = ({
         : redes?.carnet_crop;
 
       setCrop(cropConfig ? { x: cropConfig.x, y: cropConfig.y } : { x: 0, y: 0 });
-      setCropperZoom(cropConfig ? cropConfig.zoom : 2.0);
+      setCropperZoom(cropConfig ? cropConfig.zoom : 1.4);
       setImageFile(null);
       setShowCropper(true);
     } else {
@@ -136,7 +136,7 @@ const DashboardHeader = ({
       reader.onload = (ev) => {
         setImageToCrop(ev.target?.result as string);
         setCrop({ x: 0, y: 0 });
-        setCropperZoom(2.0);
+        setCropperZoom(1.4);
         setShowCropper(true);
       };
       reader.readAsDataURL(file);
@@ -245,7 +245,7 @@ const DashboardHeader = ({
     setUseJuntaPhoto(nextVal);
     try {
       const currentRedes = parseRedes(afiliado.redes_sociales);
-      const updatedRedes = {
+      const updatedRedes: Record<string, any> = {
         ...currentRedes,
         prefer_junta_photo: nextVal
       };
@@ -574,9 +574,9 @@ const DashboardHeader = ({
                         </div>
 
                         {/* QR / Logo */}
-                        <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[70px] xs:min-h-[82px]">
+                        <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[82px] xs:min-h-[96px]">
                           <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                            <div className="w-[50px] xs:w-[64px] h-[50px] xs:h-[64px] flex items-center justify-center shrink-0 relative">
+                            <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 relative">
                               <img src={qrCodeUrl} alt="QR" crossOrigin="anonymous" className="w-full h-full" />
                             </div>
                             <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
@@ -587,7 +587,9 @@ const DashboardHeader = ({
                           {(() => {
                             const logo = afiliado?.empresa_logo_url;
                             const razonSocial = afiliado?.empresa_razon_social;
+                            const isAgente = afiliado?.tipo_afiliado === 'Agente Corporativo';
 
+                            if (isAgente && !logo) return null;
                             if (!logo && !razonSocial) return null;
 
                             return (
@@ -602,7 +604,12 @@ const DashboardHeader = ({
                                         crossOrigin="anonymous"
                                         className="max-h-full max-w-full object-contain"
                                         onError={(e) => {
-                                          e.currentTarget.style.display = 'none';
+                                          if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                            e.currentTarget.removeAttribute('crossOrigin');
+                                            e.currentTarget.src = logo;
+                                          } else {
+                                            e.currentTarget.style.display = 'none';
+                                          }
                                         }}
                                       />
                                     </div>
