@@ -49,19 +49,13 @@ export const ProfileHero = ({
     if (typeof redes === 'string') {
       try { redes = JSON.parse(redes); } catch { redes = {}; }
     }
-    if (redes?.prefer_junta_photo) {
-      return (
-        redes?.foto_junta_carnet_url ||
-        afiliado.foto_junta_url ||
-        redes?.foto_carnet_url ||
-        afiliado.foto_url
-      );
-    }
+    // La foto pública del perfil es SIEMPRE la foto original.
+    // foto_junta_url, foto_carnet_url y foto_junta_carnet_url son exclusivas
+    // del carnet y del icono interno — nunca se muestran en el perfil público.
     return (
-      redes?.foto_carnet_url ||
+      redes?.foto_original_url ||
       afiliado.foto_url ||
-      redes?.foto_junta_carnet_url ||
-      afiliado.foto_junta_url
+      null
     );
   })();
 

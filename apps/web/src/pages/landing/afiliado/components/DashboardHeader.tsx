@@ -106,15 +106,15 @@ const DashboardHeader = ({
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const redes = parseRedes(afiliado?.redes_sociales);
     const activePhoto =
       useJuntaPhoto && afiliado?.foto_junta_url
         ? afiliado.foto_junta_url
-        : afiliado?.foto_url;
+        : (redes?.foto_original_url || afiliado?.foto_url);
 
     if (activePhoto) {
       setImageToCrop(activePhoto);
 
-      const redes = parseRedes(afiliado?.redes_sociales);
       const cropConfig = useJuntaPhoto
         ? redes?.junta_carnet_crop
         : redes?.carnet_crop;
@@ -196,16 +196,51 @@ const DashboardHeader = ({
 
       const currentRedes = parseRedes(afiliado.redes_sociales);
       const cropData = { x: crop.x, y: crop.y, zoom: cropperZoom };
-      const updatedRedes = {
+
+      let originalUrl = currentRedes.foto_original_url || (!afiliado.foto_url?.includes('foto_carnet_') ? afiliado.foto_url : null);
+      if (imageFile) {
+        try {
+          const rawFileName = `foto_original_${afiliado.codigo || afiliado.id_afiliado}_${Date.now()}.${imageFile.name.split('.').pop() || 'jpg'}`;
+          const compressedRaw = await compressImage(imageFile, 1200, 0.9);
+          const presignRaw = await fetch(`${API_URL}/api/public/uploads/presign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: rawFileName,
+              folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
+            }),
+          });
+          const presignRawData = await presignRaw.json();
+          if (presignRaw.ok && presignRawData.success) {
+            const { signedUploadUrl: sUrl, token: uTok, publicUrl: origPubUrl } = presignRawData.data;
+            const uRes = await fetch(sUrl, {
+              method: 'PUT',
+              headers: { 'Authorization': `Bearer ${uTok}`, 'Content-Type': compressedRaw.type },
+              body: compressedRaw,
+            });
+            if (uRes.ok) {
+              originalUrl = origPubUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not save raw original photo, continuing with crop:', e);
+        }
+      }
+
+      const updatedRedes: Record<string, any> = {
         ...currentRedes,
         [useJuntaPhoto ? 'foto_junta_carnet_url' : 'foto_carnet_url']: publicUrl,
         [useJuntaPhoto ? 'junta_carnet_crop' : 'carnet_crop']: cropData,
       };
 
-      const payload: any = { redes_sociales: updatedRedes };
-      if (!useJuntaPhoto) {
-        payload.foto_url = publicUrl;
+      // Guardar la foto original en redes_sociales ÚNICAMENTE (nunca en foto_url).
+      // foto_url es la foto pública de /miembros y NO debe cambiar al editar el carnet.
+      if (originalUrl) {
+        updatedRedes.foto_original_url = originalUrl;
       }
+
+      const payload: any = { redes_sociales: updatedRedes };
+      // IMPORTANTE: No se actualiza payload.foto_url aquí bajo ninguna circunstancia.
       const updateRes = await fetch(
         `${API_URL}/api/afiliados/${afiliado.id_afiliado}`,
         {
@@ -249,12 +284,8 @@ const DashboardHeader = ({
         ...currentRedes,
         prefer_junta_photo: nextVal
       };
-      const newFotoUrl = nextVal 
-        ? (updatedRedes.foto_junta_carnet_url || afiliado.foto_junta_url)
-        : (updatedRedes.foto_carnet_url || afiliado.foto_url);
       const payload: any = { 
-        redes_sociales: updatedRedes,
-        foto_url: newFotoUrl || null
+        redes_sociales: updatedRedes
       };
       const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
         method: 'PATCH',
@@ -586,40 +617,30 @@ const DashboardHeader = ({
 
                           {(() => {
                             const logo = afiliado?.empresa_logo_url;
-                            const razonSocial = afiliado?.empresa_razon_social;
-                            const isAgente = afiliado?.tipo_afiliado === 'Agente Corporativo';
 
-                            if (isAgente && !logo) return null;
-                            if (!logo && !razonSocial) return null;
+                            // Sin logo → solo se muestra el QR, sin columna extra
+                            if (!logo) return null;
 
                             return (
                               <>
                                 <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
                                 <div className="flex-1 flex flex-col items-center justify-center">
-                                  {logo ? (
-                                    <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
-                                      <img
-                                        src={logo}
-                                        alt="Logo"
-                                        crossOrigin="anonymous"
-                                        className="max-h-full max-w-full object-contain"
-                                        onError={(e) => {
-                                          if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                            e.currentTarget.removeAttribute('crossOrigin');
-                                            e.currentTarget.src = logo;
-                                          } else {
-                                            e.currentTarget.style.display = 'none';
-                                          }
-                                        }}
-                                      />
-                                    </div>
-                                  ) : razonSocial ? (
-                                    <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
-                                      <span className="text-[8px] xs:text-[9px] font-extrabold text-black uppercase tracking-wide text-center leading-tight line-clamp-3">
-                                        {razonSocial}
-                                      </span>
-                                    </div>
-                                  ) : null}
+                                  <div className="h-[50px] xs:h-[64px] w-full flex items-center justify-center shrink-0">
+                                    <img
+                                      src={logo}
+                                      alt="Logo"
+                                      crossOrigin="anonymous"
+                                      className="max-h-full max-w-full object-contain"
+                                      onError={(e) => {
+                                        if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                          e.currentTarget.removeAttribute('crossOrigin');
+                                          e.currentTarget.src = logo;
+                                        } else {
+                                          e.currentTarget.style.display = 'none';
+                                        }
+                                      }}
+                                    />
+                                  </div>
                                 </div>
                               </>
                             );

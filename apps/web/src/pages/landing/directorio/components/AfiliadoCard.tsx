@@ -63,15 +63,16 @@ function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
   if (typeof redes === 'string') {
     try { redes = JSON.parse(redes); } catch { redes = {}; }
   }
-  const carnetFotoUrl = redes?.prefer_junta_photo
-    ? (redes?.foto_junta_carnet_url || afiliado.foto_junta_url || redes?.foto_carnet_url || afiliado.foto_url)
-    : (redes?.foto_carnet_url || afiliado.foto_url || redes?.foto_junta_carnet_url || afiliado.foto_junta_url);
+  // La foto pública en /miembros es SIEMPRE la foto original del afiliado.
+  // Nunca se debe usar foto_junta_url, foto_carnet_url ni foto_junta_carnet_url aquí;
+  // esas fotos son exclusivas del carnet y del icono interno del header.
+  const publicFotoUrl = redes?.foto_original_url || afiliado.foto_url || null;
 
   if (isCorpView) {
-    const url = carnetFotoUrl || afiliado.empresa_logo_url || null;
+    const url = publicFotoUrl || afiliado.empresa_logo_url || null;
     return { url };
   }
-  return { url: carnetFotoUrl || null };
+  return { url: publicFotoUrl || null };
 }
 
 /** Skeleton pulse placeholder shown while an image is loading */
