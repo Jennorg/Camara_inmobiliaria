@@ -2970,8 +2970,13 @@ export const adminDeleteInscripcion = async (req: Request, res: Response): Promi
           }
         }
 
-        // e. Borrar persona (si no está asociada a ningún otro registro)
+        // e. Borrar afiliado no activo si aplica
         if (idPersona) {
+          await db.execute({
+            sql: `DELETE FROM afiliados WHERE id_persona = ? AND estatus <> 'Afiliado' AND estatus <> '5_CIBIR'`,
+            args: [idPersona]
+          })
+
           const otherPersonaUsage = await db.execute({
             sql: `SELECT 
                     (SELECT COUNT(*) FROM afiliados WHERE id_persona = ?) +
