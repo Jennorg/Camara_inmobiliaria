@@ -11,7 +11,7 @@ import {
   Mail, Phone, MapPin, BadgeCheck, FileText, Calendar, CreditCard,
   ShieldAlert, ArrowUpDown, ChevronDown, ImageIcon, Upload, Loader2,
   Briefcase, StickyNote, Globe, FileDown, Download, Music2, Facebook, Instagram, Linkedin,
-  ExternalLink, GraduationCap
+  ExternalLink, GraduationCap, Award
 } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import Cropper from 'react-easy-crop'
@@ -765,9 +765,7 @@ export default function MiembrosPanel() {
         body: JSON.stringify({ [field]: value })
       })
       if (res.ok) {
-        const updated = { ...selected, [field]: value }
-        setSelected(updated)
-        setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
+        await handleSelect(selected)
       }
     } catch (err) {
       console.error(err)
@@ -1696,21 +1694,22 @@ export default function MiembrosPanel() {
                           : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
                       </p>
                     </div>
-                    {isEditing ? (
-                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={!Boolean(editForm.cibir_acreditado ?? editForm.cibir_convalidado)}
-                          onChange={(e) => setEditForm({ ...editForm, cibir_acreditado: e.target.checked ? 0 : 1 })}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
-                      </label>
-                    ) : (
-                      <span className={`text-xs font-black px-3 py-1 rounded-full ${!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado) ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-700'}`}>
-                        {!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado) ? 'SI' : 'NO'}
-                      </span>
-                    )}
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={!Boolean(isEditing ? (editForm.cibir_acreditado ?? editForm.cibir_convalidado) : (selected.cibir_acreditado ?? selected.cibir_convalidado))}
+                        onChange={(e) => {
+                          const val = e.target.checked ? 0 : 1;
+                          if (isEditing) {
+                            setEditForm({ ...editForm, cibir_acreditado: val });
+                          } else {
+                            updateField('cibir_acreditado', val);
+                          }
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1853,6 +1852,77 @@ export default function MiembrosPanel() {
                   <DataField label="TikTok" value={selected.tiktok || 'No configurado'} isEditing={isEditing} fieldName="tiktok" form={editForm} setForm={setEditForm} />
                 </div>
               </div>
+            {/* Certificados Entregados / Emitidos */}
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                    <Award size={16} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Certificados Entregados</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Comprobantes y títulos digitales emitidos</p>
+                  </div>
+                </div>
+                {selected.certificados && selected.certificados.length > 0 && (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                    {selected.certificados.length} {selected.certificados.length === 1 ? 'Certificado' : 'Certificados'}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {selected.certificados === undefined ? (
+                  <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400">
+                    <RefreshCw size={15} className="animate-spin text-amber-500" />
+                    Cargando certificados...
+                  </div>
+                ) : selected.certificados && selected.certificados.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selected.certificados.map((cert: any) => {
+                      const certTitle = cert.curso_nombre || (cert.programa_codigo ? `Programa ${cert.programa_codigo}` : 'Certificado de Aprobación');
+                      const validationCode = cert.codigo_validacion;
+                      const fechaStr = cert.fecha_emision ? new Date(cert.fecha_emision).toLocaleDateString() : '';
+
+                      return (
+                        <div
+                          key={cert.id_certificado || validationCode}
+                          className="p-3.5 bg-slate-50/80 border border-slate-100 rounded-2xl hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-between gap-3 group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-amber-100/80 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200/50">
+                              <Award size={18} />
+                            </div>
+                            <div className="min-w-0">
+                              <h6 className="text-xs font-black text-slate-800 truncate group-hover:text-amber-950 uppercase tracking-tight">
+                                {certTitle}
+                              </h6>
+                              <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
+                                Cód: <span className="text-amber-700 font-black">{validationCode}</span> {fechaStr ? `· ${fechaStr}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={`/comprobante/${encodeURIComponent(validationCode)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-xl bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-100/80 border border-slate-200 transition-all shrink-0 shadow-2xs"
+                            title="Ver Certificado Digital"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                    <Award size={22} className="mx-auto text-slate-300 mb-1.5" />
+                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Sin certificados emitidos</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Este afiliado aún no posee certificados de aprobación registrados.</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-6">
@@ -1955,7 +2025,8 @@ export default function MiembrosPanel() {
               </div>
             )}
           </div>
-        )}
+        </div>
+      )}
       </div>
 
       {/* Modal Nuevo Miembro */}
@@ -3352,18 +3423,33 @@ function CompanySearchField({
 
   const filteredCompanies = companies.filter((c) => {
     if (!corpSearch.trim()) return true
-    const q = corpSearch.toLowerCase()
+    const q = corpSearch.toLowerCase().trim()
+    const qDigits = q.replace(/\D/g, '')
+    const qClean = q.replace(/[^a-z0-9]/g, '')
     if (selectedCompany && (c.empresa_razon_social || c.nombre_completo || '') === corpSearch) return true;
-    if (corpSearchField === 'nombre') {
-      const razon = (c.empresa_razon_social || '').toLowerCase();
-      const nom = (c.nombre_completo || '').toLowerCase();
-      const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
-      const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
-      return razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
-    }
-    if (corpSearchField === 'rif') return (c.empresa_rif_numero || c.cedula || '').toLowerCase().includes(q)
-    if (corpSearchField === 'codigo') return (c.codigo || '').toLowerCase().includes(q)
-    return true
+
+    const razon = (c.empresa_razon_social || c.razon_social || '').toLowerCase();
+    const nom = (c.nombre_completo || '').toLowerCase();
+    const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
+    const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
+
+    const rifRaw = (c.empresa_rif_numero || c.rif_numero || c.cedula || '').toLowerCase();
+    const rifTipo = (c.empresa_rif_tipo || c.rif_tipo || '').toLowerCase();
+    const rifDigits = rifRaw.replace(/\D/g, '');
+    const rifClean = `${rifTipo}${rifRaw}`.replace(/[^a-z0-9]/g, '');
+
+    const cod = (c.codigo || c.empresa_codigo || '').toLowerCase();
+    const codClean = cod.replace(/[^a-z0-9]/g, '');
+
+    const matchNombre = razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
+    const matchCod = cod.includes(q) || (qClean !== '' && codClean.includes(qClean));
+    const matchRif = rifRaw.includes(q) ||
+                     rifClean.includes(qClean) ||
+                     (qDigits.length >= 2 && rifDigits.includes(qDigits));
+
+    if (corpSearchField === 'rif') return matchRif || matchNombre || matchCod;
+    if (corpSearchField === 'codigo') return matchCod || matchNombre || matchRif;
+    return matchNombre || matchRif || matchCod;
   })
 
   return (

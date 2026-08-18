@@ -124,92 +124,14 @@ export async function emitirComprobanteSiCompleto(
  */
 export async function ensureCibirCertificate(idAfiliado: number): Promise<void> {
   try {
-    // 1. Obtener datos del afiliado
     const afiRes = await db.execute({
-      sql: `SELECT id_afiliado, id_persona, id_empresa, cibir_acreditado FROM afiliados WHERE id_afiliado = ?`,
+      sql: `SELECT id_afiliado, cibir_acreditado FROM afiliados WHERE id_afiliado = ?`,
       args: [idAfiliado]
     })
     if (afiRes.rows.length === 0) return
     const afi = afiRes.rows[0] as any
-
-    // 2. Contar módulos aprobados en acreditaciones_cibir
-    const countRes = await db.execute({
-      sql: `SELECT COUNT(*) as approved_count FROM acreditaciones_cibir WHERE id_afiliado = ? AND estatus = 'aprobado'`,
-      args: [idAfiliado]
-    })
-    const approvedCount = Number((countRes.rows[0] as any).approved_count)
-
-    const isCibirApproved = Number(afi.cibir_acreditado) === 1 || approvedCount === 5
-    if (!isCibirApproved) return
-
-    // Auto-corregir cibir_acreditado = 1 en afiliados si no lo tenía
-    if (Number(afi.cibir_acreditado) !== 1) {
-      await db.execute({
-        sql: `UPDATE afiliados SET cibir_acreditado = 1, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id_afiliado = ?`,
-        args: [idAfiliado]
-      })
-    }
-
-    // 3. Obtener o crear estudiante
-    let idEstudiante: number | null = null
-    if (afi.id_persona) {
-      const estRes = await db.execute({
-        sql: `SELECT id_estudiante FROM estudiantes WHERE id_persona = ?`,
-        args: [afi.id_persona]
-      })
-      if (estRes.rows.length > 0) {
-        idEstudiante = (estRes.rows[0] as any).id_estudiante
-      } else {
-        const insEst = await db.execute({
-          sql: `INSERT INTO estudiantes (id_persona, tipo, creado_en) VALUES (?, 'Afiliado', strftime('%Y-%m-%dT%H:%M:%SZ','now')) RETURNING id_estudiante`,
-          args: [afi.id_persona]
-        })
-        idEstudiante = (insEst.rows[0] as any).id_estudiante
-      }
-    } else if (afi.id_empresa) {
-      const estRes = await db.execute({
-        sql: `SELECT id_estudiante FROM estudiantes WHERE id_empresa = ?`,
-        args: [afi.id_empresa]
-      })
-      if (estRes.rows.length > 0) {
-        idEstudiante = (estRes.rows[0] as any).id_estudiante
-      } else {
-        const insEst = await db.execute({
-          sql: `INSERT INTO estudiantes (id_empresa, tipo, creado_en) VALUES (?, 'Afiliado', strftime('%Y-%m-%dT%H:%M:%SZ','now')) RETURNING id_estudiante`,
-          args: [afi.id_empresa]
-        })
-        idEstudiante = (insEst.rows[0] as any).id_estudiante
-      }
-    }
-
-    if (!idEstudiante) return
-
-    // 4. Obtener o crear inscripción de CIBIR
-    let idInscripcion: number | null = null
-    const inscRes = await db.execute({
-      sql: `SELECT id_inscripcion, completado, estatus FROM inscripciones_cursos WHERE id_estudiante = ? AND programa_codigo = 'CIBIR' AND id_curso IS NULL LIMIT 1`,
-      args: [idEstudiante]
-    })
-
-    if (inscRes.rows.length > 0) {
-      const insc = inscRes.rows[0] as any
-      idInscripcion = insc.id_inscripcion
-      if (Number(insc.completado) !== 1 || !['Inscrito', 'Pagado'].includes(insc.estatus)) {
-        await db.execute({
-          sql: `UPDATE inscripciones_cursos SET completado = 1, estatus = 'Inscrito', actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id_inscripcion = ?`,
-          args: [idInscripcion]
-        })
-      }
-    } else {
-      const insInsc = await db.execute({
-        sql: `INSERT INTO inscripciones_cursos (id_estudiante, programa_codigo, tipo_inscripcion, estatus, completado, creado_en, actualizado_en)
-              VALUES (?, 'CIBIR', 'programa', 'Inscrito', 1, strftime('%Y-%m-%dT%H:%M:%SZ','now'), strftime('%Y-%m-%dT%H:%M:%SZ','now')) RETURNING id_inscripcion`,
-        args: [idEstudiante]
-      })
-      idInscripcion = (insInsc.rows[0] as any).id_inscripcion
-    }
-
-    // El paso 5 (Asegurar certificado en tabla certificados) fue removido, ya que los afiliados acreditados por convalidación no deben recibir un certificado de aprobación regular.
+    const isExonerado = Number(afi.cibir_acreditado) === 1
+    await syncCibirCertificateState(idAfiliado, isExonerado)
   } catch (err) {
     console.error(`ensureCibirCertificate for idAfiliado=${idAfiliado} failed:`, err)
   }
@@ -217,10 +139,10 @@ export async function ensureCibirCertificate(idAfiliado: number): Promise<void> 
 
 /**
  * Sincroniza la acreditación CIBIR y la generación/eliminación del certificado CIBIR:
- * - cibirAcreditado = true (SI Acreditado):
+ * - cibirAcreditado = true (Acreditado por convalidación / Exonerado):
  *   NO va a tener certificado CIBIR (se elimina si existía).
- * - cibirAcreditado = false (NO Acreditado):
- *   SI va a tener certificado CIBIR como si lo hubiera aprobado.
+ * - cibirAcreditado = false (Aprobado en CIBIR):
+ *   SI va a tener certificado CIBIR.
  */
 export async function syncCibirCertificateState(idAfiliado: number, cibirAcreditado: boolean): Promise<void> {
   try {
@@ -231,6 +153,11 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
     if (afiRes.rows.length === 0) return
     const afi = afiRes.rows[0] as any
 
+    const extractId = (res: any, key: string): number => {
+      const val = res.rows?.[0]?.[key] ?? res.lastInsertRowid ?? res.insertId
+      return Number(val) || 0
+    }
+
     // 1. Asegurar registro de estudiante
     let idEstudiante: number | null = null
     if (afi.id_persona) {
@@ -239,13 +166,13 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
         args: [afi.id_persona]
       })
       if (estRes.rows.length > 0) {
-        idEstudiante = (estRes.rows[0] as any).id_estudiante
+        idEstudiante = extractId(estRes, 'id_estudiante')
       } else {
         const insEst = await db.execute({
           sql: `INSERT INTO estudiantes (id_persona, tipo, creado_en) VALUES (?, 'Afiliado', strftime('%Y-%m-%dT%H:%M:%SZ','now')) RETURNING id_estudiante`,
           args: [afi.id_persona]
         })
-        idEstudiante = (insEst.rows[0] as any).id_estudiante
+        idEstudiante = extractId(insEst, 'id_estudiante')
       }
     } else if (afi.id_empresa) {
       const estRes = await db.execute({
@@ -253,20 +180,20 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
         args: [afi.id_empresa]
       })
       if (estRes.rows.length > 0) {
-        idEstudiante = (estRes.rows[0] as any).id_estudiante
+        idEstudiante = extractId(estRes, 'id_estudiante')
       } else {
         const insEst = await db.execute({
           sql: `INSERT INTO estudiantes (id_empresa, tipo, creado_en) VALUES (?, 'Afiliado', strftime('%Y-%m-%dT%H:%M:%SZ','now')) RETURNING id_estudiante`,
           args: [afi.id_empresa]
         })
-        idEstudiante = (insEst.rows[0] as any).id_estudiante
+        idEstudiante = extractId(insEst, 'id_estudiante')
       }
     }
 
     if (!idEstudiante) return
 
     if (cibirAcreditado) {
-      // SI Acreditado => NO va a tener certificado CIBIR
+      // SI Acreditado por convalidación => NO va a tener certificado CIBIR
       await db.execute({
         sql: `DELETE FROM certificados WHERE id_inscripcion IN (
           SELECT id_inscripcion FROM inscripciones_cursos WHERE id_estudiante = ? AND programa_codigo = 'CIBIR'
@@ -274,7 +201,7 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
         args: [idEstudiante]
       })
     } else {
-      // NO Acreditado => SI va a tener certificado CIBIR como si lo hubiera aprobado
+      // Aprobado en CIBIR => SI va a tener certificado CIBIR de aprobación
       let idInscripcion: number | null = null
       const inscRes = await db.execute({
         sql: `SELECT id_inscripcion FROM inscripciones_cursos WHERE id_estudiante = ? AND programa_codigo = 'CIBIR' AND id_curso IS NULL LIMIT 1`,
@@ -282,7 +209,7 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
       })
 
       if (inscRes.rows.length > 0) {
-        idInscripcion = (inscRes.rows[0] as any).id_inscripcion
+        idInscripcion = extractId(inscRes, 'id_inscripcion')
         await db.execute({
           sql: `UPDATE inscripciones_cursos SET completado = 1, estatus = 'Inscrito', actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id_inscripcion = ?`,
           args: [idInscripcion]
@@ -293,7 +220,7 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
                 VALUES (?, 'CIBIR', 'programa', 'Inscrito', 1, strftime('%Y-%m-%dT%H:%M:%SZ','now'), strftime('%Y-%m-%dT%H:%M:%SZ','now')) RETURNING id_inscripcion`,
           args: [idEstudiante]
         })
-        idInscripcion = (insInsc.rows[0] as any).id_inscripcion
+        idInscripcion = extractId(insInsc, 'id_inscripcion')
       }
 
       if (idInscripcion) {

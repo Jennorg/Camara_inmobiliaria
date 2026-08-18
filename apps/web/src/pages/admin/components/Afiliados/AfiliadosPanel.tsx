@@ -947,6 +947,72 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 </div>
               </div>
             </div>
+            {/* Certificados Entregados */}
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                    <Award size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800">Certificados Entregados</h4>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Títulos y comprobantes emitidos</p>
+                  </div>
+                </div>
+                {selected.certificados && selected.certificados.length > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                    {selected.certificados.length} {selected.certificados.length === 1 ? 'Certificado' : 'Certificados'}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {selected.certificados && selected.certificados.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selected.certificados.map((cert: any) => {
+                      const certTitle = cert.curso_nombre || (cert.programa_codigo ? `Programa ${cert.programa_codigo}` : 'Certificado de Aprobación');
+                      const validationCode = cert.codigo_validacion;
+                      const fechaStr = cert.fecha_emision ? new Date(cert.fecha_emision).toLocaleDateString() : '';
+
+                      return (
+                        <div
+                          key={cert.id_certificado || validationCode}
+                          className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-between gap-3 group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100/80 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200/50">
+                              <Award size={16} />
+                            </div>
+                            <div className="min-w-0">
+                              <h6 className="text-[11px] font-black text-slate-800 truncate group-hover:text-amber-950 uppercase tracking-tight">
+                                {certTitle}
+                              </h6>
+                              <p className="text-[9px] font-bold text-slate-400 truncate mt-0.5">
+                                Cód: <span className="text-amber-700 font-black">{validationCode}</span> {fechaStr ? `· ${fechaStr}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={`/comprobante/${encodeURIComponent(validationCode)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-100/80 border border-slate-200 transition-all shrink-0 shadow-2xs"
+                            title="Ver Certificado Digital"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-5 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                    <Award size={20} className="mx-auto text-slate-300 mb-1" />
+                    <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Sin certificados emitidos</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Documentation Section */}
             {((selected.documentos && selected.documentos.length > 0) || selected.tipo_afiliado === 'Corporativo') && (
@@ -1399,18 +1465,33 @@ function CompanySearchField({
 
   const filteredCompanies = companies.filter((c) => {
     if (!corpSearch.trim()) return true
-    const q = corpSearch.toLowerCase()
+    const q = corpSearch.toLowerCase().trim()
+    const qDigits = q.replace(/\D/g, '')
+    const qClean = q.replace(/[^a-z0-9]/g, '')
     if (selectedCompany && (c.empresa_razon_social || c.nombre_completo || '') === corpSearch) return true;
-    if (corpSearchField === 'nombre') {
-      const razon = (c.empresa_razon_social || '').toLowerCase();
-      const nom = (c.nombre_completo || '').toLowerCase();
-      const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
-      const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
-      return razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
-    }
-    if (corpSearchField === 'rif') return (c.empresa_rif_numero || c.cedula || '').toLowerCase().includes(q)
-    if (corpSearchField === 'codigo') return (c.codigo || '').toLowerCase().includes(q)
-    return true
+
+    const razon = (c.empresa_razon_social || c.razon_social || '').toLowerCase();
+    const nom = (c.nombre_completo || '').toLowerCase();
+    const persona = `${c.nombres || ''} ${c.apellidos || ''}`.trim().toLowerCase();
+    const rep = (c.representante_legal || c.representante_nombre || '').toLowerCase();
+
+    const rifRaw = (c.empresa_rif_numero || c.rif_numero || c.cedula || '').toLowerCase();
+    const rifTipo = (c.empresa_rif_tipo || c.rif_tipo || '').toLowerCase();
+    const rifDigits = rifRaw.replace(/\D/g, '');
+    const rifClean = `${rifTipo}${rifRaw}`.replace(/[^a-z0-9]/g, '');
+
+    const cod = (c.codigo || c.empresa_codigo || '').toLowerCase();
+    const codClean = cod.replace(/[^a-z0-9]/g, '');
+
+    const matchNombre = razon.includes(q) || nom.includes(q) || persona.includes(q) || rep.includes(q);
+    const matchCod = cod.includes(q) || (qClean !== '' && codClean.includes(qClean));
+    const matchRif = rifRaw.includes(q) ||
+                     rifClean.includes(qClean) ||
+                     (qDigits.length >= 2 && rifDigits.includes(qDigits));
+
+    if (corpSearchField === 'rif') return matchRif || matchNombre || matchCod;
+    if (corpSearchField === 'codigo') return matchCod || matchNombre || matchRif;
+    return matchNombre || matchRif || matchCod;
   })
 
   return (

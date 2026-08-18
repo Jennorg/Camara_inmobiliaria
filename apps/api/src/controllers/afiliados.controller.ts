@@ -269,6 +269,9 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       return
     }
 
+    // Asegurar sincronización del certificado CIBIR
+    await ensureCibirCertificate(Number(id))
+
     const result = await db.execute({
       sql: `SELECT a.*, u.email AS acceso_email,
                    p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
@@ -332,11 +335,50 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       ]
     })
 
+    // Buscar certificados emitidos al afiliado
+    const certsResult = await db.execute({
+      sql: `
+        SELECT 
+          c.id_certificado,
+          c.codigo_validacion,
+          c.fecha_emision,
+          ic.id_inscripcion,
+          ic.programa_codigo,
+          ic.tipo_inscripcion,
+          ic.estatus AS inscripcion_estatus,
+          ic.completado,
+          cu.titulo AS curso_nombre
+        FROM certificados c
+        JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
+        JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+        LEFT JOIN personas p ON e.id_persona = p.id
+        LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+        LEFT JOIN cursos cu ON cu.id_curso = ic.id_curso
+        WHERE (
+          (e.id_persona IS NOT NULL AND e.id_persona = ?)
+          OR (e.id_empresa IS NOT NULL AND ? IS NOT NULL AND e.id_empresa = ?)
+          OR EXISTS (
+            SELECT 1 FROM afiliados af
+            JOIN personas p_af ON af.id_persona = p_af.id
+            WHERE af.id_afiliado = ? AND LOWER(TRIM(p_af.email)) = LOWER(TRIM(p.email))
+          )
+        )
+        ORDER BY c.fecha_emision DESC
+      `,
+      args: [
+        afiliado.id_persona,
+        afiliado.id_empresa || null,
+        afiliado.id_empresa || -1,
+        afiliado.id_afiliado
+      ]
+    })
+
     res.status(200).json({
       success: true,
       data: {
         ...afiliado,
-        documentos: docsResult.rows
+        documentos: docsResult.rows,
+        certificados: certsResult.rows
       }
     })
   } catch (error) {
@@ -3206,15 +3248,20 @@ export const vincularAfiliadoIndependiente = async (req: Request, res: Response)
 export const publicListEmpresas = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute({
-      sql: `SELECT e.id_empresa, e.razon_social, e.rif_tipo, e.rif_numero,
-                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), '') as representante_legal,
-                   a.codigo as codigo
-            FROM empresas e
-            LEFT JOIN afiliados a ON (a.id_empresa = e.id_empresa OR a.id_afiliado = e.id_representante_legal OR a.id_user = e.id_user) AND a.tipo_afiliado = 'Corporativo'
-            LEFT JOIN personas p ON a.id_persona = p.id
-            WHERE e.eliminado_en IS NULL
-            GROUP BY e.id_empresa
-            ORDER BY e.razon_social ASC`,
+      sql: `
+        SELECT e.id_empresa as id_empresa,
+               COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), 'Empresa Registrada') as razon_social,
+               COALESCE(NULLIF(TRIM(e.rif_tipo), ''), 'J') as rif_tipo,
+               COALESCE(e.rif_numero, '') as rif_numero,
+               COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), '') as representante_legal,
+               COALESCE(a.codigo, '') as codigo
+        FROM empresas e
+        LEFT JOIN afiliados a ON (a.id_empresa = e.id_empresa OR a.id_afiliado = e.id_representante_legal OR a.id_user = e.id_user)
+        LEFT JOIN personas p ON a.id_persona = p.id
+        WHERE e.eliminado_en IS NULL
+        GROUP BY e.id_empresa
+        ORDER BY razon_social ASC
+      `,
       args: []
     });
     res.json({ success: true, data: result.rows });
