@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Building2, User, Mail, Briefcase, Search, X, CheckCircle2, ArrowRight, Loader2, AlertCircle, Check } from 'lucide-react'
 import AffiliationForm from '@/components/forms/AffiliationForm'
+import CompanySearchSelector from '@/components/CompanySearchSelector'
 import { apiUrl } from '@/config/env'
 
 interface Props {
@@ -11,12 +12,12 @@ interface Props {
 
 interface EmpresaAfiliada {
   id_afiliado: number
+  id_empresa?: number
   nombre_completo: string
   empresa_razon_social?: string
   empresa_rif_numero?: string
   codigo?: string
   tipo_afiliado: string
-  id_empresa?: number
 }
 
 const COUNTRIES = [
@@ -48,77 +49,60 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
   const isCorporativo = programaCodigo === 'AFILIACION' && tipoAfiliado === 'Corporativo'
 
   // Búsqueda de empresa para Agente Corporativo
-  const [searchType, setSearchType] = useState<'nombre' | 'rif'>('nombre')
-  const [rifPrefix, setRifPrefix] = useState('J')
-  const [empresaQuery, setEmpresaQuery] = useState('')
-  const [empresaOptions, setEmpresaOptions] = useState<EmpresaAfiliada[]>([])
+  const [allEmpresas, setAllEmpresas] = useState<any[]>([])
   const [empresaSelected, setEmpresaSelected] = useState<EmpresaAfiliada | null>(null)
-  const [empresaLoading, setEmpresaLoading] = useState(false)
-  const [empresaOpen, setEmpresaOpen] = useState(false)
-  const [empresaPerformedSearch, setEmpresaPerformedSearch] = useState(false)
-  const empresaRef = useRef<HTMLDivElement>(null)
 
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Cerrar dropdown empresa al hacer click fuera
+  // Cargar lista de empresas para Agente Corporativo
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (empresaRef.current && !empresaRef.current.contains(e.target as Node)) {
-        setEmpresaOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+    if (!isAgenteCorporativo) return
+    let isMounted = true
 
-  // Buscar empresas afiliadas
-  useEffect(() => {
-    if (!isAgenteCorporativo || empresaQuery.trim().length < 2) {
-      setEmpresaOptions([])
-      setEmpresaLoading(false)
-      setEmpresaPerformedSearch(false)
-      return
-    }
-    setEmpresaLoading(true)
-    setEmpresaPerformedSearch(false)
-    setEmpresaOptions([]) // Limpiar resultados anteriores al iniciar nueva búsqueda
-    const controller = new AbortController()
-    fetch(apiUrl(`/api/public/afiliados/buscar`), { signal: controller.signal })
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) {
-          const q = empresaQuery.trim().toLowerCase()
-          const qDigits = q.replace(/\D/g, '') // Normalizar query (solo dígitos)
-          
-          const corporativas: EmpresaAfiliada[] = json.data
-            .filter((a: any) => a.tipo_afiliado === 'Corporativo')
-            .filter((a: any) => {
-              const nombre = (a.empresa_razon_social || a.nombre_completo || '').toLowerCase()
-              const rifNum = (a.empresa_rif_numero || '').toLowerCase()
-              const rifNumDigits = rifNum.replace(/\D/g, '') // Normalizar RIF de DB
-              const rifTipo = (a.empresa_rif_tipo || '').toLowerCase()
-              
-              if (searchType === 'rif') {
-                const matchPrefix = rifTipo === rifPrefix.toLowerCase()
-                // Comparar usando solo dígitos para permitir nomenclaturas con guión o sin él
-                const matchNum = rifNumDigits.includes(qDigits)
-                // Si coincide el prefijo y parte del número, o si el número coincide y no hay prefijo (fallback)
-                return (matchPrefix && matchNum) || (matchNum && !rifTipo && qDigits.length > 0)
-              }
-              return nombre.includes(q) || rifNum.includes(q)
-            })
-            .slice(0, 8)
-          setEmpresaOptions(corporativas)
-          setEmpresaOpen(corporativas.length > 0)
-        }
-        setEmpresaPerformedSearch(true)
+    Promise.all([
+      fetch(apiUrl('/api/public/empresas')).then(r => r.json()).catch(() => ({ success: false, data: [] })),
+      fetch(apiUrl('/api/public/afiliados/buscar')).then(r => r.json()).catch(() => ({ success: false, data: [] }))
+    ]).then(([resEmpresas, resAfiliados]) => {
+      if (!isMounted) return
+      const rawList: any[] = []
+      if (resEmpresas.success && Array.isArray(resEmpresas.data)) {
+        rawList.push(...resEmpresas.data.map((e: any) => ({
+          id_empresa: e.id_empresa,
+          razon_social: e.razon_social,
+          rif_numero: e.rif_numero,
+          rif_tipo: e.rif_tipo,
+          representante_legal: e.representante_legal,
+          codigo: e.codigo
+        })))
+      }
+      if (resAfiliados.success && Array.isArray(resAfiliados.data)) {
+        const corpAfiliados = resAfiliados.data
+          .filter((a: any) => a.tipo_afiliado === 'Corporativo')
+          .map((a: any) => ({
+            id_empresa: a.id_empresa || a.id_afiliado,
+            razon_social: a.empresa_razon_social || a.nombre_completo,
+            rif_numero: a.empresa_rif_numero || '',
+            rif_tipo: a.empresa_rif_tipo || 'J',
+            representante_legal: a.representante_nombre || a.nombre_completo,
+            codigo: a.codigo
+          }))
+        rawList.push(...corpAfiliados)
+      }
+
+      const seen = new Set<string>()
+      const uniqueList = rawList.filter(e => {
+        const key = String(e.id_empresa)
+        if (!e.id_empresa || seen.has(key)) return false
+        seen.add(key)
+        return true
       })
-      .catch(() => {})
-      .finally(() => setEmpresaLoading(false))
-    return () => controller.abort()
-  }, [empresaQuery, isAgenteCorporativo, searchType, rifPrefix])
+      setAllEmpresas(uniqueList)
+    })
+
+    return () => { isMounted = false }
+  }, [isAgenteCorporativo])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -220,7 +204,6 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                 onClick={() => {
                   setTipoAfiliado(val)
                   setEmpresaSelected(null)
-                  setEmpresaQuery('')
                 }}
                 className={`min-h-[56px] sm:min-h-[72px] px-4 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-2 text-center leading-tight ${
                   tipoAfiliado === val ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'text-white/40 hover:text-white hover:bg-white/5'
@@ -253,155 +236,30 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
 
           {/* Campo de búsqueda de empresa (solo Agente Corporativo) */}
           {isAgenteCorporativo && (
-            <div className="space-y-2" ref={empresaRef}>
+            <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">
                 Empresa a la que perteneces <span className="text-red-400">*</span>
               </label>
-
-              {empresaSelected ? (
-                <div className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300 shadow-lg shadow-emerald-500/5">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-0.5">Empresa Vinculada</p>
-                    <p className="text-sm font-black text-white truncate leading-tight">
-                      {empresaSelected.empresa_razon_social || empresaSelected.nombre_completo}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {empresaSelected.empresa_rif_numero && (
-                        <span className="text-[10px] text-emerald-100/40 font-bold">
-                          RIF: {empresaSelected.empresa_rif_numero}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-emerald-100/20">•</span>
-                      <span className="text-[10px] text-emerald-500/80 font-black">
-                        CÓDIGO: {empresaSelected.codigo || '—'}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setEmpresaSelected(null); setEmpresaQuery('') }}
-                    className="p-2 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all flex-shrink-0"
-                    title="Eliminar selección"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative space-y-3">
-                  {/* Selector de Criterio */}
-                  <div className="flex gap-2 p-1 bg-white/5 border border-white/10 rounded-xl">
-                    <button 
-                      type="button" 
-                      onClick={() => { 
-                        setSearchType('nombre'); 
-                        setEmpresaQuery(''); 
-                        setEmpresaOptions([]); 
-                        setEmpresaLoading(false);
-                      }}
-                      className={`flex-1 py-2 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${searchType === 'nombre' ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                    >
-                      Buscar por Nombre
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => { 
-                        setSearchType('rif'); 
-                        setEmpresaQuery(''); 
-                        setEmpresaOptions([]); 
-                        setEmpresaLoading(false);
-                      }}
-                      className={`flex-1 py-2 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${searchType === 'rif' ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                    >
-                      Buscar por RIF
-                    </button>
-                  </div>
-
-                  <div className={`relative flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H} bg-white transition-all`}>
-                    {searchType === 'rif' && (
-                      <select 
-                        value={rifPrefix} 
-                        onChange={(e) => {
-                          setRifPrefix(e.target.value);
-                          if (empresaQuery.length >= 2) setEmpresaLoading(true);
-                        }}
-                        className="bg-slate-50 border-r border-slate-200 px-4 h-full text-sm font-black text-slate-700 outline-none cursor-pointer hover:bg-slate-100 transition-colors"
-                      >
-                        {['J', 'G', 'C'].map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    )}
-                    
-                    <div className="flex items-center px-4 text-slate-400 shrink-0">
-                      {empresaLoading ? <Loader2 size={16} className="animate-spin text-emerald-500" /> : <Search size={16} />}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={empresaQuery}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setEmpresaQuery(val);
-                        if (val.trim().length >= 2) {
-                          setEmpresaLoading(true);
-                          setEmpresaOptions([]); // Limpiar para evitar parpadeo de resultados viejos
-                        } else {
-                          setEmpresaLoading(false);
-                          setEmpresaOptions([]);
-                        }
-                      }}
-                      onFocus={() => empresaOptions.length > 0 && setEmpresaOpen(true)}
-                      placeholder={searchType === 'nombre' ? "Ej: Inmobiliaria Bolívar..." : "00000000-0"}
-                      className="flex-1 pr-5 h-full outline-none text-sm font-medium text-slate-800 bg-transparent placeholder:text-slate-400"
-                    />
-                  </div>
-
-                  {/* Dropdown resultados */}
-                  {empresaOpen && empresaOptions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 max-h-[280px] overflow-y-auto p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-200 origin-top">
-                      {empresaOptions.map((emp) => (
-                        <button
-                          key={emp.id_afiliado}
-                          type="button"
-                          onClick={() => {
-                            setEmpresaSelected(emp)
-                            setEmpresaOpen(false)
-                            setEmpresaQuery('')
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-all rounded-xl group flex items-center gap-3"
-                        >
-                          <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all shrink-0">
-                            <Building2 size={18} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-slate-800 truncate group-hover:text-emerald-700 transition-colors">
-                              {emp.empresa_razon_social || emp.nombre_completo}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {emp.empresa_rif_numero && (
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                  RIF: {emp.empresa_rif_numero}
-                                </span>
-                              )}
-                              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">•</span>
-                              <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest">
-                                Cód: {emp.codigo || '—'}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {empresaQuery.length >= 2 && !empresaLoading && empresaPerformedSearch && empresaOptions.length === 0 && (
-                    <p className="text-[10px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mt-1 font-bold">
-                      No se encontraron empresas afiliadas. Solo puedes elegir este tipo si tu empresa ya está registrada en la Cámara.
-                    </p>
-                  )}
-                </div>
-              )}
+              <CompanySearchSelector
+                empresas={allEmpresas}
+                selectedId={empresaSelected ? String(empresaSelected.id_empresa) : ''}
+                onSelect={(id, company) => {
+                  if (!id || !company) {
+                    setEmpresaSelected(null);
+                  } else {
+                    setEmpresaSelected({
+                      id_afiliado: Number(company.id_empresa),
+                      id_empresa: Number(company.id_empresa),
+                      nombre_completo: company.razon_social || company.empresa_razon_social || company.nombre_completo || '',
+                      empresa_razon_social: company.razon_social || company.empresa_razon_social,
+                      empresa_rif_numero: company.rif_numero || company.empresa_rif_numero,
+                      codigo: company.codigo || company.empresa_codigo,
+                      tipo_afiliado: 'Corporativo'
+                    });
+                  }
+                }}
+                darkTheme={false}
+              />
             </div>
           )}
 
