@@ -20,6 +20,7 @@ interface CursoDB {
   precio: string | null;
   imagen_url: string | null;
   estatus: string;
+  solo_informativo?: number | boolean;
   isFlagship?: boolean;
   codigo?: string;
 }
@@ -121,6 +122,27 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
   }, [limit, token]);
 
   const handleInscribir = (curso: CursoDB) => {
+    const isInformative = !curso.isFlagship && (curso.solo_informativo === 1 || curso.solo_informativo === true || curso.estatus === 'Solo Informativo');
+    
+    if (isInformative) {
+      Swal.fire({
+        title: `Portal Informativo`,
+        html: `
+          <div class="text-left space-y-3 text-slate-700 text-sm">
+            <p class="font-bold text-[#022c22] text-base">${curso.titulo || curso.nombre}</p>
+            <p>Este curso opera exclusivamente bajo la modalidad <strong>informativa</strong>. Las inscripciones no se realizan de forma automatizada por la web y son gestionadas directamente por un administrador.</p>
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-800 font-semibold">
+              Por favor, contacta a la administración de la Cámara Inmobiliaria para gestionar tu ingreso.
+            </div>
+          </div>
+        `,
+        icon: 'info',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#9333ea',
+      });
+      return;
+    }
+
     const processInscripcion = (nombre: string, email: string) => {
       const url = curso.isFlagship 
         ? `${API_URL}/api/public/preinscripciones`
@@ -256,13 +278,15 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                   />
                 )}
                 {/* Badge Status */}
-                {course.estatus === 'Próximamente' && (
-                  <div
-                    className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-500"
-                  >
+                {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo') ? (
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">
+                    Solo Informativo
+                  </div>
+                ) : course.estatus === 'Próximamente' ? (
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-500">
                     Próximamente
                   </div>
-                )}
+                ) : null}
                 {/* Badge Enrolled */}
                 {isEnrolled && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10">
@@ -291,7 +315,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                     className="mt-3 flex items-center text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0"
                     style={{ color: 'var(--color-accent-hover)' }}
                   >
-                    Formalizar Inscripción <ChevronRight size={12} className="ml-1" />
+                    {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo') ? 'Ver Información' : 'Formalizar Inscripción'} <ChevronRight size={12} className="ml-1" />
                   </div>
                 )}
               </div>

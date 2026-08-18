@@ -1264,12 +1264,24 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
   }
 }
 
+let soloInformativoMigrated = false
+const ensureSoloInformativoColumn = async (): Promise<void> => {
+  if (soloInformativoMigrated) return
+  try {
+    await db.execute(`ALTER TABLE cursos ADD COLUMN solo_informativo INTEGER DEFAULT 0`)
+  } catch (_e) {
+    // Column likely already exists
+  }
+  soloInformativoMigrated = true
+}
+
 /**
  * GET /api/public/cursos
  * Lista pública de todos los cursos disponibles o próximos.
  */
 export const publicListCursos = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureSoloInformativoColumn()
     const result = await db.execute({
       sql: `SELECT c.*,
                    c.titulo AS nombre,
@@ -1299,6 +1311,7 @@ export const publicListCursos = async (req: Request, res: Response): Promise<voi
  */
 export const publicPreinscribirCurso = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureSoloInformativoColumn()
     const idCurso = Number(req.params.id)
     if (!Number.isFinite(idCurso)) {
       res.status(400).json({ success: false, message: 'id de curso inválido' })
@@ -1321,7 +1334,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, nombre, estatus FROM cursos WHERE id_curso = ? LIMIT 1`,
+      sql: `SELECT id_curso, nombre, estatus, solo_informativo FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso],
     })
     if (cursoRes.rows.length === 0) {
@@ -1329,6 +1342,15 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
     const curso = cursoRes.rows[0] as any
+
+    if (curso.solo_informativo === 1 || curso.estatus === 'Solo Informativo') {
+      res.status(403).json({
+        success: false,
+        message: 'Este curso es únicamente informativo. Las inscripciones son gestionadas exclusivamente por un administrador.'
+      })
+      return
+    }
+
     if (curso.estatus !== 'Abierto' && curso.estatus !== 'Próximamente') {
       res.status(400).json({ success: false, message: 'El curso no está disponible para inscripciones' })
       return
@@ -1466,6 +1488,7 @@ export const adminListCursos = async (req: Request, res: Response): Promise<void
  */
 export const adminCreateCurso = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureSoloInformativoColumn()
     const {
       nombre,
       titulo,
@@ -1479,6 +1502,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       imagen_url,
       banner_url,
       estatus,
+      solo_informativo,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
@@ -1495,12 +1519,14 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
 
     const slug = generateSlug(courseTitle)
     const now = new Date().toISOString()
+    const isSoloInformativo = solo_informativo ? 1 : 0
+
     const result = await db.execute({
       sql: `INSERT INTO cursos (
               titulo, slug, descripcion, contenido, categoria, modalidad,
               cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
-              estatus, creado_en, actualizado_en
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              estatus, solo_informativo, creado_en, actualizado_en
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
         courseTitle,
@@ -1515,6 +1541,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         imagen_url ?? null,
         banner_url ?? null,
         estatus ?? 'Borrador',
+        isSoloInformativo,
         now,
         now,
       ],
@@ -1568,6 +1595,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
  */
 export const adminUpdateCurso = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureSoloInformativoColumn()
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) {
       res.status(400).json({ success: false, message: 'id inválido' })
@@ -1587,10 +1615,13 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       imagen_url,
       banner_url,
       estatus,
+      solo_informativo,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
     const now = new Date().toISOString()
+    const isSoloInformativo = solo_informativo !== undefined ? (solo_informativo ? 1 : 0) : null
+
     const result = await db.execute({
       sql: `UPDATE cursos SET
               titulo = COALESCE(NULLIF(?, ''), titulo),
@@ -1604,6 +1635,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
               imagen_url = COALESCE(?, imagen_url),
               banner_url = ?,
               estatus = COALESCE(?, estatus),
+              solo_informativo = COALESCE(?, solo_informativo),
               actualizado_en = ?
             WHERE id_curso = ?
             RETURNING *`,
@@ -1619,6 +1651,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
         imagen_url ?? null,
         banner_url ?? null,
         estatus ?? null,
+        isSoloInformativo,
         now,
         id,
       ],

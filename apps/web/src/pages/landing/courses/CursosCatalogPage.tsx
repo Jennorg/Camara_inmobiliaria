@@ -15,6 +15,7 @@ interface CursoDB {
   precio: string | null
   imagen_url: string | null
   estatus: string
+  solo_informativo?: number | boolean
   instructor_nombre: string | null
   categoria?: string | null
 }
@@ -37,6 +38,27 @@ export default function CursosCatalogPage() {
   }, [])
 
   const handleInscribir = (curso: CursoDB) => {
+    const isInformative = curso.solo_informativo === 1 || curso.solo_informativo === true || curso.estatus === 'Solo Informativo';
+    
+    if (isInformative) {
+      Swal.fire({
+        title: `Portal Informativo`,
+        html: `
+          <div class="text-left space-y-3 text-slate-700 text-sm">
+            <p class="font-bold text-[#022c22] text-base">${curso.titulo || curso.nombre}</p>
+            <p>Las inscripciones para esta actividad funcionan bajo la modalidad <strong>informativa</strong> y son gestionadas directamente por el equipo administrativo de la Cámara Inmobiliaria del Estado Bolívar.</p>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 font-semibold">
+              Por favor, comunícate con la administración para coordinar tu registro e inscripción formal.
+            </div>
+          </div>
+        `,
+        icon: 'info',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#10b981',
+      })
+      return
+    }
+
     Swal.fire({
       title: `Preinscripción a: ${curso.titulo || curso.nombre}`,
       text: 'Se enviará una solicitud de inscripción. Por favor ingresa tus datos de contacto básicos.',
@@ -107,7 +129,9 @@ export default function CursosCatalogPage() {
             <CourseSkeletonGrid count={8} />
           ) : cursos.length === 0 ? (
             <div className="col-span-full text-center text-slate-400 font-bold p-10">No hay cursos disponibles actualmente.</div>
-          ) : cursos.map((curso) => (
+          ) : cursos.map((curso) => {
+            const isInformative = curso.solo_informativo === 1 || curso.solo_informativo === true || curso.estatus === 'Solo Informativo';
+            return (
             <div key={curso.id_curso} className={`group rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 hover:-translate-y-3 flex flex-col h-full ${darkMode ? 'bg-[#022c22]/50 backdrop-blur-md border-white shadow-[0_20px_50px_rgba(0,0,0,0.3)]' : 'bg-white border-emerald-50 shadow-[0_15px_35px_rgba(16,185,129,0.05)] border-emerald-500'}`}>
               <div className='relative h-56 overflow-hidden bg-slate-100 flex items-center justify-center shrink-0'>
                 {curso.imagen_url ? (
@@ -119,14 +143,20 @@ export default function CursosCatalogPage() {
                 <div className='absolute top-5 left-5 bg-emerald-500 text-[#022c22] px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-lg'>
                   {curso.categoria || curso.nivel_academico || 'Curso'}
                 </div>
-                {curso.estatus === 'Próximamente' && (
-                  <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-blue-500">Próximamente</div>
-                )}
-                {curso.estatus === 'En curso' && (
-                  <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500">En curso</div>
-                )}
-                {curso.estatus === 'Cerrado' && (
-                  <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-red-500">Cerrado</div>
+                {isInformative ? (
+                  <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">Solo Informativo</div>
+                ) : (
+                  <>
+                    {curso.estatus === 'Próximamente' && (
+                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-blue-500">Próximamente</div>
+                    )}
+                    {curso.estatus === 'En curso' && (
+                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500">En curso</div>
+                    )}
+                    {curso.estatus === 'Cerrado' && (
+                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-red-500">Cerrado</div>
+                    )}
+                  </>
                 )}
               </div>
               <div className='p-6 sm:p-8 flex-1 flex flex-col justify-between space-y-4'>
@@ -136,6 +166,15 @@ export default function CursosCatalogPage() {
                     <div className="w-full text-center text-xs font-black uppercase bg-red-100 text-red-700 py-3 rounded-2xl">
                       Finalizado
                     </div>
+                  ) : isInformative ? (
+                    <button 
+                      type='button' 
+                      onClick={() => handleInscribir(curso)} 
+                      className='w-full py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all shadow-lg hover:shadow-purple-500/20'
+                    >
+                      <span>Portal Informativo</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
                   ) : (
                     <button 
                       type='button' 
@@ -149,7 +188,7 @@ export default function CursosCatalogPage() {
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </section>
       <Footer />

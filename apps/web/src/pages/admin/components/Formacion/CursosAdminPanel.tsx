@@ -22,6 +22,7 @@ interface CursoDB {
   fecha_fin: string | null;
   precio: string | null;
   estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
+  solo_informativo?: number | boolean;
   creado_en: string;
   actualizado_en: string | null;
   instructor_nombre?: string;
@@ -112,6 +113,7 @@ const CursosAdminPanel = () => {
     id_instructor: number;
     categoria: string;
     estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
+    solo_informativo: number;
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
   }>({
     nombre: '',
@@ -123,6 +125,7 @@ const CursosAdminPanel = () => {
     id_instructor: 1,
     categoria: 'Taller',
     estatus: 'Abierto',
+    solo_informativo: 0,
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
   });
 
@@ -197,6 +200,7 @@ const CursosAdminPanel = () => {
         id_instructor: curso.id_instructor || 1,
         categoria: curso.categoria || 'Taller',
         estatus: (curso.estatus as any) || 'Abierto',
+        solo_informativo: curso.solo_informativo ? 1 : 0,
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
       });
     } else {
@@ -211,6 +215,7 @@ const CursosAdminPanel = () => {
         id_instructor: 1,
         categoria: 'Taller',
         estatus: 'Abierto',
+        solo_informativo: 0,
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
       });
     }
@@ -524,7 +529,12 @@ const CursosAdminPanel = () => {
                   <tr key={c.id_curso} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3 text-left">
                       <div className="flex flex-col gap-1 items-start">
-                        <p className="font-semibold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
+                          {(c.solo_informativo === 1 || c.solo_informativo === true) && (
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 uppercase tracking-wider">Solo Informativo</span>
+                          )}
+                        </div>
                         {c.categoria && (
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
                         )}
@@ -700,6 +710,32 @@ const CursosAdminPanel = () => {
                         <option value="En curso">En curso</option>
                         <option value="Próximamente">Próximamente</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Modo Solo Informativo Toggle */}
+                  <div className="p-4 bg-purple-50/70 border border-purple-200/60 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h5 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                          <span>Modo Solo Informativo</span>
+                          {formData.solo_informativo === 1 && (
+                            <span className="bg-purple-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Activo</span>
+                          )}
+                        </h5>
+                        <p className="text-[11px] text-purple-700 font-medium leading-relaxed mt-0.5">
+                          El curso se mostrará como portal informativo. Las preinscripciones públicas directas estarán bloqueadas y únicamente un administrador podrá gestionar inscripciones.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={formData.solo_informativo === 1}
+                          onChange={(e) => setFormData({ ...formData, solo_informativo: e.target.checked ? 1 : 0 })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      </label>
                     </div>
                   </div>
 

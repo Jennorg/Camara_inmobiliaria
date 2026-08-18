@@ -199,6 +199,7 @@ const statements = [
     fecha_fin         TEXT,
     modalidad         TEXT,
     estatus           TEXT        DEFAULT 'Abierto',
+    solo_informativo  INTEGER     DEFAULT 0,
     imagen_url        TEXT,
     banner_url        TEXT,
     cupos_totales     INTEGER,
