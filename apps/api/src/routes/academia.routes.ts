@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { requireRole } from '../middlewares/auth.middleware.js'
 import {
   adminAsignarEstudianteACurso,
   adminAgendarEntrevista,
@@ -43,7 +44,7 @@ router.post('/cursos', adminCreateCurso)
 // PUT /api/academia/cursos/:id
 router.put('/cursos/:id', adminUpdateCurso)
 // DELETE /api/academia/cursos/:id  (soft-delete → Cerrado)
-router.delete('/cursos/:id', adminDeleteCurso)
+router.delete('/cursos/:id', requireRole('admin', 'super_admin'), adminDeleteCurso)
 
 // GET /api/academia/preinscripciones?programaCodigo=PADI&estatus=Preinscrito
 router.get('/preinscripciones', adminListPreinscripciones)
@@ -79,7 +80,7 @@ router.patch('/inscripciones/:id/aprobar', adminAgendarEntrevista)
 router.patch('/inscripciones/:id/rechazar', adminRechazarPreinscripcion)
 
 // DELETE /api/academia/inscripciones/:id
-router.delete('/inscripciones/:id', adminDeleteInscripcion)
+router.delete('/inscripciones/:id', requireRole('admin', 'super_admin'), adminDeleteInscripcion)
 
 // PATCH /api/academia/inscripciones/:id/completar
 router.patch('/inscripciones/:id/completar', adminCompletarCursoEstudiante)
@@ -102,7 +103,7 @@ router.patch('/inscripciones/:id/toggle-corredor', adminToggleCorredorStatus)
 // Gestión de profesores
 router.get('/profesores', adminListProfesores)
 router.post('/profesores', adminCreateProfesor)
-router.delete('/profesores/:id', adminDeleteProfesor)
+router.delete('/profesores/:id', requireRole('admin', 'super_admin'), adminDeleteProfesor)
 router.get('/personas-disponibles', adminListPersonasDisponibles)
 // POST /api/academia/inscripciones/:id/reenviar-enlace
 router.post('/inscripciones/:id/reenviar-enlace', adminReenviarEnlaceExpediente)

@@ -4,8 +4,8 @@ import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 
 const router = Router()
 
-// Todas las rutas de usuarios requieren autenticación de admin o super_admin
-router.use(requireAuth, requireRole('admin', 'super_admin'))
+// Las rutas de usuarios requieren autenticación y rol administrativo (admin, super_admin, asistente)
+router.use(requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'))
 
 // GET /api/users — listar usuarios
 router.get('/', getUsers)
@@ -22,7 +22,7 @@ router.post('/:id/reset', resetUserPassword)
 // POST /api/users/:id/invite — enviar correo de invitación
 router.post('/:id/invite', sendUserInvitation)
 
-// DELETE /api/users/:id — eliminar usuario (solo super_admin internally in controller)
-router.delete('/:id', deleteUser)
+// DELETE /api/users/:id — eliminar usuario (solo admin y super_admin)
+router.delete('/:id', requireRole('admin', 'super_admin'), deleteUser)
 
 export { router as usersRoutes }

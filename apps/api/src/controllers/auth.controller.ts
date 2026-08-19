@@ -107,7 +107,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       ? 'super_admin'
       : roles.includes('admin')
         ? 'admin'
-        : 'afiliado'
+        : roles.includes('asistente') || roles.includes('administrativo')
+          ? 'asistente'
+          : roles.includes('estudiante')
+            ? 'estudiante'
+            : 'afiliado'
 
     // Generar JWT (el JWT base solo contiene lo esencial)
     const payload: JwtPayload = {
@@ -489,7 +493,11 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       ? 'super_admin'
       : roles.includes('admin')
         ? 'admin'
-        : 'afiliado';
+        : roles.includes('asistente') || roles.includes('administrativo')
+          ? 'asistente'
+          : roles.includes('estudiante')
+            ? 'estudiante'
+            : 'afiliado';
         
     const payload: JwtPayload = {
       id: user.id as number,

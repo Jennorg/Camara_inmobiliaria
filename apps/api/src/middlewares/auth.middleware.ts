@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { db } from '../lib/db.js'
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante'
+export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo'
 
 export interface JwtPayload {
   id: number
@@ -181,7 +181,7 @@ export const enrichUser = async (req: Request, res: Response, next: NextFunction
 /**
  * Middleware de autorización por rol.
  * Usa el array `roles` del JWT.
- * super_admin siempre tiene acceso donde se requiera `admin`.
+ * super_admin y admin tienen herencia sobre asistente.
  */
 export const requireRole = (...allowedRoles: UserRole[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -192,10 +192,17 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
 
     const userRoles = req.user.roles ?? [req.user.rol]
 
-    // super_admin tiene herencia sobre admin
-    const effectiveAllowed = allowedRoles.includes('admin')
-      ? [...allowedRoles, 'super_admin' as UserRole]
-      : allowedRoles
+    // Construir lista efectiva de roles permitidos según jerarquía
+    const effectiveAllowed = [...allowedRoles]
+    if (allowedRoles.includes('admin') && !effectiveAllowed.includes('super_admin')) {
+      effectiveAllowed.push('super_admin')
+    }
+    if (allowedRoles.includes('asistente') || allowedRoles.includes('administrativo')) {
+      if (!effectiveAllowed.includes('asistente')) effectiveAllowed.push('asistente')
+      if (!effectiveAllowed.includes('administrativo')) effectiveAllowed.push('administrativo')
+      if (!effectiveAllowed.includes('admin')) effectiveAllowed.push('admin')
+      if (!effectiveAllowed.includes('super_admin')) effectiveAllowed.push('super_admin')
+    }
 
     const hasAccess = userRoles.some(r => effectiveAllowed.includes(r))
 
@@ -215,4 +222,6 @@ export const hasRole = (user: JwtPayload, role: UserRole): boolean => {
 
 export const isSuperAdmin = (user: JwtPayload): boolean => hasRole(user, 'super_admin')
 export const isAdmin      = (user: JwtPayload): boolean => hasRole(user, 'admin') || hasRole(user, 'super_admin')
+export const isAsistente  = (user: JwtPayload): boolean => hasRole(user, 'asistente') || hasRole(user, 'administrativo')
+export const isStaff      = (user: JwtPayload): boolean => isAdmin(user) || isAsistente(user)
 export const isAfiliado   = (user: JwtPayload): boolean => hasRole(user, 'afiliado')

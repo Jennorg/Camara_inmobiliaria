@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 import { randomUUID, createHash } from 'crypto'
 import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
@@ -20,11 +21,8 @@ import {
   enviarCorreoAprobacionEstudiante,
   enviarCorreoSetPasswordEstudiante,
   enviarCorreoResultadoEntrevista,
-  enviarCorreoInvitacionCibir,
-  enviarCorreoRechazo
 } from '../lib/email.js'
 import bcrypt from 'bcryptjs'
-import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 import { NotificationService } from '../services/notification.service.js'
 
 function getCookie(req: Request, name: string): string | undefined {
@@ -3180,7 +3178,7 @@ export const adminGetEstudiante = async (req: Request, res: Response): Promise<v
 /**
  * Helpers re-exported to keep route files small.
  */
-export const academiaAdminGuards = [requireAuth, requireRole('admin', 'super_admin')] as const
+export const academiaAdminGuards = [requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo')] as const
 
 /**
  * GET /api/academia/estudiantes/:id/documentos

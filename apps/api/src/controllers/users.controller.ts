@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { createHash } from 'crypto'
 import { db } from '../lib/db.js'
 import { resetCredenciales } from '../lib/credentials.js'
-import { isSuperAdmin, isAdmin } from '../middlewares/auth.middleware.js'
+import { isSuperAdmin, isAdmin, isAsistente } from '../middlewares/auth.middleware.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 
@@ -18,7 +18,7 @@ const parseRoles = (rolesField: unknown): string[] => {
 /**
  * POST /api/users
  * Crea un nuevo usuario.
- * Afiliados normales solo por admin/super_admin. 
+ * Afiliados normales por admin/super_admin/asistente. 
  * Admins solo por super_admin.
  * Body: { email, password, rol, id_afiliado? }
  */
@@ -31,7 +31,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    if (!['admin', 'afiliado', 'super_admin'].includes(rol)) {
+    if (!['admin', 'afiliado', 'super_admin', 'asistente', 'administrativo', 'estudiante'].includes(rol)) {
       res.status(400).json({ success: false, message: 'rol inválido' })
       return
     }
@@ -39,6 +39,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     // Only super_admin can create 'admin' or 'super_admin' roles
     if (['admin', 'super_admin'].includes(rol) && !isSuperAdmin(req.user!)) {
       res.status(403).json({ success: false, message: 'Acceso denegado: Solo el súper administrador puede crear administradores' })
+      return
+    }
+
+    // Only admin/super_admin can create 'asistente' or 'administrativo' roles
+    if (['asistente', 'administrativo'].includes(rol) && !isAdmin(req.user!)) {
+      res.status(403).json({ success: false, message: 'Acceso denegado: Solo administradores pueden crear personal administrativo' })
       return
     }
 
@@ -117,12 +123,16 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     if (rol !== undefined) {
-      if (!['admin', 'afiliado', 'super_admin'].includes(rol)) {
+      if (!['admin', 'afiliado', 'super_admin', 'asistente', 'administrativo', 'estudiante'].includes(rol)) {
         res.status(400).json({ success: false, message: 'rol inválido' })
         return
       }
-      if (['admin', 'super_admin'].includes(rol) && req.user?.rol !== 'super_admin') {
+      if (['admin', 'super_admin'].includes(rol) && !isSuperAdmin(req.user!)) {
         res.status(403).json({ success: false, message: 'Acceso denegado: No puedes ascender a este rol' })
+        return
+      }
+      if (['asistente', 'administrativo'].includes(rol) && !isAdmin(req.user!)) {
+        res.status(403).json({ success: false, message: 'Acceso denegado: Solo administradores pueden asignar rol administrativo' })
         return
       }
       const rolesJson = JSON.stringify([rol])
@@ -201,7 +211,13 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
     })
     const rows = result.rows.map(r => {
       const roles = parseRoles(r.roles)
-      const rol = roles.includes('super_admin') ? 'super_admin' : roles.includes('admin') ? 'admin' : 'afiliado'
+      const rol = roles.includes('super_admin')
+        ? 'super_admin'
+        : roles.includes('admin')
+          ? 'admin'
+          : roles.includes('asistente') || roles.includes('administrativo')
+            ? 'asistente'
+            : 'afiliado'
       return { ...r, roles, rol }
     })
     res.status(200).json({ success: true, data: rows })
@@ -338,6 +354,11 @@ export const sendUserInvitation = async (req: Request, res: Response): Promise<v
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
+
+    if (isAsistente(req.user!)) {
+      res.status(403).json({ success: false, message: 'Acceso denegado: El personal administrativo no tiene permisos para eliminar usuarios' })
+      return
+    }
 
     const userToUpdate = await db.execute({ sql: `SELECT roles FROM users WHERE id = ?`, args: [Number(id)] })
     if (userToUpdate.rows.length === 0) {

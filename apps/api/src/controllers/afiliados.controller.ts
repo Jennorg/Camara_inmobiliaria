@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 import { env } from '../config/env.js';
+import { isAsistente } from '../middlewares/auth.middleware.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 
@@ -2526,6 +2527,11 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 export const deleteAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+
+    if (isAsistente(req.user!)) {
+      res.status(403).json({ success: false, message: 'Acceso denegado: El personal administrativo no tiene permisos para eliminar registros' });
+      return;
+    }
 
     // 1. Obtener toda la información relacionada antes de borrar nada
     const check = await db.execute({
