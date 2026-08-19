@@ -18,6 +18,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import CompanySearchSelector from '@/components/CompanySearchSelector';
+import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 
 interface EmpresaItem {
   id_empresa: number;
