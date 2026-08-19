@@ -113,11 +113,11 @@ const Section = ({ label }: { label: string }) => (
 // ─── Panel unificado principal ────────────────────────────────────────────────
 
 const PanelPage = () => {
-  const { user, token, logout, isAdmin, isSuperAdmin, isEstudiante, isAfiliado } = useAuth();
+  const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado } = useAuth();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
     if (searchParams.get('tab') === 'formacion') return 'Catálogo Académico';
-    return isAdmin ? 'Análisis y Métricas' : 'Mi Expediente';
+    return (isAdmin || isAsistente) ? 'Directorio de Miembros' : 'Mi Expediente';
   });
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -128,7 +128,7 @@ const PanelPage = () => {
   const [preinscripcionesCount, setPreinscripcionesCount] = useState(0);
 
   useEffect(() => {
-    if (!token || !isAdmin) return;
+    if (!token || (!isAdmin && !isAsistente)) return;
 
     // 1. Solicitudes de Cambio pendientes
     fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
@@ -269,8 +269,18 @@ const PanelPage = () => {
       });
     }
 
-    // Item de Configuración para todos
-    baseItems.push({ icon: Settings, label: 'Configuración' });
+    // Si es asistente puro (sin rol admin), mostrar ÚNICAMENTE Directorio de Miembros y Control de Acceso
+    if (isAsistente && !isAdmin) {
+      return [
+        { icon: Users, label: 'Directorio de Miembros' },
+        { icon: ShieldCheck, label: 'Control de Acceso' },
+      ];
+    }
+
+    // Item de Configuración para afiliados normales y admins (omitir para asistente puro)
+    if (!isAsistente || isAdmin) {
+      baseItems.push({ icon: Settings, label: 'Configuración' });
+    }
 
     if (isAdmin) {
       const navAdminCoreWithCounts = [
@@ -300,11 +310,13 @@ const PanelPage = () => {
       if (isSuperAdmin) {
         adminItems = [...adminItems, ...NAV_SUPER_ADMIN];
       }
-      adminItems = [
-        ...adminItems,
-        NAV_DIVIDER_CMS as any,
-        ...NAV_CMS
-      ];
+      if (isAdmin) {
+        adminItems = [
+          ...adminItems,
+          NAV_DIVIDER_CMS as any,
+          ...NAV_CMS
+        ];
+      }
       return [...baseItems, ...adminItems];
     }
     return baseItems;
@@ -439,7 +451,7 @@ const PanelPage = () => {
     if (activeTab === 'Configuración') return <SettingsPanel />;
 
     // 2. Sección Administrativa
-    if (!isAdmin) return null;
+    if (!isAdmin && !isAsistente) return null;
 
     if (activeTab === 'Directorio de Miembros') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><MiembrosPanel /></div>;
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;

@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 
 export default function LobbyPage() {
   const navigate = useNavigate()
-  const { user, logout, isAdmin, isAfiliado } = useAuth()
+  const { user, logout, isAdmin, isAsistente, isAfiliado } = useAuth()
 
   // Si por alguna razón cae acá con 1 solo rol, redirigir al módulo correspondiente.
   React.useEffect(() => {
@@ -19,11 +19,11 @@ export default function LobbyPage() {
   }, [navigate, user])
 
   const options = [
-    isAdmin
+    (isAdmin || isAsistente)
       ? {
         key: 'admin',
         title: 'Intranet Administrativa',
-        desc: 'Gestión interna, aprobaciones, formación, afiliados y administración del sistema.',
+        desc: 'Gestión interna, directorio, control de acceso, afiliados y administración del sistema.',
         icon: Building2,
         onClick: () => navigate('/admin'),
         accent: 'from-emerald-500/10 to-emerald-500/0',

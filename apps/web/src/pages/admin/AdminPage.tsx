@@ -37,8 +37,11 @@ const SIDEBAR_MIN_DRAG = 100   // minimum width while dragging before snapping t
 const SIDEBAR_MAX = 340
 const SIDEBAR_DEFAULT = 220
 
+import { useAuth } from '@/context/AuthContext'
+
 const AdminPage = () => {
-  const [activeId, setActiveId] = useState('analytics')
+  const { isAsistente, isAdmin } = useAuth()
+  const [activeId, setActiveId] = useState(() => (isAsistente && !isAdmin ? 'afiliados' : 'analytics'))
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT)
   const [sidebarDragging, setSidebarDragging] = useState(false)

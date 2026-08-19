@@ -92,7 +92,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante'
+export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo'
 
 export interface AuthUser {
   id: number
@@ -127,6 +127,7 @@ interface AuthContextValue {
   hasRole: (role: UserRole) => boolean
   isAdmin: boolean
   isSuperAdmin: boolean
+  isAsistente: boolean
   isAfiliado: boolean
   isEstudiante: boolean
   refreshUser: () => Promise<void>
@@ -147,9 +148,11 @@ function normalizeUser(rawUser: any): AuthUser {
     ? 'super_admin'
     : roles.includes('admin')
       ? 'admin'
-      : roles.includes('estudiante')
-        ? 'estudiante'
-        : 'afiliado'
+      : roles.includes('asistente') || roles.includes('administrativo')
+        ? 'asistente'
+        : roles.includes('estudiante')
+          ? 'estudiante'
+          : 'afiliado'
 
   return { 
     ...rawUser, 
@@ -342,6 +345,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdminVal      = (user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) ?? false
   const isSuperAdminVal = user?.roles?.includes('super_admin') ?? false
+  const isAsistenteVal  = (user?.roles?.includes('asistente') || user?.roles?.includes('administrativo')) ?? false
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
@@ -351,6 +355,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hasRole,
       isAdmin: isAdminVal,
       isSuperAdmin: isSuperAdminVal,
+      isAsistente: isAsistenteVal,
       isAfiliado: isAfiliadoVal,
       isEstudiante: isEstudianteVal,
       refreshUser,

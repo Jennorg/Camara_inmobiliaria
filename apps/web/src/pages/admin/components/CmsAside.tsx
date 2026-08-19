@@ -278,7 +278,7 @@ const SidebarContent = ({
   onLogout?: () => void
   isMobile?: boolean
 }) => {
-  const { token, user } = useAuth()
+  const { token, user, isAsistente, isAdmin } = useAuth()
   const [expandedGroups, setExpandedGroups] = React.useState<string[]>(['normativas'])
   const [solicitudesCambioCount, setSolicitudesCambioCount] = React.useState(0)
   const [preinscripcionesCount, setPreinscripcionesCount] = React.useState(0)
@@ -349,7 +349,13 @@ const SidebarContent = ({
 
       {/* Main nav */}
       <nav className="flex-1 py-1 flex flex-col gap-0 px-2 overflow-y-auto custom-scrollbar">
-        {NAV_MAIN.filter(i => i.id !== 'admin_users' || user?.rol === 'super_admin').map((item) => {
+        {NAV_MAIN.filter(i => {
+          if (isAsistente && !isAdmin) {
+            return ['afiliados', 'users'].includes(i.id);
+          }
+          if (i.id === 'admin_users') return user?.rol === 'super_admin';
+          return true;
+        }).map((item) => {
           const hasChildren = !!item.children?.length
           const childIds = item.children?.map(c => c.id) || []
           
@@ -477,7 +483,10 @@ const SidebarContent = ({
 
       {/* Bottom nav */}
       <div className="pb-3 px-2 flex flex-col gap-0.5 border-t border-gray-100 pt-2">
-        {NAV_BOTTOM.map((item) => (
+        {NAV_BOTTOM.filter(i => {
+          if (isAsistente && !isAdmin && i.id === 'settings') return false;
+          return true;
+        }).map((item) => (
           <NavButton
             key={item.id}
             item={item}

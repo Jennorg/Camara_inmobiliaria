@@ -95,8 +95,8 @@ export default function App() {
             <Route path='/lobby' element={<LobbyPage />} />
           </Route>
 
-          {/* ── CMS Visual Editor (solo admin) ── */}
-          <Route element={<ProtectedRoute requiredRoles={['admin', 'super_admin']} />}>
+          {/* ── CMS Visual Editor / Intranet Administrativa ── */}
+          <Route element={<ProtectedRoute requiredRoles={['admin', 'super_admin', 'asistente', 'administrativo']} />}>
             <Route path='/admin' element={<AdminPage />} />
           </Route>
 

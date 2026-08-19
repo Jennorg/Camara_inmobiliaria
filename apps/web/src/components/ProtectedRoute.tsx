@@ -35,10 +35,16 @@ export default function ProtectedRoute({ requiredRoles, children }: ProtectedRou
 
   // Si hay roles requeridos, verificar que el usuario tenga al menos uno
   if (requiredRoles && requiredRoles.length > 0) {
-    // super_admin tiene acceso a todo lo que requiera admin
-    const effectiveRoles: UserRole[] = requiredRoles.includes('admin')
-      ? [...requiredRoles, 'super_admin']
-      : requiredRoles
+    let effectiveRoles: UserRole[] = [...requiredRoles]
+    if (requiredRoles.includes('admin') && !effectiveRoles.includes('super_admin')) {
+      effectiveRoles.push('super_admin')
+    }
+    if (requiredRoles.includes('asistente') || requiredRoles.includes('administrativo')) {
+      if (!effectiveRoles.includes('asistente')) effectiveRoles.push('asistente')
+      if (!effectiveRoles.includes('administrativo')) effectiveRoles.push('administrativo')
+      if (!effectiveRoles.includes('admin')) effectiveRoles.push('admin')
+      if (!effectiveRoles.includes('super_admin')) effectiveRoles.push('super_admin')
+    }
 
     const hasAccess = effectiveRoles.some(r => hasRole(r))
     if (!hasAccess) {
