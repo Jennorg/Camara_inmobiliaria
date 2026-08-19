@@ -294,7 +294,7 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
 
 
 export default function MiembrosPanel() {
-  const { token } = useAuth()
+  const { token, isAdmin, isSuperAdmin } = useAuth()
   const authHeaders = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -1349,13 +1349,15 @@ export default function MiembrosPanel() {
                     >
                       <Edit3 size={18} />
                     </button>
-                    <button
-                      onClick={() => handleDelete(selected.id_afiliado)}
-                      className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {(isAdmin || isSuperAdmin) && (
+                      <button
+                        onClick={() => handleDelete(selected.id_afiliado)}
+                        className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>
