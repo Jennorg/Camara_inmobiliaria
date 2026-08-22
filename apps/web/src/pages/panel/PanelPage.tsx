@@ -204,7 +204,8 @@ const PanelPage = () => {
     if (typeof redes === 'string') {
       try { redes = JSON.parse(redes); } catch { redes = {}; }
     }
-    if (redes?.prefer_junta_photo) {
+    const useJunta = !!redes?.prefer_junta_photo;
+    if (useJunta) {
       return (
         redes?.foto_junta_carnet_url ||
         afiliado.foto_junta_url ||
@@ -269,11 +270,12 @@ const PanelPage = () => {
       });
     }
 
-    // Si es asistente puro (sin rol admin), mostrar ÚNICAMENTE Directorio de Miembros y Control de Acceso
+    // Si es asistente/secretario (sin rol admin), mostrar Directorio de Miembros, Control de Acceso y Gestión de Formación
     if (isAsistente && !isAdmin) {
       return [
         { icon: Users, label: 'Directorio de Miembros' },
         { icon: ShieldCheck, label: 'Control de Acceso' },
+        { icon: BookOpen, label: 'Gestión de Formación' },
       ];
     }
 
@@ -324,6 +326,15 @@ const PanelPage = () => {
 
   const navItems = buildNavItems();
   
+  useEffect(() => {
+    if (navItems.length > 0) {
+      const validLabels = navItems.filter((i: any) => !i.isDivider).map((i: any) => i.label);
+      if (!validLabels.includes(activeTab)) {
+        setActiveTab(validLabels[0] || 'Mi Expediente');
+      }
+    }
+  }, [user?.id, user?.rol]);
+
   const isConsideredAfiliadoContent = (user?.roles && Array.isArray(user.roles) && user.roles.includes('afiliado')) || !!user?.id_afiliado || !!user?.tipo_afiliado || isAdmin;
 
   // ── Renderizado del contenido activo ────────────────────────────────────────

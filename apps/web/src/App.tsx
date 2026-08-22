@@ -44,6 +44,8 @@ function PreservingQueryNavigate({ to }: { to: string }) {
 }
 
 
+import ImpersonationBanner from '@/components/ImpersonationBanner'
+
 export default function App() {
   return (
     <HelmetProvider>
@@ -53,6 +55,7 @@ export default function App() {
         <ToastProvider>
         <Toaster position="bottom-right" />
         <AuthProvider>
+        <ImpersonationBanner />
         <Routes>
           {/* Rutas principales dependientes del host */}
           <Route path='/' element={<><SEO /><LandingPage /></>} />
@@ -96,7 +99,7 @@ export default function App() {
           </Route>
 
           {/* ── CMS Visual Editor / Intranet Administrativa ── */}
-          <Route element={<ProtectedRoute requiredRoles={['admin', 'super_admin', 'asistente', 'administrativo']} />}>
+          <Route element={<ProtectedRoute requiredRoles={['admin', 'super_admin', 'asistente', 'administrativo', 'secretario', 'secretaria']} />}>
             <Route path='/admin' element={<AdminPage />} />
           </Route>
 

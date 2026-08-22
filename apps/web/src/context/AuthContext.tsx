@@ -92,7 +92,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo'
+export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria'
 
 export interface AuthUser {
   id: number
@@ -131,6 +131,11 @@ interface AuthContextValue {
   isAfiliado: boolean
   isEstudiante: boolean
   refreshUser: () => Promise<void>
+  /** Impersonación */
+  isImpersonating: boolean
+  originalAdmin: { id: number; email: string; nombre_completo: string } | null
+  impersonateUser: (userId: number) => Promise<void>
+  stopImpersonation: () => void
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -138,6 +143,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 const TOKEN_KEY = 'ciebo_token'
+const ORIGINAL_ADMIN_TOKEN_KEY = 'ciebo_original_admin_token'
+const ORIGINAL_ADMIN_INFO_KEY = 'ciebo_original_admin_info'
 
 /** Normalizar el usuario recibido del servidor, garantizando que siempre haya `roles[]` */
 function normalizeUser(rawUser: any): AuthUser {
@@ -148,7 +155,7 @@ function normalizeUser(rawUser: any): AuthUser {
     ? 'super_admin'
     : roles.includes('admin')
       ? 'admin'
-      : roles.includes('asistente') || roles.includes('administrativo')
+      : roles.includes('asistente') || roles.includes('administrativo') || roles.includes('secretario') || roles.includes('secretaria')
         ? 'asistente'
         : roles.includes('estudiante')
           ? 'estudiante'
@@ -309,6 +316,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate('/panel')
   }, [navigate, setToken])
 
+  const [originalAdmin, setOriginalAdmin] = useState<{ id: number; email: string; nombre_completo: string } | null>(() => {
+    try {
+      const raw = localStorage.getItem(ORIGINAL_ADMIN_INFO_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  })
+
+  const impersonateUser = useCallback(async (targetUserId: number) => {
+    if (!token) return
+    const res = await fetch(`${API_URL}/api/users/${targetUserId}/impersonate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const data = await res.json()
+    if (!data.success) {
+      throw new Error(data.message || 'Error al ingresar como usuario')
+    }
+
+    if (!localStorage.getItem(ORIGINAL_ADMIN_TOKEN_KEY)) {
+      localStorage.setItem(ORIGINAL_ADMIN_TOKEN_KEY, token)
+      localStorage.setItem(ORIGINAL_ADMIN_INFO_KEY, JSON.stringify(data.data.originalAdmin))
+    }
+
+    localStorage.setItem(TOKEN_KEY, data.data.token)
+    setToken(data.data.token)
+    setUser(normalizeUser(data.data.user))
+    setOriginalAdmin(data.data.originalAdmin)
+
+    navigate('/panel')
+  }, [token, navigate, setToken])
+
+  const stopImpersonation = useCallback(async () => {
+    const origToken = localStorage.getItem(ORIGINAL_ADMIN_TOKEN_KEY)
+    localStorage.removeItem(ORIGINAL_ADMIN_TOKEN_KEY)
+    localStorage.removeItem(ORIGINAL_ADMIN_INFO_KEY)
+    setOriginalAdmin(null)
+
+    if (origToken) {
+      localStorage.setItem(TOKEN_KEY, origToken)
+      setToken(origToken)
+      try {
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${origToken}` },
+        })
+        const data = await res.json()
+        if (data.success && data.user) {
+          setUser(normalizeUser(data.user))
+        }
+      } catch (err) {
+        console.error('Error al restaurar sesión admin:', err)
+      }
+    } else {
+      setToken(null)
+      setUser(null)
+    }
+
+    navigate('/panel')
+  }, [navigate, setToken])
+
   // Logout function
   const logout = useCallback(() => {
     fetch(`${API_URL}/api/auth/logout`, {
@@ -317,6 +385,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }).catch(err => console.error('Error logging out on backend:', err))
 
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(ORIGINAL_ADMIN_TOKEN_KEY)
+    localStorage.removeItem(ORIGINAL_ADMIN_INFO_KEY)
+    setOriginalAdmin(null)
     setToken(null)
     setUser(null)
 
@@ -345,7 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdminVal      = (user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) ?? false
   const isSuperAdminVal = user?.roles?.includes('super_admin') ?? false
-  const isAsistenteVal  = (user?.roles?.includes('asistente') || user?.roles?.includes('administrativo')) ?? false
+  const isAsistenteVal  = (user?.roles?.includes('asistente') || user?.roles?.includes('administrativo') || user?.roles?.includes('secretario') || user?.roles?.includes('secretaria')) ?? false
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
@@ -359,6 +430,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAfiliado: isAfiliadoVal,
       isEstudiante: isEstudianteVal,
       refreshUser,
+      isImpersonating: !!originalAdmin,
+      originalAdmin,
+      impersonateUser,
+      stopImpersonation
     }}>
       {children}
     </AuthContext.Provider>

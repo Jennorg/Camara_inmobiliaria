@@ -39,9 +39,11 @@ export default function ProtectedRoute({ requiredRoles, children }: ProtectedRou
     if (requiredRoles.includes('admin') && !effectiveRoles.includes('super_admin')) {
       effectiveRoles.push('super_admin')
     }
-    if (requiredRoles.includes('asistente') || requiredRoles.includes('administrativo')) {
+    if (requiredRoles.includes('asistente') || requiredRoles.includes('administrativo') || requiredRoles.includes('secretario') || requiredRoles.includes('secretaria')) {
       if (!effectiveRoles.includes('asistente')) effectiveRoles.push('asistente')
       if (!effectiveRoles.includes('administrativo')) effectiveRoles.push('administrativo')
+      if (!effectiveRoles.includes('secretario')) effectiveRoles.push('secretario')
+      if (!effectiveRoles.includes('secretaria')) effectiveRoles.push('secretaria')
       if (!effectiveRoles.includes('admin')) effectiveRoles.push('admin')
       if (!effectiveRoles.includes('super_admin')) effectiveRoles.push('super_admin')
     }
