@@ -3,7 +3,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, X, User, ChevronDown } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
 
@@ -89,7 +89,7 @@ const CursosAdminPanel = () => {
     email: '',
     telefono: '',
   });
-  
+
   const uploadImage = async (file: File) => {
     setUploading(true);
     try {
@@ -101,7 +101,7 @@ const CursosAdminPanel = () => {
       setUploading(false);
     }
   };
-  
+
   // Form State
   const [formData, setFormData] = useState<{
     nombre: string;
@@ -309,8 +309,8 @@ const CursosAdminPanel = () => {
 
     const result = await Swal.fire({
       title: `¿Quieres ${actionText} este curso?`,
-      text: isCurrentlyClosed 
-        ? "El curso volverá a estar disponible para inscripciones." 
+      text: isCurrentlyClosed
+        ? "El curso volverá a estar disponible para inscripciones."
         : "El curso se cerrará y no se aceptarán más inscripciones.",
       icon: 'warning',
       showCancelButton: true,
@@ -334,7 +334,7 @@ const CursosAdminPanel = () => {
           Swal.fire('Error', json.message || 'No se pudo actualizar el estado del curso', 'error');
         }
       } catch (error) {
-         Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+        Swal.fire('Error', 'Problema de conexión al servidor', 'error');
       }
     }
   };
@@ -346,8 +346,8 @@ const CursosAdminPanel = () => {
       const method = editingId ? 'PUT' : 'POST';
 
       const finalPrice = Number(formData.precio) === 0 ? 'Gratis' : `$${formData.precio}`;
-      const payload = { 
-        ...formData, 
+      const payload = {
+        ...formData,
         precio: finalPrice,
         nivel_academico: 'Libre'
       };
@@ -367,7 +367,7 @@ const CursosAdminPanel = () => {
         Swal.fire('Error', json.message || 'Error al guardar el curso', 'error');
       }
     } catch (error) {
-       Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+      Swal.fire('Error', 'Problema de conexión al servidor', 'error');
     }
   };
 
@@ -396,7 +396,7 @@ const CursosAdminPanel = () => {
           Swal.fire('Error', json.message || 'No se pudo cerrar el curso', 'error');
         }
       } catch (error) {
-         Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+        Swal.fire('Error', 'Problema de conexión al servidor', 'error');
       }
     }
   };
@@ -412,7 +412,7 @@ const CursosAdminPanel = () => {
           <h3 className="text-sm font-semibold text-slate-800">Cursos & Talleres</h3>
           <p className="text-xs text-slate-400 mt-0.5">{cursos.length} programas registrados</p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#00D084] text-white text-xs font-semibold hover:bg-[#00B870] transition-colors whitespace-nowrap"
         >
@@ -452,7 +452,7 @@ const CursosAdminPanel = () => {
                   </span>
                 </div>
                 {/* Cupos bar */}
-                {(() => {
+                {!(Number(c.solo_informativo) === 1 || c.solo_informativo === true || (c.estatus as string) === 'Solo Informativo') && (() => {
                   const totales = getSafeNumber(c.cupos_totales, 0);
                   const ins = calcInscritos(c);
                   const isIlimitado = totales >= 999999;
@@ -472,31 +472,31 @@ const CursosAdminPanel = () => {
                   );
                 })()}
                 <div className="flex gap-2 mt-2 border-t pt-2 border-gray-100 justify-end">
-                  <button 
-                    onClick={() => setViewingCurso(c)} 
+                  <button
+                    onClick={() => setViewingCurso(c)}
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
                   >
                     <Users size={12} />
                     <span>Inscritos</span>
                   </button>
-                  <button 
-                    onClick={() => handleOpenModal(c)} 
+                  <button
+                    onClick={() => handleOpenModal(c)}
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
                   >
                     <Pencil size={12} />
                     <span>Editar</span>
                   </button>
                   {c.estatus === 'Cerrado' ? (
-                    <button 
-                      onClick={() => handleToggleStatus(c)} 
+                    <button
+                      onClick={() => handleToggleStatus(c)}
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
                     >
                       <Unlock size={12} />
                       <span>Abrir</span>
                     </button>
                   ) : (
-                    <button 
-                      onClick={() => handleToggleStatus(c)} 
+                    <button
+                      onClick={() => handleToggleStatus(c)}
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
                     >
                       <Lock size={12} />
@@ -526,78 +526,79 @@ const CursosAdminPanel = () => {
                   const isIlimitado = totales >= 999999;
                   const pct = totales > 0 ? Math.max(0, Math.min(100, (ins / totales) * 100)) : 0;
                   return (
-                  <tr key={c.id_curso} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-left">
-                      <div className="flex flex-col gap-1 items-start">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-semibold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
-                          {(c.solo_informativo === 1 || c.solo_informativo === true) && (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 uppercase tracking-wider">Solo Informativo</span>
+                    <tr key={c.id_curso} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 text-left">
+                        <div className="flex flex-col gap-1 items-start">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-semibold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
+                            {(c.solo_informativo === 1 || c.solo_informativo === true) && (
+                              <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 uppercase tracking-wider">Solo Informativo</span>
+                            )}
+                          </div>
+                          {c.categoria && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
                           )}
                         </div>
-                        {c.categoria && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap text-center">{c.instructor_nombre || 'Sin Instructor'}</td>
-                    <td className="px-4 py-3 text-center">
-                      {isIlimitado ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Ilimitados</span>
-                          <span className="text-xs text-slate-500 tabular-nums">({ins} inscritos)</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0">
-                            <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${pct}%` }} />
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap text-center">{c.instructor_nombre || 'Sin Instructor'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {isIlimitado ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Ilimitados</span>
+                            <span className="text-xs text-slate-500 tabular-nums">({ins} inscritos)</span>
                           </div>
-                          <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">{ins}/{totales}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap text-center">{c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button 
-                          onClick={() => setViewingCurso(c)} 
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
-                          title="Ver inscritos"
-                        >
-                          <Users size={12} />
-                          <span>Inscritos</span>
-                        </button>
-                        <button 
-                          onClick={() => handleOpenModal(c)} 
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
-                          title="Editar curso"
-                        >
-                          <Pencil size={12} />
-                          <span>Editar</span>
-                        </button>
-                        {c.estatus === 'Cerrado' ? (
-                          <button 
-                            onClick={() => handleToggleStatus(c)} 
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
-                            title="Reabrir inscripciones"
-                          >
-                            <Unlock size={12} />
-                            <span>Abrir</span>
-                          </button>
                         ) : (
-                          <button 
-                            onClick={() => handleToggleStatus(c)} 
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
-                            title="Cerrar inscripciones"
-                          >
-                            <Lock size={12} />
-                            <span>Cerrar</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0">
+                              <div className="h-full bg-[#00D084] rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums">{ins}/{totales}</span>
+                          </div>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                )})}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap text-center">{c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setViewingCurso(c)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
+                            title="Ver inscritos"
+                          >
+                            <Users size={12} />
+                            <span>Inscritos</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenModal(c)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                            title="Editar curso"
+                          >
+                            <Pencil size={12} />
+                            <span>Editar</span>
+                          </button>
+                          {c.estatus === 'Cerrado' ? (
+                            <button
+                              onClick={() => handleToggleStatus(c)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                              title="Reabrir inscripciones"
+                            >
+                              <Unlock size={12} />
+                              <span>Abrir</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleStatus(c)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                              title="Cerrar inscripciones"
+                            >
+                              <Lock size={12} />
+                              <span>Cerrar</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -607,271 +608,271 @@ const CursosAdminPanel = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-           <div className="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                <h3 className="font-bold text-slate-800">{editingId ? 'Editar Curso' : 'Nuevo Curso'}</h3>
-                <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
-              </div>
-              <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-5 pr-4">
-                  {/* Drag & Drop Zone */}
-                  <div 
-                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-[#00D084]', 'bg-[#E9FAF4]') }}
-                    onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]') }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]');
-                      const file = e.dataTransfer.files?.[0];
-                      if (file) uploadImage(file);
-                    }}
-                    onClick={() => document.getElementById('image-upload')?.click()}
-                    className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-all hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
-                  >
-                    <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) uploadImage(file);
-                    }} />
-                    
-                    {formData.imagen_url ? (
-                      <>
-                        <img src={formData.imagen_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" />
-                        <div className="relative z-10 w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                          <img src={formData.imagen_url} alt="Thumbnail" className="w-full h-full object-cover" />
-                        </div>
-                        <p className="relative z-10 text-xs font-bold text-[#00B870]">Imagen cargada · Cambiar</p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-all">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-700">Arrastra una imagen de portada</p>
-                          <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-widest">o haz clic para buscar</p>
-                        </div>
-                      </>
-                    )}
-                    {uploading && (
-                      <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20">
-                        <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
-                        <span className="text-[10px] font-black text-[#00D084] uppercase tracking-widest">Subiendo...</span>
-                      </div>
-                    )}
-                  </div>
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <h3 className="font-bold text-slate-800">{editingId ? 'Editar Curso' : 'Nuevo Curso'}</h3>
+              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
+            </div>
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-5 pr-4">
+                {/* Drag & Drop Zone */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-[#00D084]', 'bg-[#E9FAF4]') }}
+                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]') }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]');
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) uploadImage(file);
+                  }}
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                  className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-all hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
+                >
+                  <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadImage(file);
+                  }} />
 
+                  {formData.imagen_url ? (
+                    <>
+                      <img src={formData.imagen_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" />
+                      <div className="relative z-10 w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md">
+                        <img src={formData.imagen_url} alt="Thumbnail" className="w-full h-full object-cover" />
+                      </div>
+                      <p className="relative z-10 text-xs font-bold text-[#00B870]">Imagen cargada · Cambiar</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-all">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">Arrastra una imagen de portada</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-widest">o haz clic para buscar</p>
+                      </div>
+                    </>
+                  )}
+                  {uploading && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20">
+                      <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[10px] font-black text-[#00D084] uppercase tracking-widest">Subiendo...</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Curso / Cohorte</label>
+                  <input required
+                    placeholder="Ej. Curso de Ética Inmobiliaria"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                    value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Descripción del Programa</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe los objetivos y alcances del curso..."
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all resize-none"
+                    value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Curso / Cohorte</label>
-                    <input required
-                      placeholder="Ej. Curso de Ética Inmobiliaria"
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Categoría / Tipo de Actividad</label>
+                    <select
+                      required
                       className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                      value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} 
-                    />
+                      value={formData.categoria}
+                      onChange={e => setFormData({ ...formData, categoria: e.target.value })}
+                    >
+                      <option value="Taller">Taller</option>
+                      <option value="Conferencia">Conferencia</option>
+                      <option value="Workshop">Workshop</option>
+                      <option value="Webinar">Webinar</option>
+                      <option value="Diplomado">Diplomado</option>
+                      <option value="Certificación">Certificación</option>
+                      <option value="Seminario">Seminario</option>
+                      <option value="Charla">Charla</option>
+                      <option value="Curso">Curso</option>
+                    </select>
                   </div>
-
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Descripción del Programa</label>
-                    <textarea 
-                      rows={3}
-                      placeholder="Describe los objetivos y alcances del curso..."
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all resize-none"
-                      value={formData.descripcion} onChange={e => setFormData({...formData, descripcion: e.target.value})} 
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Categoría / Tipo de Actividad</label>
-                      <select
-                        required
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                        value={formData.categoria}
-                        onChange={e => setFormData({ ...formData, categoria: e.target.value })}
-                      >
-                        <option value="Taller">Taller</option>
-                        <option value="Conferencia">Conferencia</option>
-                        <option value="Workshop">Workshop</option>
-                        <option value="Webinar">Webinar</option>
-                        <option value="Diplomado">Diplomado</option>
-                        <option value="Certificación">Certificación</option>
-                        <option value="Seminario">Seminario</option>
-                        <option value="Charla">Charla</option>
-                        <option value="Curso">Curso</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Estatus del Curso</label>
-                      <select
-                        value={formData.estatus}
-                        onChange={e => setFormData({ ...formData, estatus: e.target.value as any })}
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                      >
-                        <option value="Abierto">Abierto (Recibiendo Inscripciones)</option>
-                        <option value="Cerrado">Cerrado / Concluido</option>
-                        <option value="En curso">En curso</option>
-                        <option value="Próximamente">Próximamente</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Modo Solo Informativo Toggle */}
-                  <div className="p-4 bg-purple-50/70 border border-purple-200/60 rounded-2xl space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h5 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                          <span>Modo Solo Informativo</span>
-                          {formData.solo_informativo === 1 && (
-                            <span className="bg-purple-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Activo</span>
-                          )}
-                        </h5>
-                        <p className="text-[11px] text-purple-700 font-medium leading-relaxed mt-0.5">
-                          El curso se mostrará como portal informativo. Las preinscripciones públicas directas estarán bloqueadas y únicamente un administrador podrá gestionar inscripciones.
-                        </p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={formData.solo_informativo === 1}
-                          onChange={(e) => setFormData({ ...formData, solo_informativo: e.target.checked ? 1 : 0 })}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo de Cupos</label>
-                      <select
-                        value={formData.cupos_totales === 999999 ? 'ilimitado' : 'limitado'}
-                        onChange={(e) => {
-                          const isIlimitado = e.target.value === 'ilimitado';
-                          setFormData({
-                            ...formData,
-                            cupos_totales: isIlimitado ? 999999 : 30
-                          });
-                        }}
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                      >
-                        <option value="limitado">Definidos / Limitados</option>
-                        <option value="ilimitado">Abierto / Ilimitados</option>
-                      </select>
-                    </div>
-                    {formData.cupos_totales !== 999999 && (
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cantidad de Cupos</label>
-                        <input type="number" required min="1"
-                          className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                          value={formData.cupos_totales} onChange={e => setFormData({...formData, cupos_totales: Number(e.target.value)})} 
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha de Inicio Estimada</label>
-                    <input type="date" required
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                      value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({...formData, fecha_inicio: e.target.value})} 
-                    />
-                  </div>
-
-                  <div className="space-y-3 border-t border-gray-100 pt-4">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos del Curso</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextNum = formData.modulos.length + 1;
-                          setFormData({
-                            ...formData,
-                            modulos: [
-                              ...formData.modulos,
-                              { nombre_modulo: `Módulo ${nextNum}`, id_profesor: null, orden: nextNum - 1 }
-                            ]
-                          });
-                        }}
-                        className="text-xs font-bold text-[#00B870] hover:underline"
-                      >
-                        + Agregar Módulo
-                      </button>
-                    </div>
-
-                    {formData.modulos.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">No hay módulos definidos. Se creará uno por defecto.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {formData.modulos.map((mod, index) => (
-                          <div key={index} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                            <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
-                            <input
-                              type="text"
-                              required
-                              placeholder="Nombre del módulo"
-                              value={mod.nombre_modulo}
-                              onChange={(e) => {
-                                const newMods = [...formData.modulos];
-                                newMods[index].nombre_modulo = e.target.value;
-                                setFormData({ ...formData, modulos: newMods });
-                              }}
-                              className="flex-1 bg-white rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                            />
-                            <select
-                              value={mod.id_profesor || ''}
-                              onChange={(e) => {
-                                if (e.target.value === 'NEW_PROFESOR') {
-                                  setCurrentModIndex(index);
-                                  handleOpenProfModal();
-                                  e.target.value = mod.id_profesor ? String(mod.id_profesor) : '';
-                                  return;
-                                }
-                                const val = e.target.value ? Number(e.target.value) : null;
-                                const newMods = [...formData.modulos];
-                                newMods[index].id_profesor = val;
-                                setFormData({ ...formData, modulos: newMods });
-                              }}
-                              className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                            >
-                              <option value="">Profesor (Opcional)</option>
-                              {profesores.map(p => (
-                                <option key={p.id_profesor} value={p.id_profesor}>
-                                  {p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
-                                </option>
-                              ))}
-                              <option value="NEW_PROFESOR" className="text-[#00B870] font-bold">+ Crear Nuevo Profesor...</option>
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newMods = formData.modulos.filter((_, idx) => idx !== index)
-                                  .map((m, idx) => ({ ...m, orden: idx }));
-                                setFormData({ ...formData, modulos: newMods });
-                              }}
-                              className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
-                            >
-                              &times;
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Estatus del Curso</label>
+                    <select
+                      value={formData.estatus}
+                      onChange={e => setFormData({ ...formData, estatus: e.target.value as any })}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                    >
+                      <option value="Abierto">Abierto (Recibiendo Inscripciones)</option>
+                      <option value="Cerrado">Cerrado / Concluido</option>
+                      <option value="En curso">En curso</option>
+                      <option value="Próximamente">Próximamente</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="p-5 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0 bg-slate-50/50">
-                  <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95">
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={uploading} 
-                    className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {uploading ? 'Procesando...' : editingId ? 'Actualizar Programa' : 'Crear Curso'}
-                  </button>
+                {/* Modo Solo Informativo Toggle */}
+                <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-50 border border-emerald-200/80 rounded-2xl space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <span>📢 Publicar en Landing como Noticia / Afiche (Solo Informativo)</span>
+                        {formData.solo_informativo === 1 && (
+                          <span className="bg-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">En Landing</span>
+                        )}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Al activar esta opción, la afiche o imagen promocional se publicitará automáticamente en el carrusel de <strong>Noticias de la Landing Principal</strong> (vista en grande de solo imagen).
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.solo_informativo === 1}
+                        onChange={(e) => setFormData({ ...formData, solo_informativo: e.target.checked ? 1 : 0 })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
                 </div>
-              </form>
-           </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo de Cupos</label>
+                    <select
+                      value={formData.cupos_totales === 999999 ? 'ilimitado' : 'limitado'}
+                      onChange={(e) => {
+                        const isIlimitado = e.target.value === 'ilimitado';
+                        setFormData({
+                          ...formData,
+                          cupos_totales: isIlimitado ? 999999 : 30
+                        });
+                      }}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                    >
+                      <option value="limitado">Definidos / Limitados</option>
+                      <option value="ilimitado">Abierto / Ilimitados</option>
+                    </select>
+                  </div>
+                  {formData.cupos_totales !== 999999 && (
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cantidad de Cupos</label>
+                      <input type="number" required min="1"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                        value={formData.cupos_totales} onChange={e => setFormData({ ...formData, cupos_totales: Number(e.target.value) })}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha de Inicio Estimada</label>
+                  <input type="date" required
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                    value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({ ...formData, fecha_inicio: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-3 border-t border-gray-100 pt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos del Curso</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextNum = formData.modulos.length + 1;
+                        setFormData({
+                          ...formData,
+                          modulos: [
+                            ...formData.modulos,
+                            { nombre_modulo: `Módulo ${nextNum}`, id_profesor: null, orden: nextNum - 1 }
+                          ]
+                        });
+                      }}
+                      className="text-xs font-bold text-[#00B870] hover:underline"
+                    >
+                      + Agregar Módulo
+                    </button>
+                  </div>
+
+                  {formData.modulos.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No hay módulos definidos. Se creará uno por defecto.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {formData.modulos.map((mod, index) => (
+                        <div key={index} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                          <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Nombre del módulo"
+                            value={mod.nombre_modulo}
+                            onChange={(e) => {
+                              const newMods = [...formData.modulos];
+                              newMods[index].nombre_modulo = e.target.value;
+                              setFormData({ ...formData, modulos: newMods });
+                            }}
+                            className="flex-1 bg-white rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                          />
+                          <select
+                            value={mod.id_profesor || ''}
+                            onChange={(e) => {
+                              if (e.target.value === 'NEW_PROFESOR') {
+                                setCurrentModIndex(index);
+                                handleOpenProfModal();
+                                e.target.value = mod.id_profesor ? String(mod.id_profesor) : '';
+                                return;
+                              }
+                              const val = e.target.value ? Number(e.target.value) : null;
+                              const newMods = [...formData.modulos];
+                              newMods[index].id_profesor = val;
+                              setFormData({ ...formData, modulos: newMods });
+                            }}
+                            className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                          >
+                            <option value="">Profesor (Opcional)</option>
+                            {profesores.map(p => (
+                              <option key={p.id_profesor} value={p.id_profesor}>
+                                {p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
+                              </option>
+                            ))}
+                            <option value="NEW_PROFESOR" className="text-[#00B870] font-bold">+ Crear Nuevo Profesor...</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newMods = formData.modulos.filter((_, idx) => idx !== index)
+                                .map((m, idx) => ({ ...m, orden: idx }));
+                              setFormData({ ...formData, modulos: newMods });
+                            }}
+                            className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0 bg-slate-50/50">
+                <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95">
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploading}
+                  className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {uploading ? 'Procesando...' : editingId ? 'Actualizar Programa' : 'Crear Curso'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -886,27 +887,25 @@ const CursosAdminPanel = () => {
               </div>
               <button onClick={() => setIsProfModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
             </div>
-            
+
             <div className="p-5 border-b border-gray-100 bg-slate-50/30 flex gap-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setProfRegisterMode('existente')}
-                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                  profRegisterMode === 'existente'
-                    ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
-                    : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
-                }`}
+                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${profRegisterMode === 'existente'
+                  ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
+                  : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
+                  }`}
               >
                 Persona Existente
               </button>
               <button
                 type="button"
                 onClick={() => setProfRegisterMode('nuevo')}
-                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                  profRegisterMode === 'nuevo'
-                    ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
-                    : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
-                }`}
+                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${profRegisterMode === 'nuevo'
+                  ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
+                  : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
+                  }`}
               >
                 Persona Nueva
               </button>
@@ -1041,6 +1040,95 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modal Inscribir State
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [enrollMode, setEnrollMode] = useState<'afiliado' | 'nuevo'>('afiliado');
+  const [afiliadosLista, setAfiliadosLista] = useState<any[]>([]);
+  const [afiliadoSearch, setAfiliadoSearch] = useState('');
+  const [afiliadoSearchField, setAfiliadoSearchField] = useState<'nombre' | 'cedula' | 'email'>('nombre');
+  const [showAfiliadoSearchDropdown, setShowAfiliadoSearchDropdown] = useState(false);
+  const [selectedAfiliadoId, setSelectedAfiliadoId] = useState<string>('');
+  const [submittingEnroll, setSubmittingEnroll] = useState(false);
+  const [enrollFormData, setEnrollFormData] = useState({
+    nombreCompleto: '',
+    email: '',
+    cedulaRif: '',
+    telefono: '',
+    nivelProfesional: 'Nivel Profesional',
+    esCorredorInmobiliario: true
+  });
+
+  const handleOpenEnrollModal = async () => {
+    setIsEnrollModalOpen(true);
+    setAfiliadoSearch('');
+    setSelectedAfiliadoId('');
+    setEnrollFormData({
+      nombreCompleto: '',
+      email: '',
+      cedulaRif: '',
+      telefono: '',
+      nivelProfesional: 'Nivel Profesional',
+      esCorredorInmobiliario: true
+    });
+
+    try {
+      const resAfil = await fetch(`${API_URL}/api/afiliados`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const jsonAfil = await resAfil.json();
+      if (jsonAfil.success && Array.isArray(jsonAfil.data)) {
+        setAfiliadosLista(jsonAfil.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSelectAfiliado = (af: any) => {
+    setSelectedAfiliadoId(String(af.id_afiliado || af.id));
+    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || '';
+    setEnrollFormData({
+      nombreCompleto: nombre,
+      email: af.email || '',
+      cedulaRif: af.cedula || af.rif || '',
+      telefono: af.telefono || af.telefono_movil || '',
+      nivelProfesional: 'Nivel Profesional',
+      esCorredorInmobiliario: true
+    });
+  };
+
+  const handleSubmitEnroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enrollFormData.nombreCompleto.trim() || !enrollFormData.email.trim()) {
+      Swal.fire('Atención', 'Nombre completo y correo electrónico son requeridos', 'warning');
+      return;
+    }
+
+    setSubmittingEnroll(true);
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cursos/${curso.id_curso}/asignar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(enrollFormData)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || 'Error al inscribir estudiante');
+      }
+
+      Swal.fire('¡Estudiante Inscrito!', 'El estudiante ha sido inscrito correctamente en el curso.', 'success');
+      setIsEnrollModalOpen(false);
+      fetchRows();
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Error al inscribir estudiante', 'error');
+    } finally {
+      setSubmittingEnroll(false);
+    }
+  };
+
   const fetchRows = async () => {
     setLoading(true);
     try {
@@ -1084,8 +1172,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       {/* Header Premium */}
       <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={onBack} 
+          <button
+            onClick={onBack}
             className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-gray-200 text-slate-400 hover:text-[#00D084] hover:border-[#00D084] hover:shadow-lg hover:shadow-[#00D084]/10 transition-all active:scale-95 group"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1100,20 +1188,33 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión de participantes y admisiones</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
-            <span className="text-sm font-bold text-slate-700 tabular-nums">
-              {getSafeNumber(curso.cupos_disponibles, 0)} <span className="text-slate-300 font-medium">/ {getSafeNumber(curso.cupos_totales, 0) >= 999999 ? '∞' : getSafeNumber(curso.cupos_totales, 0)}</span>
-            </span>
-          </div>
-          <div className="w-px h-8 bg-gray-100 mx-1" />
-          <div className="w-10 h-10 rounded-xl bg-[#E9FAF4] flex items-center justify-center text-[#00D084]">
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-          </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleOpenEnrollModal}
+            className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-all active:scale-95 cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Inscribir Estudiante</span>
+          </button>
+
+          {!(Number(curso.solo_informativo) === 1 || curso.solo_informativo === true || (curso.estatus as string) === 'Solo Informativo') && (
+            <div className="hidden sm:flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
+                <span className="text-sm font-bold text-slate-700 tabular-nums">
+                  {getSafeNumber(curso.cupos_disponibles, 0)} <span className="text-slate-300 font-medium">/ {getSafeNumber(curso.cupos_totales, 0) >= 999999 ? '∞' : getSafeNumber(curso.cupos_totales, 0)}</span>
+                </span>
+              </div>
+              <div className="w-px h-8 bg-gray-100 mx-1" />
+              <div className="w-10 h-10 rounded-xl bg-[#E9FAF4] flex items-center justify-center text-[#00D084]">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      
+
       {/* Table Section */}
       <div className="flex-1 min-h-0 overflow-hidden bg-white">
         {loading ? (
@@ -1162,7 +1263,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                       <span className="text-xs font-bold text-slate-600 tabular-nums bg-gray-100 px-2 py-1 rounded-md">{r.estudiante_cedula || 'S/N'}</span>
+                      <span className="text-xs font-bold text-slate-600 tabular-nums bg-gray-100 px-2 py-1 rounded-md">{r.estudiante_cedula || 'S/N'}</span>
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500 tabular-nums">
                       {new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1173,41 +1274,39 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Completado
                         </span>
                       ) : (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                          r.estatus === 'Preinscrito' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${r.estatus === 'Preinscrito' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                           r.estatus === 'Inscrito' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                          'bg-red-50 text-red-500 border-red-100'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            r.estatus === 'Preinscrito' ? 'bg-amber-500' :
+                            'bg-red-50 text-red-500 border-red-100'
+                          }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${r.estatus === 'Preinscrito' ? 'bg-amber-500' :
                             r.estatus === 'Inscrito' ? 'bg-emerald-500' :
-                            'bg-red-500'
-                          }`} />
+                              'bg-red-500'
+                            }`} />
                           {r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : r.estatus}
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                       <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                         {r.estatus === 'Preinscrito' && (
-                           <>
-                             <button onClick={() => procesar(r.id_inscripcion, 'aprobar')} className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-all">Validar</button>
-                             <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all">Rechazar</button>
-                           </>
-                         )}
-                         {r.estatus === 'Inscrito' && r.completado !== 1 && (
-                           <>
-                             <button onClick={() => procesar(r.id_inscripcion, 'completar')} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-1.5">
-                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4" /></svg>
-                               Graduar
-                             </button>
-                             <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all">Revocar</button>
-                           </>
-                         )}
-                         {r.completado === 1 && (
-                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
-                         )}
-                       </div>
+                      <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                        {r.estatus === 'Preinscrito' && (
+                          <>
+                            <button onClick={() => procesar(r.id_inscripcion, 'aprobar')} className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-all">Validar</button>
+                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all">Rechazar</button>
+                          </>
+                        )}
+                        {r.estatus === 'Inscrito' && r.completado !== 1 && (
+                          <>
+                            <button onClick={() => procesar(r.id_inscripcion, 'completar')} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-1.5">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4" /></svg>
+                              Graduar
+                            </button>
+                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all">Revocar</button>
+                          </>
+                        )}
+                        {r.completado === 1 && (
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1216,6 +1315,288 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
         )}
       </div>
+
+      {/* ── MODAL INSCRIBIR ESTUDIANTE EN ESTE CURSO ── */}
+      {isEnrollModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E9FAF4] text-[#00B870] flex items-center justify-center font-bold">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Inscribir en {curso.nombre}</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Asignar estudiante directamente a este curso</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEnrollModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitEnroll} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                {/* Tipo de Inscrito Switcher */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    Origen del Estudiante *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => { setEnrollMode('afiliado'); setSelectedAfiliadoId(''); }}
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'afiliado'
+                        ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Afiliado Existente</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEnrollMode('nuevo'); setSelectedAfiliadoId(''); }}
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'nuevo'
+                        ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>Persona No Afiliada</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Si elige Afiliado Existente */}
+                {enrollMode === 'afiliado' && (
+                  <div className="space-y-3 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 relative z-30">
+                    <label className="block text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">
+                      Buscar en Directorio de Afiliados
+                    </label>
+
+                    <div className="relative">
+                      {/* Buscador de Nómina de Afiliados al estilo Directorio de Miembros */}
+                      <div className="relative flex items-center rounded-xl bg-white border border-emerald-200 focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-all text-xs h-10 shadow-xs z-30">
+                        {/* Dropdown Criterion Selector */}
+                        <div className="relative shrink-0 border-r border-emerald-100 h-full flex items-center pl-3 pr-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAfiliadoSearchDropdown(prev => !prev);
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 hover:text-[#00B870] transition-colors"
+                          >
+                            <span>
+                              {afiliadoSearchField === 'nombre' && 'Nombre'}
+                              {afiliadoSearchField === 'cedula' && 'Cédula'}
+                              {afiliadoSearchField === 'email' && 'Correo'}
+                            </span>
+                            <ChevronDown className={`w-3 h-3 text-emerald-600 transition-transform ${showAfiliadoSearchDropdown ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {showAfiliadoSearchDropdown && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowAfiliadoSearchDropdown(false);
+                                }}
+                              />
+                              <div className="absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                                {[
+                                  { key: 'nombre', label: 'Nombre' },
+                                  { key: 'cedula', label: 'Cédula / RIF' },
+                                  { key: 'email', label: 'Correo' },
+                                ].map(option => (
+                                  <button
+                                    key={option.key}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAfiliadoSearchField(option.key as any);
+                                      setShowAfiliadoSearchDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${afiliadoSearchField === option.key
+                                      ? 'bg-[#E9FAF4] text-[#00B870] font-extrabold'
+                                      : 'text-slate-600 hover:bg-slate-50'
+                                      }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="relative flex-grow h-full flex items-center pr-2">
+                          <Search className="w-3.5 h-3.5 text-emerald-600 ml-2 shrink-0" />
+                          <input
+                            type="text"
+                            value={afiliadoSearch}
+                            onChange={(e) => setAfiliadoSearch(e.target.value)}
+                            placeholder={
+                              afiliadoSearchField === 'nombre'
+                                ? 'Buscar por nombre completo...'
+                                : afiliadoSearchField === 'cedula'
+                                  ? 'Buscar por cédula o RIF...'
+                                  : 'Buscar por correo electrónico...'
+                            }
+                            className="w-full h-full pl-2 pr-6 bg-transparent text-slate-800 font-semibold placeholder-slate-400 outline-none text-xs"
+                          />
+                          {afiliadoSearch && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setAfiliadoSearch(''); }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center hover:bg-emerald-200 transition-all"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lista filtrada de afiliados FLOTANTE / position absolute */}
+                      {afiliadoSearch.trim().length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
+                          {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
+                            .filter((af: any) => {
+                              if (!af) return false;
+                              const q = afiliadoSearch.toLowerCase();
+                              const nombre = [af.nombres, af.apellidos, af.razon_social, af.nombre].filter(Boolean).join(' ').toLowerCase();
+                              const cedula = String(af.cedula || af.rif || af.cedula_rif || '').toLowerCase();
+                              const email = String(af.email || '').toLowerCase();
+
+                              if (afiliadoSearchField === 'nombre') return nombre.includes(q);
+                              if (afiliadoSearchField === 'cedula') return cedula.includes(q);
+                              if (afiliadoSearchField === 'email') return email.includes(q);
+                              return nombre.includes(q) || email.includes(q) || cedula.includes(q);
+                            })
+                            .slice(0, 8)
+                            .map((af: any) => {
+                              const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || 'Sin nombre';
+                              const isSel = String(af.id_afiliado || af.id) === selectedAfiliadoId;
+                              return (
+                                <button
+                                  key={af.id_afiliado || af.id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleSelectAfiliado(af);
+                                    setAfiliadoSearch('');
+                                  }}
+                                  className={`w-full text-left p-3 text-xs flex items-center justify-between transition-all ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                >
+                                  <div className="min-w-0">
+                                    <p className="font-bold truncate">{nombre}</p>
+                                    <p className="text-[10px] text-slate-400 truncate">{af.email || 'Sin correo'} • C.I: {af.cedula || 'S/N'}</p>
+                                  </div>
+                                  {isSel && <CheckCircle2 className="w-4 h-4 text-[#00B870] shrink-0 ml-2" />}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos de datos del estudiante */}
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Nombre Completo del Estudiante *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="Ej. María Pérez"
+                      value={enrollFormData.nombreCompleto}
+                      onChange={(e) => setEnrollFormData({ ...enrollFormData, nombreCompleto: e.target.value })}
+                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Correo Electrónico *
+                      </label>
+                      <input
+                        required
+                        type="email"
+                        placeholder="ejemplo@correo.com"
+                        value={enrollFormData.email}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, email: e.target.value })}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Cédula / RIF
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="V-12345678"
+                        value={enrollFormData.cedulaRif}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaRif: e.target.value })}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Teléfono de Contacto
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="0414-1234567"
+                      value={enrollFormData.telefono}
+                      onChange={(e) => setEnrollFormData({ ...enrollFormData, telefono: e.target.value })}
+                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsEnrollModalOpen(false)}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEnroll}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {submittingEnroll ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Inscribiendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Inscribir {curso.nombre}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

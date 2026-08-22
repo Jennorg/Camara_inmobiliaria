@@ -133,13 +133,14 @@ export const NoticiasPanel = () => {
   const save = async () => {
     setSaving(true)
     try {
+      const isSoloImagen = form.tag === 'solo_imagen' || form.extracto === '[SOLO_IMAGEN]';
       const payload = {
-        titulo: form.titulo,
-        contenido: form.contenido,
-        resumen: form.extracto,
+        titulo: form.titulo.trim() || (isSoloImagen ? 'Afiche Informativo' : 'Sin título'),
+        contenido: isSoloImagen ? '' : form.contenido,
+        resumen: isSoloImagen ? '[SOLO_IMAGEN]' : form.extracto,
         imagen_url: form.imagen_url,
-        categoria: form.categoria,
-        tag: form.tag,
+        categoria: form.categoria || 'Noticias',
+        tag: isSoloImagen ? 'solo_imagen' : form.tag,
         publicado: form.publicado,
         fecha_evento: form.fecha_evento || null,
         hora_evento: form.hora_evento || null,
@@ -217,11 +218,41 @@ export const NoticiasPanel = () => {
         
         {/* COLUMNA IZQUIERDA: Campos de la noticia (7 columnas) */}
         <div className="lg:col-span-7 space-y-5">
-          <FormField label="Título de la Noticia">
+          {/* Opción Solo Imagen (Afiche / Volante / Anuncio Visual) */}
+          <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-xs">
+            <div className="space-y-0.5">
+              <p className="font-extrabold text-xs sm:text-sm text-slate-800 flex items-center gap-2">
+                <span>🖼️ Modo Solo Imagen (Afiche / Volante)</span>
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Muestra la imagen subida en grande sin texto ni título debajo en el portal web.
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                checked={form.tag === 'solo_imagen' || form.extracto === '[SOLO_IMAGEN]'}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setForm(p => ({
+                    ...p,
+                    tag: checked ? 'solo_imagen' : p.tag === 'solo_imagen' ? '' : p.tag,
+                    extracto: checked ? '[SOLO_IMAGEN]' : p.extracto === '[SOLO_IMAGEN]' ? '' : p.extracto,
+                    contenido: checked ? '' : p.contenido,
+                    titulo: checked && !p.titulo ? 'Afiche Informativo' : p.titulo
+                  }))
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          <FormField label={form.tag === 'solo_imagen' ? 'Título / Identificación Interna (Opcional)' : 'Título de la Noticia'}>
             <Input 
               value={form.titulo} 
               onChange={f('titulo')} 
-              placeholder="Ej. Nuevas tendencias del mercado inmobiliario..." 
+              placeholder={form.tag === 'solo_imagen' ? 'Ej. Afiche de Conferencia Marzo...' : 'Ej. Nuevas tendencias del mercado inmobiliario...'} 
               className="!text-sm !py-3 bg-slate-50/70 border-slate-200 focus:bg-white transition-all font-bold"
             />
           </FormField>
@@ -240,31 +271,35 @@ export const NoticiasPanel = () => {
               <Input 
                 value={form.tag} 
                 onChange={f('tag')} 
-                placeholder="Ej. Mercado, Legal..." 
+                placeholder="Ej. solo_imagen, Mercado, Legal..." 
                 className="!text-xs !py-2.5 bg-slate-50/70 border-slate-200" 
               />
             </FormField>
           </div>
 
-          <FormField label="Extracto / Resumen Corto (Aparece en la Tarjeta)">
-            <Textarea 
-              value={form.extracto} 
-              onChange={f('extracto')} 
-              placeholder="Breve resumen de 1 a 2 líneas para la tarjeta de la landing..." 
-              rows={2} 
-              className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-none font-medium"
-            />
-          </FormField>
+          {form.tag !== 'solo_imagen' && (
+            <>
+              <FormField label="Extracto / Resumen Corto (Aparece en la Tarjeta)">
+                <Textarea 
+                  value={form.extracto} 
+                  onChange={f('extracto')} 
+                  placeholder="Breve resumen de 1 a 2 líneas para la tarjeta de la landing..." 
+                  rows={2} 
+                  className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-none font-medium"
+                />
+              </FormField>
 
-          <FormField label="Cuerpo / Contenido Completo">
-            <Textarea 
-              value={form.contenido} 
-              onChange={f('contenido')} 
-              placeholder="Escriba aquí el contenido detallado de la noticia..." 
-              rows={6} 
-              className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-y min-h-[140px]"
-            />
-          </FormField>
+              <FormField label="Cuerpo / Contenido Completo">
+                <Textarea 
+                  value={form.contenido} 
+                  onChange={f('contenido')} 
+                  placeholder="Escriba aquí el contenido detallado de la noticia..." 
+                  rows={6} 
+                  className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-y min-h-[140px]"
+                />
+              </FormField>
+            </>
+          )}
 
           {/* Resaltado de Evento (Opcional) */}
           <div className="bg-emerald-50/40 border border-emerald-100 rounded-2xl p-4 space-y-3">

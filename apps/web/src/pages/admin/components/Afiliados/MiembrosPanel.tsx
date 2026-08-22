@@ -1866,22 +1866,22 @@ export default function MiembrosPanel() {
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Comprobantes y títulos digitales emitidos</p>
                   </div>
                 </div>
-                {selected.certificados && selected.certificados.length > 0 && (
+                {(selected as any).certificados && (selected as any).certificados.length > 0 && (
                   <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                    {selected.certificados.length} {selected.certificados.length === 1 ? 'Certificado' : 'Certificados'}
+                    {(selected as any).certificados.length} {(selected as any).certificados.length === 1 ? 'Certificado' : 'Certificados'}
                   </span>
                 )}
               </div>
 
               <div className="space-y-3">
-                {selected.certificados === undefined ? (
+                {(selected as any).certificados === undefined ? (
                   <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400">
                     <RefreshCw size={15} className="animate-spin text-amber-500" />
                     Cargando certificados...
                   </div>
-                ) : selected.certificados && selected.certificados.length > 0 ? (
+                ) : (selected as any).certificados && (selected as any).certificados.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selected.certificados.map((cert: any) => {
+                    {(selected as any).certificados.map((cert: any) => {
                       const certTitle = cert.curso_nombre || (cert.programa_codigo ? `Programa ${cert.programa_codigo}` : 'Certificado de Aprobación');
                       const validationCode = cert.codigo_validacion;
                       const fechaStr = cert.fecha_emision ? new Date(cert.fecha_emision).toLocaleDateString() : '';

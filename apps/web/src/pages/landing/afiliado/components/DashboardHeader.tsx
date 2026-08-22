@@ -241,8 +241,7 @@ const DashboardHeader = ({
         updatedRedes.foto_original_url = originalUrl;
       }
 
-      const payload: any = { redes_sociales: updatedRedes };
-      // IMPORTANTE: No se actualiza payload.foto_url aquí bajo ninguna circunstancia.
+      const payload: any = { redes_sociales: updatedRedes, foto_url: publicUrl };
       const updateRes = await fetch(
         `${API_URL}/api/afiliados/${afiliado.id_afiliado}`,
         {
@@ -420,19 +419,38 @@ const DashboardHeader = ({
               </span>
             </div>
             <div
-              className="w-10 h-10 rounded-full border-2 border-emerald-600/30 shadow-sm flex items-center justify-center overflow-hidden transition-all group-hover:border-emerald-500 group-hover:scale-105 group-hover:shadow-md"
-              style={{ backgroundColor: 'var(--color-accent-muted)' }}
+              className="w-11 sm:w-12 rounded-2xl border-2 border-emerald-600/40 shadow-sm flex items-center justify-center overflow-hidden transition-all group-hover:border-emerald-500 group-hover:scale-105 group-hover:shadow-md shrink-0"
+              style={{ backgroundColor: 'var(--color-accent-muted)', aspectRatio: '155 / 185' }}
             >
-              {userFotoUrl && !imgError ? (
-                <img
-                  src={userFotoUrl}
-                  alt={userName}
-                  onError={() => setImgError(true)}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <User size={20} style={{ color: 'var(--color-accent-hover)' }} />
-              )}
+              {(() => {
+                const redes = parseRedes(afiliado?.redes_sociales);
+                const carnetPhotoUrl = useJuntaPhoto
+                  ? redes?.foto_junta_carnet_url
+                  : redes?.foto_carnet_url;
+
+                const displayPhoto =
+                  carnetPhotoUrl ||
+                  (useJuntaPhoto && afiliado?.foto_junta_url
+                    ? afiliado.foto_junta_url
+                    : userFotoUrl || afiliado?.foto_url);
+                const isCropped = !!carnetPhotoUrl;
+
+                return displayPhoto && !imgError ? (
+                  <img
+                    src={displayPhoto}
+                    alt={userName}
+                    onError={() => setImgError(true)}
+                    className="w-full h-full object-cover"
+                    style={
+                      isCropped
+                        ? { objectPosition: 'center center' }
+                        : { transform: 'scale(2)', transformOrigin: 'center top' }
+                    }
+                  />
+                ) : (
+                  <User size={24} style={{ color: 'var(--color-accent-hover)' }} />
+                );
+              })()}
             </div>
           </div>
 

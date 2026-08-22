@@ -918,190 +918,280 @@ export const DirectivaPanel = () => {
           </button>
         </div>
       ) : (
-        /* HIGH DENSITY TABLE VIEW */
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-auto max-h-[calc(100vh-280px)] custom-scrollbar">
-          <table className="w-full text-left text-xs min-w-[700px] border-separate border-spacing-0">
-            <thead className="sticky top-0 z-10 bg-slate-50 shadow-xs">
-              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <th className="px-5 py-4 w-20 text-center bg-slate-50 border-b border-slate-200">ORDEN</th>
-                <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">AUTORIDAD / CARGO</th>
-                <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">PERÍODO</th>
-                <th className="px-5 py-4 text-center bg-slate-50 border-b border-slate-200">ESTATUS</th>
-                <th className="px-5 py-4 text-right bg-slate-50 border-b border-slate-200">ACCIONES</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredItems.map((item, index) => {
-                const rank = index + 1;
-                const isBeingDragged = draggedIndex === index;
-                const isHoverTarget = dragOverIndex === index && draggedIndex !== index;
-
-                return (
-                  <tr
-                    key={item.id}
-                    draggable
-                    onDragStart={(e) => {
-                      setDraggedIndex(index);
-                      createDragGhost(e, item, rank);
-                      e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const offsetY = e.clientY - rect.top;
-                      const pos = offsetY < rect.height / 2 ? 'top' : 'bottom';
-                      
-                      if (dragOverIndex !== index || dropPosition !== pos) {
-                        setDragOverIndex(index);
-                        setDropPosition(pos);
-                      }
-                    }}
-                    onDragLeave={() => {
-                      if (dragOverIndex === index) {
-                        setDragOverIndex(null);
-                        setDropPosition(null);
-                      }
-                    }}
-                    onDragEnd={() => {
-                      setDraggedIndex(null);
-                      setDragOverIndex(null);
-                      setDropPosition(null);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (draggedIndex !== null && draggedIndex !== index) {
-                        handleReorder(draggedIndex, index, dropPosition);
-                      }
-                      setDraggedIndex(null);
-                      setDragOverIndex(null);
-                      setDropPosition(null);
-                    }}
-                    className={`transition-all duration-300 ease-in-out group ${getSwapAnimationClass(item.id)} ${getRowDisplacement(index)} ${
-                      movedRowId === item.id
-                        ? 'bg-emerald-50/90 border-l-4 border-l-emerald-600 transition-colors duration-500'
-                        : isBeingDragged
-                        ? 'opacity-30 bg-slate-100/70 border-dashed border-2 border-slate-300'
-                        : isHoverTarget
-                        ? `${dropPosition === 'top' ? 'border-t-2 border-t-emerald-600' : 'border-b-2 border-b-emerald-600'} bg-emerald-50/40`
-                        : 'hover:bg-slate-50/70'
-                    }`}
-                  >
-                    <td className="px-5 py-3.5 text-center font-bold text-slate-400">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <div 
-                          className="p-1 rounded-lg text-slate-300 group-hover:text-slate-500 hover:bg-slate-100 cursor-grab active:cursor-grabbing transition-colors shrink-0" 
-                          title="Arrastrar para reordenar"
-                        >
-                          <GripVertical size={14} />
-                        </div>
-
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border min-w-[34px] text-center flex items-center justify-center gap-1 transition-all ${
-                          movedRowId === item.id 
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold scale-105 shadow-xs' 
-                            : 'text-slate-500 bg-slate-100 border-slate-200/60'
-                        }`}>
-                          {movedRowId === item.id && movedDirection === 'up' && (
-                            <ArrowUp size={11} className="text-emerald-600 animate-bounce shrink-0" />
-                          )}
-                          {movedRowId === item.id && movedDirection === 'down' && (
-                            <ArrowDown size={11} className="text-emerald-600 animate-bounce shrink-0" />
-                          )}
-                          <span>#{rank}</span>
+        <>
+          {/* MOBILE CARDS VIEW */}
+          <div className="block md:hidden space-y-3">
+            {filteredItems.map((item, index) => {
+              const rank = index + 1;
+              return (
+                <div key={item.id} className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-3 relative overflow-hidden">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0 border border-slate-200/50">
+                        {item.foto_url ? (
+                          <img src={item.foto_url} alt={item.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
+                        ) : (
+                          formatNombreCard(item.nombre).charAt(0)
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">
+                          {formatNombreCard(item.nombre)}
+                        </p>
+                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block truncate mt-0.5">
+                          {item.cargo}
                         </span>
-
-                        <div className="flex flex-col gap-0.5 ml-0.5">
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={() => moveItem(index, 'up')}
-                            className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20 transition-colors rounded-md"
-                            title="Mover arriba"
-                          >
-                            <ArrowUp size={11} />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={index === filteredItems.length - 1}
-                            onClick={() => moveItem(index, 'down')}
-                            className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20 transition-colors rounded-md"
-                            title="Mover abajo"
-                          >
-                            <ArrowDown size={11} />
-                          </button>
-                        </div>
                       </div>
-                    </td>
+                    </div>
 
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0 border border-slate-200/50">
-                          {item.foto_url ? (
-                            <img src={item.foto_url} alt={item.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
-                          ) : (
-                            formatNombreCard(item.nombre).charAt(0)
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
-                            {formatNombreCard(item.nombre)}
-                            {item.foto_junta_url && (
-                              <span 
-                                className="inline-block text-[8px] bg-amber-50 text-amber-700 border border-amber-200/60 font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0" 
-                                title="Tiene una foto específica asignada para la landing de Junta Directiva"
-                              >
-                                Foto Junta
-                              </span>
-                            )}
-                          </p>
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
-                            {item.cargo}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">
+                        #{rank}
+                      </span>
+                    </div>
+                  </div>
 
-                    <td className="px-5 py-3.5 text-slate-600 font-semibold">
-                      {formatPeriodoDisplay(item.periodo)}
-                    </td>
-
-                    <td className="px-5 py-3.5 text-center">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-medium text-[11px]">{formatPeriodoDisplay(item.periodo)}</span>
                       <button
+                        type="button"
                         onClick={() => toggleStatus(item)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                          item.activo
-                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          item.activo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-slate-100 text-slate-500'
                         }`}
                       >
                         {item.activo ? 'Activo' : 'Inactivo'}
                       </button>
-                    </td>
+                    </div>
 
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => moveItem(index, 'up')}
+                        className="p-1.5 text-slate-500 hover:text-slate-900 disabled:opacity-20 transition border border-slate-200 rounded-lg"
+                        title="Mover arriba"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === filteredItems.length - 1}
+                        onClick={() => moveItem(index, 'down')}
+                        className="p-1.5 text-slate-500 hover:text-slate-900 disabled:opacity-20 transition border border-slate-200 rounded-lg"
+                        title="Mover abajo"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(item)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg transition"
+                        title="Editar"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(item.id)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 border border-rose-100 rounded-lg transition"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* HIGH DENSITY TABLE VIEW FOR DESKTOP */}
+          <div className="hidden md:block bg-white rounded-3xl border border-slate-100 shadow-sm overflow-auto max-h-[calc(100vh-280px)] custom-scrollbar">
+            <table className="w-full text-left text-xs min-w-[700px] border-separate border-spacing-0">
+              <thead className="sticky top-0 z-10 bg-slate-50 shadow-xs">
+                <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="px-5 py-4 w-20 text-center bg-slate-50 border-b border-slate-200">ORDEN</th>
+                  <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">AUTORIDAD / CARGO</th>
+                  <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">PERÍODO</th>
+                  <th className="px-5 py-4 text-center bg-slate-50 border-b border-slate-200">ESTATUS</th>
+                  <th className="px-5 py-4 text-right bg-slate-50 border-b border-slate-200">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredItems.map((item, index) => {
+                  const rank = index + 1;
+                  const isBeingDragged = draggedIndex === index;
+                  const isHoverTarget = dragOverIndex === index && draggedIndex !== index;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      draggable
+                      onDragStart={(e) => {
+                        setDraggedIndex(index);
+                        createDragGhost(e, item, rank);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        const pos = offsetY < rect.height / 2 ? 'top' : 'bottom';
+                        
+                        if (dragOverIndex !== index || dropPosition !== pos) {
+                          setDragOverIndex(index);
+                          setDropPosition(pos);
+                        }
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverIndex === index) {
+                          setDragOverIndex(null);
+                          setDropPosition(null);
+                        }
+                      }}
+                      onDragEnd={() => {
+                        setDraggedIndex(null);
+                        setDragOverIndex(null);
+                        setDropPosition(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedIndex !== null && draggedIndex !== index) {
+                          handleReorder(draggedIndex, index, dropPosition);
+                        }
+                        setDraggedIndex(null);
+                        setDragOverIndex(null);
+                        setDropPosition(null);
+                      }}
+                      className={`transition-all duration-300 ease-in-out group ${getSwapAnimationClass(item.id)} ${getRowDisplacement(index)} ${
+                        movedRowId === item.id
+                          ? 'bg-emerald-50/90 border-l-4 border-l-emerald-600 transition-colors duration-500'
+                          : isBeingDragged
+                          ? 'opacity-30 bg-slate-100/70 border-dashed border-2 border-slate-300'
+                          : isHoverTarget
+                          ? `${dropPosition === 'top' ? 'border-t-2 border-t-emerald-600' : 'border-b-2 border-b-emerald-600'} bg-emerald-50/40`
+                          : 'hover:bg-slate-50/70'
+                      }`}
+                    >
+                      <td className="px-5 py-3.5 text-center font-bold text-slate-400">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <div 
+                            className="p-1 rounded-lg text-slate-300 group-hover:text-slate-500 hover:bg-slate-100 cursor-grab active:cursor-grabbing transition-colors shrink-0" 
+                            title="Arrastrar para reordenar"
+                          >
+                            <GripVertical size={14} />
+                          </div>
+
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border min-w-[34px] text-center flex items-center justify-center gap-1 transition-all ${
+                            movedRowId === item.id 
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold scale-105 shadow-xs' 
+                              : 'text-slate-500 bg-slate-100 border-slate-200/60'
+                          }`}>
+                            {movedRowId === item.id && movedDirection === 'up' && (
+                              <ArrowUp size={11} className="text-emerald-600 animate-bounce shrink-0" />
+                            )}
+                            {movedRowId === item.id && movedDirection === 'down' && (
+                              <ArrowDown size={11} className="text-emerald-600 animate-bounce shrink-0" />
+                            )}
+                            <span>#{rank}</span>
+                          </span>
+
+                          <div className="flex flex-col gap-0.5 ml-0.5">
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() => moveItem(index, 'up')}
+                              className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20 transition-colors rounded-md"
+                              title="Mover arriba"
+                            >
+                              <ArrowUp size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === filteredItems.length - 1}
+                              onClick={() => moveItem(index, 'down')}
+                              className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20 transition-colors rounded-md"
+                              title="Mover abajo"
+                            >
+                              <ArrowDown size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center font-bold text-slate-600 shrink-0 border border-slate-200/50">
+                            {item.foto_url ? (
+                              <img src={item.foto_url} alt={item.nombre} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
+                            ) : (
+                              formatNombreCard(item.nombre).charAt(0)
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
+                              {formatNombreCard(item.nombre)}
+                              {item.foto_junta_url && (
+                                <span 
+                                  className="inline-block text-[8px] bg-amber-50 text-amber-700 border border-amber-200/60 font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0" 
+                                  title="Tiene una foto específica asignada para la landing de Junta Directiva"
+                                >
+                                  Foto Junta
+                                </span>
+                              )}
+                            </p>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+                              {item.cargo}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-slate-600 font-semibold">
+                        {formatPeriodoDisplay(item.periodo)}
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
                         <button
-                          onClick={() => openEditModal(item)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          title="Editar"
+                          onClick={() => toggleStatus(item)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                            item.activo
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}
                         >
-                          <Edit3 size={15} />
+                          {item.activo ? 'Activo' : 'Inactivo'}
                         </button>
-                        <button
-                          onClick={() => remove(item.id)}
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openEditModal(item)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Editar"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => remove(item.id)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* ── MODAL: Crear / Editar Miembro ──────────────────────────────────── */}

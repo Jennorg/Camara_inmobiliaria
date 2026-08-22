@@ -16,7 +16,46 @@ export const getNoticias = async (req: Request, res: Response) => {
     }
     sql += ' ORDER BY fecha_publicacion DESC';
     const result = await db.execute({ sql, args });
-    return res.json({ success: true, data: result.rows });
+    let noticias: any[] = [...result.rows];
+
+    // Incluir automáticamente los cursos marcados como solo_informativo
+    if (publicado === undefined || publicado === '1' || publicado === 'true') {
+      try {
+        const cursosRes = await db.execute({
+          sql: `SELECT id_curso, titulo, descripcion as contenido, imagen_url, estatus, solo_informativo, fecha_inicio as fecha_evento, creado_en as fecha_publicacion 
+                FROM cursos 
+                WHERE (solo_informativo = 1 OR estatus = 'Solo Informativo')
+                  AND imagen_url IS NOT NULL AND TRIM(imagen_url) != ''
+                ORDER BY creado_en DESC`,
+          args: []
+        });
+        
+        const cursosAsNoticias = cursosRes.rows.map((c: any) => ({
+          id_noticia: `curso_${c.id_curso}`,
+          titulo: c.titulo,
+          contenido: c.contenido || '',
+          resumen: '[SOLO_IMAGEN]',
+          imagen_url: c.imagen_url,
+          categoria: 'Formación',
+          tag: 'solo_imagen',
+          fecha_publicacion: c.fecha_publicacion,
+          publicado: 1,
+          fecha_evento: c.fecha_evento,
+          hora_evento: null,
+          lugar_evento: null
+        }));
+
+        noticias = [...cursosAsNoticias, ...noticias].sort((a: any, b: any) => {
+          const dateA = new Date(a.fecha_publicacion || 0).getTime();
+          const dateB = new Date(b.fecha_publicacion || 0).getTime();
+          return dateB - dateA;
+        });
+      } catch (err) {
+        console.error('Error al incluir cursos solo_informativo en getNoticias:', err);
+      }
+    }
+
+    return res.json({ success: true, data: noticias });
   } catch (error) {
     console.error('getNoticias:', error);
     return res.status(500).json({ success: false, message: 'Error al obtener noticias' });

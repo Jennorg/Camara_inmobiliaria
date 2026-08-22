@@ -18,6 +18,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import CompanySearchSelector from '@/components/CompanySearchSelector';
+import FileUpload from '@/components/common/FileUpload';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 
 interface EmpresaItem {
@@ -533,7 +534,7 @@ export default function WidgetSolicitudCambioEstado() {
                       required
                       accept=".pdf,image/*"
                       folder="documentos_empresa"
-                      onUploadSuccess={(url, name) => {
+                      onUploadSuccess={(url: string, name?: string) => {
                         setUrlRegistro(url);
                         setNombreRegistro(name || 'Registro_Mercantil.pdf');
                       }}
@@ -548,7 +549,7 @@ export default function WidgetSolicitudCambioEstado() {
                       required
                       accept=".pdf,image/*"
                       folder="documentos_empresa"
-                      onUploadSuccess={(url, name) => {
+                      onUploadSuccess={(url: string, name?: string) => {
                         setUrlRif(url);
                         setNombreRif(name || 'RIF_Empresa.pdf');
                       }}

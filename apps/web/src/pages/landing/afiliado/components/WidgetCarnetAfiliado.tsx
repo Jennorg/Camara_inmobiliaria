@@ -235,9 +235,7 @@ export default function WidgetCarnetAfiliado({
         updatedRedes.foto_original_url = originalUrl;
       }
 
-      const payload: any = { redes_sociales: updatedRedes };
-      // IMPORTANTE: No se actualiza payload.foto_url aquí bajo ninguna circunstancia.
-      // foto_url es la foto pública y solo debe cambiar desde el panel de administración.
+      const payload: any = { redes_sociales: updatedRedes, foto_url: publicUrl };
       const updateRes = await fetch(
         `${API_URL}/api/afiliados/${afiliado.id_afiliado}`,
         {

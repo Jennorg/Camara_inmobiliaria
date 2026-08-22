@@ -13,7 +13,8 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Mail
+  Mail,
+  LogIn
 } from 'lucide-react'
 
 
@@ -47,7 +48,7 @@ type FiltroRol    = 'todos' | 'admin' | 'afiliado' | 'super_admin' | 'asistente'
 type FiltroActivo = 'todos' | 'activo' | 'inactivo'
 
 export default function UsersPanel() {
-  const { token, user, isSuperAdmin, isAdmin } = useAuth()
+  const { token, user, isSuperAdmin, isAdmin, impersonateUser } = useAuth()
   const [users, setUsers]       = useState<SystemUser[]>([])
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
@@ -55,6 +56,19 @@ export default function UsersPanel() {
   const [resetMsg, setResetMsg] = useState<Record<number, string>>({})
   const [sendingInvite, setSendingInvite] = useState<Record<number, boolean>>({})
   const [userToInvite, setUserToInvite] = useState<SystemUser | null>(null)
+  const [impersonatingId, setImpersonatingId] = useState<number | null>(null)
+
+  const handleImpersonateClick = async (u: SystemUser) => {
+    try {
+      setImpersonatingId(u.id)
+      await impersonateUser(u.id)
+      toast.success(`Ingresando a la cuenta de ${u.nombre_completo || u.email}`)
+    } catch (err: any) {
+      toast.error(err.message || 'Error al ingresar como usuario')
+    } finally {
+      setImpersonatingId(null)
+    }
+  }
   
   const [showResetPassword, setShowResetPassword] = useState(false)
 
@@ -712,14 +726,30 @@ export default function UsersPanel() {
                           Contraseña
                         </button>
                         {(isAdmin || isSuperAdmin) && (
-                          <button
-                            type='button'
-                            onClick={() => setUserToDelete(u)}
-                            className='inline-flex items-center gap-1.5 px-3 py-2 border border-rose-100 text-rose-600 rounded-xl text-xs font-semibold hover:bg-rose-50 hover:border-rose-200 transition shadow-sm'
-                            title='Eliminar usuario'
-                          >
-                            <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
-                          </button>
+                          <>
+                            <button
+                              type='button'
+                              disabled={impersonatingId === u.id || u.id === user?.id}
+                              onClick={() => handleImpersonateClick(u)}
+                              className='inline-flex items-center gap-1.5 px-3 py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm cursor-pointer disabled:opacity-50'
+                              title='Ingresar como este usuario (Suplantación)'
+                            >
+                              {impersonatingId === u.id ? (
+                                <Loader2 size={14} className='animate-spin shrink-0 text-emerald-600' />
+                              ) : (
+                                <LogIn size={14} className='shrink-0 text-emerald-600' />
+                              )}
+                              <span>Ingresar</span>
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() => setUserToDelete(u)}
+                              className='inline-flex items-center gap-1.5 px-3 py-2 border border-rose-100 text-rose-600 rounded-xl text-xs font-semibold hover:bg-rose-50 hover:border-rose-200 transition shadow-sm'
+                              title='Eliminar usuario'
+                            >
+                              <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -793,8 +823,8 @@ export default function UsersPanel() {
                     </div>
                   </div>
 
-                  {/* Role badge or dropdown */}
-                  <div className='shrink-0'>
+                  {/* Role badge or dropdown & Status toggle directly below */}
+                  <div className='flex flex-col items-end gap-2 shrink-0'>
                     {isSuperAdmin && u.id !== user?.id ? (
                       <div className='relative inline-flex items-center group/select'>
                         <select
@@ -806,15 +836,18 @@ export default function UsersPanel() {
                               ? 'bg-amber-50 text-amber-800 border-amber-200/80'
                               : u.rol === 'admin'
                               ? 'bg-violet-50 text-violet-800 border-violet-200/80'
+                              : u.rol === 'asistente'
+                              ? 'bg-blue-50 text-blue-800 border-blue-200/80'
                               : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
                           }`}
                         >
                           <option value='afiliado'>Afiliado</option>
+                          <option value='asistente'>Personal Admin</option>
                           <option value='admin'>Admin</option>
                           <option value='super_admin'>Super Admin</option>
                         </select>
                         <div className={`absolute right-2 pointer-events-none ${
-                          u.rol === 'super_admin' ? 'text-amber-600' : u.rol === 'admin' ? 'text-violet-600' : 'text-emerald-600'
+                          u.rol === 'super_admin' ? 'text-amber-600' : u.rol === 'admin' ? 'text-violet-600' : u.rol === 'asistente' ? 'text-blue-600' : 'text-emerald-600'
                         }`}>
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -822,40 +855,41 @@ export default function UsersPanel() {
                         </div>
                       </div>
                     ) : (
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold border ${
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
                         u.rol === 'super_admin'
                           ? 'bg-amber-50 text-amber-800 border-amber-200/80'
                           : u.rol === 'admin'
                           ? 'bg-violet-50 text-violet-800 border-violet-200/80'
+                          : u.rol === 'asistente'
+                          ? 'bg-blue-50 text-blue-800 border-blue-200/80'
                           : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
                       }`}>
-                        {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : 'Afiliado'}
+                        {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' ? 'Personal Admin' : 'Afiliado'}
                       </span>
                     )}
+
+                    <button
+                      type='button'
+                      onClick={() => toggleActive(u)}
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 transition hover:bg-slate-50 ${
+                        u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
+                      }`}
+                    >
+                      {u.activo ? (
+                        <CheckCircle2 size={13} strokeWidth={2} className='shrink-0 text-emerald-600' />
+                      ) : (
+                        <XCircle size={13} strokeWidth={2} className='shrink-0 text-slate-400' />
+                      )}
+                      <span className={`text-[11px] font-semibold ${u.activo ? 'text-emerald-800' : 'text-slate-500'}`}>
+                        {u.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Status toggle & Actions */}
-                <div className='flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-50 pl-1'>
+                {/* Actions Row */}
+                <div className='flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-50 pl-1'>
                   <button
-                    type='button'
-                    onClick={() => toggleActive(u)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 transition hover:bg-slate-50 ${
-                      u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
-                    }`}
-                  >
-                    {u.activo ? (
-                      <CheckCircle2 size={15} strokeWidth={2} className='shrink-0 text-emerald-600' />
-                    ) : (
-                      <XCircle size={15} strokeWidth={2} className='shrink-0 text-slate-400' />
-                    )}
-                    <span className={`text-[11px] font-semibold ${u.activo ? 'text-emerald-800' : 'text-slate-500'}`}>
-                      {u.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </button>
-
-                  <div className='flex items-center gap-2'>
-                    <button
                       type='button'
                       disabled={sendingInvite[u.id]}
                       onClick={() => setUserToInvite(u)}
@@ -880,19 +914,34 @@ export default function UsersPanel() {
                     </button>
 
                     {(isAdmin || isSuperAdmin) && (
-                      <button
-                        type='button'
-                        onClick={() => setUserToDelete(u)}
-                        className='inline-flex items-center justify-center p-2 border border-rose-100 text-rose-600 rounded-xl hover:bg-rose-50 transition shadow-sm'
-                        title='Eliminar usuario'
-                      >
-                        <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
-                      </button>
+                      <>
+                        <button
+                          type='button'
+                          disabled={impersonatingId === u.id || u.id === user?.id}
+                          onClick={() => handleImpersonateClick(u)}
+                          className='inline-flex items-center justify-center gap-1 px-3 py-1.5 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-xl text-[11px] font-bold hover:bg-emerald-100 transition shadow-sm cursor-pointer disabled:opacity-50'
+                          title='Ingresar como este usuario'
+                        >
+                          {impersonatingId === u.id ? (
+                            <Loader2 size={13} className='animate-spin shrink-0 text-emerald-600' />
+                          ) : (
+                            <LogIn size={13} className='shrink-0 text-emerald-600' />
+                          )}
+                          <span>Ingresar</span>
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => setUserToDelete(u)}
+                          className='inline-flex items-center justify-center p-2 border border-rose-100 text-rose-600 rounded-xl hover:bg-rose-50 transition shadow-sm'
+                          title='Eliminar usuario'
+                        >
+                          <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {/* Infinite Scroll Sentinel / Indicator */}

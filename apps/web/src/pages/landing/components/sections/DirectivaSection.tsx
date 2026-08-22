@@ -113,22 +113,67 @@ export default function DirectivaSection() {
         </div>
 
         <div className="relative group w-full">
+          {/* Mobile Grid View */}
+          <div className="grid grid-cols-2 gap-3.5 sm:hidden w-full">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse bg-slate-50 border border-slate-100 rounded-2xl p-3 flex flex-col items-center text-center space-y-3">
+                  <div className="w-full aspect-[4/5] rounded-xl bg-slate-200" />
+                  <div className="space-y-1.5 w-full flex flex-col items-center">
+                    <div className="bg-slate-200 h-4 w-3/4 rounded-md" />
+                    <div className="bg-slate-200 h-3 w-1/2 rounded-full" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              directivaMembers.map((m, i) => {
+                const cardContent = (
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center text-center space-y-2.5 h-full shadow-xs hover:shadow-md transition">
+                    <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xs bg-slate-100">
+                      <img
+                        src={m.foto_url}
+                        alt={m.nombre}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="w-full flex flex-col items-center">
+                      <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">{formatNombreCard(m.nombre)}</h4>
+                      <p className="text-[9px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1.5 line-clamp-1 border border-emerald-100">{m.cargo}</p>
+                    </div>
+                  </div>
+                )
+
+                if (m.id_afiliado || m.codigo) {
+                  return (
+                    <Link key={i} to={`/miembros/${m.codigo || m.id_afiliado}`} className="block h-full cursor-pointer">
+                      {cardContent}
+                    </Link>
+                  )
+                }
+                return <div key={i} className="h-full">{cardContent}</div>
+              })
+            )}
+          </div>
+
+          {/* Desktop & Tablet Carousel View */}
           <button 
             onClick={() => scroll('left')} 
-            className='absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+            className='hidden sm:flex absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
           </button>
 
           <div 
             ref={scrollRef} 
-            className="flex gap-8 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory w-full"
+            className="hidden sm:flex gap-8 overflow-x-auto scrollbar-hide pb-4 snap-x snap-mandatory w-full"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="animate-pulse flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
-                  <div className="w-40 h-50 lg:w-48 lg:h-60 rounded-[2.5rem] bg-slate-200" />
+                <div key={i} className="animate-pulse flex flex-col items-center text-center space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
+                  <div className="w-full h-52 lg:w-48 lg:h-60 rounded-[2.5rem] bg-slate-200" />
                   <div className="space-y-2 flex flex-col items-center w-full">
                     <div className="bg-slate-200 h-5 w-3/4 rounded-md animate-pulse" />
                     <div className="bg-slate-200 h-3.5 w-1/2 rounded-full animate-pulse" />
@@ -139,7 +184,7 @@ export default function DirectivaSection() {
               directivaMembers.map((m, i) => {
                 const cardInner = (
                   <>
-                    <div className="relative w-40 h-50 lg:w-48 lg:h-60 rounded-[2.5rem] overflow-hidden shadow-md ring-4 ring-slate-100 transition-all group-hover:ring-slate-200 aspect-[4/5]">
+                    <div className="relative w-full h-52 lg:w-48 lg:h-60 rounded-[2.5rem] overflow-hidden shadow-md ring-4 ring-slate-100 transition-all group-hover:ring-slate-200 aspect-[4/5]">
                       <img
                         src={m.foto_url}
                         alt={m.nombre}
@@ -149,7 +194,7 @@ export default function DirectivaSection() {
                       />
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-slate-800">{formatNombreCard(m.nombre)}</h4>
+                      <h4 className="text-base sm:text-lg font-bold text-slate-800">{formatNombreCard(m.nombre)}</h4>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{m.cargo}</p>
                     </div>
                   </>
@@ -160,7 +205,7 @@ export default function DirectivaSection() {
                     <Link
                       key={i}
                       to={`/miembros/${m.codigo || m.id_afiliado}`}
-                      className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs cursor-pointer"
+                      className="group relative flex flex-col items-center text-center space-y-3 sm:space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs cursor-pointer"
                     >
                       {cardInner}
                     </Link>
@@ -170,7 +215,7 @@ export default function DirectivaSection() {
                 return (
                   <div
                     key={i}
-                    className="group relative flex flex-col items-center text-center space-y-4 w-full sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs"
+                    className="group relative flex flex-col items-center text-center space-y-3 sm:space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs"
                   >
                     {cardInner}
                   </div>
@@ -181,7 +226,7 @@ export default function DirectivaSection() {
 
           <button 
             onClick={() => scroll('right')} 
-            className='absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+            className='hidden sm:flex absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
           </button>

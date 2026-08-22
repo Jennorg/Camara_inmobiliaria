@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X } from 'lucide-react'
+import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X, UserPlus, Users, ChevronDown } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 type Row = {
@@ -37,6 +37,29 @@ export default function AprobarCursosPanel() {
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false)
+
+  // Enrollment Modal States
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false)
+  const [enrollMode, setEnrollMode] = useState<'afiliado' | 'nuevo'>('afiliado')
+  const [cursosDisponibles, setCursosDisponibles] = useState<any[]>([])
+  const [afiliadosLista, setAfiliadosLista] = useState<any[]>([])
+  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'curso'>('nombre')
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [afiliadoSearch, setAfiliadoSearch] = useState('')
+  const [afiliadoSearchField, setAfiliadoSearchField] = useState<'nombre' | 'cedula' | 'email'>('nombre')
+  const [showAfiliadoSearchDropdown, setShowAfiliadoSearchDropdown] = useState(false)
+  const [selectedCursoId, setSelectedCursoId] = useState<string>('')
+  const [selectedAfiliadoId, setSelectedAfiliadoId] = useState<string>('')
+  const [submittingEnroll, setSubmittingEnroll] = useState(false)
+
+  const [enrollFormData, setEnrollFormData] = useState({
+    nombreCompleto: '',
+    email: '',
+    cedulaRif: '',
+    telefono: '',
+    nivelProfesional: 'Nivel Profesional',
+    esCorredorInmobiliario: true
+  })
 
   // Module states
   const [modulos, setModulos] = useState<{
@@ -109,6 +132,89 @@ export default function AprobarCursosPanel() {
     }
   }
 
+  const handleOpenEnrollModal = async () => {
+    setIsEnrollModalOpen(true);
+    setAfiliadoSearch('');
+    setSelectedAfiliadoId('');
+    setEnrollFormData({
+      nombreCompleto: '',
+      email: '',
+      cedulaRif: '',
+      telefono: '',
+      nivelProfesional: 'Nivel Profesional',
+      esCorredorInmobiliario: true
+    });
+
+    try {
+      const resCursos = await fetch(`${API_URL}/api/academia/cursos`, { headers: { ...authHeaders } });
+      const jsonCursos = await resCursos.json();
+      if (jsonCursos.success && Array.isArray(jsonCursos.data)) {
+        setCursosDisponibles(jsonCursos.data);
+        if (jsonCursos.data.length > 0) {
+          const primerAbierto = jsonCursos.data.find((c: any) => c.estatus === 'Abierto') || jsonCursos.data[0];
+          setSelectedCursoId(String(primerAbierto.id_curso));
+        }
+      }
+
+      const resAfil = await fetch(`${API_URL}/api/afiliados`, { headers: { ...authHeaders } });
+      const jsonAfil = await resAfil.json();
+      if (jsonAfil.success && Array.isArray(jsonAfil.data)) {
+        setAfiliadosLista(jsonAfil.data);
+      }
+    } catch (e) {
+      console.error('Error cargando datos para inscripción:', e);
+    }
+  };
+
+  const handleSelectAfiliado = (af: any) => {
+    setSelectedAfiliadoId(String(af.id_afiliado || af.id));
+    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || '';
+    setEnrollFormData({
+      nombreCompleto: nombre,
+      email: af.email || '',
+      cedulaRif: af.cedula || af.rif || '',
+      telefono: af.telefono || af.telefono_movil || '',
+      nivelProfesional: 'Nivel Profesional',
+      esCorredorInmobiliario: true
+    });
+  };
+
+  const handleSubmitEnroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCursoId) {
+      Swal.fire('Atención', 'Selecciona un curso para inscribir al estudiante', 'warning');
+      return;
+    }
+    if (!enrollFormData.nombreCompleto.trim() || !enrollFormData.email.trim()) {
+      Swal.fire('Atención', 'Nombre completo y correo electrónico son requeridos', 'warning');
+      return;
+    }
+
+    setSubmittingEnroll(true);
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cursos/${selectedCursoId}/asignar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify(enrollFormData)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || 'Error al inscribir estudiante');
+      }
+
+      Swal.fire('¡Estudiante Inscrito!', 'El estudiante ha sido registrado e inscrito exitosamente.', 'success');
+      setIsEnrollModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Error en el proceso de inscripción', 'error');
+    } finally {
+      setSubmittingEnroll(false);
+    }
+  };
+
   const fetchDocumentos = async (idEstudiante: number) => {
     setLoadingDocs(true)
     setDocumentos([])
@@ -149,7 +255,7 @@ export default function AprobarCursosPanel() {
         timer: 1500,
         showConfirmButton: false
       })
-      
+
       // Actualizar datos
       await fetchData()
       if (selected) {
@@ -205,7 +311,7 @@ export default function AprobarCursosPanel() {
         timer: 1500,
         showConfirmButton: false
       })
-      
+
       await fetchData()
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
@@ -261,7 +367,7 @@ export default function AprobarCursosPanel() {
         await fetchModulos(selected.id_inscripcion)
       }
     } catch (e: any) {
-      Swal.fire('Error', e.message || 'No se pudo realizar la aprobación masiva', 'error')
+      Swal.fire('Error', e.message || 'No se pudo completar la aprobación masiva', 'error')
     } finally {
       setCompleting(false)
     }
@@ -277,13 +383,24 @@ export default function AprobarCursosPanel() {
   const filteredRows = useMemo(() => {
     if (!search) return filteredByUi
     const q = search.toLowerCase()
-    return filteredByUi.filter(r =>
-      r.estudiante_nombre?.toLowerCase().includes(q) ||
-      r.estudiante_email?.toLowerCase().includes(q) ||
-      r.estudiante_cedula?.toLowerCase().includes(q) ||
-      r.curso_nombre?.toLowerCase().includes(q)
-    )
-  }, [filteredByUi, search])
+    return filteredByUi.filter(r => {
+      if (searchField === 'nombre') {
+        return r.estudiante_nombre?.toLowerCase().includes(q) || r.estudiante_email?.toLowerCase().includes(q)
+      }
+      if (searchField === 'cedula') {
+        return r.estudiante_cedula?.toLowerCase().includes(q)
+      }
+      if (searchField === 'curso') {
+        return r.curso_nombre?.toLowerCase().includes(q)
+      }
+      return (
+        r.estudiante_nombre?.toLowerCase().includes(q) ||
+        r.estudiante_email?.toLowerCase().includes(q) ||
+        r.estudiante_cedula?.toLowerCase().includes(q) ||
+        r.curso_nombre?.toLowerCase().includes(q)
+      )
+    })
+  }, [filteredByUi, search, searchField])
 
   const counts = useMemo(() => ({
     Todos: rows.length,
@@ -302,17 +419,86 @@ export default function AprobarCursosPanel() {
       {/* ── LIST COLUMN ── */}
       <div className={['flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0', selected ? 'hidden sm:flex' : 'flex'].join(' ')}>
 
-        <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex flex-col gap-2">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar estudiante o curso..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full text-xs rounded-xl border border-gray-200 pl-9 pr-3 py-2.5 text-slate-700 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none transition-all"
-            />
+        <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex flex-col gap-2.5">
+          {/* Button Inscribir Nuevo Estudiante */}
+          <button
+            onClick={handleOpenEnrollModal}
+            className="w-full flex items-center justify-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-all active:scale-95 cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Inscribir estudiante</span>
+          </button>
+
+          {/* Buscador con Dropdown al estilo Directorio de Miembros */}
+          <div className="relative flex items-center rounded-xl bg-gray-50/50 border border-gray-200 focus-within:bg-white focus-within:border-[#00D084] focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-all text-xs h-10 shadow-xs z-20">
+            {/* Dropdown de criterio de búsqueda */}
+            <div className="relative shrink-0 border-r border-gray-200 h-full flex items-center pl-3 pr-2">
+              <button
+                type="button"
+                onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-[#00B870] transition-colors"
+              >
+                <span>
+                  {searchField === 'nombre' && 'Nombre'}
+                  {searchField === 'cedula' && 'Cédula'}
+                  {searchField === 'curso' && 'Curso'}
+                </span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showSearchDropdown && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowSearchDropdown(false)} />
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                    {[
+                      { key: 'nombre', label: 'Nombre' },
+                      { key: 'cedula', label: 'Cédula / RIF' },
+                      { key: 'curso', label: 'Curso' },
+                    ].map(option => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setSearchField(option.key as any);
+                          setShowSearchDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${searchField === option.key
+                          ? 'bg-[#E9FAF4] text-[#00B870] font-extrabold'
+                          : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="relative flex-grow h-full flex items-center pr-2">
+              <Search className="w-3.5 h-3.5 text-slate-400 ml-2 shrink-0" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={
+                  searchField === 'nombre'
+                    ? 'Buscar por nombre o email...'
+                    : searchField === 'cedula'
+                      ? 'Buscar por cédula / RIF...'
+                      : 'Buscar por curso...'
+                }
+                className="w-full h-full pl-2 pr-6 bg-transparent text-slate-800 font-semibold placeholder-slate-400 outline-none text-xs"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-all"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Status filters */}
@@ -374,11 +560,10 @@ export default function AprobarCursosPanel() {
                     ].join(' ')}>
                       {r.estudiante_nombre}
                     </span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border flex items-center gap-1 ${
-                      isCompletado
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                        : 'bg-amber-50 text-amber-600 border-amber-100'
-                    }`}>
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border flex items-center gap-1 ${isCompletado
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                      : 'bg-amber-50 text-amber-600 border-amber-100'
+                      }`}>
                       {isCompletado ? <><CheckCircle2 size={9} /> Aprobado</> : <><Clock size={9} /> En Curso</>}
                     </span>
                   </div>
@@ -390,7 +575,7 @@ export default function AprobarCursosPanel() {
                   {/* Barra de progreso de módulos */}
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <div 
+                      <div
                         className="bg-[#00D084] h-full transition-all duration-300"
                         style={{ width: `${((r.modulos_aprobados || 0) / (r.num_modulos || 1)) * 100}%` }}
                       />
@@ -443,11 +628,10 @@ export default function AprobarCursosPanel() {
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-bold uppercase tracking-wider">Estudiante Inscrito</p>
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border flex items-center gap-1 ${
-                Number(selected.completado) === 1
-                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                  : 'bg-amber-50 text-amber-600 border-amber-100'
-              }`}>
+              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border flex items-center gap-1 ${Number(selected.completado) === 1
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                : 'bg-amber-50 text-amber-600 border-amber-100'
+                }`}>
                 {Number(selected.completado) === 1 ? <><CheckCircle2 size={10} /> Curso Aprobado</> : <><Clock size={10} /> En Curso</>}
               </span>
             </div>
@@ -508,8 +692,8 @@ export default function AprobarCursosPanel() {
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="bg-[#00D084] h-full transition-all duration-500" 
+                      <div
+                        className="bg-[#00D084] h-full transition-all duration-500"
                         style={{ width: `${(modulos.filter(m => m.estatus === 'Aprobado').length / modulos.length) * 100}%` }}
                       />
                     </div>
@@ -520,7 +704,7 @@ export default function AprobarCursosPanel() {
                     {modulos.map((mod) => {
                       const isAprobado = mod.estatus === 'Aprobado';
                       const isRechazado = mod.estatus === 'Rechazado';
-                      
+
                       return (
                         <div key={mod.nombre_modulo} className="py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between first:pt-0 last:pb-0">
                           <div className="min-w-0 flex-1">
@@ -707,6 +891,311 @@ export default function AprobarCursosPanel() {
                 Cerrar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL INSCRIBIR NUEVO ALUMNO / PERSONA ── */}
+      {isEnrollModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#E9FAF4] text-[#00B870] flex items-center justify-center font-bold">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Inscribir Alumno / Persona</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">Asignar estudiante a un curso activo</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEnrollModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body Form */}
+            <form onSubmit={handleSubmitEnroll} className="flex flex-col flex-1 overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                {/* Seleccionar Curso */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    1. Seleccionar Curso o Programa *
+                  </label>
+                  <select
+                    required
+                    value={selectedCursoId}
+                    onChange={(e) => setSelectedCursoId(e.target.value)}
+                    className="w-full text-xs font-semibold text-slate-800 rounded-xl border border-gray-200 px-3.5 py-2.5 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                  >
+                    <option value="" disabled>Seleccione un curso...</option>
+                    {(Array.isArray(cursosDisponibles) ? cursosDisponibles : []).map((c: any) => (
+                      <option key={c.id_curso} value={c.id_curso}>
+                        {c.nombre || c.titulo || `Curso #${c.id_curso}`} ({c.estatus})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tipo de Inscrito Switcher */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                    2. Origen del Estudiante *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => { setEnrollMode('afiliado'); setSelectedAfiliadoId(''); }}
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'afiliado'
+                        ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Afiliado Existente</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEnrollMode('nuevo'); setSelectedAfiliadoId(''); }}
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'nuevo'
+                        ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>Persona No Afiliada</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Si elige Afiliado Existente */}
+                {enrollMode === 'afiliado' && (
+                  <div className="space-y-3 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 relative z-30">
+                    <label className="block text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">
+                      Buscar en Directorio de Afiliados
+                    </label>
+
+                    <div className="relative">
+                      {/* Buscador de Nómina de Afiliados al estilo Directorio de Miembros */}
+                      <div className="relative flex items-center rounded-xl bg-white border border-emerald-200 focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-all text-xs h-10 shadow-xs z-30">
+                        {/* Dropdown Criterion Selector */}
+                        <div className="relative shrink-0 border-r border-emerald-100 h-full flex items-center pl-3 pr-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAfiliadoSearchDropdown(prev => !prev);
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 hover:text-[#00B870] transition-colors"
+                          >
+                            <span>
+                              {afiliadoSearchField === 'nombre' && 'Nombre'}
+                              {afiliadoSearchField === 'cedula' && 'Cédula'}
+                              {afiliadoSearchField === 'email' && 'Correo'}
+                            </span>
+                            <ChevronDown className={`w-3 h-3 text-emerald-600 transition-transform ${showAfiliadoSearchDropdown ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {showAfiliadoSearchDropdown && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowAfiliadoSearchDropdown(false);
+                                }}
+                              />
+                              <div className="absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                                {[
+                                  { key: 'nombre', label: 'Nombre' },
+                                  { key: 'cedula', label: 'Cédula / RIF' },
+                                  { key: 'email', label: 'Correo' },
+                                ].map(option => (
+                                  <button
+                                    key={option.key}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAfiliadoSearchField(option.key as any);
+                                      setShowAfiliadoSearchDropdown(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${afiliadoSearchField === option.key
+                                      ? 'bg-[#E9FAF4] text-[#00B870] font-extrabold'
+                                      : 'text-slate-600 hover:bg-slate-50'
+                                      }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="relative flex-grow h-full flex items-center pr-2">
+                          <Search className="w-3.5 h-3.5 text-emerald-600 ml-2 shrink-0" />
+                          <input
+                            type="text"
+                            value={afiliadoSearch}
+                            onChange={(e) => setAfiliadoSearch(e.target.value)}
+                            placeholder={
+                              afiliadoSearchField === 'nombre'
+                                ? 'Buscar por nombre completo...'
+                                : afiliadoSearchField === 'cedula'
+                                  ? 'Buscar por cédula o RIF...'
+                                  : 'Buscar por correo electrónico...'
+                            }
+                            className="w-full h-full pl-2 pr-6 bg-transparent text-slate-800 font-semibold placeholder-slate-400 outline-none text-xs"
+                          />
+                          {afiliadoSearch && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setAfiliadoSearch(''); }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center hover:bg-emerald-200 transition-all"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lista filtrada de afiliados FLOTANTE / position absolute */}
+                      {afiliadoSearch.trim().length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
+                          {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
+                            .filter((af: any) => {
+                              if (!af) return false;
+                              const q = afiliadoSearch.toLowerCase();
+                              const nombre = [af.nombres, af.apellidos, af.razon_social, af.nombre].filter(Boolean).join(' ').toLowerCase();
+                              const cedula = String(af.cedula || af.rif || af.cedula_rif || '').toLowerCase();
+                              const email = String(af.email || '').toLowerCase();
+
+                              if (afiliadoSearchField === 'nombre') return nombre.includes(q);
+                              if (afiliadoSearchField === 'cedula') return cedula.includes(q);
+                              if (afiliadoSearchField === 'email') return email.includes(q);
+                              return nombre.includes(q) || email.includes(q) || cedula.includes(q);
+                            })
+                            .slice(0, 8)
+                            .map((af: any) => {
+                              const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || 'Sin nombre';
+                              const isSel = String(af.id_afiliado || af.id) === selectedAfiliadoId;
+                              return (
+                                <button
+                                  key={af.id_afiliado || af.id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleSelectAfiliado(af);
+                                    setAfiliadoSearch('');
+                                  }}
+                                  className={`w-full text-left p-3 text-xs flex items-center justify-between transition-all ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                >
+                                  <div className="min-w-0">
+                                    <p className="font-bold truncate">{nombre}</p>
+                                    <p className="text-[10px] text-slate-400 truncate">{af.email || 'Sin correo'} • C.I: {af.cedula || 'S/N'}</p>
+                                  </div>
+                                  {isSel && <CheckCircle2 className="w-4 h-4 text-[#00B870] shrink-0 ml-2" />}
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos de datos del estudiante */}
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Nombre Completo del Estudiante *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="Ej. María Pérez"
+                      value={enrollFormData.nombreCompleto}
+                      onChange={(e) => setEnrollFormData({ ...enrollFormData, nombreCompleto: e.target.value })}
+                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Correo Electrónico *
+                      </label>
+                      <input
+                        required
+                        type="email"
+                        placeholder="ejemplo@correo.com"
+                        value={enrollFormData.email}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, email: e.target.value })}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Cédula / RIF
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="V-12345678"
+                        value={enrollFormData.cedulaRif}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaRif: e.target.value })}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Teléfono de Contacto
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="0414-1234567"
+                      value={enrollFormData.telefono}
+                      onChange={(e) => setEnrollFormData({ ...enrollFormData, telefono: e.target.value })}
+                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsEnrollModalOpen(false)}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingEnroll}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {submittingEnroll ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Registrando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Registrar e Inscribir</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

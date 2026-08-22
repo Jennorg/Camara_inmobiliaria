@@ -959,17 +959,17 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Títulos y comprobantes emitidos</p>
                   </div>
                 </div>
-                {selected.certificados && selected.certificados.length > 0 && (
+                {(selected as any).certificados && (selected as any).certificados.length > 0 && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                    {selected.certificados.length} {selected.certificados.length === 1 ? 'Certificado' : 'Certificados'}
+                    {(selected as any).certificados.length} {(selected as any).certificados.length === 1 ? 'Certificado' : 'Certificados'}
                   </span>
                 )}
               </div>
 
               <div className="space-y-2">
-                {selected.certificados && selected.certificados.length > 0 ? (
+                {(selected as any).certificados && (selected as any).certificados.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selected.certificados.map((cert: any) => {
+                    {(selected as any).certificados.map((cert: any) => {
                       const certTitle = cert.curso_nombre || (cert.programa_codigo ? `Programa ${cert.programa_codigo}` : 'Certificado de Aprobación');
                       const validationCode = cert.codigo_validacion;
                       const fechaStr = cert.fecha_emision ? new Date(cert.fecha_emision).toLocaleDateString() : '';

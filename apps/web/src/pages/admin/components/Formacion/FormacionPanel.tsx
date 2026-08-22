@@ -10,7 +10,7 @@ const FormacionPanel = () => {
 
   const tabs: { id: SubTab; label: string }[] = [
     { id: 'cursos', label: 'Cursos & Talleres' },
-    { id: 'aprobar', label: 'Aprobar Cursos' },
+    { id: 'aprobar', label: 'Inscritos & Evaluaciones' },
   ]
 
 
