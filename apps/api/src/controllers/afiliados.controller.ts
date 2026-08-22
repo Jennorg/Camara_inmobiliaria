@@ -30,7 +30,7 @@ import {
   enviarCorreoRechazo
 } from '../lib/email.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
-import { crearVerificacionPreinscripcionPrograma } from './academia.controller.js';
+import { crearVerificacionPreinscripcionPrograma, upsertEstudianteByEmail } from './academia.controller.js';
 import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
 
@@ -229,7 +229,7 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
         }
 
         const miRes = await db.execute({
-          sql: `SELECT nombre_modulo, estatus, fecha_evaluacion, nota_admin FROM modulos_inscripcion WHERE id_inscripcion = ?`,
+          sql: `SELECT COALESCE(nombre_modulo, 'Módulo General') AS nombre_modulo, estatus, fecha_evaluacion, nota_admin FROM modulos_inscripcion WHERE id_inscripcion = ?`,
           args: [row.id_inscripcion]
         })
         const progressModulos = miRes.rows as any[]
@@ -264,8 +264,8 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
     const requesterId = req.user!.id_afiliado
     const requesterRoles = req.user!.roles ?? [req.user!.rol]
 
-    // Afiliados solo pueden consultar su propio registro
-    if (!requesterRoles.some(r => ['admin', 'super_admin'].includes(r)) && requesterId !== Number(id)) {
+    // Admins, SuperAdmins, Asistentes y Administrativos pueden consultar cualquier registro
+    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)) {
       res.status(403).json({ success: false, message: 'Acceso denegado' })
       return
     }
@@ -720,7 +720,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
       ) e_redes ON a.id_empresa = e_redes.id_empresa
       WHERE a.eliminado_en IS NULL
         AND p.eliminado_en IS NULL
-        AND e.eliminado_en IS NULL
+        AND (e.id_empresa IS NULL OR e.eliminado_en IS NULL)
     `;
 
     const args: any[] = [];
@@ -2349,7 +2349,7 @@ export const registrarMiembroDirecto = async (req: Request, res: Response): Prom
       res.status(400).json({ success: false, message: 'Nombre, Cédula y Email son requeridos.' }); return
     }
 
-    // Obtener info de la empresa
+    // 1. Obtener info de la empresa
     const corp = await db.execute({
       sql: `SELECT razon_social FROM empresas WHERE id_empresa = ? LIMIT 1`,
       args: [idEmpresa]
@@ -2357,40 +2357,41 @@ export const registrarMiembroDirecto = async (req: Request, res: Response): Prom
     if (corp.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Empresa no encontrada.' }); return
     }
-    const empresa = corp.rows[0] as any
 
-    // Verificar si ya existe en personas
-    const existing = await db.execute({
-      sql: `SELECT id FROM personas WHERE email = ? OR cedula = ? LIMIT 1`,
-      args: [email, cedulaRif]
-    })
-    if (existing.rows.length > 0) {
-      res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o cédula.' }); return
-    }
-
-    // 3. Crear Verificación de Preinscripción ( Academy Flow )
-    const { token: tokenVerif } = await crearVerificacionPreinscripcionPrograma({
+    // 2. Upsert persona & estudiante
+    const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto,
       cedulaRif,
       email,
-      telefono: telefono || null,
-      programaCodigo: 'AFILIACION',
-      tipoAfiliado: 'Agente Corporativo',
-      nivelProfesional: nivelProfesional || null,
+      telefono,
+      tipo: 'Agente',
+      nivelProfesional,
       esCorredorInmobiliario: !!esCorredorInmobiliario,
-      id_empresa: idEmpresa
-    });
-
-    // 4. Enviar Email con link a Academia
-    const nombreEmpresa = empresa.razon_social
-    await enviarCorreoInvitacionCorporativa({
-      nombre: nombreCompleto,
-      emailOriginal: email,
-      nombreEmpresa,
-      token: tokenVerif
     })
 
-    res.status(201).json({ success: true, message: 'Miembro registrado correctamente. Se ha enviado un correo de invitación.' })
+    // 3. Crear / Actualizar Afiliado a Estatus 'Afiliado' Activo directamente
+    const est = await db.execute({
+      sql: `SELECT id_persona FROM estudiantes WHERE id_estudiante = ? LIMIT 1`,
+      args: [id_estudiante]
+    })
+    const idPersona = (est.rows[0] as any)?.id_persona
+
+    if (idPersona) {
+      const now = new Date().toISOString()
+      await db.execute({
+        sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, activo, fecha_afiliacion, creado_en)
+              VALUES (?, ?, 'Agente Corporativo', 'Afiliado', 1, ?, ?)
+              ON CONFLICT (id_persona) DO UPDATE SET
+                tipo_afiliado = 'Agente Corporativo',
+                id_empresa = excluded.id_empresa,
+                estatus = 'Afiliado',
+                activo = 1,
+                actualizado_en = excluded.creado_en`,
+        args: [idPersona, idEmpresa, now, now]
+      })
+    }
+
+    res.status(201).json({ success: true, message: 'Agente Corporativo registrado y activado exitosamente.' })
   } catch (error) {
     console.error('registrarMiembroDirecto:', error)
     res.status(500).json({ success: false, message: 'Error interno al registrar miembro.' })
@@ -2832,8 +2833,8 @@ export const convertirAgenteANatural = async (req: Request, res: Response): Prom
     const requesterId = req.user!.id_afiliado;
     const requesterRoles = req.user!.roles ?? [req.user!.rol];
 
-    // Solo el propio afiliado o un admin puede hacerlo
-    if (!requesterRoles.some(r => ['admin', 'super_admin'].includes(r)) && requesterId !== Number(id)) {
+    // Solo el propio afiliado, admin o asistente puede hacerlo
+    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)) {
       res.status(403).json({ success: false, message: 'Acceso denegado' });
       return;
     }

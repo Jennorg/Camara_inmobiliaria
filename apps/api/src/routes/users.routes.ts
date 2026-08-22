@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getUsers, createUser, updateUser, resetUserPassword, sendUserInvitation, deleteUser } from '../controllers/users.controller.js'
+import { getUsers, createUser, updateUser, resetUserPassword, sendUserInvitation, deleteUser, impersonateUser } from '../controllers/users.controller.js'
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 
 const router = Router()
@@ -21,6 +21,9 @@ router.post('/:id/reset', resetUserPassword)
 
 // POST /api/users/:id/invite — enviar correo de invitación
 router.post('/:id/invite', sendUserInvitation)
+
+// POST /api/users/:id/impersonate — suplantar sesión (solo admin y super_admin)
+router.post('/:id/impersonate', requireRole('admin', 'super_admin'), impersonateUser)
 
 // DELETE /api/users/:id — eliminar usuario (solo admin y super_admin)
 router.delete('/:id', requireRole('admin', 'super_admin'), deleteUser)

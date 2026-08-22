@@ -21,6 +21,8 @@ import {
   enviarCorreoAprobacionEstudiante,
   enviarCorreoSetPasswordEstudiante,
   enviarCorreoResultadoEntrevista,
+  enviarCorreoInvitacionCibir,
+  enviarCorreoRechazo,
 } from '../lib/email.js'
 import bcrypt from 'bcryptjs'
 import { NotificationService } from '../services/notification.service.js'
@@ -68,7 +70,7 @@ function normalizeEsCorredorInmobiliario(value: unknown): boolean | null {
   return null
 }
 
-async function upsertEstudianteByEmail(params: {
+export async function upsertEstudianteByEmail(params: {
   nombreCompleto: string
   nombres?: string | null
   apellidos?: string | null
@@ -98,6 +100,21 @@ async function upsertEstudianteByEmail(params: {
     })
     if (resE.rows.length > 0) {
       idEmpresa = resE.rows[0].id_empresa as number
+      await db.execute({
+        sql: `UPDATE empresas SET 
+                razon_social = COALESCE(NULLIF(TRIM(?), ''), razon_social),
+                telefono = COALESCE(NULLIF(TRIM(?), ''), telefono),
+                email = COALESCE(NULLIF(TRIM(?), ''), email),
+                rif_numero = CASE WHEN ? != '' THEN ? ELSE rif_numero END
+              WHERE id_empresa = ?`,
+        args: [
+          razonSocial || null,
+          telefono || null,
+          email || null,
+          cleanedRif, cleanedRif,
+          idEmpresa
+        ]
+      })
     } else {
       const finalRif = cleanedRif || `TEMP-J-${Date.now()}`;
       const insE = await db.execute({
@@ -118,16 +135,32 @@ async function upsertEstudianteByEmail(params: {
     })
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number
-      // Actualizar nivel, profesion si se proveen
-      if (nivelProfesional || profesion) {
-        await db.execute({
-          sql: `UPDATE personas SET 
-                  nivel_academico = COALESCE(?, nivel_academico),
-                  profesion = COALESCE(?, profesion)
-                WHERE id = ?`,
-          args: [nivelProfesional || null, profesion || null, idPersona]
-        })
-      }
+      const parsedNombres = nombres || (params.nombreCompleto ? (params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(0, -1).join(' ') : params.nombreCompleto.trim()) : null);
+      const parsedApellidos = apellidos || (params.nombreCompleto && params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(-1)[0] : null);
+
+      await db.execute({
+        sql: `UPDATE personas SET 
+                nombres = COALESCE(NULLIF(TRIM(?), ''), nombres),
+                apellidos = COALESCE(NULLIF(TRIM(?), ''), apellidos),
+                telefono = COALESCE(NULLIF(TRIM(?), ''), telefono),
+                cedula = CASE WHEN ? != '' THEN ? ELSE cedula END,
+                cedula_tipo = CASE WHEN ? != '' THEN ? ELSE cedula_tipo END,
+                email = COALESCE(NULLIF(TRIM(?), ''), email),
+                nivel_academico = COALESCE(?, nivel_academico),
+                profesion = COALESCE(?, profesion)
+              WHERE id = ?`,
+        args: [
+          parsedNombres,
+          parsedApellidos,
+          telefono || null,
+          cedulaNumero, cedulaNumero,
+          cedulaTipo, cedulaTipo,
+          email || null,
+          nivelProfesional || null,
+          profesion || null,
+          idPersona
+        ]
+      })
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
         await db.execute({
           sql: `UPDATE afiliados SET ano_inicio_servicio = COALESCE(?, ano_inicio_servicio) WHERE id_persona = ?`,
@@ -138,7 +171,7 @@ async function upsertEstudianteByEmail(params: {
       const finalCedulaNumero = cedulaNumero || `TEMP-V-${Date.now()}`;
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || '', apellidos || '', cedulaTipo, finalCedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
+        args: [nombres || params.nombreCompleto || '', apellidos || '', cedulaTipo, finalCedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -1403,12 +1436,12 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     const result = await db.execute({
       sql: `INSERT INTO inscripciones_cursos
               (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, creado_en, actualizado_en)
-            VALUES (?, ?, NULL, 'cohorte', 'Preinscrito', ?, ?)
-            ON CONFLICT DO UPDATE SET
+            VALUES (?, ?, NULL, 'curso', 'Preinscrito', ?, ?)
+            ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
               estatus = 'Preinscrito',
               estatus_academico = 'Inscrito',
               completado = 0,
-              tipo_inscripcion = 'cohorte',
+              tipo_inscripcion = 'curso',
               actualizado_en = excluded.actualizado_en
             RETURNING *`,
       args: [id_estudiante, idCurso, now, now],
@@ -1926,7 +1959,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const countArgs: any[] = []
 
     // Excluir preinscripciones de afiliación/CIBIR de personas/empresas que ya tienen un estatus final en afiliados (Afiliado, Rechazado, etc.)
-    baseWhere.push("NOT (ic.programa_codigo IN ('AFILIACION', 'CIBIR') AND COALESCE(af.estatus, '') IN ('Afiliado', 'Rechazado', 'Moroso', 'Suspendido'))")
+    baseWhere.push("NOT (COALESCE(ic.programa_codigo, '') IN ('AFILIACION', 'CIBIR') AND COALESCE(af.estatus, '') IN ('Afiliado', 'Rechazado', 'Moroso', 'Suspendido'))")
 
     if (onlyCursos) {
       // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR
@@ -2057,19 +2090,11 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
-    const nivelProfesional = normalizeNivelProfesional(req.body?.nivelProfesional)
-    const esCorredorInmobiliario = normalizeEsCorredorInmobiliario(req.body?.esCorredorInmobiliario)
+    const nivelProfesional = normalizeNivelProfesional(req.body?.nivelProfesional) || 'Nivel Profesional'
+    const esCorredorInmobiliario = normalizeEsCorredorInmobiliario(req.body?.esCorredorInmobiliario) ?? true
 
     if (!nombreCompleto || !email) {
       res.status(400).json({ success: false, message: 'nombreCompleto y email son requeridos' })
-      return
-    }
-    if (!nivelProfesional) {
-      res.status(400).json({ success: false, message: 'nivelProfesional inválido. Use Bachiller/Nivel Profesional/Postgrado.' })
-      return
-    }
-    if (esCorredorInmobiliario === null) {
-      res.status(400).json({ success: false, message: 'esCorredorInmobiliario es requerido (true/false).' })
       return
     }
 
@@ -2145,12 +2170,12 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     await db.execute({
       sql: `INSERT INTO inscripciones_cursos (id_estudiante, id_curso, tipo_inscripcion, estatus, asignado_por, aprobado_por, creado_en, actualizado_en)
-            VALUES (?, ?, 'cohorte', 'Inscrito', ?, ?, ?, ?)
-            ON CONFLICT DO UPDATE SET
+            VALUES (?, ?, 'curso', 'Inscrito', ?, ?, ?, ?)
+            ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
               estatus='Inscrito',
               estatus_academico='Inscrito',
               completado=0,
-              tipo_inscripcion='cohorte',
+              tipo_inscripcion='curso',
               asignado_por=excluded.asignado_por,
               aprobado_por=excluded.aprobado_por,
               actualizado_en=excluded.actualizado_en`,

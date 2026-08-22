@@ -503,7 +503,18 @@ async function run() {
     await db.execute(`UPDATE personas SET cedula = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(cedula, 'V', ''), 'E', ''), 'P', ''), '-', ''), '.', '') WHERE cedula GLOB '*[^0-9]*'`)
     // empresas: quitar prefijos J, G, P, V, E, guiones y puntos
     await db.execute(`UPDATE empresas SET rif_numero = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(rif_numero, 'J', ''), 'G', ''), 'P', ''), 'V', ''), 'E', ''), '-', ''), '.', '') WHERE rif_numero GLOB '*[^0-9]*'`)
-    // tokens_accion (si tuviera cedulas) – no necesario, pero no hay columnas de cédula en tokens
+    // Migración: asegurar que exista foto_junta_url en directiva_cargos
+    try {
+      await db.execute(`ALTER TABLE directiva_cargos ADD COLUMN foto_junta_url TEXT`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: asegurar que exista asignado_por en inscripciones_cursos
+    try {
+      await db.execute(`ALTER TABLE inscripciones_cursos ADD COLUMN asignado_por INTEGER`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
     console.log('  · OK: Data cleaned.')
   } catch (e: any) {
     console.warn(`  · WARNING: Data cleaning failed: ${e.message}`)

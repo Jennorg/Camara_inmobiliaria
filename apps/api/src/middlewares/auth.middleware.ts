@@ -21,6 +21,7 @@ export interface JwtPayload {
   cedula?: string
   telefono?: string
   tipo_afiliado?: string
+  impersonatedBy?: number
 }
 
 // Extend Express Request to include the decoded user

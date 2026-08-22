@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs'
 import { createHash } from 'crypto'
 import { db } from '../lib/db.js'
 import { resetCredenciales } from '../lib/credentials.js'
-import { isSuperAdmin, isAdmin, isAsistente } from '../middlewares/auth.middleware.js'
+import jwt from 'jsonwebtoken'
+import { env } from '../config/env.js'
+import { isSuperAdmin, isAdmin, isAsistente, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 
@@ -385,5 +387,80 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     console.error('Error en deleteUser:', error)
     res.status(500).json({ success: false, message: 'Error interno del servidor' })
+  }
+}
+
+/**
+ * POST /api/users/:id/impersonate
+ * Suplanta temporalmente la sesión de un usuario (solo admin / super_admin).
+ */
+export const impersonateUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params
+    const targetUserId = Number(id)
+
+    // Solo admin y super_admin pueden suplantar
+    if (!isAdmin(req.user!)) {
+      res.status(403).json({ success: false, message: 'Acceso denegado: Solo administradores pueden suplantar usuarios' })
+      return
+    }
+
+    const userResult = await db.execute({
+      sql: `SELECT id, email, roles, activo FROM users WHERE id = ?`,
+      args: [targetUserId]
+    })
+
+    if (userResult.rows.length === 0) {
+      res.status(404).json({ success: false, message: 'Usuario objetivo no encontrado' })
+      return
+    }
+
+    const targetRow = userResult.rows[0]
+    if (targetRow.activo !== 1) {
+      res.status(400).json({ success: false, message: 'No se puede ingresar a una cuenta de usuario inactiva' })
+      return
+    }
+
+    const roles = parseRoles(targetRow.roles)
+    const rol = roles.includes('super_admin')
+      ? 'super_admin'
+      : roles.includes('admin')
+        ? 'admin'
+        : roles.includes('asistente') || roles.includes('administrativo')
+          ? 'asistente'
+          : roles.includes('estudiante')
+            ? 'estudiante'
+            : 'afiliado'
+
+    const targetPayload: JwtPayload = {
+      id: Number(targetRow.id),
+      email: String(targetRow.email),
+      roles: roles as any,
+      rol: rol as any,
+      impersonatedBy: req.user!.id
+    }
+
+    // Enriquecer el payload con id_afiliado, id_persona, id_empresa, etc.
+    const enrichedUser = await enrichUserPayload(targetPayload)
+
+    // Firmar JWT con 8 horas de duración
+    const token = jwt.sign(enrichedUser, env.JWT_SECRET, { expiresIn: '8h' })
+
+    res.status(200).json({
+      success: true,
+      message: `Ingresando como ${enrichedUser.nombre_completo || enrichedUser.email}`,
+      data: {
+        token,
+        user: enrichedUser,
+        originalAdmin: {
+          id: req.user!.id,
+          email: req.user!.email,
+          nombre_completo: req.user!.nombre_completo || req.user!.email
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Error en impersonateUser:', error)
+    res.status(500).json({ success: false, message: 'Error interno del servidor al ingresar como usuario' })
   }
 }

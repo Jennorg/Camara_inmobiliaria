@@ -459,6 +459,17 @@ async function migrate() {
       UNIQUE(id_inscripcion, nombre_modulo)
     )`)
 
+    const miCols = await db.execute('PRAGMA table_info(modulos_inscripcion)')
+    const hasNombreModulo = miCols.rows.some(r => r.name === 'nombre_modulo')
+    const hasNumModulo = miCols.rows.some(r => r.name === 'num_modulo')
+    if (!hasNombreModulo) {
+      console.log('Adding nombre_modulo column to modulos_inscripcion...')
+      await db.execute('ALTER TABLE modulos_inscripcion ADD COLUMN nombre_modulo TEXT')
+      if (hasNumModulo) {
+        await db.execute("UPDATE modulos_inscripcion SET nombre_modulo = 'Módulo ' || num_modulo WHERE (nombre_modulo IS NULL OR nombre_modulo = '') AND num_modulo IS NOT NULL")
+      }
+    }
+
     // 11. MIGRATING INSCRIPCIONES_CURSOS (drop columns, migrate interviews, migrate certificate urls, PRESERVE/RESTORE programa_codigo)
     const inscripcionesColumns = await db.execute('PRAGMA table_info(inscripciones_cursos)')
     const hasOldInscripcionesColumns = inscripcionesColumns.rows.some(r => r.name === 'certificado_url' || r.name === 'entrevista_fecha')
