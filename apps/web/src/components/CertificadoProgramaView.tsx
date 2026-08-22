@@ -109,15 +109,15 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           ========================================= */}
           <div
             className="absolute pointer-events-none z-10"
-            style={{ top: 0, right: 0, width: '40%', height: '50%', background: '#2F5496', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
+            style={{ top: '-4px', right: '-4px', width: 'calc(40% + 8px)', height: 'calc(50% + 8px)', background: '#2F5496', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
           />
           <div
             className="absolute pointer-events-none z-10"
-            style={{ top: 0, right: 0, width: '25%', height: '35%', background: '#2E6F44', clipPath: 'polygon(100% 0, 30% 0, 100% 70%)' }}
+            style={{ top: '-4px', right: '-4px', width: 'calc(25% + 8px)', height: 'calc(35% + 8px)', background: '#2E6F44', clipPath: 'polygon(100% 0, 30% 0, 100% 70%)' }}
           />
           <div
             className="absolute pointer-events-none z-10"
-            style={{ top: 0, right: 0, width: '12%', height: '25%', background: '#F6A644', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
+            style={{ top: '-4px', right: '-4px', width: 'calc(12% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
           />
 
           {/* =========================================
@@ -125,11 +125,11 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           ========================================= */}
           <div
             className="absolute pointer-events-none z-10"
-            style={{ bottom: 0, right: 0, width: '35%', height: '35%', background: '#F6A644', clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}
+            style={{ bottom: '-4px', right: '-4px', width: 'calc(35% + 8px)', height: 'calc(35% + 8px)', background: '#F6A644', clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}
           />
           <div
             className="absolute pointer-events-none z-10"
-            style={{ bottom: 0, right: 0, width: '20%', height: '25%', background: '#2F5496', clipPath: 'polygon(100% 100%, 100% 40%, 60% 100%)' }}
+            style={{ bottom: '-4px', right: '-4px', width: 'calc(20% + 8px)', height: 'calc(25% + 8px)', background: '#2F5496', clipPath: 'polygon(100% 100%, 100% 40%, 60% 100%)' }}
           />
 
           {/* =========================================
@@ -137,15 +137,15 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           ========================================= */}
           <div
             className="absolute pointer-events-none z-10"
-            style={{ bottom: 0, left: 0, width: '45%', height: '45%', background: '#2E6F44', clipPath: 'polygon(0% 100%, 45% 100%, 0% 55%)' }}
+            style={{ bottom: '-4px', left: '-4px', width: 'calc(45% + 8px)', height: 'calc(45% + 8px)', background: '#2E6F44', clipPath: 'polygon(0% 100%, 45% 100%, 0% 55%)' }}
           />
           <div
             className="absolute pointer-events-none z-10"
-            style={{ bottom: 0, left: 0, width: '35%', height: '35%', background: '#2F5496', clipPath: 'polygon(0% 100%, 65% 100%, 25% 75%)' }}
+            style={{ bottom: '-4px', left: '-4px', width: 'calc(35% + 8px)', height: 'calc(35% + 8px)', background: '#2F5496', clipPath: 'polygon(0% 100%, 65% 100%, 25% 75%)' }}
           />
           <div
             className="absolute pointer-events-none z-10"
-            style={{ bottom: 0, left: 0, width: '25%', height: '25%', background: '#F6A644', clipPath: 'polygon(0% 100%, 80% 100%, 0% 80%)' }}
+            style={{ bottom: '-4px', left: '-4px', width: 'calc(25% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(0% 100%, 80% 100%, 0% 80%)' }}
           />
 
           {/* ── SEPARADOR HEADER ── */}

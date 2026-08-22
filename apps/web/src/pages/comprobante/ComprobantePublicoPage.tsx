@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FileDown, ArrowLeft, Loader2 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
-import ComprobanteVerificacionView from '@/components/ComprobanteVerificacionView'
 import CertificadoProgramaView from '@/components/CertificadoProgramaView'
+import CertificadoCursoView from '@/components/CertificadoCursoView'
 import { API_URL } from '@/config/env'
 import { exportElementToPdf } from '@/utils/domToPdf'
 
@@ -14,8 +14,17 @@ type ApiData = {
   cedula?: string | null
   programa_o_curso: string
   programa_codigo?: string | null
+  tipo_inscripcion?: string | null
+  modalidad?: string | null
+  categoria?: string | null
+  descripcion?: string | null
+  modulos_lista?: string | null
+  instructor_nombre?: string | null
+  instructor_cargo?: string | null
   vigente: boolean
 }
+
+const MAIN_PROGRAMS = new Set(['CIBIR', 'PREANI', 'PEGI', 'PADI'])
 
 const ComprobantePublicoPage: React.FC = () => {
   const { codigo } = useParams<{ codigo: string }>()
@@ -47,15 +56,15 @@ const ComprobantePublicoPage: React.FC = () => {
       .finally(() => setLoading(false))
   }, [codigo])
 
-  const isProgramaPrincipal =
-    data?.programa_codigo &&
-    ['CIBIR', 'PEGI', 'PREANI', 'PADI'].includes(data.programa_codigo.toUpperCase())
+  const isMainProgram = data?.programa_codigo
+    ? MAIN_PROGRAMS.has(data.programa_codigo.trim().toUpperCase())
+    : false
 
   const handleDownloadPdf = async () => {
     if (!data) return
     setDownloadingPdf(true)
     try {
-      const targetId = isProgramaPrincipal ? 'certificate-print-area' : 'comprobante-digital-root'
+      const targetId = 'certificate-print-area'
       const safeName = (data.titular_nombre || 'Comprobante').replace(/[^a-zA-Z0-9_-]/g, '_')
       await exportElementToPdf(targetId, `Comprobante_${safeName}.pdf`)
     } catch (err) {
@@ -82,28 +91,22 @@ const ComprobantePublicoPage: React.FC = () => {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Montserrat:wght@400;500;700;900&family=Playfair+Display:ital,wght@1,600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Great+Vibes&family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;1,600&display=swap"
           rel="stylesheet"
         />
         <style>{`
           @media print {
             .no-print { display: none !important; }
             body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            ${
-              isProgramaPrincipal
-                ? `
-              @page { size: landscape; margin: 0; }
-              .print-full-page {
-                width: 297mm !important;
-                height: 210mm !important;
-                margin: 0 !important;
-                border: none !important;
-                box-shadow: none !important;
-                border-radius: 0 !important;
-                transform: none !important;
-              }
-            `
-                : ''
+            @page { size: landscape; margin: 0; }
+            .print-full-page {
+              width: 297mm !important;
+              height: 210mm !important;
+              margin: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              border-radius: 0 !important;
+              transform: none !important;
             }
           }
         `}</style>
@@ -146,13 +149,7 @@ const ComprobantePublicoPage: React.FC = () => {
         </div>
       </header>
 
-      <main
-        className={
-          isProgramaPrincipal
-            ? 'flex justify-center items-center py-10 px-4 print:p-0'
-            : 'mx-auto max-w-3xl px-4 py-10 print:py-6'
-        }
-      >
+      <main className="flex justify-center items-center py-10 px-4 print:p-0">
         {loading && (
           <p className="text-center text-sm font-medium text-slate-400 py-20">Cargando comprobante…</p>
         )}
@@ -162,25 +159,32 @@ const ComprobantePublicoPage: React.FC = () => {
           </div>
         )}
         {!loading && data && (
-          isProgramaPrincipal ? (
+          isMainProgram ? (
             <CertificadoProgramaView
               codigo={data.codigo_validacion}
               fechaEmisionIso={data.fecha_emision}
               titularNombre={data.titular_nombre}
               programaOCurso={data.programa_o_curso}
-              programaCodigo={data.programa_codigo!}
+              programaCodigo={data.programa_codigo || 'CURSO'}
               urlVerificacion={urlVerificacion}
               vigente={data.vigente}
               cedula={data.cedula}
             />
           ) : (
-            <ComprobanteVerificacionView
+            <CertificadoCursoView
               codigo={data.codigo_validacion}
               fechaEmisionIso={data.fecha_emision}
               titularNombre={data.titular_nombre}
               programaOCurso={data.programa_o_curso}
+              modalidad={data.modalidad}
+              categoria={data.categoria}
+              descripcion={data.descripcion}
+              modulosLista={data.modulos_lista}
+              instructorNombre={data.instructor_nombre}
+              instructorCargo={data.instructor_cargo}
               urlVerificacion={urlVerificacion}
               vigente={data.vigente}
+              cedula={data.cedula}
             />
           )
         )}

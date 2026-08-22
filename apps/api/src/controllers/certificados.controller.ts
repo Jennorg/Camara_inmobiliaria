@@ -25,7 +25,22 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
           ic.tipo_inscripcion,
           ic.estatus AS inscripcion_estatus,
           ic.completado,
-          cu.titulo AS curso_nombre
+          cu.titulo AS curso_nombre,
+          cu.modalidad AS curso_modalidad,
+          cu.categoria AS curso_categoria,
+          cu.descripcion AS curso_descripcion,
+          COALESCE(
+            (SELECT GROUP_CONCAT(mc.nombre_modulo, '|||') FROM modulos_curso mc WHERE mc.id_curso = cu.id_curso AND mc.nombre_modulo NOT LIKE '%Módulo General%'),
+            (SELECT GROUP_CONCAT(mi.nombre_modulo, '|||') FROM modulos_inscripcion mi WHERE mi.id_inscripcion = ic.id_inscripcion AND mi.nombre_modulo NOT LIKE '%Módulo General%')
+          ) AS modulos_lista,
+          (
+            SELECT COALESCE(p_prof.nombres || ' ' || p_prof.apellidos, '')
+            FROM modulos_curso mc
+            JOIN profesores prof ON mc.id_profesor = prof.id_profesor
+            JOIN personas p_prof ON prof.id_persona = p_prof.id
+            WHERE mc.id_curso = cu.id_curso AND mc.id_profesor IS NOT NULL
+            LIMIT 1
+          ) AS instructor_nombre
         FROM certificados c
         JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
@@ -59,7 +74,12 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
         programa_o_curso: programaOCurso,
         programa_codigo: row.programa_codigo,
         tipo_inscripcion: row.tipo_inscripcion,
-        vigente: Number(row.completado) === 1 && row.inscripcion_estatus === 'Inscrito',
+        modalidad: row.curso_modalidad,
+        categoria: row.curso_categoria,
+        descripcion: row.curso_descripcion,
+        modulos_lista: row.modulos_lista || null,
+        instructor_nombre: row.instructor_nombre || null,
+        vigente: Number(row.completado) === 1 && (row.inscripcion_estatus === 'Inscrito' || row.inscripcion_estatus === 'Pagado'),
       },
     })
   } catch (error) {
