@@ -3,7 +3,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, X, User, ChevronDown } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, X, User, ChevronDown, Trash2 } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
 
@@ -373,13 +373,14 @@ const CursosAdminPanel = () => {
 
   const handleDelete = async (id: number) => {
     const result = await Swal.fire({
-      title: '¿Estás seguro?',
-      text: "El curso cambiará a estado 'Cerrado' pero mantendrá su historial",
+      title: '¿Eliminar curso?',
+      text: 'Esta acción eliminará permanentemente el curso y sus módulos configurados.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#00D084',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Sí, cerrar'
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#64748B',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
     });
 
     if (result.isConfirmed) {
@@ -390,10 +391,10 @@ const CursosAdminPanel = () => {
         });
         const json = await res.json();
         if (json.success) {
-          Swal.fire('Cerrado', 'El curso ahora está cerrado.', 'success');
+          Swal.fire('Eliminado', 'El curso fue eliminado permanentemente.', 'success');
           fetchCursos();
         } else {
-          Swal.fire('Error', json.message || 'No se pudo cerrar el curso', 'error');
+          Swal.fire('Error', json.message || 'No se pudo eliminar el curso', 'error');
         }
       } catch (error) {
         Swal.fire('Error', 'Problema de conexión al servidor', 'error');
@@ -503,6 +504,14 @@ const CursosAdminPanel = () => {
                       <span>Cerrar</span>
                     </button>
                   )}
+                  <button
+                    onClick={() => handleDelete(c.id_curso)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                    title="Eliminar curso"
+                  >
+                    <Trash2 size={12} />
+                    <span>Eliminar</span>
+                  </button>
                 </div>
               </div>
             ))}
@@ -594,6 +603,14 @@ const CursosAdminPanel = () => {
                               <span>Cerrar</span>
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDelete(c.id_curso)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                            title="Eliminar curso"
+                          >
+                            <Trash2 size={12} />
+                            <span>Eliminar</span>
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -1295,15 +1295,78 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
   }
 }
 
-let soloInformativoMigrated = false
-const ensureSoloInformativoColumn = async (): Promise<void> => {
-  if (soloInformativoMigrated) return
+let cursosSchemaEnsured = false
+const ensureCursosTableSchema = async (): Promise<void> => {
+  if (cursosSchemaEnsured) return
   try {
-    await db.execute(`ALTER TABLE cursos ADD COLUMN solo_informativo INTEGER DEFAULT 0`)
-  } catch (_e) {
-    // Column likely already exists
+    const tableInfo = await db.execute(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cursos'`)
+    const tableSql = String(tableInfo.rows?.[0]?.sql || '')
+
+    if (
+      tableSql.includes('CHECK (estatus') ||
+      tableSql.includes('CHECK(estatus') ||
+      tableSql.includes('CHECK (categoria') ||
+      tableSql.includes('CHECK(categoria') ||
+      tableSql.includes('CHECK (modalidad') ||
+      tableSql.includes('CHECK(modalidad')
+    ) {
+      console.log('[Schema Migration] Removing restrictive CHECK constraints from cursos table...')
+      await db.execute('PRAGMA foreign_keys = OFF')
+      await db.execute(`CREATE TABLE IF NOT EXISTS cursos_schema_fix (
+        id_curso          INTEGER     PRIMARY KEY,
+        titulo            TEXT        NOT NULL,
+        slug              TEXT        UNIQUE NOT NULL,
+        descripcion       TEXT,
+        contenido         TEXT,
+        categoria         TEXT,
+        fecha_inicio      TEXT,
+        fecha_fin         TEXT,
+        modalidad         TEXT,
+        estatus           TEXT        DEFAULT 'Abierto',
+        solo_informativo  INTEGER     DEFAULT 0,
+        imagen_url        TEXT,
+        banner_url        TEXT,
+        cupos_totales     INTEGER,
+        creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+        actualizado_en    TEXT,
+        eliminado_en      TEXT
+      )`)
+
+      await db.execute(`INSERT OR IGNORE INTO cursos_schema_fix (
+        id_curso, titulo, slug, descripcion, contenido, categoria,
+        fecha_inicio, fecha_fin, modalidad, estatus, solo_informativo,
+        imagen_url, banner_url, cupos_totales, creado_en, actualizado_en, eliminado_en
+      ) SELECT
+        id_curso, titulo, slug, descripcion, contenido, categoria,
+        fecha_inicio, fecha_fin, modalidad,
+        CASE
+          WHEN estatus = 'Publicado' THEN 'Abierto'
+          WHEN estatus = 'Borrador' THEN 'Cerrado'
+          WHEN estatus = 'Finalizado' THEN 'Cerrado'
+          WHEN estatus = 'Cancelado' THEN 'Cerrado'
+          ELSE COALESCE(estatus, 'Abierto')
+        END,
+        COALESCE(solo_informativo, 0),
+        imagen_url, banner_url, cupos_totales,
+        creado_en, actualizado_en, eliminado_en
+      FROM cursos`)
+
+      await db.execute('DROP TABLE cursos')
+      await db.execute('ALTER TABLE cursos_schema_fix RENAME TO cursos')
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_cursos_activos ON cursos(eliminado_en) WHERE eliminado_en IS NULL')
+      await db.execute('PRAGMA foreign_keys = ON')
+      console.log('[Schema Migration] Successfully upgraded cursos table schema.')
+    } else if (!tableSql.includes('solo_informativo')) {
+      try {
+        await db.execute(`ALTER TABLE cursos ADD COLUMN solo_informativo INTEGER DEFAULT 0`)
+      } catch (_e) {
+        // Column already exists
+      }
+    }
+  } catch (err) {
+    console.error('ensureCursosTableSchema error:', err)
   }
-  soloInformativoMigrated = true
+  cursosSchemaEnsured = true
 }
 
 /**
@@ -1312,7 +1375,7 @@ const ensureSoloInformativoColumn = async (): Promise<void> => {
  */
 export const publicListCursos = async (req: Request, res: Response): Promise<void> => {
   try {
-    await ensureSoloInformativoColumn()
+    await ensureCursosTableSchema()
     const result = await db.execute({
       sql: `SELECT c.*,
                    c.titulo AS nombre,
@@ -1342,7 +1405,7 @@ export const publicListCursos = async (req: Request, res: Response): Promise<voi
  */
 export const publicPreinscribirCurso = async (req: Request, res: Response): Promise<void> => {
   try {
-    await ensureSoloInformativoColumn()
+    await ensureCursosTableSchema()
     const idCurso = Number(req.params.id)
     if (!Number.isFinite(idCurso)) {
       res.status(400).json({ success: false, message: 'id de curso inválido' })
@@ -1519,7 +1582,7 @@ export const adminListCursos = async (req: Request, res: Response): Promise<void
  */
 export const adminCreateCurso = async (req: Request, res: Response): Promise<void> => {
   try {
-    await ensureSoloInformativoColumn()
+    await ensureCursosTableSchema()
     const {
       nombre,
       titulo,
@@ -1571,7 +1634,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         fecha_fin ?? null,
         imagen_url ?? null,
         banner_url ?? null,
-        estatus ?? 'Borrador',
+        estatus ?? 'Abierto',
         isSoloInformativo,
         now,
         now,
@@ -1626,7 +1689,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
  */
 export const adminUpdateCurso = async (req: Request, res: Response): Promise<void> => {
   try {
-    await ensureSoloInformativoColumn()
+    await ensureCursosTableSchema()
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) {
       res.status(400).json({ success: false, message: 'id inválido' })
@@ -1752,27 +1815,27 @@ export const adminDeleteCurso = async (req: Request, res: Response): Promise<voi
       return
     }
 
-    const inscritos = await db.execute({
-      sql: `SELECT COUNT(*) as c FROM inscripciones_cursos WHERE id_curso = ? AND estatus = 'Inscrito'`,
+    await db.execute({
+      sql: `DELETE FROM modulos_inscripcion WHERE id_inscripcion IN (SELECT id_inscripcion FROM inscripciones_cursos WHERE id_curso = ?)`,
       args: [id],
     })
-    const count = Number((inscritos.rows[0] as any)?.c ?? 0)
-    if (count > 0) {
-      res.status(409).json({
-        success: false,
-        message: `No se puede eliminar: hay ${count} estudiante(s) inscrito(s) en este curso.`,
-      })
-      return
-    }
-
     await db.execute({
-      sql: `UPDATE cursos SET estatus = 'Cerrado', actualizado_en = ? WHERE id_curso = ?`,
-      args: [new Date().toISOString(), id],
+      sql: `DELETE FROM inscripciones_cursos WHERE id_curso = ?`,
+      args: [id],
     })
-    res.json({ success: true, message: 'Curso cerrado correctamente.' })
+    await db.execute({
+      sql: `DELETE FROM modulos_curso WHERE id_curso = ?`,
+      args: [id],
+    })
+    await db.execute({
+      sql: `DELETE FROM cursos WHERE id_curso = ?`,
+      args: [id],
+    })
+
+    res.json({ success: true, message: 'Curso eliminado permanentemente.' })
   } catch (error) {
     console.error('adminDeleteCurso:', error)
-    res.status(500).json({ success: false, message: 'Error al cerrar curso' })
+    res.status(500).json({ success: false, message: 'Error al eliminar el curso' })
   }
 }
 
