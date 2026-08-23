@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getNoticias, createNoticia, updateNoticia, deleteNoticia,
+  getNoticias, createNoticia, updateNoticia, deleteNoticia, reorderNoticias,
   getCursos, createCurso, updateCurso, deleteCurso,
   getConvenios, createConvenio, updateConvenio, deleteConvenio,
   getDirectiva, createMiembroDirectiva, updateMiembroDirectiva, deleteMiembroDirectiva,
@@ -17,6 +17,7 @@ const adminOnly = [requireAuth, requireRole('admin', 'super_admin')];
 // ── Noticias ──────────────────────────────────────────
 router.get('/noticias', getNoticias);
 router.post('/noticias', ...adminOnly, createNoticia);
+router.put('/noticias/reorder', ...adminOnly, reorderNoticias);
 router.put('/noticias/:id', ...adminOnly, updateNoticia);
 router.delete('/noticias/:id', ...adminOnly, deleteNoticia);
 

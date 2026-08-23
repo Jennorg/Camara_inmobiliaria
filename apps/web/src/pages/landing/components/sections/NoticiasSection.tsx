@@ -13,7 +13,7 @@ interface NewsCardProps {
 function NewsCard({ news, onClick, s }: NewsCardProps) {
   const [bgColor, setBgColor] = useState('rgba(248, 250, 252, 1)');
   const imgUrl = news.imagen_url || news.img || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=75&w=600';
-  const isSoloImagen = news.tag === 'solo_imagen' || news.resumen === '[SOLO_IMAGEN]' || (!news.resumen && !news.contenido && !news.extracto && !news.d);
+  const isSoloImagen = news.tag === 'solo_imagen' || news.categoria === 'solo_imagen' || news.resumen === '[SOLO_IMAGEN]' || news.extracto === '[SOLO_IMAGEN]' || (typeof news.resumen === 'string' && news.resumen.includes('[SOLO_IMAGEN]')) || (!news.resumen && !news.contenido && !news.extracto && !news.d);
 
   useEffect(() => {
     if (!imgUrl) return;
@@ -55,12 +55,8 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
             decoding="async"
             className='relative z-10 w-full h-full object-contain transition-transform duration-700 ease-out group-hover/card:scale-105'
           />
-          <div className="absolute top-4 left-4 z-30 bg-emerald-700/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md border border-white/20">
-            {news.categoria || 'Próximo Evento'}
-          </div>
-          <div className="absolute bottom-4 right-4 z-30 bg-black/75 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider px-3.5 py-1.5 rounded-full border border-white/20 shadow-lg group-hover/card:bg-emerald-600 transition-all flex items-center gap-1.5">
-            <span>Ver más</span>
-          </div>
+
+
         </div>
 
         {/* Nombre del Curso / Conferencia y detalles debajo de la foto */}
@@ -68,7 +64,7 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
           <div className='space-y-1.5'>
             <div className='flex items-center justify-between gap-2'>
               <p className='text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
-                {news.fecha_publicacion?.split('T')[0] || news.fecha?.split('T')[0] || 'Próximamente'}
+                {news.fecha_evento || news.fecha?.split('T')[0] || 'Próximamente'}
               </p>
               {news.lugar_evento && (
                 <span className="text-[10px] text-slate-400 font-bold truncate max-w-[160px]">📍 {news.lugar_evento}</span>
@@ -79,14 +75,6 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
               {news.titulo || 'Afiche Informativo'}
             </h4>
           </div>
-
-          {news.fecha_evento && (
-            <div className='pt-2 flex items-center justify-between border-t border-slate-100/80 mt-1'>
-              <span className='text-[10px] text-emerald-800 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100/80'>
-                📅 Fecha del evento: {news.fecha_evento}
-              </span>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -115,7 +103,7 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
         <div className='space-y-2.5'>
           <div className='flex items-center justify-between gap-2'>
             <p className='text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
-              {news.fecha_publicacion?.split('T')[0] || news.fecha?.split('T')[0] || s.cardMeta}
+              {news.fecha_evento || news.fecha?.split('T')[0] || 'Próximamente'}
             </p>
             {news.lugar_evento && (
               <div className='text-[10px] text-slate-400 font-bold max-w-[150px] overflow-hidden whitespace-nowrap flex items-center gap-1'>
@@ -147,11 +135,6 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
           <span className='text-xs font-bold text-slate-400 group-hover/card:text-emerald-500 transition-colors italic'>
             {s.leerMas}
           </span>
-          {news.fecha_evento && (
-            <span className='text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50'>
-              📅 {news.fecha_evento}
-            </span>
-          )}
         </div>
       </div>
     </div>
@@ -207,13 +190,9 @@ export default function NoticiasSection() {
   if (noticiasBase.length === 0) return null
 
   return (
-    <section id='noticias' className='bg-slate-50/50 text-slate-900 px-6 lg:px-10 pt-14 pb-14 lg:pb-24 scroll-mt-20 overflow-hidden border-y border-slate-100'>
+    <section id='noticias' className='bg-slate-50/50 text-slate-900 px-6 lg:px-10 pt-12 pb-6 lg:pb-10 scroll-mt-20 overflow-hidden border-y border-slate-100'>
       <div className='max-w-8xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-10'>
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-[10px] font-black uppercase tracking-widest mb-3">
-            <span>📅</span>
-            <span>Cartelera Gremial & Próximos Eventos</span>
-          </div>
           <h2 className='text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#022c22] tracking-tight'>
             Próximos Eventos y Noticias
           </h2>
@@ -223,7 +202,7 @@ export default function NoticiasSection() {
         </div>
       </div>
 
-      <div 
+      <div
         className='relative max-w-8xl mx-auto group'
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -273,7 +252,7 @@ export default function NoticiasSection() {
 
       {/* ── MODAL: NEWS DETAIL VIEW ────────────────────────────────────────── */}
       {selectedNews && (() => {
-        const isSoloImagen = selectedNews.tag === 'solo_imagen' || selectedNews.resumen === '[SOLO_IMAGEN]' || (!selectedNews.contenido && !selectedNews.resumen && !selectedNews.extracto && !selectedNews.d);
+        const isSoloImagen = selectedNews.tag === 'solo_imagen' || selectedNews.categoria === 'solo_imagen' || selectedNews.resumen === '[SOLO_IMAGEN]' || selectedNews.extracto === '[SOLO_IMAGEN]' || (typeof selectedNews.resumen === 'string' && selectedNews.resumen.includes('[SOLO_IMAGEN]')) || (!selectedNews.contenido && !selectedNews.resumen && !selectedNews.extracto && !selectedNews.d);
 
         if (isSoloImagen) {
           return (
@@ -282,12 +261,12 @@ export default function NoticiasSection() {
               onClick={() => setSelectedNews(null)}
             >
               <div
-                className="relative max-w-4xl w-full max-h-[92vh] flex flex-col items-center justify-center p-2 sm:p-4 rounded-3xl overflow-hidden"
+                className="relative max-w-5xl w-full max-h-[95vh] flex flex-col items-center justify-center p-2 sm:p-4 rounded-3xl overflow-hidden"
                 onClick={e => e.stopPropagation()}
               >
                 <button
                   onClick={() => setSelectedNews(null)}
-                  className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md rounded-full shadow-2xl transition-all border border-white/20 hover:scale-110 active:scale-95 cursor-pointer"
+                  className="absolute top-4 right-4 z-50 p-2.5 bg-black/70 hover:bg-black/90 text-white backdrop-blur-md rounded-full shadow-2xl transition-all border border-white/20 hover:scale-110 active:scale-95 cursor-pointer"
                   aria-label="Cerrar"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -338,7 +317,7 @@ export default function NoticiasSection() {
               <div className="p-8 space-y-6">
                 <div className="space-y-2 pt-2">
                   <p className="text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]">
-                    Publicado: {selectedNews.fecha_publicacion?.split('T')[0] || selectedNews.fecha?.split('T')[0]}
+                    {selectedNews.fecha_evento ? `Fecha del evento: ${selectedNews.fecha_evento}` : (selectedNews.fecha?.split('T')[0] || '')}
                   </p>
                   <h3 className="text-2xl md:text-3xl font-bold leading-tight text-[#022c22] pr-12">
                     {selectedNews.titulo || selectedNews.t}

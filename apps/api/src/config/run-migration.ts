@@ -415,11 +415,11 @@ async function migrate() {
         slug              TEXT        UNIQUE NOT NULL,
         descripcion       TEXT,
         contenido         TEXT,
-        categoria         TEXT        CHECK (categoria IN ('Taller','Diplomado','Certificación','Webinar')),
+        categoria         TEXT,
         fecha_inicio      TEXT,
         fecha_fin         TEXT,
-        modalidad         TEXT        CHECK (modalidad IN ('Presencial','Online','Híbrido')),
-        estatus           TEXT        DEFAULT 'Borrador' CHECK (estatus IN ('Borrador','Publicado','Finalizado','Cancelado')),
+        modalidad         TEXT,
+        estatus           TEXT        DEFAULT 'Abierto',
         imagen_url        TEXT,
         banner_url        TEXT,
         cupos_totales     INTEGER,
@@ -730,6 +730,38 @@ async function migrate() {
         console.log('  · optar_acreditacion column already exists.')
       } else {
         console.warn('  · Warning trying to add optar_acreditacion column:', e.message)
+      }
+    }
+
+    // 14.6. ADD ORDEN COLUMN TO CMS_NOTICIAS
+    console.log('Adding orden column to cms_noticias table if not exists...')
+    try {
+      await db.execute(`
+        ALTER TABLE cms_noticias 
+        ADD COLUMN orden INTEGER DEFAULT 0
+      `)
+      console.log('  · orden column added to cms_noticias successfully.')
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column name') || e.message?.includes('already exists')) {
+        console.log('  · orden column already exists in cms_noticias.')
+      } else {
+        console.warn('  · Warning trying to add orden column to cms_noticias:', e.message)
+      }
+    }
+
+    // 14.7. ADD ORDEN COLUMN TO CURSOS
+    console.log('Adding orden column to cursos table if not exists...')
+    try {
+      await db.execute(`
+        ALTER TABLE cursos 
+        ADD COLUMN orden INTEGER DEFAULT 0
+      `)
+      console.log('  · orden column added to cursos successfully.')
+    } catch (e: any) {
+      if (e.message?.includes('duplicate column name') || e.message?.includes('already exists')) {
+        console.log('  · orden column already exists in cursos.')
+      } else {
+        console.warn('  · Warning trying to add orden column to cursos:', e.message)
       }
     }
 

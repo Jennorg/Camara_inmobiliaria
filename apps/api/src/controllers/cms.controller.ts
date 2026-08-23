@@ -11,8 +11,9 @@ export const getNoticias = async (req: Request, res: Response) => {
     let sql = 'SELECT * FROM cms_noticias';
     const args: any[] = [];
     if (publicado !== undefined) {
-      sql += ' WHERE publicado = ?';
-      args.push(publicado === '1' || publicado === 'true' ? 1 : 0);
+      const isPub = publicado === '1' || publicado === 'true';
+      sql += ' WHERE (publicado = ? OR publicado = ? OR publicado IS NULL)';
+      args.push(isPub ? 1 : 0, isPub ? '1' : '0');
     }
     sql += ' ORDER BY fecha_publicacion DESC';
     const result = await db.execute({ sql, args });
@@ -22,12 +23,12 @@ export const getNoticias = async (req: Request, res: Response) => {
     if (publicado === undefined || publicado === '1' || publicado === 'true') {
       try {
         const cursosRes = await db.execute({
-          sql: `SELECT id_curso, titulo, descripcion as contenido, imagen_url, estatus, solo_informativo, fecha_inicio as fecha_evento, creado_en as fecha_publicacion 
+          sql: `SELECT id_curso, titulo, descripcion as contenido, imagen_url, estatus, solo_informativo, fecha_inicio as fecha_evento, creado_en as fecha_publicacion
                 FROM cursos 
-                WHERE (solo_informativo = 1 OR estatus = 'Solo Informativo')
-                  AND imagen_url IS NOT NULL AND TRIM(imagen_url) != ''
+                WHERE (solo_informativo = ? OR estatus = ?)
+                  AND imagen_url IS NOT NULL AND LENGTH(TRIM(imagen_url)) > 0
                 ORDER BY creado_en DESC`,
-          args: []
+          args: [1, 'Solo Informativo']
         });
         
         const cursosAsNoticias = cursosRes.rows.map((c: any) => ({
@@ -42,10 +43,14 @@ export const getNoticias = async (req: Request, res: Response) => {
           publicado: 1,
           fecha_evento: c.fecha_evento,
           hora_evento: null,
-          lugar_evento: null
+          lugar_evento: null,
+          orden: c.orden
         }));
 
         noticias = [...cursosAsNoticias, ...noticias].sort((a: any, b: any) => {
+          const ordA = a.orden !== undefined && a.orden !== null && Number(a.orden) > 0 ? Number(a.orden) : 999;
+          const ordB = b.orden !== undefined && b.orden !== null && Number(b.orden) > 0 ? Number(b.orden) : 999;
+          if (ordA !== ordB) return ordA - ordB;
           const dateA = new Date(a.fecha_publicacion || 0).getTime();
           const dateB = new Date(b.fecha_publicacion || 0).getTime();
           return dateB - dateA;
@@ -167,6 +172,35 @@ export const deleteNoticia = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('deleteNoticia:', error);
     return res.status(500).json({ success: false, message: 'Error al eliminar noticia' });
+  }
+};
+
+export const reorderNoticias = async (req: Request, res: Response) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ success: false, message: 'items debe ser un arreglo' });
+    }
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const idStr = String(item.id);
+      if (idStr.startsWith('curso_')) {
+        const idCurso = Number(idStr.replace('curso_', ''));
+        await db.execute({
+          sql: 'UPDATE cursos SET orden = ? WHERE id_curso = ?',
+          args: [i + 1, idCurso]
+        });
+      } else {
+        await db.execute({
+          sql: 'UPDATE cms_noticias SET orden = ? WHERE id_noticia = ?',
+          args: [i + 1, item.id]
+        });
+      }
+    }
+    return res.json({ success: true, message: 'Orden actualizado' });
+  } catch (error) {
+    console.error('reorderNoticias:', error);
+    return res.status(500).json({ success: false, message: 'Error al reordenar noticias' });
   }
 };
 

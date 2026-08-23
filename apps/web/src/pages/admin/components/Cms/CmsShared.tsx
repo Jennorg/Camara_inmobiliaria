@@ -188,7 +188,7 @@ export function ListDetail<T extends { id?: string | number }>({
   listHeader?: React.ReactNode
   items: T[]
   loading: boolean
-  renderRow: (item: T, selected: boolean) => React.ReactNode
+  renderRow: (item: T, selected: boolean, index: number) => React.ReactNode
   renderDetail: (item: T) => React.ReactNode
   renderForm: () => React.ReactNode
   onNew: () => void
@@ -278,7 +278,7 @@ export function ListDetail<T extends { id?: string | number }>({
         <div className="flex-1 overflow-y-auto overflow-x-hidden divide-y divide-gray-50">
           {loading ? <Loading /> : (
             <div className="cms-stagger">
-              {items.map(item => (
+              {items.map((item, idx) => (
                 <div
                   key={item.id}
                   onClick={() => setSelectedId(item.id ?? null)}
@@ -289,7 +289,7 @@ export function ListDetail<T extends { id?: string | number }>({
                       : 'hover:bg-slate-50 border-l-2 border-transparent',
                   ].join(' ')}
                 >
-                  {renderRow(item, String(selectedId) === String(item.id))}
+                  {renderRow(item, String(selectedId) === String(item.id), idx)}
                 </div>
               ))}
               {items.length === 0 && (

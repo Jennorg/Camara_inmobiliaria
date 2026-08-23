@@ -182,11 +182,7 @@ export default function FormacionSection() {
                     <div className="absolute inset-0 bg-gradient-to-t from-[#022c22] via-[#022c22]/60 to-black/20 opacity-85 group-hover:opacity-70 transition-opacity duration-500" />
                   </div>
 
-                  {curso.solo_informativo && (
-                    <div className="absolute top-4 left-4 z-20 bg-emerald-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-white/20 shadow-md">
-                      {curso.categoria || 'Solo Informativo'}
-                    </div>
-                  )}
+
 
                   <div className="relative z-10 h-full flex flex-col justify-end p-6 md:p-8 space-y-4">
                     <div>

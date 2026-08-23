@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
-import { Upload, CheckCircle, Trash2, ArrowLeft } from 'lucide-react'
+import { Upload, CheckCircle, Trash2, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface NoticiaItem {
   id: string | number;
@@ -502,18 +502,60 @@ export const NoticiasPanel = () => {
     </div>
   )
 
+  const handleMove = async (index: number, direction: 'up' | 'down', e: React.MouseEvent) => {
+    e.stopPropagation()
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= items.length) return
+
+    const newItems = [...items]
+    const [movedItem] = newItems.splice(index, 1)
+    newItems.splice(targetIndex, 0, movedItem)
+    setItems(newItems)
+
+    try {
+      await api.put('/api/cms/noticias/reorder', {
+        items: newItems.map((item, idx) => ({ id: item.id, orden: idx + 1 }))
+      })
+    } catch (err) {
+      console.error('Error al reordenar noticias:', err)
+    }
+  }
+
   return (
     <ListDetail
       items={items} loading={loading} selectedId={selectedId} setSelectedId={(id) => { setSelectedId(id); setIsEditing(false) }}
       isEditing={isEditing} setIsEditing={setIsEditing}
       onNew={openNew}
-      renderRow={(item, sel) => (
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className={['text-sm font-semibold truncate', sel ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>{item.titulo}</span>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${item.publicado ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{item.publicado ? 'Publicado' : 'Borrador'}</span>
+      renderRow={(item, sel, index) => (
+        <div className="flex items-center justify-between gap-2 w-full">
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className={['text-sm font-semibold truncate', sel ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>{item.titulo}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${item.publicado ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{item.publicado ? 'Publicado' : 'Borrador'}</span>
+            </div>
+            <span className="text-xs text-slate-400 truncate">{item.categoria} · {item.fecha?.split('T')[0]}</span>
           </div>
-          <span className="text-xs text-slate-400 truncate">{item.categoria} · {item.fecha?.split('T')[0]}</span>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              disabled={index === 0}
+              onClick={(e) => handleMove(index, 'up', e)}
+              className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+              title="Subir orden"
+            >
+              <ArrowUp size={14} />
+            </button>
+            <button
+              type="button"
+              disabled={index === items.length - 1}
+              onClick={(e) => handleMove(index, 'down', e)}
+              className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+              title="Bajar orden"
+            >
+              <ArrowDown size={14} />
+            </button>
+          </div>
         </div>
       )}
       renderDetail={(item) => (
