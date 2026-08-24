@@ -61,29 +61,44 @@ export default function FileUpload({
   // Nombre original del archivo restaurado (si existe)
   const [restoredFileName, setRestoredFileName] = useState<string | null>(initialFileName ?? null);
 
-  useEffect(() => {
+  const [prevInitialUrl, setPrevInitialUrl] = useState(initialUrl);
+  if (prevInitialUrl !== initialUrl) {
+    setPrevInitialUrl(initialUrl);
     if (initialUrl !== undefined) {
       setUploadedUrl(initialUrl);
     }
-  }, [initialUrl]);
+  }
 
-  useEffect(() => {
+  const [prevInitialFileName, setPrevInitialFileName] = useState(initialFileName);
+  if (prevInitialFileName !== initialFileName) {
+    setPrevInitialFileName(initialFileName);
     if (initialFileName !== undefined) {
       setRestoredFileName(initialFileName);
     }
-  }, [initialFileName]);
+  }
 
   // Estados para el recorte
   const [showCropper, setShowCropper] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: defaultCropPosition === 'bottom' ? -50 : 0 });
   const [zoom, setZoom] = useState(enableCrop && cropAspect !== 1 ? 1.1 : 1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const croppedAreaPixelsRef = useRef<any>(null);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [selectedAspect, setSelectedAspect] = useState<number>(cropAspect);
+  const [customAspect, setCustomAspect] = useState<number | null>(null);
+  const selectedAspect = customAspect ?? cropAspect;
+
+  const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setSelectedAspect(cropAspect);
-  }, [cropAspect]);
+    if (!file) {
+      setPreviewObjectUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewObjectUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   const startUpload = async (targetFile: File) => {
     setUploading(true);
@@ -174,14 +189,14 @@ export default function FileUpload({
   };
 
   const handleCropSave = async () => {
-    if (!imageToCrop || !croppedAreaPixels) return;
+    if (!imageToCrop || !croppedAreaPixelsRef.current) return;
     
     try {
       const fileType = 'image/webp';
       const rawName = file?.name || restoredFileName || 'imagen_recortada.jpg';
       const fileName = rawName.replace(/\.[^/.]+$/, '') + '.webp';
       
-      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixels, 0, { horizontal: false, vertical: false }, fileType);
+      const croppedImageBlob = await getCroppedImg(imageToCrop, croppedAreaPixelsRef.current, 0, { horizontal: false, vertical: false }, fileType);
       if (croppedImageBlob) {
         const croppedFile = new File([croppedImageBlob], fileName, { type: fileType });
         setShowCropper(false);
@@ -264,7 +279,7 @@ export default function FileUpload({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => !uploadedUrl && !uploading && !disabled && fileInputRef.current?.click()}
-        className={`relative group transition-all duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden w-full max-w-full flex flex-col justify-center min-h-[110px] ${
+        className={`relative group transition-colors duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden w-full max-w-full flex flex-col justify-center min-h-[110px] ${
           disabled
             ? 'border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
             : isDragging
@@ -278,7 +293,7 @@ export default function FileUpload({
       >
         {!file && !uploadedUrl ? (
           <div className="w-full flex flex-col items-center justify-center py-6 px-4 text-center space-y-2">
-            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${
               isDragging ? 'bg-emerald-500 text-white scale-110' : 'bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600'
             }`}>
               <FileUp size={20} className="sm:w-6 sm:h-6" />
@@ -300,9 +315,9 @@ export default function FileUpload({
               {uploading ? (
                 <Loader2 size={20} className="animate-spin text-emerald-600" />
               ) : isUrlImage && uploadedUrl ? (
-                <img src={uploadedUrl} alt="Preview" className="w-full h-full object-cover animate-in fade-in duration-200" />
-              ) : isUrlImage && file ? (
-                <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover animate-in fade-in duration-200" />
+                <img src={uploadedUrl} alt="Preview" className="transition-opacity w-full h-full object-cover fade-in duration-200" />
+              ) : isUrlImage && previewObjectUrl ? (
+                <img src={previewObjectUrl} alt="Preview" className="transition-opacity w-full h-full object-cover fade-in duration-200" />
               ) : (
                 <FileText size={20} />
               )}
@@ -336,7 +351,7 @@ export default function FileUpload({
                   <button
                     type="button"
                     onClick={handleTriggerCrop}
-                    className="p-1.5 sm:p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-all"
+                    className="p-1.5 sm:p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-colors"
                     title="Recortar / Ajustar"
                   >
                     <Crop size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -345,7 +360,7 @@ export default function FileUpload({
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="p-1.5 sm:p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-all"
+                  className="p-1.5 sm:p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-colors"
                   title="Eliminar archivo"
                 >
                   <X size={18} className="sm:w-5 sm:h-5" />
@@ -370,14 +385,14 @@ export default function FileUpload({
       </div>
 
       {error && (
-        <div className="flex items-center gap-1.5 text-rose-500 px-1 animate-in slide-in-from-top-1">
+        <div className="transition-transform flex items-center gap-1.5 text-rose-500 px-1 slide-in-from-top-1">
           <AlertCircle size={14} />
           <span className="text-xs font-bold uppercase tracking-tight">{error}</span>
         </div>
       )}
 
       {showCropper && imageToCrop && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="transition-opacity fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
           <div className="bg-white w-full max-w-sm mx-4 rounded-3xl shadow-2xl p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-black text-slate-800 text-lg">Ajustar Imagen</h3>
@@ -397,7 +412,7 @@ export default function FileUpload({
                 aspect={selectedAspect}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
-                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                onCropComplete={(_, pixels) => { croppedAreaPixelsRef.current = pixels; }}
                 cropShape={cropShape}
                 showGrid={true}
                 onMediaLoaded={(mediaSize) => {
@@ -424,15 +439,15 @@ export default function FileUpload({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setSelectedAspect(1)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    onClick={() => setCustomAspect(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Cuadrado (1:1)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedAspect(16 / 9)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    onClick={() => setCustomAspect(16 / 9)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Horizontal (16:9)
                   </button>
@@ -444,22 +459,22 @@ export default function FileUpload({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setSelectedAspect(1)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    onClick={() => setCustomAspect(1)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${selectedAspect === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Cuadrado (1:1)
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedAspect(4 / 5)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    onClick={() => setCustomAspect(4 / 5)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${selectedAspect === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     4:5
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedAspect(16 / 9)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    onClick={() => setCustomAspect(16 / 9)}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${selectedAspect === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     16:9
                   </button>
