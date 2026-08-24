@@ -100,7 +100,7 @@ export const ProfileMainContent = ({ afiliado }: ProfileMainContentProps) => {
             {/* Progress bar container */}
             <div className="w-full h-1.5 bg-emerald-950 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-emerald-400 rounded-full transition-all duration-1000"
+                className="h-full bg-emerald-400 rounded-full transition-colors duration-1000"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>

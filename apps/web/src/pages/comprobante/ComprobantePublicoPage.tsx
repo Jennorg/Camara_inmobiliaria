@@ -6,6 +6,7 @@ import CertificadoProgramaView from '@/components/CertificadoProgramaView'
 import CertificadoCursoView from '@/components/CertificadoCursoView'
 import { API_URL } from '@/config/env'
 import { exportElementToPdf } from '@/utils/domToPdf'
+import { apiFetch } from '@/lib/apiClient'
 
 type ApiData = {
   codigo_validacion: string
@@ -43,17 +44,23 @@ const ComprobantePublicoPage: React.FC = () => {
       setLoading(false)
       return
     }
-    fetch(`${API_URL}/api/public/comprobantes/${encodeURIComponent(codigo)}`)
-      .then((r) => r.json())
+    let active = true
+    apiFetch(`${API_URL}/api/public/comprobantes/${encodeURIComponent(codigo)}`)
       .then((j) => {
+        if (!active) return
         if (j.success && j.data) {
           setData(j.data as ApiData)
         } else {
           setError(j.message || 'No se pudo cargar el comprobante')
         }
       })
-      .catch(() => setError('Error de conexión'))
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (active) setError('Error de conexión')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [codigo])
 
   const isMainProgram = data?.programa_codigo

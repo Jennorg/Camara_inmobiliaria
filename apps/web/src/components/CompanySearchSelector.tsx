@@ -122,7 +122,7 @@ export default function CompanySearchSelector({
 
   return (
     <div className="space-y-2.5 w-full">
-      <div className={`relative flex items-center border rounded-2xl transition-all h-12 ${
+      <div className={`relative flex items-center border rounded-2xl transition-colors h-12 ${
         darkTheme
           ? 'bg-slate-900/60 border-emerald-500/30 focus-within:ring-4 focus-within:ring-emerald-500/20 focus-within:border-emerald-400'
           : 'bg-slate-50 border-gray-200 focus-within:ring-4 focus-within:ring-emerald-500/10 focus-within:border-emerald-500'
@@ -147,7 +147,7 @@ export default function CompanySearchSelector({
           </button>
           {showFilterDropdown && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
+              <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowFilterDropdown(false)} />
               <div className={`absolute left-0 top-full mt-1 border rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200 ${
                 darkTheme ? 'bg-[#022c22] border-emerald-500/40 text-white' : 'bg-white border-gray-100 text-slate-800'
               }`}>
@@ -206,7 +206,7 @@ export default function CompanySearchSelector({
                 onSelect('', null);
                 setIsOpen(false);
               }}
-              className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+              className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
                 darkTheme ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/40' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
               }`}
             >
@@ -249,7 +249,7 @@ export default function CompanySearchSelector({
               setQuery('');
               setIsOpen(true);
             }}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shrink-0 border ${
+            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors shrink-0 border ${
               darkTheme 
                 ? 'bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-200 border-emerald-500/30' 
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
@@ -263,7 +263,7 @@ export default function CompanySearchSelector({
       {/* Suggestions Dropdown */}
       {isOpen && !selectedCompany && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-30" aria-hidden="true" onClick={() => setIsOpen(false)} />
           <div className={`relative z-40 w-full border rounded-2xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y animate-in fade-in duration-150 ${
             darkTheme
               ? 'bg-[#022c22] border-emerald-500/30 divide-emerald-500/10 text-white'

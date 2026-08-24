@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { AfiliadoDTO } from '@/types/afiliados'
@@ -17,6 +17,13 @@ import {
   Phone,
   ChevronLeft
 } from 'lucide-react'
+import { apiFetch } from '@/lib/apiClient'
+
+async function requestCompanies(authHeaders: Record<string, string>, signal?: AbortSignal) {
+  const json = await apiFetch(`${API_URL}/api/afiliados?tipo_afiliado=Corporativo`, { headers: authHeaders, signal })
+  if (!json.success) throw new Error(json.message || 'No se pudo cargar empresas')
+  return json.data as AfiliadoDTO[]
+}
 
 export default function AdminMisAgentesPanel() {
   const { token } = useAuth()
@@ -35,42 +42,78 @@ export default function AdminMisAgentesPanel() {
     'Content-Type': 'application/json'
   }), [token])
 
-  const fetchCompanies = async () => {
+  const fetchCompanies = useCallback(async () => {
     setError('')
     setLoadingCompanies(true)
     try {
-      const res = await fetch(`${API_URL}/api/afiliados?tipo_afiliado=Corporativo`, { headers: authHeaders })
-      const json = await res.json()
-      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cargar empresas')
-      setCompanies(json.data as AfiliadoDTO[])
+      const data = await requestCompanies(authHeaders)
+      setCompanies(data)
     } catch (err: unknown) {
       const e = err as Error
       setError(e.message || 'Error al cargar empresas')
     } finally {
       setLoadingCompanies(false)
     }
-  }
+  }, [authHeaders])
 
-  const fetchAgents = async (companyId: number) => {
+  const loadAgentsForCompany = useCallback(async (companyId: number, signal?: AbortSignal) => {
     setLoadingAgents(true)
     setError('')
-    setSelectedCompanyId(companyId)
     try {
-      const res = await fetch(`${API_URL}/api/afiliados?tipo_afiliado=Agente%20Corporativo&id_empresa=${companyId}`, { headers: authHeaders })
-      const json = await res.json()
-      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cargar agentes')
+      const json = await apiFetch(`${API_URL}/api/afiliados?tipo_afiliado=Agente%20Corporativo&id_empresa=${companyId}`, { headers: authHeaders, signal })
+      if (signal?.aborted) return
+      if (!json.success) throw new Error(json.message || 'No se pudo cargar agentes')
       setAgents(json.data as AfiliadoDTO[])
     } catch (err: unknown) {
+      if (signal?.aborted) return
       const e = err as Error
       setError(e.message || 'Error al cargar agentes corporativos')
     } finally {
       setLoadingAgents(false)
     }
-  }
+  }, [authHeaders])
 
   useEffect(() => {
-    fetchCompanies()
-  }, [token])
+    let active = true
+    const controller = new AbortController()
+    setError('')
+    setLoadingCompanies(true)
+
+    requestCompanies(authHeaders, controller.signal)
+      .then((data) => {
+        if (active && !controller.signal.aborted) {
+          setCompanies(data)
+        }
+      })
+      .catch((err: unknown) => {
+        if (active && !controller.signal.aborted) {
+          const e = err as Error
+          setError(e.message || 'Error al cargar listado de empresas')
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingCompanies(false)
+        }
+      })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authHeaders])
+
+  useEffect(() => {
+    if (!selectedCompanyId) {
+      setAgents([])
+      return
+    }
+    const controller = new AbortController()
+    loadAgentsForCompany(selectedCompanyId, controller.signal)
+    return () => {
+      controller.abort()
+    }
+  }, [selectedCompanyId, loadAgentsForCompany])
 
   const selectedCompany = useMemo(
     () => companies.find((company) => company.id_empresa === selectedCompanyId) ?? null,
@@ -123,9 +166,10 @@ export default function AdminMisAgentesPanel() {
         method: 'POST',
         headers: authHeaders
       })
+      if (!res.ok) throw new Error('No se pudo procesar la acción')
       const json = await res.json()
-      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo procesar la acción')
-      await fetchAgents(companyId)
+      if (!json.success) throw new Error(json.message || 'No se pudo procesar la acción')
+      await loadAgentsForCompany(companyId)
     } catch (err: unknown) {
       const e = err as Error
       setError(e.message || 'Error al procesar la acción')
@@ -146,7 +190,7 @@ export default function AdminMisAgentesPanel() {
         <button
           type="button"
           onClick={fetchCompanies}
-          className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+          className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-colors"
         >
           <RefreshCw size={14} />
           Refrescar Empresas
@@ -194,7 +238,7 @@ export default function AdminMisAgentesPanel() {
                   <button
                     key={companyId}
                     type="button"
-                    onClick={() => fetchAgents(companyId)}
+                    onClick={() => setSelectedCompanyId(companyId)}
                     className={`w-full text-left p-4 transition-colors border-b border-slate-100 ${selectedCompanyId === companyId ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
                   >
                     <div className="flex items-center gap-3">
@@ -225,7 +269,7 @@ export default function AdminMisAgentesPanel() {
                 {selectedCompanyId && (
                   <button 
                     onClick={() => setSelectedCompanyId(null)}
-                    className="xl:hidden p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-all"
+                    className="xl:hidden p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-slate-100 transition-colors"
                   >
                     <ChevronLeft size={18} />
                   </button>
@@ -300,7 +344,7 @@ export default function AdminMisAgentesPanel() {
                             type="button"
                             disabled={actionLoading}
                             onClick={() => updateCompanyAgents(agent.id_afiliado, 'aprobar')}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors transition-opacity disabled:opacity-50"
                           >
                             <Check size={14} /> Aprobar
                           </button>
@@ -308,7 +352,7 @@ export default function AdminMisAgentesPanel() {
                             type="button"
                             disabled={actionLoading}
                             onClick={() => updateCompanyAgents(agent.id_afiliado, 'rechazar')}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-red-600 text-white text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-red-600 text-white text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-colors transition-opacity disabled:opacity-50"
                           >
                             <X size={14} /> Rechazar
                           </button>

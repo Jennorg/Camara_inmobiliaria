@@ -133,7 +133,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
               <button
                 type='submit'
                 disabled={loading}
-                className='w-full py-4 bg-[#022c22] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-emerald-900 transition-all active:scale-[0.98] disabled:opacity-50'
+                className='w-full py-4 bg-[#022c22] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-emerald-900 transition-colors transition-transform active:scale-[0.98] disabled:opacity-50'
               >
                 {loading ? 'Verificando...' : 'Iniciar Sesión'}
               </button>

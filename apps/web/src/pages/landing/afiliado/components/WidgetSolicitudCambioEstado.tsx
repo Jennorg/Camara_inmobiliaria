@@ -18,6 +18,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import CompanySearchSelector from '@/components/CompanySearchSelector';
+import { apiFetch } from '@/lib/apiClient';
 import FileUpload from '@/components/common/FileUpload';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 
@@ -86,10 +87,9 @@ export default function WidgetSolicitudCambioEstado() {
   const fetchSolicitud = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/me/solicitud-cambio`, {
+      const data = await apiFetch(`${API_URL}/api/afiliados/me/solicitud-cambio`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await res.json();
       if (data.success) {
         setSolicitud(data.data);
       }
@@ -100,8 +100,7 @@ export default function WidgetSolicitudCambioEstado() {
 
   const fetchEmpresas = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/public/empresas`);
-      const data = await res.json();
+      const data = await apiFetch(`${API_URL}/api/public/empresas`);
       if (data.success) {
         setEmpresas(data.data);
       }
@@ -122,7 +121,29 @@ export default function WidgetSolicitudCambioEstado() {
   };
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    const load = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const json = await apiFetch(`${API_URL}/api/afiliados/mi-solicitud-cambio`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!active) return;
+        if (json.success) {
+          setSolicitud(json.data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,6 +183,7 @@ export default function WidgetSolicitudCambioEstado() {
         body: JSON.stringify(body)
       });
 
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         toastSuccess('Solicitud enviada', 'Tu solicitud de cambio de membresía ha sido registrada.');
@@ -198,6 +220,7 @@ export default function WidgetSolicitudCambioEstado() {
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         toastSuccess('Solicitud cancelada', 'Tu solicitud de cambio de estatus ha sido cancelada.');
@@ -258,7 +281,7 @@ export default function WidgetSolicitudCambioEstado() {
                 <button
                   type="button"
                   onClick={() => setShowCancelConfirm(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 text-xs font-black uppercase tracking-wider transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 text-xs font-black uppercase tracking-wider transition-colors"
                 >
                   <XCircle size={15} />
                   Cancelar Solicitud
@@ -270,7 +293,7 @@ export default function WidgetSolicitudCambioEstado() {
                     type="button"
                     disabled={canceling}
                     onClick={() => handleCancelSolicitud(solicitud.id_solicitud)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider transition-colors transition-opacity disabled:opacity-50"
                   >
                     {canceling ? <Loader2 size={12} className="animate-spin" /> : 'Sí, cancelar'}
                   </button>
@@ -278,7 +301,7 @@ export default function WidgetSolicitudCambioEstado() {
                     type="button"
                     disabled={canceling}
                     onClick={() => setShowCancelConfirm(false)}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-[10px] font-bold uppercase tracking-wider transition-all"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-[10px] font-bold uppercase tracking-wider transition-colors"
                   >
                     No
                   </button>
@@ -355,7 +378,7 @@ export default function WidgetSolicitudCambioEstado() {
                       type="button"
                       disabled={isCurrent}
                       onClick={() => !isCurrent && setTipoDestino(opt.key)}
-                      className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${isCurrent
+                      className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-colors relative ${isCurrent
                         ? 'border-emerald-300 bg-emerald-50/40 cursor-default shadow-xs'
                         : isSelected
                           ? 'border-emerald-500 bg-emerald-50/30 ring-4 ring-emerald-500/5'
@@ -573,7 +596,7 @@ export default function WidgetSolicitudCambioEstado() {
                     (tipoDestino === 'Agente Corporativo' && !idEmpresaSelect) ||
                     (tipoDestino === 'Corporativo' && (!razonSocial || !rifNumero || !emailEmpresa || !telefonoEmpresa || !urlRegistro || !urlRif))
                   }
-                  className={`flex items-center gap-2 px-6 h-12 rounded-2xl font-black uppercase tracking-widest text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none`}
+                  className={`flex items-center gap-2 px-6 h-12 rounded-2xl font-black uppercase tracking-widest text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 transition-colors transition-transform hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none`}
                 >
                   {submitting ? (
                     <>

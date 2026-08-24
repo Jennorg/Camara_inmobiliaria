@@ -143,7 +143,7 @@ function CardImage({
               loading="lazy"
               decoding="async"
               onLoad={() => setLoaded(true)}
-              className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover object-top'} group-hover:scale-105 transition-all duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover object-top'} group-hover:scale-105 transition-transform duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </div>
         ) : (
@@ -206,7 +206,7 @@ export const AfiliadoCard = ({
 
   return (
     <div
-      className={`relative overflow-hidden bg-white dark:bg-[#04432f] rounded-[1.25rem] p-0 shadow-sm border transition-all duration-500 group hover:-translate-y-1 flex flex-col h-full ${highlighted
+      className={`relative overflow-hidden bg-white dark:bg-[#04432f] rounded-[1.25rem] p-0 shadow-sm border transition-colors transition-transform duration-500 group hover:-translate-y-1 flex flex-col h-full ${highlighted
         ? 'border-emerald-500 dark:border-emerald-400 shadow-lg shadow-emerald-500/15'
         : 'border-slate-200 dark:border-emerald-500/20 hover:border-emerald-500 dark:hover:border-emerald-400 hover:shadow-xl'
         }`}
@@ -268,7 +268,7 @@ export const AfiliadoCard = ({
                 e.stopPropagation();
                 onViewCarnet(afiliado);
               }}
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-all duration-300 border border-slate-100/50 dark:border-emerald-800/10"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors duration-300 border border-slate-100/50 dark:border-emerald-800/10"
               title="Ver Carnet de Afiliado"
             >
               <CarnetIcon w={12} h={12} />
@@ -279,7 +279,7 @@ export const AfiliadoCard = ({
               href={`mailto:${isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors duration-300"
               title={isCorpView ? "Correo de la Empresa" : "Correo"}
             >
               <Mail size={12} />
@@ -290,7 +290,7 @@ export const AfiliadoCard = ({
               href={afiliado.linkedin}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-blue-600 transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-blue-600 transition-colors duration-300"
               title="LinkedIn"
             >
               <Linkedin size={12} />
@@ -301,7 +301,7 @@ export const AfiliadoCard = ({
               href={afiliado.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 transition-colors duration-300"
               title="Instagram"
             >
               <Instagram size={12} />
@@ -312,7 +312,7 @@ export const AfiliadoCard = ({
               href={afiliado.facebook}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-[#1877F2] transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-[#1877F2] transition-colors duration-300"
               title="Facebook"
             >
               <Facebook size={12} />
@@ -323,7 +323,7 @@ export const AfiliadoCard = ({
               href={afiliado.twitter}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-colors duration-300"
               title="X"
             >
               <XIcon size={12} />
@@ -334,7 +334,7 @@ export const AfiliadoCard = ({
               href={afiliado.tiktok}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-colors duration-300"
               title="TikTok"
             >
               <TikTokIcon size={12} />
@@ -345,7 +345,7 @@ export const AfiliadoCard = ({
               href={isCorpView ? (afiliado.empresa_website || afiliado.website) : afiliado.website}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors duration-300"
               title="Sitio Web"
             >
               <Globe size={12} />
@@ -356,7 +356,7 @@ export const AfiliadoCard = ({
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-[#25D366] transition-all duration-300"
+              className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-[#25D366] transition-colors duration-300"
               title={isCorpView ? "WhatsApp de la Empresa" : "WhatsApp"}
             >
               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">

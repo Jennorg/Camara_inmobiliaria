@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 import Swal from 'sweetalert2'
 import { CourseSkeletonGrid } from '@/components/Skeletons'
 import Footer from '@/pages/landing/components/Footer'
@@ -28,13 +29,17 @@ export default function CursosCatalogPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${API_URL}/api/public/cursos`)
-      .then((res) => res.json())
+    let active = true
+    apiFetch(`${API_URL}/api/public/cursos`)
       .then((json) => {
+        if (!active) return
         if (json.success) setCursos(json.data)
       })
       .catch(console.error)
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [])
 
   const handleInscribir = (curso: CursoDB) => {
@@ -91,7 +96,10 @@ export default function CursosCatalogPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nombreCompleto: result.value.nombre, email: result.value.email }),
         })
-          .then((res) => res.json())
+          .then((res) => {
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            return res.json();
+          })
           .then((json) => {
             if (json.success) Swal.fire('¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success')
             else Swal.fire('Atención', json.message || 'Hubo un error al procesar tu solicitud.', 'warning')
@@ -104,7 +112,7 @@ export default function CursosCatalogPage() {
   return (
     <div className={`${darkMode ? 'dark bg-[#011a14]' : 'bg-[#f8fafc]'} min-h-screen`}>
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
-      <section id='cursos' className={`relative w-full max-w-full overflow-x-hidden transition-all duration-700 px-4 sm:px-6 lg:px-20 pt-16 pb-24 scroll-mt-24 ${darkMode ? 'bg-[#011a14] text-white' : 'bg-[#f8fafc] text-slate-900'}`}>
+      <section id='cursos' className={`relative w-full max-w-full overflow-x-hidden transition-colors duration-700 px-4 sm:px-6 lg:px-20 pt-16 pb-24 scroll-mt-24 ${darkMode ? 'bg-[#011a14] text-white' : 'bg-[#f8fafc] text-slate-900'}`}>
         <SEO 
           title="Catálogo de Formación Inmobiliaria"
           description="Explora nuestra oferta académica para profesionales de bienes raíces en Bolívar. Cursos, talleres y certificaciones avaladas por la CIBIR."
@@ -132,7 +140,7 @@ export default function CursosCatalogPage() {
           ) : cursos.map((curso) => {
             const isInformative = curso.solo_informativo === 1 || curso.solo_informativo === true || curso.estatus === 'Solo Informativo';
             return (
-            <div key={curso.id_curso} className={`group rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 hover:-translate-y-3 flex flex-col h-full ${darkMode ? 'bg-[#022c22]/50 backdrop-blur-md border-white shadow-[0_20px_50px_rgba(0,0,0,0.3)]' : 'bg-white border-emerald-50 shadow-[0_15px_35px_rgba(16,185,129,0.05)] border-emerald-500'}`}>
+            <div key={curso.id_curso} className={`group rounded-[2.5rem] overflow-hidden border-2 transition-transform duration-500 hover:-translate-y-3 flex flex-col h-full ${darkMode ? 'bg-[#022c22]/50 backdrop-blur-md border-white shadow-[0_20px_50px_rgba(0,0,0,0.3)]' : 'bg-white border-emerald-50 shadow-[0_15px_35px_rgba(16,185,129,0.05)] border-emerald-500'}`}>
               <div className='relative h-56 overflow-hidden bg-slate-100 flex items-center justify-center shrink-0'>
                 {curso.imagen_url ? (
                   <img src={curso.imagen_url} alt={curso.titulo || curso.nombre} loading="lazy" decoding="async" className='w-full h-full object-cover group-hover:scale-110 transition duration-1000' />
@@ -170,7 +178,7 @@ export default function CursosCatalogPage() {
                     <button 
                       type='button' 
                       onClick={() => handleInscribir(curso)} 
-                      className='w-full py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all shadow-lg hover:shadow-purple-500/20'
+                      className='w-full py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-colors transition-transform shadow-lg hover:shadow-purple-500/20'
                     >
                       <span>Portal Informativo</span>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -179,7 +187,7 @@ export default function CursosCatalogPage() {
                     <button 
                       type='button' 
                       onClick={() => handleInscribir(curso)} 
-                      className='w-full py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-black text-xs uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all shadow-lg hover:shadow-emerald-500/20'
+                      className='w-full py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-[#022c22] font-black text-xs uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-colors transition-transform shadow-lg hover:shadow-emerald-500/20'
                     >
                       <span>Formalizar Inscripción</span>
                       <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>

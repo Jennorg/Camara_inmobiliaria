@@ -75,7 +75,7 @@ const AfiliadoProfilePage = () => {
             <p className="text-slate-500 dark:text-emerald-100/70">{error || 'El miembro que buscas no existe o no se encuentra activo.'}</p>
             <button 
               onClick={() => navigate('/miembros')}
-              className="inline-flex items-center gap-2 bg-emerald-600 text-white px-8 py-3 rounded-full font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20"
+              className="inline-flex items-center gap-2 bg-emerald-600 text-white px-8 py-3 rounded-full font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20"
             >
               Volver al Directorio
             </button>

@@ -51,8 +51,8 @@ export const SkeletonNotification = () => (
 
 export const SkeletonList = ({ count = 6 }: { count?: number }) => (
   <div className="flex flex-col gap-3">
-    {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="py-3 flex flex-col gap-2 border-b border-gray-50 last:border-0">
+    {Array.from({ length: count }).map((_, itemIndex) => (
+      <div key={`skel-item-${itemIndex}`} className="py-3 flex flex-col gap-2 border-b border-gray-50 last:border-0">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/4 opacity-60" />
       </div>

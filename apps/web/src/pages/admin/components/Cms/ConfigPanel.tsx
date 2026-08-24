@@ -300,7 +300,7 @@ export const ConfigPanel = () => {
                   type="button"
                   onClick={revertChanges}
                   disabled={saving}
-                  className="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-95"
+                  className="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors transition-transform flex items-center gap-2 active:scale-95"
                 >
                   <RotateCcw size={14} />
                   Descartar ({totalDirty})
@@ -311,7 +311,7 @@ export const ConfigPanel = () => {
                 type="button"
                 onClick={saveAll}
                 disabled={saving || totalDirty === 0}
-                className={`px-6 py-3 rounded-2xl text-xs font-black tracking-wide uppercase transition-all shadow-lg flex items-center justify-center gap-2.5 ${
+                className={`px-6 py-3 rounded-2xl text-xs font-black tracking-wide uppercase transition-colors transition-transform shadow-lg flex items-center justify-center gap-2.5 ${
                   savedSuccess
                     ? 'bg-emerald-600 text-white shadow-emerald-500/25'
                     : totalDirty > 0
@@ -348,7 +348,7 @@ export const ConfigPanel = () => {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Buscar red o campo de contacto..."
-                className="w-full pl-10 pr-8 py-2.5 text-xs font-semibold rounded-2xl border border-slate-200 bg-slate-50/50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                className="w-full pl-10 pr-8 py-2.5 text-xs font-semibold rounded-2xl border border-slate-200 bg-slate-50/50 text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
               />
               {searchQuery && (
                 <button
@@ -424,7 +424,7 @@ export const ConfigPanel = () => {
                       return (
                         <div
                           key={k.clave}
-                          className={`p-4 rounded-2xl border transition-all space-y-2 ${
+                          className={`p-4 rounded-2xl border transition-colors space-y-2 ${
                             isModified
                               ? 'border-amber-200 bg-amber-50/30 ring-2 ring-amber-500/10'
                               : 'border-slate-150 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-200'
@@ -450,7 +450,7 @@ export const ConfigPanel = () => {
                                 value={val}
                                 onChange={e => handleChange(k.clave, e.target.value)}
                                 placeholder={k.placeholder}
-                                className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                                className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                               />
                             </div>
 
@@ -459,7 +459,7 @@ export const ConfigPanel = () => {
                                 href={val}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-300 transition-all shrink-0 shadow-xs"
+                                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-300 transition-colors shrink-0 shadow-xs"
                                 title="Abrir enlace en pestaña nueva"
                               >
                                 <ExternalLink size={15} />
@@ -485,7 +485,7 @@ export const ConfigPanel = () => {
 
       {/* Sticky Bottom Actions Bar (appears when changes exist) */}
       {totalDirty > 0 && (
-        <div className="sticky bottom-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200/80 px-6 py-4 shadow-xl animate-in slide-in-from-bottom-4 duration-300">
+        <div className="transition-transform sticky bottom-0 z-40 bg-white/90 backdrop-blur-md border-t border-slate-200/80 px-6 py-4 shadow-xl slide-in-from-bottom-4 duration-300">
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
@@ -499,7 +499,7 @@ export const ConfigPanel = () => {
                 type="button"
                 onClick={revertChanges}
                 disabled={saving}
-                className="px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95"
+                className="px-5 py-2.5 rounded-2xl text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors transition-transform active:scale-95"
               >
                 Descartar cambios
               </button>
@@ -507,7 +507,7 @@ export const ConfigPanel = () => {
                 type="button"
                 onClick={saveAll}
                 disabled={saving}
-                className="px-6 py-2.5 rounded-2xl text-xs font-black tracking-wide uppercase bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 transition-all flex items-center gap-2 active:scale-95"
+                className="px-6 py-2.5 rounded-2xl text-xs font-black tracking-wide uppercase bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 transition-colors transition-transform flex items-center gap-2 active:scale-95"
               >
                 {saving ? 'Guardando...' : 'Guardar Todo Ahora'}
               </button>

@@ -40,14 +40,14 @@ export default function MisionVision() {
       </header>
       <main className='bg-white text-slate-900 rounded-t-[4rem] -mt-12 relative z-10 px-6 lg:px-20 py-24'>
         <div className='max-w-5xl mx-auto grid md:grid-cols-2 gap-12 lg:gap-20'>
-          <div className='group space-y-6 p-8 rounded-[2.5rem] bg-slate-50 border border-emerald-100 shadow-sm hover:shadow-xl hover:shadow-emerald-900/5 transition-all duration-500'>
+          <div className='group space-y-6 p-8 rounded-[2.5rem] bg-slate-50 border border-emerald-100 shadow-sm hover:shadow-xl hover:shadow-emerald-900/5 transition-colors duration-500'>
             <div className='w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-600/20 group-hover:scale-110 transition-transform'>
               <svg className='w-8 h-8' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M13 10V3L4 14h7v7l9-11h-7z' /></svg>
             </div>
             <h2 className='text-4xl font-black text-[#022c22] tracking-tight uppercase'>Misión</h2>
             <p className='text-lg text-slate-600 leading-relaxed italic'>Promover el desarrollo inmobiliario del estado Bolívar, mediante la capacitación profesional de sus agremiados. A su vez, proteger los derechos de sus afiliados y clientes en relación al ejercicio de la profesión inmobiliaria de manera ética y transparente.</p>
           </div>
-          <div className='group space-y-6 p-8 rounded-[2.5rem] bg-white border-2 border-slate-100 shadow-sm hover:border-emerald-500 transition-all duration-500'>
+          <div className='group space-y-6 p-8 rounded-[2.5rem] bg-white border-2 border-slate-100 shadow-sm hover:border-emerald-500 transition-colors duration-500'>
             <div className='w-14 h-14 bg-[#022c22] text-emerald-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
               <svg className='w-8 h-8' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M15 12a3 3 0 11-6 0 3 3 0 016 0z' />
@@ -60,7 +60,7 @@ export default function MisionVision() {
         </div>
         <div className='max-w-4xl mx-auto mt-20 pt-10 border-t border-slate-100 text-center'>
           <p className='text-emerald-600 font-black uppercase tracking-widest text-xs mb-4'>Comprometidos con Bolívar</p>
-          <button onClick={() => navigate('/')} className='px-10 py-4 border-2 border-[#022c22] text-[#022c22] rounded-full font-black uppercase text-xs tracking-widest hover:bg-[#022c22] hover:text-white transition-all'>Conoce más sobre nosotros</button>
+          <button onClick={() => navigate('/')} className='px-10 py-4 border-2 border-[#022c22] text-[#022c22] rounded-full font-black uppercase text-xs tracking-widest hover:bg-[#022c22] hover:text-white transition-colors'>Conoce más sobre nosotros</button>
         </div>
       </main>
       <Footer />

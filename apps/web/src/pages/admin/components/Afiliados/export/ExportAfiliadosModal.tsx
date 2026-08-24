@@ -72,25 +72,26 @@ export default function ExportAfiliadosModal({
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (!open) return
-    setFilters({
-      tipo: initialFilters?.tipo ?? 'Todos',
-      estatus: initialFilters?.estatus ?? 'Todos',
-      activo: initialFilters?.activo ?? 'todos',
-      search: initialFilters?.search ?? '',
-      desdeCodigo: '',
-      fechaDesde: '',
-      fechaHasta: '',
-    })
-    setSelectedColumns(DEFAULT_SELECTED_COLUMNS)
-    setError('')
-    setActiveTab('filtros')
-  }, [open, initialFilters])
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (prevOpen !== open) {
+    setPrevOpen(open)
+    if (open) {
+      setFilters({
+        tipo: initialFilters?.tipo ?? 'Todos',
+        estatus: initialFilters?.estatus ?? 'Todos',
+        activo: initialFilters?.activo ?? 'todos',
+        search: initialFilters?.search ?? '',
+        desdeCodigo: '',
+        fechaDesde: '',
+        fechaHasta: '',
+      })
+      setSelectedColumns(DEFAULT_SELECTED_COLUMNS)
+      setError('')
+      setActiveTab('filtros')
+    }
+  }
 
-  const fetchItems = useCallback(async (): Promise<AfiliadoDTO[]> => {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000)
+  const fetchItems = useCallback(async (signal?: AbortSignal): Promise<AfiliadoDTO[]> => {
     try {
       const qs = new URLSearchParams()
       if (filters.estatus !== 'Todos') qs.set('estatus', filters.estatus)
@@ -98,15 +99,13 @@ export default function ExportAfiliadosModal({
         qs.set('tipo_afiliado', filters.tipo)
       }
       const url = `${API_URL}/api/afiliados${qs.toString() ? `?${qs}` : ''}`
-      const res = await fetch(url, { headers: authHeaders, signal: controller.signal })
-      clearTimeout(timeoutId)
+      const res = await fetch(url, { headers: authHeaders, signal })
       const json = await res.json()
       if (!res.ok || !json.success) {
         throw new Error(json.message || 'Error al cargar afiliados')
       }
       return json.data as AfiliadoDTO[]
     } catch (err: unknown) {
-      clearTimeout(timeoutId)
       if ((err as Error).name === 'AbortError') {
         throw new Error('Tiempo de espera agotado al conectar con el servidor (Timeout).')
       }
@@ -116,24 +115,28 @@ export default function ExportAfiliadosModal({
 
   useEffect(() => {
     if (!open) return
-    let cancelled = false
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     setPreviewLoading(true)
-    fetchItems()
+
+    fetchItems(controller.signal)
       .then((data) => {
-        if (!cancelled) setPreviewItems(data)
+        if (!controller.signal.aborted) setPreviewItems(data)
       })
       .catch((e: unknown) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           const msg = (e as Error).message || 'Error al cargar datos'
           setError(msg)
           toast.error(msg)
         }
       })
       .finally(() => {
-        if (!cancelled) setPreviewLoading(false)
+        if (!controller.signal.aborted) setPreviewLoading(false)
       })
+
     return () => {
-      cancelled = true
+      clearTimeout(timeoutId)
+      controller.abort()
     }
   }, [open, fetchItems])
 
@@ -213,7 +216,7 @@ export default function ExportAfiliadosModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className="transition-opacity fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 fade-in duration-200">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative w-full max-w-2xl flex flex-col bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden">
@@ -247,7 +250,7 @@ export default function ExportAfiliadosModal({
             <button
               type="button"
               onClick={() => setActiveTab('filtros')}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'filtros'
+              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'filtros'
                   ? 'bg-white text-slate-800 shadow-sm font-black'
                   : 'text-slate-500 hover:text-slate-800'
                 }`}
@@ -258,7 +261,7 @@ export default function ExportAfiliadosModal({
             <button
               type="button"
               onClick={() => setActiveTab('columnas')}
-              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'columnas'
+              className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'columnas'
                   ? 'bg-white text-slate-800 shadow-sm font-black'
                   : 'text-slate-500 hover:text-slate-800'
                 }`}
@@ -331,7 +334,7 @@ export default function ExportAfiliadosModal({
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Search size={12} className="text-emerald-600" /> Búsqueda por Texto
                 </label>
-                <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-10">
+                <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-10">
                   {/* Dropdown de criterio */}
                   <div className="relative shrink-0 border-r border-gray-200 h-full flex items-center px-1">
                     <button
@@ -351,7 +354,7 @@ export default function ExportAfiliadosModal({
                     {showSearchDropdown && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                        <div className="absolute left-0 top-full mt-1.5 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="transition-opacity transition-transform absolute left-0 top-full mt-1.5 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] fade-in slide-in-from-top-1 duration-200">
                           {([
                             { key: 'todos', label: 'Todos' },
                             { key: 'nombre', label: 'Nombre' },
@@ -393,7 +396,7 @@ export default function ExportAfiliadosModal({
                       <button
                         type="button"
                         onClick={() => setFilters((f) => ({ ...f, search: '' }))}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-slate-300 transition-all cursor-pointer"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-slate-300 transition-colors cursor-pointer"
                       >
                         <X size={10} />
                       </button>
@@ -414,7 +417,7 @@ export default function ExportAfiliadosModal({
                     onChange={(e) =>
                       setFilters((f) => ({ ...f, tipo: e.target.value as ExportTipoFilter }))
                     }
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer"
                   >
                     <option value="Todos">Todos los tipos</option>
                     <option value="Natural">Agente Independiente</option>
@@ -436,7 +439,7 @@ export default function ExportAfiliadosModal({
                         estatus: e.target.value as ExportEstatusFilter,
                       }))
                     }
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer"
                   >
                     <option value="Todos">Todos los estados</option>
                     <optgroup label="Proceso de Afiliación">
@@ -472,7 +475,7 @@ export default function ExportAfiliadosModal({
                         activo: e.target.value as ExportActivoFilter,
                       }))
                     }
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer"
                   >
                     <option value="todos">Todos (Activos e Inactivos)</option>
                     <option value="activos">Solo Afiliados Activos</option>
@@ -490,7 +493,7 @@ export default function ExportAfiliadosModal({
                     placeholder="Ej: 100 (opcional)"
                     value={filters.desdeCodigo}
                     onChange={(e) => setFilters((f) => ({ ...f, desdeCodigo: e.target.value }))}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
                 </div>
               </div>
@@ -505,13 +508,13 @@ export default function ExportAfiliadosModal({
                     type="date"
                     value={filters.fechaDesde}
                     onChange={(e) => setFilters((f) => ({ ...f, fechaDesde: e.target.value }))}
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
                   <input
                     type="date"
                     value={filters.fechaHasta}
                     onChange={(e) => setFilters((f) => ({ ...f, fechaHasta: e.target.value }))}
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
                 </div>
               </div>
@@ -533,7 +536,7 @@ export default function ExportAfiliadosModal({
                       <div
                         key={col.id}
                         onClick={() => toggleColumn(col.id)}
-                        className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer select-none ${isChecked
+                        className={`flex items-center justify-between p-3 rounded-2xl border transition-colors cursor-pointer select-none ${isChecked
                             ? 'border-emerald-500/40 bg-emerald-50/60 shadow-sm'
                             : 'border-gray-100 bg-white hover:bg-slate-50'
                           }`}
@@ -556,7 +559,7 @@ export default function ExportAfiliadosModal({
           )}
 
           {error && (
-            <div className="text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-2xl p-3 animate-in fade-in">
+            <div className="transition-opacity text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-2xl p-3 fade-in">
               {error}
             </div>
           )}
@@ -567,7 +570,7 @@ export default function ExportAfiliadosModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-2xl border border-gray-200 text-xs font-bold text-slate-600 hover:bg-white transition-all cursor-pointer"
+            className="px-5 py-2.5 rounded-2xl border border-gray-200 text-xs font-bold text-slate-600 hover:bg-white transition-colors cursor-pointer"
           >
             Cancelar
           </button>
@@ -581,7 +584,7 @@ export default function ExportAfiliadosModal({
               selectedColumns.length === 0 ||
               filteredRows.length === 0
             }
-            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors transition-opacity cursor-pointer"
           >
             {exporting ? (
               <>

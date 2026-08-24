@@ -40,7 +40,7 @@ export default function Footer() {
             href={social.url || '#'}
             target='_blank'
             rel='noopener noreferrer'
-            className='flex flex-col items-center gap-2 transition-all duration-300 hover:text-emerald-400 hover:scale-110'
+            className='flex flex-col items-center gap-2 transition-colors transition-transform duration-300 hover:text-emerald-400 hover:scale-110'
             aria-label={social.name}
           >
             <div className='group-hover:scale-110 transition-transform duration-300'>

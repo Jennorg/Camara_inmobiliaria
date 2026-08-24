@@ -45,7 +45,7 @@ const NavButton = ({
         : undefined
     }
     className={[
-      'flex items-center gap-3 w-full rounded-xl py-3 transition-all duration-150 text-left group',
+      'flex items-center gap-3 w-full rounded-xl py-3 transition-colors duration-150 text-left group',
       isCollapsed ? 'justify-center px-2' : 'px-3',
       isActive
         ? 'shadow-lg'
@@ -93,7 +93,7 @@ const SidebarContent = ({
         >
           <img src={logo} alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
         </div>
-        <div className={`flex flex-col leading-tight transition-all duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+        <div className={`flex flex-col leading-tight transition-colors duration-300 overflow-hidden ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
           <div className="flex flex-col leading-tight whitespace-nowrap">
             <span className="font-extrabold text-[11px] tracking-tighter uppercase leading-none text-white">
               Cámara Inmobiliaria
@@ -121,8 +121,8 @@ const SidebarContent = ({
           const isExpanded = expandedTabs.includes(itemId);
           
           return item.isDivider ? (
-            <div key={item.label} className={['transition-all duration-300 px-3', isCollapsed ? 'py-2 px-4' : 'pt-2 pb-0.5'].join(' ')}>
-              <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
+            <div key={item.label} className={['transition-colors duration-300 px-3', isCollapsed ? 'py-2 px-4' : 'pt-2 pb-0.5'].join(' ')}>
+              <div className={`overflow-hidden transition-colors duration-300 ${isCollapsed ? 'h-0 opacity-0' : 'h-auto opacity-100'}`}>
                 <span className="text-[9px] font-black tracking-widest uppercase opacity-40 text-white leading-none whitespace-nowrap">
                   {item.label.replace('— ', '').replace(' —', '')}
                 </span>
@@ -144,7 +144,7 @@ const SidebarContent = ({
                     : undefined
                 }
                 className={[
-                  'flex items-center gap-3 w-full rounded-xl py-2 transition-all duration-150 text-left group',
+                  'flex items-center gap-3 w-full rounded-xl py-2 transition-colors duration-150 text-left group',
                   isCollapsed ? 'justify-center px-2' : 'px-3',
                   activeTab === itemId
                     ? 'shadow-lg'
@@ -160,7 +160,7 @@ const SidebarContent = ({
                     />
                   )}
                 </div>
-                <div className={`flex-1 flex items-center justify-between overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-full opacity-100 ml-3'}`}>
+                <div className={`flex-1 flex items-center justify-between overflow-hidden transition-colors duration-300 ${isCollapsed ? 'max-w-0 opacity-0 ml-0' : 'max-w-full opacity-100 ml-3'}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
                     {item.count !== undefined && item.count > 0 && (
@@ -187,7 +187,7 @@ const SidebarContent = ({
                           onMobileClose?.();
                         }}
                         className={[
-                          'py-1.5 px-2 text-xs font-bold transition-all rounded-lg text-left',
+                          'py-1.5 px-2 text-xs font-bold transition-colors rounded-lg text-left',
                           activeTab === childId 
                             ? 'text-white bg-white/10' 
                             : 'text-white/40 hover:text-white hover:bg-white/5'
@@ -212,7 +212,7 @@ const SidebarContent = ({
           style={{ color: 'var(--color-danger)' }}
         >
           <LogOut size={20} className="flex-shrink-0" />
-          <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 ml-0' : 'w-auto opacity-100 ml-3'}`}>
+          <div className={`overflow-hidden transition-colors duration-300 ${isCollapsed ? 'w-0 opacity-0 ml-0' : 'w-auto opacity-100 ml-3'}`}>
             <span className="font-bold text-sm uppercase tracking-tighter whitespace-nowrap">Cerrar Sesión</span>
           </div>
         </button>
@@ -260,7 +260,7 @@ const DashboardSidebar = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={[
-          'relative hidden md:flex flex-col h-screen sticky top-0 shadow-2xl transition-all duration-300 ease-in-out flex-shrink-0 overflow-hidden',
+          'relative hidden md:flex flex-col h-screen sticky top-0 shadow-2xl transition-colors duration-300 ease-in-out flex-shrink-0 overflow-hidden',
           isHovered ? 'w-72' : 'w-20',
         ].join(' ')}
         style={{ backgroundColor: 'var(--color-primary)' }}

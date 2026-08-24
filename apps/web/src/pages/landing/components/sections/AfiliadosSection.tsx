@@ -3,6 +3,7 @@ import featureImg from '@/assets/empresaria_3.webp'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 const s = STATIC.afiliados
 
@@ -47,14 +48,16 @@ export default function AfiliadosSection() {
   const [countAfiliados, setCountAfiliados] = useState<number>(s.contador)
 
   useEffect(() => {
-    fetch(`${API_URL}/api/public/afiliados/buscar?limit=1`)
-      .then((res) => res.json())
+    let active = true
+    apiFetch(`${API_URL}/api/public/afiliados/buscar?limit=1`)
       .then((json) => {
+        if (!active) return
         if (json.success && json.counts && typeof json.counts.total === 'number') {
           setCountAfiliados(json.counts.total)
         }
       })
       .catch((err) => console.error('Error cargando total de afiliados para la landing:', err))
+    return () => { active = false }
   }, [])
 
   return (
@@ -98,8 +101,8 @@ export default function AfiliadosSection() {
             {s.descripcion}
           </p>
           <ul className='space-y-4 pt-4'>
-            {s.beneficios.map((item, i) => (
-              <li key={i} className='flex items-center gap-3 font-semibold text-slate-700'>
+            {s.beneficios.map((item) => (
+              <li key={item} className='flex items-center gap-3 font-semibold text-slate-700'>
                 <span className='w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xs'>✓</span>
                 {item}
               </li>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type EstadoDenuncia = 'pendiente' | 'en_revision' | 'resuelta' | 'desestimada'
@@ -158,6 +158,10 @@ const DenunciaDetail = ({
   const [nota, setNota] = useState(denuncia.notas)
   const [isHiding, setIsHiding] = useState(false)
 
+  useEffect(() => {
+    setNota(denuncia.notas)
+  }, [denuncia.id, denuncia.notas])
+
   const handleBack = () => {
     setIsHiding(true)
     setTimeout(onBack, 180)
@@ -167,14 +171,14 @@ const DenunciaDetail = ({
   const prioridadCfg = PRIORIDAD_CONFIG[denuncia.prioridad]
 
   return (
-    <div className={`flex flex-col gap-0 h-full overflow-hidden transition-all duration-200 ${
+    <div className={`flex flex-col gap-0 h-full overflow-hidden transition-colors duration-200 ${
       isHiding ? 'opacity-0 scale-95 translate-x-4 pointer-events-none' : 'opacity-100 scale-100'
     }`}>
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-white shrink-0">
         <button
           onClick={handleBack}
-          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all hover:scale-105 active:scale-95 shrink-0"
+          className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors transition-transform hover:scale-105 active:scale-95 shrink-0"
           title="Volver a la lista"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -232,7 +236,7 @@ const DenunciaDetail = ({
                 <button
                   key={estado}
                   onClick={() => onEstadoChange(denuncia.id, estado)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-colors cursor-pointer ${
                     isActive
                       ? cfg.classes + ' shadow-sm scale-105'
                       : 'text-slate-400 bg-white border-slate-200 hover:border-slate-300 hover:text-slate-600'
@@ -254,9 +258,9 @@ const DenunciaDetail = ({
             onChange={(e) => setNota(e.target.value)}
             rows={4}
             placeholder="Escribe notas internas del caso (solo visible para administradores)..."
-            className="w-full text-sm rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 p-3 resize-none transition-all"
+            className="w-full text-sm rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 p-3 resize-none transition-colors"
           />
-          <button className="text-xs font-black uppercase tracking-wider text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-all border border-blue-100 cursor-pointer">
+          <button className="text-xs font-black uppercase tracking-wider text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-colors border border-blue-100 cursor-pointer">
             Guardar Nota
           </button>
         </div>
@@ -266,15 +270,15 @@ const DenunciaDetail = ({
           <div className="space-y-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Archivos Adjuntos</p>
             <div className="flex flex-col gap-2">
-              {Array.from({ length: denuncia.archivos }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-white hover:border-slate-200 transition-all">
+              {Array.from({ length: denuncia.archivos }).map((_, fileIdx) => (
+                <div key={`archivo-${fileIdx + 1}`} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-white hover:border-slate-200 transition-colors">
                   <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600 shrink-0">
                     <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                       <polyline points="14 2 14 8 20 8" />
                     </svg>
                   </div>
-                  <span className="text-xs font-bold text-slate-700 flex-1">evidencia_0{i + 1}.pdf</span>
+                  <span className="text-xs font-bold text-slate-700 flex-1">evidencia_0{fileIdx + 1}.pdf</span>
                   <span className="text-[10px] text-slate-400 font-bold">Ver archivo →</span>
                 </div>
               ))}
@@ -285,10 +289,10 @@ const DenunciaDetail = ({
 
       {/* Footer actions */}
       <div className="px-6 py-4 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-        <button className="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-md">
+        <button className="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider transition-colors transition-transform active:scale-95 cursor-pointer shadow-md">
           Notificar al Denunciante
         </button>
-        <button className="px-6 py-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-black uppercase tracking-wider border border-rose-200 transition-all cursor-pointer">
+        <button className="px-6 py-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-black uppercase tracking-wider border border-rose-200 transition-colors cursor-pointer">
           Archivar Caso
         </button>
       </div>
@@ -382,7 +386,7 @@ const DenunciasPanel = () => {
         ))}
         <button
           onClick={() => setShowForm(true)}
-          className="ml-auto shrink-0 flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-rose-600/20 cursor-pointer"
+          className="ml-auto shrink-0 flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-colors transition-transform active:scale-95 shadow-md shadow-rose-600/20 cursor-pointer"
         >
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -415,7 +419,7 @@ const DenunciasPanel = () => {
               <button
                 key={e}
                 onClick={() => setFiltroEstado(e)}
-                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
                   filtroEstado === e ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -441,11 +445,11 @@ const DenunciasPanel = () => {
       {/* New Denuncia Form (slide-in) */}
       {showForm && (
         <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+          <div className="transition-opacity transition-transform bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg max-h-[90vh] overflow-y-auto fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 p-6 border-b border-slate-100">
               <button
                 onClick={() => setShowForm(false)}
-                className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer"
+                className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
               >
                 <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
@@ -496,7 +500,7 @@ const DenunciasPanel = () => {
                       key={p}
                       type="button"
                       onClick={() => setNewForm(prev => ({ ...prev, prioridad: p }))}
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-colors cursor-pointer ${
                         newForm.prioridad === p
                           ? PRIORIDAD_CONFIG[p].classes + ' shadow-sm scale-[1.02]'
                           : 'text-slate-400 bg-white border-slate-200 hover:border-slate-300'
@@ -522,13 +526,13 @@ const DenunciasPanel = () => {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleNuevaDenuncia}
-                  className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer"
+                  className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-colors transition-transform active:scale-95 cursor-pointer"
                 >
                   Registrar Denuncia
                 </button>
                 <button
                   onClick={() => setShowForm(false)}
-                  className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                  className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -559,7 +563,7 @@ const DenunciasPanel = () => {
                 <div
                   key={d.id}
                   onClick={() => setSelected(d)}
-                  className="bg-white rounded-2xl border border-slate-100 p-4 cursor-pointer hover:border-slate-200 hover:shadow-md transition-all group"
+                  className="bg-white rounded-2xl border border-slate-100 p-4 cursor-pointer hover:border-slate-200 hover:shadow-md transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">

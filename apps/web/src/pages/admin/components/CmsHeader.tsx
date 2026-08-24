@@ -80,7 +80,7 @@ const CmsHeader = ({
           </div>
           <input
             type="text"
-            className="block w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-100 rounded-full text-sm placeholder-gray-400 outline-none transition-all"
+            className="block w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-100 rounded-full text-sm placeholder-gray-400 outline-none transition-colors"
             style={{ '--tw-ring-color': 'var(--color-admin-accent)' } as React.CSSProperties}
             placeholder={searchPlaceholder}
             onChange={(e) => onSearch?.(e.target.value)}

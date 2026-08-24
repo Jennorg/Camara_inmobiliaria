@@ -25,7 +25,7 @@ export default function OrigenesSection() {
           <div className="lg:col-span-7 flex flex-col gap-6">
 
             {/* TARJETA 1966: Efecto de profundidad sutil */}
-            <div className="group bg-[#011a14]/60 border border-white/5 hover:border-emerald-500/40 p-8 md:p-10 rounded-[2.5rem] transition-all duration-500 shadow-2xl">
+            <div className="group bg-[#011a14]/60 border border-white/5 hover:border-emerald-500/40 p-8 md:p-10 rounded-[2.5rem] transition-colors duration-500 shadow-2xl">
               <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10">
                 <h3 className="text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-teal-200">
                   1966
@@ -38,7 +38,7 @@ export default function OrigenesSection() {
             </div>
 
             {/* TARJETA 1999: Destacada */}
-            <div className="group bg-gradient-to-br from-emerald-800/20 to-[#011a14]/80 border border-emerald-500/20 hover:border-emerald-400/60 p-8 md:p-10 rounded-[2.5rem] transition-all duration-500 shadow-2xl relative overflow-hidden">
+            <div className="group bg-gradient-to-br from-emerald-800/20 to-[#011a14]/80 border border-emerald-500/20 hover:border-emerald-400/60 p-8 md:p-10 rounded-[2.5rem] transition-colors duration-500 shadow-2xl relative overflow-hidden">
               {/* Brillo interno en la esquina */}
               <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 blur-3xl group-hover:bg-emerald-500/20 transition-colors" />
 

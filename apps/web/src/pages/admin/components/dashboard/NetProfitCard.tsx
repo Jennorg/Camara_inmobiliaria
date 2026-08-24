@@ -43,7 +43,7 @@ const NetProfitCard = ({
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-emerald-400 rounded-full transition-all duration-700"
+            className="h-full bg-emerald-400 rounded-full transition-colors duration-700"
             style={{ width: `${incomePercent}%` }}
           />
         </div>
@@ -57,7 +57,7 @@ const NetProfitCard = ({
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-rose-300 rounded-full transition-all duration-700"
+            className="h-full bg-rose-300 rounded-full transition-colors duration-700"
             style={{ width: `${expensePercent}%` }}
           />
         </div>

@@ -26,12 +26,12 @@ export default function NosotrosSection() {
         </div>
 
         <div ref={revealCards} className='grid md:grid-cols-3 gap-8 lg:gap-12 reveal-on-scroll' style={{ transitionDelay: '0.2s' }}>
-          {s.cards.map((card, i) => (
+          {s.cards.map((card: any) => (
             <Link
-              key={i}
+              key={card.path || card.title}
               to={card.path}
               className="group cursor-pointer block" >
-              <div key={i} className="group cursor-pointer">
+              <div className="group cursor-pointer">
                 {/* Contenedor de Imagen */}
                 <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] mb-4 shadow-2xl shadow-emerald-900/10">
                   <img
@@ -39,7 +39,7 @@ export default function NosotrosSection() {
                     alt={card.title}
                     loading="lazy"
                     decoding="async"
-                    className="w-full h-full object-cover  group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700 ease-in-out"
+                    className="w-full h-full object-cover  group-hover:grayscale-0 group-hover:scale-110 transition-transform duration-700 ease-in-out"
                   />
                   {/* Overlay sutil hover */}
                   <div className="absolute inset-0 bg-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

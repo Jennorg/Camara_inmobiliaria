@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { STATIC } from "@/pages/landing/config/staticContent";
 import { API_URL } from "@/config/env";
+import { apiFetch } from "@/lib/apiClient";
 
 const s = STATIC.formacion;
 
@@ -51,9 +52,10 @@ export default function FormacionSection() {
   const revealPanels = useScrollReveal();
 
   useEffect(() => {
-    fetch(`${API_URL}/api/academia/cursos`)
-      .then(r => r.json())
+    let active = true;
+    apiFetch(`${API_URL}/api/academia/cursos`)
       .then(data => {
+        if (!active) return;
         if (data.success && Array.isArray(data.data)) {
           const standardCursos = data.data.filter((c: any) => c.solo_informativo !== 1 && c.estatus !== 'Solo Informativo');
           if (standardCursos.length > 0) {
@@ -72,6 +74,7 @@ export default function FormacionSection() {
         }
       })
       .catch(() => { });
+    return () => { active = false; };
   }, []);
 
   const getVisibleCards = () =>
@@ -137,7 +140,7 @@ export default function FormacionSection() {
         {/* Left Arrow Button */}
         <button
           onClick={prevSlide}
-          className="flex absolute -left-3 md:-left-6 lg:-left-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full border border-emerald-400/30 bg-[#022c22]/95 backdrop-blur-md text-white hover:bg-emerald-500 hover:text-[#022c22] hover:scale-110 active:scale-95 transition-all shadow-2xl cursor-pointer"
+          className="flex absolute -left-3 md:-left-6 lg:-left-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full border border-emerald-400/30 bg-[#022c22]/95 backdrop-blur-md text-white hover:bg-emerald-500 hover:text-[#022c22] hover:scale-110 active:scale-95 transition-colors transition-transform shadow-2xl cursor-pointer"
           aria-label="Anterior curso"
         >
           <svg
@@ -164,13 +167,13 @@ export default function FormacionSection() {
             className="flex transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
             style={{ transform: `translateX(-${getTranslatePercentage()}%)` }}
           >
-            {cursos.map((curso, index) => (
+            {cursos.map((curso) => (
               <div
-                key={`${curso.id}-${index}`}
+                key={curso.id || (curso as any).id_curso || curso.codigo || curso.titulo}
                 className="w-full md:w-1/2 lg:w-1/4 flex-shrink-0 px-3 cursor-pointer"
                 onClick={() => handleCardAction(curso)}
               >
-                <div className="group relative h-[460px] overflow-hidden rounded-[2.5rem] border border-white/15 bg-emerald-900/20 transition-all duration-500 hover:border-emerald-400/80 shadow-2xl">
+                <div className="group relative h-[460px] overflow-hidden rounded-[2.5rem] border border-white/15 bg-emerald-900/20 transition-colors duration-500 hover:border-emerald-400/80 shadow-2xl">
                   <div className="absolute inset-0 z-0">
                     <img
                       src={curso.imagen_url}
@@ -197,7 +200,7 @@ export default function FormacionSection() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleCardAction(curso); }}
-                        className="block w-full text-center py-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest transition-all hover:bg-emerald-500 hover:border-emerald-500 hover:text-[#022c22] shadow-xl"
+                        className="block w-full text-center py-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest transition-colors hover:bg-emerald-500 hover:border-emerald-500 hover:text-[#022c22] shadow-xl"
                       >
                         {curso.solo_informativo ? 'Ver más' : s.boton}
                       </button>
@@ -212,7 +215,7 @@ export default function FormacionSection() {
         {/* Right Arrow Button */}
         <button
           onClick={nextSlide}
-          className="flex absolute -right-3 md:-right-6 lg:-right-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full border border-emerald-400/30 bg-[#022c22]/95 backdrop-blur-md text-white hover:bg-emerald-500 hover:text-[#022c22] hover:scale-110 active:scale-95 transition-all shadow-2xl cursor-pointer"
+          className="flex absolute -right-3 md:-right-6 lg:-right-8 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full border border-emerald-400/30 bg-[#022c22]/95 backdrop-blur-md text-white hover:bg-emerald-500 hover:text-[#022c22] hover:scale-110 active:scale-95 transition-colors transition-transform shadow-2xl cursor-pointer"
           aria-label="Siguiente curso"
         >
           <svg
@@ -243,7 +246,7 @@ export default function FormacionSection() {
           >
             <button
               onClick={() => setSelectedPoster(null)}
-              className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md rounded-full shadow-2xl transition-all border border-white/20 hover:scale-110 active:scale-95 cursor-pointer"
+              className="absolute top-4 right-4 z-50 p-2.5 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md rounded-full shadow-2xl transition-colors transition-transform border border-white/20 hover:scale-110 active:scale-95 cursor-pointer"
               aria-label="Cerrar"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">

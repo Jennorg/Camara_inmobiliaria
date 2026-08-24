@@ -58,7 +58,7 @@ const WidgetFinanciero = ({
         <div className="mt-6">
           <button
             onClick={onGenerarSolvencia}
-            className="w-full sm:w-auto font-black py-3.5 px-8 rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+            className="w-full sm:w-auto font-black py-3.5 px-8 rounded-xl flex items-center justify-center gap-3 transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
             style={{
               backgroundColor: 'var(--color-accent-hover)',
               color: 'var(--color-text-on-accent)',

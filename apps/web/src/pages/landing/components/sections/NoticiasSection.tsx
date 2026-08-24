@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Calendar, Clock, MapPin } from 'lucide-react'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 import { STATIC } from '@/pages/landing/config/staticContent'
 
 const s = STATIC.noticias
@@ -45,7 +47,7 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
       >
         <div
           style={{ backgroundColor: bgColor }}
-          className='relative overflow-hidden rounded-[2.5rem] shadow-2xl shadow-emerald-950/10 aspect-[3/4] w-full flex items-center justify-center transition-all duration-500 group-hover/card:scale-[1.02] group-hover/card:shadow-emerald-900/20 ring-1 ring-slate-200/80 group-hover/card:ring-emerald-500/60'
+          className='relative overflow-hidden rounded-[2.5rem] shadow-2xl shadow-emerald-950/10 aspect-[3/4] w-full flex items-center justify-center transition-colors duration-500 group-hover/card:scale-[1.02] group-hover/card:shadow-emerald-900/20 ring-1 ring-slate-200/80 group-hover/card:ring-emerald-500/60'
         >
           <div className='absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 opacity-60 group-hover/card:opacity-30 transition-opacity z-20 duration-500' />
           <img
@@ -67,7 +69,10 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
                 {news.fecha_evento || news.fecha?.split('T')[0] || 'Próximamente'}
               </p>
               {news.lugar_evento && (
-                <span className="text-[10px] text-slate-400 font-bold truncate max-w-[160px]">📍 {news.lugar_evento}</span>
+                <span className="text-[10px] text-slate-400 font-bold truncate max-w-[160px] flex items-center gap-1">
+                  <MapPin size={11} className="shrink-0 text-slate-400" />
+                  <span className="truncate">{news.lugar_evento}</span>
+                </span>
               )}
             </div>
 
@@ -87,7 +92,7 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
     >
       <div
         style={{ backgroundColor: bgColor }}
-        className='relative mb-0 overflow-hidden rounded-[2.5rem] shadow-2xl shadow-emerald-950/10 aspect-[3/4] w-full flex items-center justify-center transition-all duration-500 ring-1 ring-slate-200/80 group-hover/card:ring-emerald-500/60'
+        className='relative mb-0 overflow-hidden rounded-[2.5rem] shadow-2xl shadow-emerald-950/10 aspect-[3/4] w-full flex items-center justify-center transition-colors duration-500 ring-1 ring-slate-200/80 group-hover/card:ring-emerald-500/60'
       >
         <div className='absolute inset-0 bg-emerald-900/10 opacity-0 group-hover/card:opacity-100 transition-opacity z-20 duration-500' />
         <img
@@ -107,7 +112,7 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
             </p>
             {news.lugar_evento && (
               <div className='text-[10px] text-slate-400 font-bold max-w-[150px] overflow-hidden whitespace-nowrap flex items-center gap-1'>
-                <span className="shrink-0">📍</span>
+                <MapPin size={11} className="shrink-0 text-slate-400" />
                 <div className="overflow-hidden relative w-full flex whitespace-nowrap">
                   {news.lugar_evento.length > 20 ? (
                     <div className="flex animate-marquee hover:[animation-play-state:paused] shrink-0 gap-6" style={{ animationDuration: '12s' }}>
@@ -148,12 +153,14 @@ export default function NoticiasSection() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch(`${API_URL}/api/cms/noticias?publicado=1`)
-      .then(r => r.json())
+    let active = true
+    apiFetch(`${API_URL}/api/cms/noticias?publicado=1`)
       .then(data => {
+        if (!active) return
         if (data.success && data.data.length > 0) setNoticiasBase(data.data)
       })
       .catch(() => { })
+    return () => { active = false }
   }, [])
 
   const noticias = noticiasBase
@@ -196,9 +203,6 @@ export default function NoticiasSection() {
           <h2 className='text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#022c22] tracking-tight'>
             Próximos Eventos y Noticias
           </h2>
-          <p className='text-slate-500 mt-2 font-medium text-sm sm:text-base max-w-2xl'>
-            Afiches oficiales, próximos talleres, conferencias y noticias destacadas de la Cámara Inmobiliaria.
-          </p>
         </div>
       </div>
 
@@ -211,7 +215,7 @@ export default function NoticiasSection() {
         {noticiasBase.length > 1 && (
           <button
             onClick={() => scroll('left')}
-            className='absolute -left-2 md:-left-10 lg:-left-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+            className='absolute -left-2 md:-left-10 lg:-left-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
           </button>
@@ -229,9 +233,9 @@ export default function NoticiasSection() {
             }`}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {noticias.map((news: any, i) => (
+          {noticias.map((news: any) => (
             <NewsCard
-              key={i}
+              key={news.id || news.id_noticia || news.slug || news.titulo}
               news={news}
               onClick={() => setSelectedNews(news)}
               s={s}
@@ -243,7 +247,7 @@ export default function NoticiasSection() {
         {noticiasBase.length > 1 && (
           <button
             onClick={() => scroll('right')}
-            className='absolute -right-2 md:-right-10 lg:-right-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+            className='absolute -right-2 md:-right-10 lg:-right-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
           </button>
@@ -266,7 +270,7 @@ export default function NoticiasSection() {
               >
                 <button
                   onClick={() => setSelectedNews(null)}
-                  className="absolute top-4 right-4 z-50 p-2.5 bg-black/70 hover:bg-black/90 text-white backdrop-blur-md rounded-full shadow-2xl transition-all border border-white/20 hover:scale-110 active:scale-95 cursor-pointer"
+                  className="absolute top-4 right-4 z-50 p-2.5 bg-black/70 hover:bg-black/90 text-white backdrop-blur-md rounded-full shadow-2xl transition-colors transition-transform border border-white/20 hover:scale-110 active:scale-95 cursor-pointer"
                   aria-label="Cerrar"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -304,7 +308,7 @@ export default function NoticiasSection() {
 
                 <button
                   onClick={() => setSelectedNews(null)}
-                  className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/40 text-white backdrop-blur-md rounded-full shadow-lg transition-all"
+                  className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/40 text-white backdrop-blur-md rounded-full shadow-lg transition-colors"
                   aria-label="Cerrar"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
@@ -337,19 +341,25 @@ export default function NoticiasSection() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-emerald-950 font-semibold">
                       {selectedNews.fecha_evento && (
                         <div className="bg-white/90 rounded-2xl p-3 shadow-xs border border-emerald-100/50 flex flex-col gap-0.5">
-                          <span className="text-[9px] font-black uppercase text-emerald-600">📅 Fecha</span>
+                          <span className="text-[9px] font-black uppercase text-emerald-600 flex items-center gap-1">
+                            <Calendar size={12} /> Fecha
+                          </span>
                           {selectedNews.fecha_evento}
                         </div>
                       )}
                       {selectedNews.hora_evento && (
                         <div className="bg-white/90 rounded-2xl p-3 shadow-xs border border-emerald-100/50 flex flex-col gap-0.5 flex-1">
-                          <span className="text-[9px] font-black uppercase text-emerald-600">⏰ Hora</span>
+                          <span className="text-[9px] font-black uppercase text-emerald-600 flex items-center gap-1">
+                            <Clock size={12} /> Hora
+                          </span>
                           {selectedNews.hora_evento}
                         </div>
                       )}
                       {selectedNews.lugar_evento && (
                         <div className="bg-white/90 rounded-2xl p-3 shadow-xs border border-emerald-100/50 flex flex-col gap-0.5 col-span-1">
-                          <span className="text-[9px] font-black uppercase text-emerald-600">📍 Lugar</span>
+                          <span className="text-[9px] font-black uppercase text-emerald-600 flex items-center gap-1">
+                            <MapPin size={12} /> Lugar
+                          </span>
                           {selectedNews.lugar_evento}
                         </div>
                       )}

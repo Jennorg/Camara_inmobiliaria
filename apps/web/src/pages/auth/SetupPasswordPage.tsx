@@ -55,6 +55,18 @@ export default function SetupPasswordPage() {
         body: JSON.stringify({ token, password }),
       });
 
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setStatus('error');
+        let errMsg = data.message || 'Error al procesar la solicitud.';
+        if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
+          errMsg = 'El enlace de activación no es válido, ya fue utilizado o ha caducado. Por favor, solicita una nueva invitación.';
+        }
+        setMessage(errMsg);
+        toast.error(errMsg);
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
@@ -93,7 +105,7 @@ export default function SetupPasswordPage() {
           </div>
           <button 
             onClick={() => navigate('/')} 
-            className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-200"
+            className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-200"
           >
             Ir al Inicio de Sesión <ArrowRight size={18} />
           </button>
@@ -142,7 +154,7 @@ export default function SetupPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo 8 caracteres"
                   disabled={status === 'error'}
-                  className="w-full bg-slate-50 border border-slate-100 group-focus-within:border-emerald-500 group-focus-within:bg-white rounded-2xl pl-11 pr-12 py-4 text-slate-700 font-medium focus:outline-none transition-all"
+                  className="w-full bg-slate-50 border border-slate-100 group-focus-within:border-emerald-500 group-focus-within:bg-white rounded-2xl pl-11 pr-12 py-4 text-slate-700 font-medium focus:outline-none transition-colors"
                 />
                 <button 
                   type="button" 
@@ -167,7 +179,7 @@ export default function SetupPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repite tu contraseña"
                   disabled={status === 'error'}
-                  className={`w-full bg-slate-50 border group-focus-within:bg-white rounded-2xl pl-11 pr-4 py-4 text-slate-700 font-medium focus:outline-none transition-all ${
+                  className={`w-full bg-slate-50 border group-focus-within:bg-white rounded-2xl pl-11 pr-4 py-4 text-slate-700 font-medium focus:outline-none transition-colors ${
                     confirmPassword && !isMatch ? 'border-rose-200 focus:border-rose-500 bg-rose-50/30' : 'border-slate-100 focus:border-emerald-500'
                   }`}
                 />
@@ -188,7 +200,7 @@ export default function SetupPasswordPage() {
             <button
               type="submit"
               disabled={loading || !isMatch || status === 'error'}
-              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:grayscale text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.98] flex items-center justify-center gap-2 mt-2"
+              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:grayscale text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-colors transition-transform shadow-xl shadow-emerald-500/20 active:scale-[0.98] flex items-center justify-center gap-2 mt-2"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : btnText}
             </button>

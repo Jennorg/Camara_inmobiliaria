@@ -136,8 +136,8 @@ export default function RequisitosPage() {
 
                   return (
                     <div
-                      key={idx}
-                      className={`flex-1 relative group transition-all duration-500 ease-in-out hover:flex-[2.2] hover:-translate-y-1 ${!isFirst ? '-ml-[24px]' : ''}`}
+                      key={step.title}
+                      className={`flex-1 relative group transition-transform duration-500 ease-in-out hover:flex-[2.2] hover:-translate-y-1 ${!isFirst ? '-ml-[24px]' : ''}`}
                       style={{
                         backgroundColor: step.color,
                         clipPath: clipPath,
@@ -161,7 +161,7 @@ export default function RequisitosPage() {
                           </p>
 
                           {/* Detailed Explanation - Hidden by default, shown on hover */}
-                          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-all duration-500 ease-in-out w-full">
+                          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-colors duration-500 ease-in-out w-full">
                             <div className="overflow-hidden">
                               <div className="text-xs text-white/80 leading-relaxed font-normal pt-3 border-t border-white/20 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
                                 {step.details}
@@ -179,8 +179,8 @@ export default function RequisitosPage() {
               <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
                 {AFFILIATION_STEPS.map((step, idx) => (
                   <div
-                    key={idx}
-                    className="p-6 rounded-3xl border border-slate-100 bg-white shadow-sm flex flex-col gap-4 group hover:border-emerald-200 transition-all relative overflow-hidden"
+                    key={step.title}
+                    className="p-6 rounded-3xl border border-slate-100 bg-white shadow-sm flex flex-col gap-4 group hover:border-emerald-200 transition-colors relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full -mr-10 -mt-10 blur-2xl" style={{ backgroundColor: step.color }} />
                     <div className="flex items-center gap-4 relative z-10">

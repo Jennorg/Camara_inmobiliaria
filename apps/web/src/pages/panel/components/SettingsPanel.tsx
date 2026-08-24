@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
+import { apiFetch } from '@/lib/apiClient';
 import { 
   User, Mail, Shield, Building, ArrowRightLeft, 
   CheckCircle2, AlertCircle, Globe, Phone, MapPin, 
@@ -137,6 +138,7 @@ const SettingsPanel = () => {
         },
         body: JSON.stringify({ tipo }),
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       console.log('[ACCESO] Respuesta del servidor:', data);
       if (data.success) {
@@ -161,21 +163,26 @@ const SettingsPanel = () => {
   };
 
   useEffect(() => {
+    let active = true;
     if (!user?.id_afiliado) {
       setFetching(false);
       return;
     }
-    loadProfileData();
+    const load = async () => {
+      if (!active) return;
+      await loadProfileData();
+    };
+    load();
+    return () => { active = false; };
   }, [user?.id_afiliado]);
 
   const loadProfileData = async () => {
     if (!user?.id_afiliado) return;
     setFetching(true);
     try {
-      const res = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+      const data = await apiFetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
       if (data.success) {
         const af = data.data;
         const cedulaStr = af.cedula || '';
@@ -332,6 +339,7 @@ const SettingsPanel = () => {
         },
         body: JSON.stringify(payload)
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         Swal.fire({
@@ -377,6 +385,7 @@ const SettingsPanel = () => {
           'Content-Type': 'application/json'
         }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         await Swal.fire('¡Éxito!', 'Ahora eres Afiliado Natural. El sistema se actualizará ahora.', 'success');
@@ -408,7 +417,7 @@ const SettingsPanel = () => {
   ];
 
   return (
-    <div className="col-span-3 h-full lg:p-8 flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+    <div className="transition-opacity transition-transform col-span-3 h-full lg:p-8 flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8 fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
       {/* Sidebar / Mobile Tabs */}
       <aside className="lg:col-span-1 flex flex-col shrink-0">
         <div className="hidden lg:block mb-6 px-4">
@@ -423,7 +432,7 @@ const SettingsPanel = () => {
               type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 text-left group ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors duration-200 text-left group ${
                 activeTab === tab.id 
                   ? 'bg-white shadow-sm border border-gray-100 text-emerald-600 font-bold' 
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -443,7 +452,7 @@ const SettingsPanel = () => {
               type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest ${
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors text-xs font-black uppercase tracking-widest ${
                 activeTab === tab.id 
                   ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' 
                   : 'bg-gray-50 text-gray-400 border border-gray-100'
@@ -525,7 +534,7 @@ const SettingsPanel = () => {
                         name="cedula_tipo"
                         value={formData.cedula_tipo || 'V'}
                         onChange={handleInputChange}
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all appearance-none cursor-pointer text-center pr-6"
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors appearance-none cursor-pointer text-center pr-6"
                       >
                         <option value="V">V</option>
                         <option value="E">E</option>
@@ -545,7 +554,7 @@ const SettingsPanel = () => {
                         value={formData.cedula_num || ''}
                         onChange={handleInputChange}
                         placeholder="Número de cédula"
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
                       />
                     </div>
                   </div>
@@ -559,7 +568,7 @@ const SettingsPanel = () => {
                         name="telefono_prefix"
                         value={formData.telefono_prefix || '+58'}
                         onChange={handleInputChange}
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all appearance-none cursor-pointer"
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors appearance-none cursor-pointer"
                       >
                         <option value="+58">🇻🇪 +58</option>
                         <option value="+1">🇺🇸 +1</option>
@@ -581,7 +590,7 @@ const SettingsPanel = () => {
                         value={formData.telefono_num || ''}
                         onChange={handleInputChange}
                         placeholder="Número de teléfono"
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
                       />
                     </div>
                   </div>
@@ -608,7 +617,7 @@ const SettingsPanel = () => {
                       name="nivel_academico"
                       value={formData.nivel_academico}
                       onChange={handleInputChange}
-                      className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all appearance-none cursor-pointer"
+                      className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="Bachiller">Bachiller</option>
                       <option value="TSU">TSU</option>
@@ -636,7 +645,7 @@ const SettingsPanel = () => {
                     onChange={handleInputChange}
                     placeholder="Cuéntanos un poco sobre tu trayectoria..."
                     rows={4}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors resize-none"
                   />
                 </div>
               </div>
@@ -766,7 +775,7 @@ const SettingsPanel = () => {
           )}
 
           {activeTab === 'documentos' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="transition-opacity space-y-6 fade-in duration-300">
               <HeaderSection title="Expediente y Documentación" subtitle="Sube o actualiza la documentación requerida para tu membresía." />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FileUpload 
@@ -836,7 +845,7 @@ const SettingsPanel = () => {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-3 px-10 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 active:scale-95"
+              className="flex items-center gap-3 px-10 py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-colors transition-transform shadow-xl shadow-emerald-200 active:scale-95"
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
               {loading ? 'Guardando...' : 'Guardar Cambios'}
@@ -881,7 +890,7 @@ const Input = ({ label, icon: Icon, ...props }: any) => (
       )}
       <input
         {...props}
-        className={`w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl ${Icon ? 'pl-11' : 'px-4'} pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all disabled:opacity-50 disabled:bg-gray-100`}
+        className={`w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl ${Icon ? 'pl-11' : 'px-4'} pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors transition-opacity disabled:opacity-50 disabled:bg-gray-100`}
       />
     </div>
   </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
@@ -6,6 +6,7 @@ import { formatNombreCard } from '@/utils/formatters';
 import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, X, User, ChevronDown, Trash2 } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
+import { apiFetch } from '@/lib/apiClient';
 
 interface CursoDB {
   id_curso: number;
@@ -133,10 +134,11 @@ const CursosAdminPanel = () => {
     ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     : { 'Content-Type': 'application/json' };
 
-  const fetchCursos = async () => {
+  const fetchCursos = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/academia/cursos`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setCursos(json.data);
@@ -146,13 +148,14 @@ const CursosAdminPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
-  const fetchProfesores = async () => {
+  const fetchProfesores = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/academia/profesores`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setProfesores(json.data);
@@ -160,7 +163,7 @@ const CursosAdminPanel = () => {
     } catch (e) {
       console.error('Error fetching profesores:', e);
     }
-  };
+  }, [token]);
 
   const fetchPersonasDisponibles = async () => {
     setLoadingPersonas(true);
@@ -168,6 +171,7 @@ const CursosAdminPanel = () => {
       const res = await fetch(`${API_URL}/api/academia/personas-disponibles`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setPersonasDisponibles(json.data);
@@ -180,10 +184,26 @@ const CursosAdminPanel = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchCursos();
-      fetchProfesores();
-    }
+    let active = true;
+    if (!token) return;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [jsonC, jsonP] = await Promise.all([
+          apiFetch(`${API_URL}/api/academia/cursos`, { headers: { Authorization: `Bearer ${token}` } }),
+          apiFetch(`${API_URL}/api/academia/profesores`, { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        if (!active) return;
+        if (jsonC.success) setCursos(jsonC.data);
+        if (jsonP.success) setProfesores(jsonP.data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
   }, [token]);
 
   const handleOpenModal = (curso?: CursoDB) => {
@@ -191,7 +211,7 @@ const CursosAdminPanel = () => {
     if (curso) {
       setEditingId(curso.id_curso);
       setFormData({
-        nombre: curso.nombre,
+        nombre: curso.titulo || curso.nombre || '',
         descripcion: curso.descripcion || '',
         imagen_url: curso.imagen_url || '',
         cupos_totales: curso.cupos_totales,
@@ -241,8 +261,11 @@ const CursosAdminPanel = () => {
     setIsProfModalOpen(true);
   };
 
+  const busyCreateProfRef = useRef(false);
   const handleCreateProfesor = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busyCreateProfRef.current) return;
+    busyCreateProfRef.current = true;
     try {
       let body: any = {};
       if (profRegisterMode === 'existente') {
@@ -275,6 +298,7 @@ const CursosAdminPanel = () => {
         headers,
         body: JSON.stringify(body)
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         Swal.fire('Éxito', 'Profesor registrado correctamente', 'success');
@@ -283,6 +307,7 @@ const CursosAdminPanel = () => {
         const resProfs = await fetch(`${API_URL}/api/academia/profesores`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        if (!resProfs.ok) throw new Error(`HTTP error! status: ${resProfs.status}`);
         const jsonProfs = await resProfs.json();
         if (jsonProfs.success) {
           setProfesores(jsonProfs.data);
@@ -299,6 +324,8 @@ const CursosAdminPanel = () => {
       }
     } catch (e) {
       Swal.fire('Error', 'Fallo de conexión', 'error');
+    } finally {
+      busyCreateProfRef.current = false;
     }
   };
 
@@ -326,6 +353,7 @@ const CursosAdminPanel = () => {
           headers,
           body: JSON.stringify({ estatus: nextStatus })
         });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const json = await res.json();
         if (json.success) {
           Swal.fire('Éxito', `Curso ${isCurrentlyClosed ? 'abierto' : 'cerrado'} correctamente.`, 'success');
@@ -348,6 +376,7 @@ const CursosAdminPanel = () => {
       const finalPrice = Number(formData.precio) === 0 ? 'Gratis' : `$${formData.precio}`;
       const payload = {
         ...formData,
+        titulo: formData.nombre,
         precio: finalPrice,
         nivel_academico: 'Libre'
       };
@@ -358,6 +387,7 @@ const CursosAdminPanel = () => {
         body: JSON.stringify(payload),
       });
 
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         Swal.fire('Éxito', `Curso ${editingId ? 'actualizado' : 'creado'} correctamente`, 'success');
@@ -389,6 +419,7 @@ const CursosAdminPanel = () => {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const json = await res.json();
         if (json.success) {
           Swal.fire('Eliminado', 'El curso fue eliminado permanentemente.', 'success');
@@ -475,14 +506,14 @@ const CursosAdminPanel = () => {
                 <div className="flex gap-2 mt-2 border-t pt-2 border-gray-100 justify-end">
                   <button
                     onClick={() => setViewingCurso(c)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-colors transition-transform shadow-sm shadow-[#00D084]/5"
                   >
                     <Users size={12} />
                     <span>Inscritos</span>
                   </button>
                   <button
                     onClick={() => handleOpenModal(c)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                   >
                     <Pencil size={12} />
                     <span>Editar</span>
@@ -490,7 +521,7 @@ const CursosAdminPanel = () => {
                   {c.estatus === 'Cerrado' ? (
                     <button
                       onClick={() => handleToggleStatus(c)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                     >
                       <Unlock size={12} />
                       <span>Abrir</span>
@@ -498,7 +529,7 @@ const CursosAdminPanel = () => {
                   ) : (
                     <button
                       onClick={() => handleToggleStatus(c)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                     >
                       <Lock size={12} />
                       <span>Cerrar</span>
@@ -506,7 +537,7 @@ const CursosAdminPanel = () => {
                   )}
                   <button
                     onClick={() => handleDelete(c.id_curso)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                     title="Eliminar curso"
                   >
                     <Trash2 size={12} />
@@ -570,7 +601,7 @@ const CursosAdminPanel = () => {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => setViewingCurso(c)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-all shadow-sm shadow-[#00D084]/5"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-[#00B870] bg-[#E9FAF4] hover:bg-[#D3F5E7] active:scale-95 rounded-xl transition-colors transition-transform shadow-sm shadow-[#00D084]/5"
                             title="Ver inscritos"
                           >
                             <Users size={12} />
@@ -578,7 +609,7 @@ const CursosAdminPanel = () => {
                           </button>
                           <button
                             onClick={() => handleOpenModal(c)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                             title="Editar curso"
                           >
                             <Pencil size={12} />
@@ -587,7 +618,7 @@ const CursosAdminPanel = () => {
                           {c.estatus === 'Cerrado' ? (
                             <button
                               onClick={() => handleToggleStatus(c)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                               title="Reabrir inscripciones"
                             >
                               <Unlock size={12} />
@@ -596,7 +627,7 @@ const CursosAdminPanel = () => {
                           ) : (
                             <button
                               onClick={() => handleToggleStatus(c)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                               title="Cerrar inscripciones"
                             >
                               <Lock size={12} />
@@ -605,7 +636,7 @@ const CursosAdminPanel = () => {
                           )}
                           <button
                             onClick={() => handleDelete(c.id_curso)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 rounded-xl transition-all shadow-sm"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 active:scale-95 rounded-xl transition-colors transition-transform shadow-sm"
                             title="Eliminar curso"
                           >
                             <Trash2 size={12} />
@@ -625,7 +656,7 @@ const CursosAdminPanel = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+          <div className="transition-opacity transition-transform bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <h3 className="font-bold text-slate-800">{editingId ? 'Editar Curso' : 'Nuevo Curso'}</h3>
               <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
@@ -643,7 +674,7 @@ const CursosAdminPanel = () => {
                     if (file) uploadImage(file);
                   }}
                   onClick={() => document.getElementById('image-upload')?.click()}
-                  className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-all hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
+                  className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-colors hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
                 >
                   <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -660,7 +691,7 @@ const CursosAdminPanel = () => {
                     </>
                   ) : (
                     <>
-                      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-all">
+                      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-colors transition-transform">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
                       <div>
@@ -681,7 +712,7 @@ const CursosAdminPanel = () => {
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Curso / Cohorte</label>
                   <input required
                     placeholder="Ej. Curso de Ética Inmobiliaria"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                     value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })}
                   />
                 </div>
@@ -691,7 +722,7 @@ const CursosAdminPanel = () => {
                   <textarea
                     rows={3}
                     placeholder="Describe los objetivos y alcances del curso..."
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all resize-none"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors resize-none"
                     value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
                   />
                 </div>
@@ -701,7 +732,7 @@ const CursosAdminPanel = () => {
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Categoría / Tipo de Actividad</label>
                     <select
                       required
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                       value={formData.categoria}
                       onChange={e => setFormData({ ...formData, categoria: e.target.value })}
                     >
@@ -721,7 +752,7 @@ const CursosAdminPanel = () => {
                     <select
                       value={formData.estatus}
                       onChange={e => setFormData({ ...formData, estatus: e.target.value as any })}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                     >
                       <option value="Abierto">Abierto (Recibiendo Inscripciones)</option>
                       <option value="Cerrado">Cerrado / Concluido</option>
@@ -752,7 +783,7 @@ const CursosAdminPanel = () => {
                         onChange={(e) => setFormData({ ...formData, solo_informativo: e.target.checked ? 1 : 0 })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
                     </label>
                   </div>
                 </div>
@@ -769,7 +800,7 @@ const CursosAdminPanel = () => {
                           cupos_totales: isIlimitado ? 999999 : 30
                         });
                       }}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                     >
                       <option value="limitado">Definidos / Limitados</option>
                       <option value="ilimitado">Abierto / Ilimitados</option>
@@ -779,8 +810,11 @@ const CursosAdminPanel = () => {
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cantidad de Cupos</label>
                       <input type="number" required min="1"
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
-                        value={formData.cupos_totales} onChange={e => setFormData({ ...formData, cupos_totales: Number(e.target.value) })}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
+                        value={formData.cupos_totales} onChange={e => {
+                          const val = e.currentTarget.valueAsNumber;
+                          setFormData({ ...formData, cupos_totales: Number.isFinite(val) ? val : 0 });
+                        }}
                       />
                     </div>
                   )}
@@ -789,7 +823,7 @@ const CursosAdminPanel = () => {
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha de Inicio Estimada</label>
                   <input type="date" required
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                     value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({ ...formData, fecha_inicio: e.target.value })}
                   />
                 </div>
@@ -820,7 +854,7 @@ const CursosAdminPanel = () => {
                   ) : (
                     <div className="space-y-2">
                       {formData.modulos.map((mod, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <div key={(mod as any).id_modulo || (mod as any).id || mod.nombre_modulo || `modulo-${index}`} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                           <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
                           <input
                             type="text"
@@ -877,13 +911,13 @@ const CursosAdminPanel = () => {
               </div>
 
               <div className="p-5 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0 bg-slate-50/50">
-                <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95">
+                <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors transition-transform active:scale-95">
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                  className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors transition-transform shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
                 >
                   {uploading ? 'Procesando...' : editingId ? 'Actualizar Programa' : 'Crear Curso'}
                 </button>
@@ -896,7 +930,7 @@ const CursosAdminPanel = () => {
       {/* Secondary Modal: Nuevo Profesor */}
       {isProfModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[80vh]">
+          <div className="transition-opacity transition-transform bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden fade-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[80vh]">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
               <div>
                 <h4 className="font-bold text-slate-800 text-sm">Registrar Profesor</h4>
@@ -909,7 +943,7 @@ const CursosAdminPanel = () => {
               <button
                 type="button"
                 onClick={() => setProfRegisterMode('existente')}
-                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${profRegisterMode === 'existente'
+                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-colors ${profRegisterMode === 'existente'
                   ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
                   : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
                   }`}
@@ -919,7 +953,7 @@ const CursosAdminPanel = () => {
               <button
                 type="button"
                 onClick={() => setProfRegisterMode('nuevo')}
-                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-all ${profRegisterMode === 'nuevo'
+                className={`flex-grow py-1.5 text-xs font-bold rounded-lg border transition-colors ${profRegisterMode === 'nuevo'
                   ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/20 shadow-sm'
                   : 'bg-white text-slate-500 border-gray-200 hover:bg-gray-50'
                   }`}
@@ -940,7 +974,7 @@ const CursosAdminPanel = () => {
                         required
                         value={selectedPersonaId}
                         onChange={e => setSelectedPersonaId(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all"
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                       >
                         <option value="">-- Elige una persona --</option>
                         {personasDisponibles.map(p => (
@@ -1035,12 +1069,12 @@ const CursosAdminPanel = () => {
               </div>
 
               <div className="p-4 border-t border-gray-100 flex justify-end gap-2.5 flex-shrink-0 bg-slate-50/50">
-                <button type="button" onClick={() => setIsProfModalOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all">
+                <button type="button" onClick={() => setIsProfModalOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-all shadow-md shadow-[#00D084]/20"
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors shadow-md shadow-[#00D084]/20"
                 >
                   Guardar Profesor
                 </button>
@@ -1069,7 +1103,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [enrollFormData, setEnrollFormData] = useState({
     nombreCompleto: '',
     email: '',
+    cedulaPrefix: 'V',
     cedulaRif: '',
+    codigoPais: '+58',
     telefono: '',
     nivelProfesional: 'Nivel Profesional',
     esCorredorInmobiliario: true
@@ -1082,7 +1118,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     setEnrollFormData({
       nombreCompleto: '',
       email: '',
+      cedulaPrefix: 'V',
       cedulaRif: '',
+      codigoPais: '+58',
       telefono: '',
       nivelProfesional: 'Nivel Profesional',
       esCorredorInmobiliario: true
@@ -1092,6 +1130,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       const resAfil = await fetch(`${API_URL}/api/afiliados`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
+      if (!resAfil.ok) throw new Error(`HTTP error! status: ${resAfil.status}`);
       const jsonAfil = await resAfil.json();
       if (jsonAfil.success && Array.isArray(jsonAfil.data)) {
         setAfiliadosLista(jsonAfil.data);
@@ -1104,11 +1143,20 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const handleSelectAfiliado = (af: any) => {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
     const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || '';
+    const rawCed = String(af.cedula || af.rif || '');
+    const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
+    const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed;
+    const rawTel = String(af.telefono || af.telefono_movil || '');
+    const codeTel = rawTel.startsWith('+') ? (rawTel.match(/^(\+\d{1,4})/)?.[1] || '+58') : '+58';
+    const numTel = rawTel.replace(/^(\+\d{1,4}\s?)/, '');
+
     setEnrollFormData({
       nombreCompleto: nombre,
       email: af.email || '',
-      cedulaRif: af.cedula || af.rif || '',
-      telefono: af.telefono || af.telefono_movil || '',
+      cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
+      cedulaRif: numCed,
+      codigoPais: codeTel,
+      telefono: numTel,
       nivelProfesional: 'Nivel Profesional',
       esCorredorInmobiliario: true
     });
@@ -1121,6 +1169,12 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       return;
     }
 
+    const payload = {
+      ...enrollFormData,
+      cedulaRif: enrollFormData.cedulaRif ? `${enrollFormData.cedulaPrefix || 'V'}-${enrollFormData.cedulaRif.replace(/^[VEJGP]-?/i, '')}` : '',
+      telefono: enrollFormData.telefono ? `${enrollFormData.codigoPais || '+58'} ${enrollFormData.telefono.replace(/^(\+\d{1,4}\s?)/, '')}` : ''
+    };
+
     setSubmittingEnroll(true);
     try {
       const res = await fetch(`${API_URL}/api/academia/cursos/${curso.id_curso}/asignar`, {
@@ -1129,10 +1183,14 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(enrollFormData)
+        body: JSON.stringify(payload)
       });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Error al inscribir estudiante');
+      }
       const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         throw new Error(json.message || 'Error al inscribir estudiante');
       }
 
@@ -1146,13 +1204,14 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     }
   };
 
-  const fetchRows = async () => {
+  const fetchRows = useCallback(async () => {
     setLoading(true);
     try {
       const qs = new URLSearchParams({ cursoId: curso.id_curso.toString(), estatus: 'Todos' });
       const res = await fetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) setRows(json.data);
     } catch (e) {
@@ -1160,9 +1219,28 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     } finally {
       setLoading(false);
     }
-  };
+  }, [curso.id_curso, token]);
 
-  useEffect(() => { fetchRows(); }, [curso.id_curso]);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const qs = new URLSearchParams({ cursoId: curso.id_curso.toString(), estatus: 'Todos' });
+        const json = await apiFetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!active) return;
+        if (json.success) setRows(json.data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, [curso.id_curso, token]);
 
   const procesar = async (id: number, action: 'aprobar' | 'rechazar' | 'completar') => {
     try {
@@ -1172,6 +1250,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: action === 'rechazar' ? JSON.stringify({ notaAdmin: '' }) : undefined,
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         Swal.fire({ title: 'Éxito', text: 'Estado actualizado', icon: 'success', timer: 1500, showConfirmButton: false });
@@ -1184,6 +1263,49 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     }
   };
 
+  const handleDeleteInscripcion = async (idInscripcion: number, nombre: string) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar inscrito?',
+      text: `¿Estás seguro de eliminar a "${nombre}" de este curso? Esta acción removerá el registro de inscripción.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      Swal.fire({
+        title: 'Eliminando...',
+        text: 'Por favor espera un momento.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${idInscripcion}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar');
+
+      Swal.fire({
+        title: '¡Inscrito Eliminado!',
+        text: 'El participante fue eliminado exitosamente del curso.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+
+      fetchRows();
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'No se pudo eliminar el inscrito', 'error');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full min-w-0 flex-1 bg-white">
       {/* Header Premium */}
@@ -1191,7 +1313,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-gray-200 text-slate-400 hover:text-[#00D084] hover:border-[#00D084] hover:shadow-lg hover:shadow-[#00D084]/10 transition-all active:scale-95 group"
+            className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-gray-200 text-slate-400 hover:text-[#00D084] hover:border-[#00D084] hover:shadow-lg hover:shadow-[#00D084]/10 transition-colors transition-transform active:scale-95 group"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
@@ -1199,7 +1321,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </button>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="font-bold text-slate-900 text-lg sm:text-xl tracking-tight leading-none">{curso.nombre}</h3>
+              <h3 className="font-bold text-slate-900 text-lg sm:text-xl tracking-tight leading-none">{curso.titulo || curso.nombre}</h3>
               <span className="px-2 py-0.5 rounded-md bg-[#E9FAF4] text-[#00B870] text-[10px] font-black uppercase tracking-widest">Inscritos</span>
             </div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión de participantes y admisiones</p>
@@ -1209,7 +1331,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenEnrollModal}
-            className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-all active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-transform active:scale-95 cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Inscribir Estudiante</span>
@@ -1304,25 +1426,32 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                      <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-transform transform translate-x-2 group-hover:translate-x-0">
                         {r.estatus === 'Preinscrito' && (
                           <>
-                            <button onClick={() => procesar(r.id_inscripcion, 'aprobar')} className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-all">Validar</button>
-                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all">Rechazar</button>
+                            <button onClick={() => procesar(r.id_inscripcion, 'aprobar')} className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-colors transition-transform">Validar</button>
+                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-colors">Rechazar</button>
                           </>
                         )}
                         {r.estatus === 'Inscrito' && r.completado !== 1 && (
                           <>
-                            <button onClick={() => procesar(r.id_inscripcion, 'completar')} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-1.5">
+                            <button onClick={() => procesar(r.id_inscripcion, 'completar')} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-colors flex items-center gap-1.5">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4" /></svg>
                               Graduar
                             </button>
-                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all">Revocar</button>
+                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-colors">Revocar</button>
                           </>
                         )}
                         {r.completado === 1 && (
                           <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
                         )}
+                        <button
+                          onClick={() => handleDeleteInscripcion(r.id_inscripcion, r.estudiante_nombre)}
+                          className="p-2 text-rose-500 hover:text-white hover:bg-rose-600 rounded-lg transition-colors border border-rose-100 hover:border-rose-600 cursor-pointer shrink-0"
+                          title="Eliminar participante del curso"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1335,7 +1464,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
       {/* ── MODAL INSCRIBIR ESTUDIANTE EN ESTE CURSO ── */}
       {isEnrollModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2.5">
@@ -1343,7 +1472,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">Inscribir en {curso.nombre}</h3>
+                  <h3 className="font-bold text-slate-900 text-sm">Inscribir en {curso.titulo || curso.nombre}</h3>
                   <p className="text-[10px] text-slate-400 font-medium">Asignar estudiante directamente a este curso</p>
                 </div>
               </div>
@@ -1366,7 +1495,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     <button
                       type="button"
                       onClick={() => { setEnrollMode('afiliado'); setSelectedAfiliadoId(''); }}
-                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'afiliado'
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${enrollMode === 'afiliado'
                         ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -1377,7 +1506,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     <button
                       type="button"
                       onClick={() => { setEnrollMode('nuevo'); setSelectedAfiliadoId(''); }}
-                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'nuevo'
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${enrollMode === 'nuevo'
                         ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -1397,7 +1526,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                     <div className="relative">
                       {/* Buscador de Nómina de Afiliados al estilo Directorio de Miembros */}
-                      <div className="relative flex items-center rounded-xl bg-white border border-emerald-200 focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-all text-xs h-10 shadow-xs z-30">
+                      <div className="relative flex items-center rounded-xl bg-white border border-emerald-200 focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-colors text-xs h-10 shadow-xs z-30">
                         {/* Dropdown Criterion Selector */}
                         <div className="relative shrink-0 border-r border-emerald-100 h-full flex items-center pl-3 pr-2">
                           <button
@@ -1425,7 +1554,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                   setShowAfiliadoSearchDropdown(false);
                                 }}
                               />
-                              <div className="absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                                 {[
                                   { key: 'nombre', label: 'Nombre' },
                                   { key: 'cedula', label: 'Cédula / RIF' },
@@ -1471,7 +1600,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setAfiliadoSearch(''); }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center hover:bg-emerald-200 transition-all"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center hover:bg-emerald-200 transition-colors"
                             >
                               <X className="w-2.5 h-2.5" />
                             </button>
@@ -1481,7 +1610,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                       {/* Lista filtrada de afiliados FLOTANTE / position absolute */}
                       {afiliadoSearch.trim().length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="transition-opacity transition-transform absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl fade-in slide-in-from-top-1 duration-150">
                           {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
                             .filter((af: any) => {
                               if (!af) return false;
@@ -1507,7 +1636,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     handleSelectAfiliado(af);
                                     setAfiliadoSearch('');
                                   }}
-                                  className={`w-full text-left p-3 text-xs flex items-center justify-between transition-all ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                  className={`w-full text-left p-3 text-xs flex items-center justify-between transition-colors ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
                                     }`}
                                 >
                                   <div className="min-w-0">
@@ -1557,15 +1686,28 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Cédula / RIF
+                        Tipo y Cédula / RIF
                       </label>
-                      <input
-                        type="text"
-                        placeholder="V-12345678"
-                        value={enrollFormData.cedulaRif}
-                        onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaRif: e.target.value })}
-                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                      />
+                      <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
+                        <select
+                          value={enrollFormData.cedulaPrefix || 'V'}
+                          onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaPrefix: e.target.value })}
+                          className="bg-slate-50 border-r border-gray-200 px-2.5 text-xs font-black text-slate-700 outline-none cursor-pointer shrink-0"
+                        >
+                          <option value="V">V-</option>
+                          <option value="E">E-</option>
+                          <option value="J">J-</option>
+                          <option value="G">G-</option>
+                          <option value="P">P-</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="12345678"
+                          value={enrollFormData.cedulaRif}
+                          onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaRif: e.target.value.replace(/[^\d]/g, '') })}
+                          className="w-full text-xs font-semibold px-3 py-2.5 text-slate-800 outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1573,13 +1715,32 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                       Teléfono de Contacto
                     </label>
-                    <input
-                      type="text"
-                      placeholder="0414-1234567"
-                      value={enrollFormData.telefono}
-                      onChange={(e) => setEnrollFormData({ ...enrollFormData, telefono: e.target.value })}
-                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                    />
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
+                      <select
+                        value={enrollFormData.codigoPais || '+58'}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, codigoPais: e.target.value })}
+                        className="bg-slate-50 border-r border-gray-200 px-2.5 text-xs font-black text-slate-700 outline-none cursor-pointer shrink-0 max-w-[110px]"
+                      >
+                        <option value="+58">🇻🇪 +58</option>
+                        <option value="+57">🇨🇴 +57</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+56">🇨🇱 +56</option>
+                        <option value="+54">🇦🇷 +54</option>
+                        <option value="+51">🇵🇪 +51</option>
+                        <option value="+593">🇪🇨 +593</option>
+                        <option value="+507">🇵🇦 +507</option>
+                        <option value="+1-809">🇩🇴 +1</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="0414-1234567"
+                        value={enrollFormData.telefono}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, telefono: e.target.value })}
+                        className="w-full text-xs font-semibold px-3 py-2.5 text-slate-800 outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1588,14 +1749,14 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 <button
                   type="button"
                   onClick={() => setIsEnrollModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submittingEnroll}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-opacity flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {submittingEnroll ? (
                     <>
@@ -1605,7 +1766,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   ) : (
                     <>
                       <UserPlus className="w-4 h-4" />
-                      <span>Inscribir {curso.nombre}</span>
+                      <span>Inscribir en {curso.titulo || curso.nombre}</span>
                     </>
                   )}
                 </button>

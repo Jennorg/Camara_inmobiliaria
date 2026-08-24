@@ -166,7 +166,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
             <div className="w-full border-y border-[#0f5431]/60 py-1 px-2">
               <p className="text-[#0f5431] font-extrabold text-[8.5px] tracking-wider uppercase leading-tight text-center">
                 {info.title.split('\n').map((line, idx) => (
-                  <React.Fragment key={idx}>
+                  <React.Fragment key={`${line}-${idx}`}>
                     {line}
                     {idx < info.title.split('\n').length - 1 && <br />}
                   </React.Fragment>

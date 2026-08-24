@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink } from 'lucide-react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
@@ -28,15 +28,39 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   })
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState<string | null>(null)
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
-  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [fileUpload, setFileUpload] = useState({
+    uploading: false,
+    error: null as string | null,
+    fileName: null as string | null,
+    isDraggingOver: false,
+  })
 
-  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([])
-  const [deletingBatch, setDeletingBatch] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<NormativaItem | null>(null)
-  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
+  const uploading = fileUpload.uploading
+  const uploadError = fileUpload.error
+  const uploadedFileName = fileUpload.fileName
+  const isDraggingOver = fileUpload.isDraggingOver
+
+  const setUploading = (uploading: boolean) => setFileUpload(f => ({ ...f, uploading }))
+  const setUploadError = (error: string | null) => setFileUpload(f => ({ ...f, error }))
+  const setUploadedFileName = (fileName: string | null) => setFileUpload(f => ({ ...f, fileName }))
+  const setIsDraggingOver = (isDraggingOver: boolean) => setFileUpload(f => ({ ...f, isDraggingOver }))
+
+  const [deleteState, setDeleteState] = useState({
+    selectedIds: [] as (string | number)[],
+    deletingBatch: false,
+    itemToDelete: null as NormativaItem | null,
+    showBatchDeleteModal: false,
+  })
+
+  const selectedIds = deleteState.selectedIds
+  const deletingBatch = deleteState.deletingBatch
+  const itemToDelete = deleteState.itemToDelete
+  const showBatchDeleteModal = deleteState.showBatchDeleteModal
+
+  const setSelectedIds = (updater: (string | number)[] | ((prev: (string | number)[]) => (string | number)[])) => setDeleteState(d => ({ ...d, selectedIds: typeof updater === 'function' ? updater(d.selectedIds) : updater }))
+  const setDeletingBatch = (deletingBatch: boolean) => setDeleteState(d => ({ ...d, deletingBatch }))
+  const setItemToDelete = (itemToDelete: NormativaItem | null) => setDeleteState(d => ({ ...d, itemToDelete }))
+  const setShowBatchDeleteModal = (showBatchDeleteModal: boolean) => setDeleteState(d => ({ ...d, showBatchDeleteModal }))
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [isHiding, setIsHiding] = useState(false)
 
@@ -120,8 +144,10 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     }
   }
 
+  const busyBatchRemoveRef = useRef(false)
   const confirmRemoveBatch = async () => {
-    if (selectedIds.length === 0) return
+    if (selectedIds.length === 0 || busyBatchRemoveRef.current) return
+    busyBatchRemoveRef.current = true
     setDeletingBatch(true)
     try {
       const res = await api.post('/api/cms/normativas-batch-delete', { ids: selectedIds })
@@ -139,11 +165,14 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       alert('Error de conexión al eliminar los documentos seleccionados')
     } finally {
       setDeletingBatch(false)
+      busyBatchRemoveRef.current = false
     }
   }
 
+  const busySingleRemoveRef = useRef(false)
   const confirmRemoveSingle = async () => {
-    if (!itemToDelete) return
+    if (!itemToDelete || busySingleRemoveRef.current) return
+    busySingleRemoveRef.current = true
     const id = itemToDelete.id
     try {
       await api.delete(`/api/cms/normativas/${id}`)
@@ -154,6 +183,8 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     } catch (e) {
       console.error(e)
       alert('Error de conexión al eliminar el documento')
+    } finally {
+      busySingleRemoveRef.current = false
     }
   }
 
@@ -161,17 +192,22 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
 
   const load = useCallback(async () => {
     setLoading(true)
-    const data = await api.get('/api/cms/normativas')
-    if (data.success && Array.isArray(data.data)) {
-      setItems(data.data.map((it: any) => ({ ...it, id: it.id_normativa })))
+    try {
+      const data = await api.get('/api/cms/normativas')
+      if (data.success && Array.isArray(data.data)) {
+        setItems(data.data.map((it: any) => ({ ...it, id: it.id_normativa })))
+      }
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
   useEffect(() => {
     load()
   }, [load])
 
-  useEffect(() => {
+  const [prevFixedCategory, setPrevFixedCategory] = useState(fixedCategory)
+  if (prevFixedCategory !== fixedCategory) {
+    setPrevFixedCategory(fixedCategory)
     if (fixedCategory) {
       setActiveTab(fixedCategory)
       setForm(p => ({ ...p, categoria: fixedCategory }))
@@ -179,7 +215,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       setIsEditing(false)
       setSelectedIds([])
     }
-  }, [fixedCategory])
+  }
 
   const openEdit = (item: NormativaItem) => {
     setSelectedId(item.id)
@@ -237,7 +273,10 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     setUploadedFileName(null)
   }
 
+  const busySaveRef = useRef(false)
   const save = async () => {
+    if (saving || busySaveRef.current) return
+    busySaveRef.current = true
     setSaving(true)
     try {
       const res = selectedId === 'new' 
@@ -256,6 +295,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       alert('Error de conexión con el servidor')
     } finally {
       setSaving(false)
+      busySaveRef.current = false
     }
   }
 
@@ -292,7 +332,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   const filteredItems = activeTab === 'Todas' ? items : items.filter(it => it.categoria === activeTab)
 
   const formBody = () => (
-    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-all duration-200 ${
+    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-colors duration-200 ${
       isHiding ? 'opacity-0 scale-95 -translate-x-4 pointer-events-none' : 'animate-in fade-in zoom-in-95 duration-200'
     }`}>
       <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-2">
@@ -300,7 +340,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
           <button
             type="button"
             onClick={closeForm}
-            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors transition-transform hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
             title="Volver a la lista"
           >
             <ArrowLeft size={20} />
@@ -321,7 +361,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               value={form.titulo} 
               onChange={f('titulo')} 
               placeholder="Ej. Ley de Arrendamiento Inmobiliario" 
-              className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all font-bold"
+              className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-colors font-bold"
             />
           </FormField>
         </div>
@@ -332,7 +372,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               value={form.descripcion} 
               onChange={f('descripcion')} 
               placeholder="Escribe una breve descripción del documento legal..."
-              className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
+              className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-colors"
             />
           </FormField>
         </div>
@@ -349,7 +389,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 if (file) uploadFile(file);
               }}
               className={[
-                "border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-3",
+                "border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer flex flex-col items-center justify-center gap-3",
                 isDraggingOver ? "border-emerald-500 bg-emerald-50/50" : "border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300"
               ].join(' ')}
               onClick={() => {
@@ -413,7 +453,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
             <button
               type="button"
               onClick={() => setForm(p => ({ ...p, activo: true }))}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer ${
                 form.activo
                   ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-[1.01]'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
@@ -425,7 +465,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
             <button
               type="button"
               onClick={() => setForm(p => ({ ...p, activo: false }))}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer ${
                 !form.activo
                   ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20 scale-[1.01]'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
@@ -481,7 +521,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                   setSelectedIds([])
                 }}
                 className={[
-                  'pb-3 text-[11px] font-bold uppercase tracking-widest transition-all relative whitespace-nowrap',
+                  'pb-3 text-[11px] font-bold uppercase tracking-widest transition-colors relative whitespace-nowrap',
                   activeTab === tab ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
                 ].join(' ')}
               >
@@ -560,7 +600,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                     handleDrop(srcIdx, index)
                   }
                 }}
-                className={`flex items-center justify-between gap-2 min-w-0 group cursor-pointer pr-2 transition-all rounded-xl p-1 border border-transparent ${
+                className={`flex items-center justify-between gap-2 min-w-0 group cursor-pointer pr-2 transition-colors rounded-xl p-1 border border-transparent ${
                   draggedIndex === index ? 'opacity-40 bg-emerald-50 border-emerald-300' : 'hover:bg-slate-50'
                 }`}
               >
@@ -615,7 +655,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                     type="button"
                     disabled={index === 0}
                     onClick={(e) => { e.stopPropagation(); moveUp(index); }}
-                    className="p-1 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    className="p-1 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors transition-opacity"
                     title="Mover arriba"
                   >
                     <ArrowUp size={13} />
@@ -624,7 +664,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                     type="button"
                     disabled={index === filteredItems.length - 1}
                     onClick={(e) => { e.stopPropagation(); moveDown(index); }}
-                    className="p-1 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    className="p-1 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors transition-opacity"
                     title="Mover abajo"
                   >
                     <ArrowDown size={13} />
@@ -688,7 +728,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 href={item.url_archivo}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-red-200 hover:shadow-sm transition-all"
+                className="group flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-red-200 hover:shadow-sm transition-colors"
               >
                 <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
                   <FileText size={24} strokeWidth={2.5} />
@@ -708,7 +748,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 href={item.url_archivo}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-95 mt-1"
+                className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-colors transition-transform active:scale-95 mt-1"
               >
                 <ExternalLink size={15} />
                 <span>Abrir documento en ventana nueva</span>
@@ -722,7 +762,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       {/* Modal de confirmación individual */}
       {itemToDelete && createPortal(
         <div className='fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
             </div>
@@ -735,14 +775,14 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               <button
                 type='button'
                 onClick={confirmRemoveSingle}
-                className='w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-all active:scale-95'
+                className='w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-colors transition-transform active:scale-95'
               >
                 Sí, eliminar documento
               </button>
               <button 
                 type='button' 
                 onClick={() => setItemToDelete(null)} 
-                className='w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all'
+                className='w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors'
               >
                 Cancelar
               </button>
@@ -755,7 +795,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       {/* Modal de confirmación masiva */}
       {showBatchDeleteModal && createPortal(
         <div className='fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
             </div>
@@ -769,7 +809,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 type='button'
                 disabled={deletingBatch}
                 onClick={confirmRemoveBatch}
-                className='w-full py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-all active:scale-95'
+                className='w-full py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm hover:shadow-md transition-colors transition-transform active:scale-95'
               >
                 {deletingBatch ? 'Eliminando...' : `Sí, eliminar los ${selectedIds.length} documentos`}
               </button>
@@ -777,7 +817,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 type='button' 
                 disabled={deletingBatch}
                 onClick={() => setShowBatchDeleteModal(false)} 
-                className='w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all'
+                className='w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors'
               >
                 Cancelar
               </button>

@@ -16,7 +16,7 @@ export default function CompanySection() {
   const { register, formState: { errors } } = useFormContext()
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="transition-opacity transition-transform space-y-6 fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 border-b border-white/5 pb-4">
         <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
           <Building2 className="text-emerald-400" size={20} />
@@ -38,7 +38,7 @@ export default function CompanySection() {
             icon={<Building2 size={16} />}
             className={errors.razonSocial ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.razonSocial && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.razonSocial.message as string}</p>}
+          {errors.razonSocial && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.razonSocial.message as string}</p>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -49,7 +49,7 @@ export default function CompanySection() {
             <div className="flex gap-2">
               <select 
                 {...register('rifPrefix')}
-                className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-colors"
               >
                 {['J', 'G', 'C'].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -59,7 +59,7 @@ export default function CompanySection() {
                 className={errors.rifNumber ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
               />
             </div>
-            {errors.rifNumber && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.rifNumber.message as string}</p>}
+            {errors.rifNumber && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.rifNumber.message as string}</p>}
           </div>
           <div className="space-y-2">
             <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
@@ -72,7 +72,7 @@ export default function CompanySection() {
               icon={<Mail size={16} />}
               className={errors.emailEmpresa ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
-            {errors.emailEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.emailEmpresa.message as string}</p>}
+            {errors.emailEmpresa && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.emailEmpresa.message as string}</p>}
           </div>
 
           <div className="space-y-2 md:col-span-2">
@@ -82,7 +82,7 @@ export default function CompanySection() {
             <div className="flex gap-2">
               <select 
                 {...register('phonePrefixEmpresa')}
-                className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-colors"
               >
                 {COUNTRIES.map(c => <option key={`${c.code}-${c.label}`} value={c.code}>{c.flag} {c.code}</option>)}
               </select>
@@ -92,7 +92,7 @@ export default function CompanySection() {
                 className={errors.telefonoEmpresa ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
               />
             </div>
-            {errors.telefonoEmpresa && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.telefonoEmpresa.message as string}</p>}
+            {errors.telefonoEmpresa && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.telefonoEmpresa.message as string}</p>}
           </div>
         </div>
       </div>

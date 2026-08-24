@@ -44,11 +44,14 @@ export default function InvitacionCorporativaPage() {
   })
 
   useEffect(() => {
+    let active = true
     if (!token) { setStatus('error'); setErrorMsg('Token de invitación no encontrado.'); return }
+    const controller = new AbortController()
     const validar = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/public/invitaciones/${token}`)
+        const res = await fetch(`${API_URL}/api/public/invitaciones/${token}`, { signal: controller.signal })
         const json = await res.json()
+        if (!active || controller.signal.aborted) return
         if (res.ok && json.success) {
           setEmpresa(json.data)
           setStatus('form')
@@ -56,12 +59,17 @@ export default function InvitacionCorporativaPage() {
           setStatus('error')
           setErrorMsg(json.message || 'Invitación inválida o expirada.')
         }
-      } catch {
+      } catch (err: unknown) {
+        if (!active || (err as Error).name === 'AbortError' || controller.signal.aborted) return
         setStatus('error')
         setErrorMsg('Error de conexión. Intenta más tarde.')
       }
     }
     validar()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [token])
 
   const selectedNivel = NIVELES.find(n => n.value === form.nivelProfesional)
@@ -253,7 +261,7 @@ export default function InvitacionCorporativaPage() {
               <div className="space-y-2 relative">
                 <label className="text-xs font-black uppercase tracking-widest ml-1 text-slate-500">Nivel Profesional</label>
                 <button type="button" onClick={() => setShowNivelDropdown(!showNivelDropdown)}
-                  className={`w-full px-4 ${BOX_H} bg-white rounded-xl border transition-all flex items-center justify-between group shadow-sm ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-400'}`}>
+                  className={`w-full px-4 ${BOX_H} bg-white rounded-xl border transition-colors flex items-center justify-between group shadow-sm ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-400'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedNivel ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
                       {selectedNivel ? <selectedNivel.icon size={18} /> : <Briefcase size={18} />}
@@ -272,7 +280,7 @@ export default function InvitacionCorporativaPage() {
                         {NIVELES.map(n => (
                           <button key={n.value} type="button"
                             onClick={() => { setForm(p => ({ ...p, nivelProfesional: n.value })); setShowNivelDropdown(false) }}
-                            className={`w-full flex items-center justify-between px-4 h-[50px] rounded-xl transition-all ${form.nivelProfesional === n.value ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'}`}>
+                            className={`w-full flex items-center justify-between px-4 h-[50px] rounded-xl transition-colors ${form.nivelProfesional === n.value ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'}`}>
                             <div className="flex items-center gap-3">
                               <n.icon size={18} className={form.nivelProfesional === n.value ? 'text-white' : 'text-slate-400'} />
                               <span className="text-xs font-black uppercase tracking-tight">{n.label}</span>
@@ -293,7 +301,7 @@ export default function InvitacionCorporativaPage() {
                   {['si', 'no'].map(opt => (
                     <button key={opt} type="button"
                       onClick={() => setForm(p => ({ ...p, esCorredorInmobiliario: opt }))}
-                      className={`h-full text-xs font-black uppercase tracking-widest transition-all ${form.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
+                      className={`h-full text-xs font-black uppercase tracking-widest transition-colors ${form.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
                       {opt === 'si' ? 'Sí, lo soy' : 'No'}
                     </button>
                   ))}
@@ -308,7 +316,7 @@ export default function InvitacionCorporativaPage() {
             )}
 
             <button type="submit" disabled={submitLoading}
-              className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-xs shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60`}>
+              className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 bg-emerald-600 text-white font-black uppercase tracking-widest text-xs shadow-xl hover:-translate-y-0.5 transition-transform disabled:opacity-60`}>
               {submitLoading ? <Loader2 size={18} className="animate-spin" /> : <><span>Enviar Solicitud</span><ArrowRight size={14} /></>}
             </button>
 

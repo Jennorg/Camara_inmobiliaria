@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif, getInitials } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
+import { apiFetch } from '@/lib/apiClient'
 
 import {
   UserPlus, Search, Filter, RefreshCw, Trash2, Edit3, Save, X,
@@ -273,7 +274,7 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-emerald-200 hover:shadow-sm transition-all group ${compact ? 'py-2' : ''}`}
+      className={`flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-emerald-200 hover:shadow-sm transition-colors group ${compact ? 'py-2' : ''}`}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
@@ -325,12 +326,29 @@ export default function MiembrosPanel() {
   const [editForm, setEditForm] = useState<Partial<AfiliadoDTO>>({})
   const [companies, setCompanies] = useState<AfiliadoDTO[]>([])
   type ImageEditKind = 'logo' | 'foto'
-  const [imageEditKind, setImageEditKind] = useState<ImageEditKind | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imageUploading, setImageUploading] = useState(false)
-  const [imageError, setImageError] = useState('')
-  const [imageDragOver, setImageDragOver] = useState(false)
+  const [imageModal, setImageModal] = useState({
+    kind: null as ImageEditKind | null,
+    preview: null as string | null,
+    file: null as File | null,
+    uploading: false,
+    error: '',
+    dragOver: false,
+  })
+
+  const imageEditKind = imageModal.kind
+  const imagePreview = imageModal.preview
+  const imageFile = imageModal.file
+  const imageUploading = imageModal.uploading
+  const imageError = imageModal.error
+  const imageDragOver = imageModal.dragOver
+
+  const setImageEditKind = (kind: ImageEditKind | null) => setImageModal(m => ({ ...m, kind }))
+  const setImagePreview = (preview: string | null) => setImageModal(m => ({ ...m, preview }))
+  const setImageFile = (file: File | null) => setImageModal(m => ({ ...m, file }))
+  const setImageUploading = (uploading: boolean) => setImageModal(m => ({ ...m, uploading }))
+  const setImageError = (error: string) => setImageModal(m => ({ ...m, error }))
+  const setImageDragOver = (dragOver: boolean) => setImageModal(m => ({ ...m, dragOver }))
+
   const imageFileInputRef = useRef<HTMLInputElement>(null)
 
   // Estados para el recorte de imagen
@@ -344,14 +362,34 @@ export default function MiembrosPanel() {
   const [showCarnetModal, setShowCarnetModal] = useState(false)
 
   // Documentos para nuevo miembro manual
-  const [newUrlCv, setNewUrlCv] = useState('')
-  const [newNameCv, setNewNameCv] = useState('')
-  const [newUrlTitulo, setNewUrlTitulo] = useState('')
-  const [newNameTitulo, setNewNameTitulo] = useState('')
-  const [newUrlRegistro, setNewUrlRegistro] = useState('')
-  const [newNameRegistro, setNewNameRegistro] = useState('')
-  const [newUrlTituloRep, setNewUrlTituloRep] = useState('')
-  const [newNameTituloRep, setNewNameTituloRep] = useState('')
+  const [newDocs, setNewDocs] = useState({
+    urlCv: '',
+    nameCv: '',
+    urlTitulo: '',
+    nameTitulo: '',
+    urlRegistro: '',
+    nameRegistro: '',
+    urlTituloRep: '',
+    nameTituloRep: '',
+  })
+
+  const newUrlCv = newDocs.urlCv
+  const newNameCv = newDocs.nameCv
+  const newUrlTitulo = newDocs.urlTitulo
+  const newNameTitulo = newDocs.nameTitulo
+  const newUrlRegistro = newDocs.urlRegistro
+  const newNameRegistro = newDocs.nameRegistro
+  const newUrlTituloRep = newDocs.urlTituloRep
+  const newNameTituloRep = newDocs.nameTituloRep
+
+  const setNewUrlCv = (urlCv: string) => setNewDocs(d => ({ ...d, urlCv }))
+  const setNewNameCv = (nameCv: string) => setNewDocs(d => ({ ...d, nameCv }))
+  const setNewUrlTitulo = (urlTitulo: string) => setNewDocs(d => ({ ...d, urlTitulo }))
+  const setNewNameTitulo = (nameTitulo: string) => setNewDocs(d => ({ ...d, nameTitulo }))
+  const setNewUrlRegistro = (urlRegistro: string) => setNewDocs(d => ({ ...d, urlRegistro }))
+  const setNewNameRegistro = (nameRegistro: string) => setNewDocs(d => ({ ...d, nameRegistro }))
+  const setNewUrlTituloRep = (urlTituloRep: string) => setNewDocs(d => ({ ...d, urlTituloRep }))
+  const setNewNameTituloRep = (nameTituloRep: string) => setNewDocs(d => ({ ...d, nameTituloRep }))
 
   // Cambio directo por administrador
   const [showChangeTypeModal, setShowChangeTypeModal] = useState(false)
@@ -381,6 +419,9 @@ export default function MiembrosPanel() {
 
     try {
       const res = await fetch(`${API_URL}/api/public/afiliados/buscar?con_foto=true&limit=1000`);
+      if (!res.ok) {
+        throw new Error(`Error en la solicitud (${res.status})`);
+      }
       const json = await res.json();
       if (!json.success || !Array.isArray(json.data)) {
         throw new Error('No se pudo obtener el listado de afiliados.');
@@ -449,10 +490,12 @@ export default function MiembrosPanel() {
 
       if (generatedCount > 0) {
         const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(zipBlob);
+        link.href = url;
         link.download = `carnets-ciebo-${new Date().toISOString().slice(0, 10)}.zip`;
         link.click();
+        URL.revokeObjectURL(url);
       } else {
         toast.error('No se pudo generar ninguna credencial.');
       }
@@ -483,6 +526,7 @@ export default function MiembrosPanel() {
   const fetchEmpresas = async () => {
     try {
       const res = await fetch(`${API_URL}/api/public/empresas`)
+      if (!res.ok) return
       const json = await res.json()
       if (json.success) setEmpresas(json.data)
     } catch (err) { console.error(err) }
@@ -521,8 +565,9 @@ export default function MiembrosPanel() {
           ...additionalData
         })
       })
+      if (!res.ok) throw new Error('Error al cambiar membresía')
       const json = await res.json()
-      if (res.ok && json.success) {
+      if (json.success) {
         toast.success(json.message || 'Membresía actualizada con éxito.')
         setShowChangeTypeModal(false)
         setIsEditing(false)
@@ -545,6 +590,7 @@ export default function MiembrosPanel() {
             'Authorization': `Bearer ${token}`
           }
         })
+        if (!resDetail.ok) throw new Error('Error al cargar detalle')
         const jsonDetail = await resDetail.json()
         if (jsonDetail.success) {
           setSelected(jsonDetail.data)
@@ -559,36 +605,68 @@ export default function MiembrosPanel() {
       setSubmittingChangeType(false)
     }
   }
+
+  const busyTransitionRef = useRef(false)
+  const handleConfirmNaturalTransition = async () => {
+    if (busyTransitionRef.current) return
+    busyTransitionRef.current = true
+    try {
+      setNaturalTransitionTarget(null)
+      await executeDirectTypeChange('Natural')
+    } finally {
+      busyTransitionRef.current = false
+    }
+  }
   const [newForm, setNewForm] = useState<Partial<AfiliadoDTO>>({
     tipo_afiliado: 'Natural',
     estatus: 'Afiliado'
   })
 
-  const load = async () => {
+  async function fetchMiembrosData(authHeaders: Record<string, string>, signal?: AbortSignal) {
+    const json = await apiFetch(`${API_URL}/api/afiliados`, { headers: authHeaders, signal })
+    if (!json.success) throw new Error('Error de conexión')
+    const approved = json.data.filter((a: AfiliadoDTO) =>
+      ['Afiliado', 'Moroso', 'Suspendido', 'Rechazado'].includes(a.estatus)
+    )
+    const companies = approved.filter((a: AfiliadoDTO) => a.tipo_afiliado === 'Corporativo')
+    return { approved, companies }
+  }
+
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${API_URL}/api/afiliados`, { headers: authHeaders })
-      const json = await res.json()
-      if (json.success) {
-        // Solo mostrar afiliados que han completado el proceso de afiliación
-        const approved = json.data.filter((a: AfiliadoDTO) =>
-          ['Afiliado', 'Moroso', 'Suspendido', 'Rechazado'].includes(a.estatus)
-        )
-        setItems(approved)
-        // Guardar empresas (tipo Corporativo) para el selector de vinculación
-        setCompanies(approved.filter((a: AfiliadoDTO) => a.tipo_afiliado === 'Corporativo'))
-      }
+      const { approved, companies } = await fetchMiembrosData(authHeaders)
+      setItems(approved)
+      setCompanies(companies)
     } catch (err) {
       setError('Error de conexión')
     } finally {
       setLoading(false)
     }
-  }
+  }, [authHeaders])
 
   useEffect(() => {
-    load()
-  }, [])
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+
+    fetchMiembrosData(authHeaders, controller.signal)
+      .then(({ approved, companies }) => {
+        if (!controller.signal.aborted) {
+          setItems(approved)
+          setCompanies(companies)
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError('Error de conexión')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [authHeaders])
 
   const handleSelect = async (item: AfiliadoDTO) => {
     setSelected(item)
@@ -601,6 +679,9 @@ export default function MiembrosPanel() {
 
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${item.id_afiliado}`, { headers: authHeaders })
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
       const json = await res.json()
       if (json.success && json.data) {
         setSelected(prev => prev && prev.id_afiliado === item.id_afiliado ? { ...prev, ...json.data, documentos: json.data.documentos || [] } : prev)
@@ -649,8 +730,10 @@ export default function MiembrosPanel() {
     reader.readAsDataURL(file)
   }
 
+  const busySaveImageRef = useRef(false)
   const handleSaveImage = async () => {
-    if (!selected || !imageEditKind) return
+    if (!selected || !imageEditKind || busySaveImageRef.current) return
+    busySaveImageRef.current = true
     setImageUploading(true)
     setImageError('')
     try {
@@ -721,17 +804,20 @@ export default function MiembrosPanel() {
       setImageError(err?.message || 'Error al subir la imagen')
     } finally {
       setImageUploading(false)
+      busySaveImageRef.current = false
     }
   }
 
+  const busyDeleteImageRef = useRef(false)
   const handleDeleteImage = async () => {
-    if (!selected || !imageEditKind) return
-    const isLogo = imageEditKind === 'logo'
-    if (!confirm(`¿Estás seguro de eliminar el ${isLogo ? 'logo' : 'foto'} actual?`)) return
-
-    setImageUploading(true)
-    setImageError('')
+    if (!selected || !imageEditKind || busyDeleteImageRef.current) return
+    busyDeleteImageRef.current = true
     try {
+      const isLogo = imageEditKind === 'logo'
+      if (!confirm(`¿Estás seguro de eliminar el ${isLogo ? 'logo' : 'foto'} actual?`)) return
+
+      setImageUploading(true)
+      setImageError('')
       const payload = isLogo ? { empresa_logo_url: null } : { foto_url: null }
       const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
@@ -753,6 +839,7 @@ export default function MiembrosPanel() {
       setImageError(err?.message || 'Error al eliminar la imagen')
     } finally {
       setImageUploading(false)
+      busyDeleteImageRef.current = false
     }
   }
 
@@ -842,15 +929,17 @@ export default function MiembrosPanel() {
     });
 
     return result;
-  }, [items, debouncedSearch, filterTipo, filterFoto, sortState])
+  }, [items, debouncedSearch, filterTipo, filterFoto, sortState, searchField])
 
   const handleEdit = (item: AfiliadoDTO) => {
     handleSelect(item)
     setIsEditing(true)
   }
 
+  const savingMemberRef = useRef(false)
   const handleSave = async () => {
-    if (!selected) return
+    if (!selected || savingMemberRef.current) return
+    savingMemberRef.current = true
     try {
       // Filtrar campos de solo lectura y auxiliares para la actualización
       const { nombre_completo, acceso_email, creado_en, actualizado_en, ...payload } = editForm as any;
@@ -874,10 +963,15 @@ export default function MiembrosPanel() {
     } catch (err) {
       console.error(err)
       toast.error('Error de red o conexión al guardar')
+    } finally {
+      savingMemberRef.current = false
     }
   }
 
+  const deletingMemberRef = useRef(false)
   const confirmDelete = async (id: number) => {
+    if (deletingMemberRef.current) return
+    deletingMemberRef.current = true
     try {
       const res = await fetch(`${API_URL}/api/afiliados/${id}`, {
         method: 'DELETE',
@@ -896,6 +990,7 @@ export default function MiembrosPanel() {
       toast.error('Error de red o conexión al eliminar')
     } finally {
       setAffiliateToDelete(null)
+      deletingMemberRef.current = false
     }
   }
 
@@ -932,8 +1027,11 @@ export default function MiembrosPanel() {
 
   const [createError, setCreateError] = useState<string | null>(null)
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
+  const creatingRef = useRef(false)
 
   const handleCreate = async () => {
+    if (creatingRef.current) return
+    creatingRef.current = true
     setCreateError(null)
     setFormErrors({})
     const errors: Record<string, boolean> = {}
@@ -1031,6 +1129,8 @@ export default function MiembrosPanel() {
     } catch (err) {
       console.error(err)
       setCreateError('Error de conexión al servidor.')
+    } finally {
+      creatingRef.current = false
     }
   }
 
@@ -1080,7 +1180,7 @@ export default function MiembrosPanel() {
           </div>
 
           <div className="flex gap-2">
-            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-8 z-20">
+            <div className="relative flex-1 flex items-center bg-slate-50 border border-gray-100 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-8 z-20">
               {/* Dropdown de criterio */}
               <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center z-10">
                 <button
@@ -1099,8 +1199,8 @@ export default function MiembrosPanel() {
 
                 {showSearchDropdown && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] animate-in fade-in slide-in-from-top-1 duration-100">
+                    <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowSearchDropdown(false)} />
+                    <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] fade-in slide-in-from-top-1 duration-100">
                       {([
                         { key: 'nombre', label: 'Nombre' },
                         { key: 'id', label: 'Cédula / RIF' },
@@ -1140,7 +1240,7 @@ export default function MiembrosPanel() {
                 {search && (
                   <button
                     onClick={() => setSearch('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-all"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-colors"
                   >
                     <X size={10} />
                   </button>
@@ -1193,7 +1293,7 @@ export default function MiembrosPanel() {
             {showFilterDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
-                <div className="absolute left-0 right-0 mt-1.5 rounded-xl bg-white shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="transition-opacity transition-transform absolute left-0 right-0 mt-1.5 rounded-xl bg-white shadow-xl border border-gray-100 overflow-hidden z-50 fade-in slide-in-from-top-1 duration-200">
                   <div className="py-1">
                     {[
                       { id: 'Todos', label: 'Todos', icon: Users },
@@ -1229,7 +1329,7 @@ export default function MiembrosPanel() {
             <button
               type="button"
               onClick={() => setFilterFoto('todos')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
                 filterFoto === 'todos'
                   ? 'bg-slate-800 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -1240,7 +1340,7 @@ export default function MiembrosPanel() {
             <button
               type="button"
               onClick={() => setFilterFoto('con_foto')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
                 filterFoto === 'con_foto'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-emerald-700'
@@ -1251,7 +1351,7 @@ export default function MiembrosPanel() {
             <button
               type="button"
               onClick={() => setFilterFoto('sin_foto')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
                 filterFoto === 'sin_foto'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-amber-700'
@@ -1319,7 +1419,7 @@ export default function MiembrosPanel() {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="transition-opacity transition-transform max-w-4xl mx-auto space-y-6 fade-in slide-in-from-bottom-4 duration-300">
             <button
               onClick={() => setSelected(null)}
               className="sm:hidden flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors mb-4"
@@ -1335,7 +1435,7 @@ export default function MiembrosPanel() {
                   <>
                     <button
                       onClick={() => setShowCarnetModal(true)}
-                      className="px-3 sm:px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 active:scale-95 transition-all flex items-center gap-2 font-bold text-xs shadow-xs border border-emerald-200/40"
+                      className="px-3 sm:px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 active:scale-95 transition-colors transition-transform flex items-center gap-2 font-bold text-xs shadow-xs border border-emerald-200/40"
                       title="Ver Carnet de Afiliado"
                     >
                       <CarnetIcon w={16} h={16} />
@@ -1344,7 +1444,7 @@ export default function MiembrosPanel() {
                     </button>
                     <button
                       onClick={() => handleEdit(selected)}
-                      className="p-2.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 active:scale-95 transition-colors"
+                      className="p-2.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 active:scale-95 transition-colors transition-transform"
                       title="Editar"
                     >
                       <Edit3 size={18} />
@@ -1352,7 +1452,7 @@ export default function MiembrosPanel() {
                     {(isAdmin || isSuperAdmin) && (
                       <button
                         onClick={() => handleDelete(selected.id_afiliado)}
-                        className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors"
+                        className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors transition-transform"
                         title="Eliminar"
                       >
                         <Trash2 size={18} />
@@ -1386,7 +1486,8 @@ export default function MiembrosPanel() {
                     {/* Caja de Logo */}
                     <div className="flex flex-col items-center">
                       <div className="relative">
-                        <div
+                        <button
+                          type="button"
                           className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                           onClick={() => openImageEditor('logo')}
                           title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar el logo de la empresa" : "Haz clic para cambiar el logo comercial / personal"}
@@ -1396,7 +1497,7 @@ export default function MiembrosPanel() {
                           ) : (
                             <Building2 size={36} className="text-emerald-900" />
                           )}
-                        </div>
+                        </button>
                         <button
                           type="button"
                           className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
@@ -1414,7 +1515,8 @@ export default function MiembrosPanel() {
                     {/* Caja de Foto */}
                     <div className="flex flex-col items-center">
                       <div className="relative">
-                        <div
+                        <button
+                          type="button"
                           className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                           onClick={() => openImageEditor('foto')}
                           title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar la foto del representante" : "Haz clic para cambiar la foto de perfil"}
@@ -1426,7 +1528,7 @@ export default function MiembrosPanel() {
                               {getInitials(selected.nombres, selected.apellidos)}
                             </span>
                           )}
-                        </div>
+                        </button>
                         <button
                           type="button"
                           className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
@@ -1488,7 +1590,7 @@ export default function MiembrosPanel() {
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estado en Directorio:</span>
                       <button
                         onClick={() => setEditForm({ ...editForm, activo: editForm.activo ? 0 : 1 })}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${editForm.activo ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-slate-600'}`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${editForm.activo ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-slate-600'}`}
                       >
                         {editForm.activo ? <CheckCircle2 size={14} /> : <X size={14} />}
                         {editForm.activo ? 'Activo' : 'Inactivo'}
@@ -1543,7 +1645,7 @@ export default function MiembrosPanel() {
                           <div className="flex gap-0 w-full">
                             <div className="relative shrink-0">
                               <select
-                                className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-2.5 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer text-slate-700"
+                                className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-2.5 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer text-slate-700"
                                 value={currentCode}
                                 onChange={(e) => {
                                   const newCode = e.target.value;
@@ -1558,7 +1660,7 @@ export default function MiembrosPanel() {
                             </div>
                             <input
                               type="text"
-                              className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-slate-700"
+                              className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors text-slate-700"
                               value={numOnly}
                               onChange={(e) => {
                                 setEditForm({ ...editForm, telefono: `${currentCode} ${e.target.value}`.trim() });
@@ -1603,7 +1705,7 @@ export default function MiembrosPanel() {
                     <div className="flex gap-0 max-w-xs">
                       <div className="relative shrink-0">
                         <select
-                          className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                          className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer"
                           value={editForm.cedula?.split('-')[0] || 'V'}
                           onChange={(e) => {
                             const parts = (editForm.cedula || '').split('-');
@@ -1617,7 +1719,7 @@ export default function MiembrosPanel() {
                       </div>
                       <input
                         type="text"
-                        className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                        className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                         value={(editForm.cedula || '').split('-').slice(1).join('-')}
                         onChange={(e) => {
                           const pre = (editForm.cedula || '').split('-')[0] || 'V'
@@ -1710,7 +1812,7 @@ export default function MiembrosPanel() {
                         }}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
                     </label>
                   </div>
                 </div>
@@ -1739,7 +1841,7 @@ export default function MiembrosPanel() {
                           <div className="flex gap-0 max-w-xs">
                             <div className="relative shrink-0">
                               <select
-                                className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                                className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer"
                                 value={editForm.empresa_rif_tipo || 'J'}
                                 onChange={(e) => setEditForm({ ...editForm, empresa_rif_tipo: e.target.value })}
                               >
@@ -1749,7 +1851,7 @@ export default function MiembrosPanel() {
                             </div>
                             <input
                               type="text"
-                              className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                              className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                               value={editForm.empresa_rif_numero || ''}
                               onChange={(e) => setEditForm({ ...editForm, empresa_rif_numero: e.target.value })}
                             />
@@ -1784,7 +1886,7 @@ export default function MiembrosPanel() {
                               <div className="flex gap-0 w-full">
                                 <div className="relative shrink-0">
                                   <select
-                                    className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-2.5 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer text-slate-700"
+                                    className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-2.5 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer text-slate-700"
                                     value={currentCode}
                                     onChange={(e) => {
                                       const newCode = e.target.value;
@@ -1799,7 +1901,7 @@ export default function MiembrosPanel() {
                                 </div>
                                 <input
                                   type="text"
-                                  className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-slate-700"
+                                  className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors text-slate-700"
                                   value={numOnly}
                                   onChange={(e) => {
                                     setEditForm({ ...editForm, empresa_telefono: `${currentCode} ${e.target.value}`.trim() });
@@ -1889,7 +1991,7 @@ export default function MiembrosPanel() {
                       return (
                         <div
                           key={cert.id_certificado || validationCode}
-                          className="p-3.5 bg-slate-50/80 border border-slate-100 rounded-2xl hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-between gap-3 group"
+                          className="p-3.5 bg-slate-50/80 border border-slate-100 rounded-2xl hover:border-amber-200 hover:bg-amber-50/30 transition-colors flex items-center justify-between gap-3 group"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-xl bg-amber-100/80 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200/50">
@@ -1908,7 +2010,7 @@ export default function MiembrosPanel() {
                             href={`/comprobante/${encodeURIComponent(validationCode)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 rounded-xl bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-100/80 border border-slate-200 transition-all shrink-0 shadow-2xs"
+                            className="p-2 rounded-xl bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-100/80 border border-slate-200 transition-colors shrink-0 shadow-2xs"
                             title="Ver Certificado Digital"
                           >
                             <ExternalLink size={14} />
@@ -2001,7 +2103,7 @@ export default function MiembrosPanel() {
                       <div
                         key={m.id_afiliado}
                         onClick={() => handleSelect(m)}
-                        className="group flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                        className="group flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-100 hover:border-emerald-200 transition-colors cursor-pointer shadow-sm hover:shadow-md"
                       >
                         <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-500 transition-colors">
                           <UserIcon size={18} />
@@ -2033,14 +2135,14 @@ export default function MiembrosPanel() {
 
       {/* Modal Nuevo Miembro */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md fade-in duration-300">
+          <div className="transition-transform bg-white w-full max-w-2xl max-h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col zoom-in-95 duration-300">
             <div className="bg-slate-50 p-8 border-b border-gray-100 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-xl font-black text-slate-800">Registrar Nuevo Miembro</h3>
                 <p className="text-sm text-slate-400 font-medium">Carga un nuevo afiliado directamente al directorio</p>
               </div>
-              <button onClick={() => setShowNewModal(false)} className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all">
+              <button onClick={() => setShowNewModal(false)} className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -2059,7 +2161,7 @@ export default function MiembrosPanel() {
                       <button
                         type="button"
                         onClick={() => setShowTipoDropdown(!showTipoDropdown)}
-                        className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all flex items-center justify-between cursor-pointer"
+                        className="w-full bg-slate-50 border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-colors flex items-center justify-between cursor-pointer"
                       >
                         <span>
                           {newTipo === 'Natural' && 'Agente Independiente'}
@@ -2070,8 +2172,8 @@ export default function MiembrosPanel() {
                       </button>
                       {showTipoDropdown && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowTipoDropdown(false)} />
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+                          <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowTipoDropdown(false)} />
+                          <div className="transition-opacity transition-transform absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl py-1.5 z-50 fade-in slide-in-from-top-1 duration-200">
                             {([
                               { value: 'Natural', label: 'Agente Independiente' },
                               { value: 'Agente Corporativo', label: 'Agente Corporativo' },
@@ -2105,14 +2207,14 @@ export default function MiembrosPanel() {
                     </label>
                     <div className="flex gap-2 relative z-10">
                       <select
-                        className={`w-20 bg-slate-50 border rounded-2xl px-3 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
+                        className={`w-20 bg-slate-50 border rounded-2xl px-3 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-colors ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
                         value={newForm.cedula_tipo || 'V'}
                         onChange={(e) => setNewForm({ ...newForm, cedula_tipo: e.target.value })}
                       >
                         {['V', 'E', 'P'].map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                       <input
-                        className={`flex-1 bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
+                        className={`flex-1 bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-colors ${formErrors.cedula ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
                         placeholder="12345678"
                         inputMode="numeric"
                         value={newForm.cedula || ''}
@@ -2128,7 +2230,7 @@ export default function MiembrosPanel() {
                     <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${formErrors.nivel_academico ? 'text-red-500' : 'text-slate-400'}`}>Nivel académico</label>
                     <div className="relative">
                       <select
-                        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${formErrors.nivel_academico ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
+                        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-colors ${formErrors.nivel_academico ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
                         value={newForm.nivel_academico || ''}
                         onChange={(e) => setNewForm({ ...newForm, nivel_academico: e.target.value })}
                       >
@@ -2162,7 +2264,7 @@ export default function MiembrosPanel() {
                         onChange={(e) => setNewForm({ ...newForm, cibir_acreditado: e.target.checked ? 0 : 1 })}
                         className="sr-only peer"
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
                     </label>
                   </div>
                 </div>
@@ -2249,7 +2351,7 @@ export default function MiembrosPanel() {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF <span className="text-emerald-500">*</span></label>
                       <div className="relative">
                         <select
-                          className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
+                          className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer"
                           value={newForm.empresa_rif_tipo || 'J'}
                           onChange={(e) => setNewForm({ ...newForm, empresa_rif_tipo: e.target.value })}
                         >
@@ -2366,7 +2468,7 @@ export default function MiembrosPanel() {
 
             <div className="px-8 pb-8 flex flex-col gap-4 bg-white">
               {createError && (
-                <div className="flex items-center gap-3 text-white bg-red-600 border border-red-700 p-4 rounded-2xl text-xs font-bold justify-center shadow-md shadow-red-600/20 animate-in slide-in-from-top-2 duration-300">
+                <div className="transition-transform flex items-center gap-3 text-white bg-red-600 border border-red-700 p-4 rounded-2xl text-xs font-bold justify-center shadow-md shadow-red-600/20 slide-in-from-top-2 duration-300">
                   <AlertCircle size={18} className="text-white shrink-0" />
                   {createError}
                 </div>
@@ -2375,13 +2477,13 @@ export default function MiembrosPanel() {
               <div className="flex gap-4">
                 <button
                   onClick={() => setShowNewModal(false)}
-                  className="flex-1 px-8 py-4 rounded-2xl text-sm font-bold text-slate-500 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-700 transition-all"
+                  className="flex-1 px-8 py-4 rounded-2xl text-sm font-bold text-slate-500 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:text-slate-700 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreate}
-                  className="flex-[2] bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                  className="flex-[2] bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-2"
                 >
                   <Save size={18} />
                   Registrar Miembro
@@ -2395,11 +2497,11 @@ export default function MiembrosPanel() {
       {/* ── EDITOR DE IMAGEN (logo o foto de perfil) ─────────────────────────── */}
       {imageEditKind && selected && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+          className="transition-opacity fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm fade-in duration-200"
           onClick={closeImageEditor}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200"
+            className="transition-transform bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -2425,7 +2527,7 @@ export default function MiembrosPanel() {
             </div>
 
             <div
-              className={`relative w-full h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden transition-all ${imageDragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
+              className={`relative w-full h-64 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden transition-colors ${imageDragOver ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/50'
                 }`}
               onClick={() => !imagePreview && imageFileInputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setImageDragOver(true) }}
@@ -2491,14 +2593,14 @@ export default function MiembrosPanel() {
                   <button
                     type="button"
                     onClick={() => setCropAspectChoice(1)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Cuadrado (1:1)
                   </button>
                   <button
                     type="button"
                     onClick={() => setCropAspectChoice(16 / 9)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Horizontal (16:9)
                   </button>
@@ -2511,21 +2613,21 @@ export default function MiembrosPanel() {
                   <button
                     type="button"
                     onClick={() => setCropAspectChoice(1)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Cuadrado (1:1)
                   </button>
                   <button
                     type="button"
                     onClick={() => setCropAspectChoice(4 / 5)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Perfil (4:5)
                   </button>
                   <button
                     type="button"
                     onClick={() => setCropAspectChoice(16 / 9)}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Horizontal (16:9)
                   </button>
@@ -2602,7 +2704,7 @@ export default function MiembrosPanel() {
 
       {/* Widget de Progreso de Descarga Masiva */}
       {batchDownloading && (
-        <div className="fixed bottom-6 right-6 z-[120] bg-white border border-gray-200 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 min-w-[280px] animate-in slide-in-from-bottom-5 duration-300">
+        <div className="transition-transform fixed bottom-6 right-6 z-[120] bg-white border border-gray-200 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 min-w-[280px] slide-in-from-bottom-5 duration-300">
           <div className="flex items-center justify-between gap-4">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
               Descarga Masiva
@@ -2622,7 +2724,7 @@ export default function MiembrosPanel() {
           {/* Progress Bar */}
           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
             <div 
-              className="bg-emerald-500 h-full transition-all duration-300"
+              className="bg-emerald-500 h-full transition-colors duration-300"
               style={{ width: `${(batchCurrent / batchTotal) * 100}%` }}
             />
           </div>
@@ -2633,7 +2735,7 @@ export default function MiembrosPanel() {
               cancelRef.current = true;
               setIsCanceling(true);
             }}
-            className="mt-1 text-center w-full py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+            className="mt-1 text-center w-full py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
           >
             Cancelar
           </button>
@@ -2754,7 +2856,7 @@ export default function MiembrosPanel() {
                   return (
                     <span className="text-[8.5px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
                       {Array.isArray(label)
-                        ? label.map((line, i) => <span key={i} className="block">{line}</span>)
+                        ? label.map((line) => <span key={line} className="block">{line}</span>)
                         : label}
                     </span>
                   );
@@ -2840,8 +2942,8 @@ export default function MiembrosPanel() {
 
       {showChangeTypeModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowChangeTypeModal(false)} />
-          <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-all duration-500 ease-in-out">
+          <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" aria-hidden="true" onClick={() => setShowChangeTypeModal(false)} />
+          <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-colors duration-500 ease-in-out">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
@@ -3012,7 +3114,7 @@ export default function MiembrosPanel() {
               <button
                 type="button"
                 onClick={() => setShowChangeTypeModal(false)}
-                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all"
+                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors"
               >
                 Cancelar
               </button>
@@ -3044,7 +3146,7 @@ export default function MiembrosPanel() {
                   }
                   executeDirectTypeChange(pendingNewType, data);
                 }}
-                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
               >
                 {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -3056,7 +3158,7 @@ export default function MiembrosPanel() {
       {/* Delete confirmation modal */}
       {affiliateToDelete !== null && (
         <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-3'>
               <Trash2 size={28} />
             </div>
@@ -3069,7 +3171,7 @@ export default function MiembrosPanel() {
               <button
                 type='button'
                 onClick={() => confirmDelete(affiliateToDelete)}
-                className='w-full py-2.5 bg-rose-500 text-white rounded-xl text-xs font-black hover:bg-rose-600 shadow-lg shadow-rose-500/25 transition-all flex items-center justify-center gap-2'
+                className='w-full py-2.5 bg-rose-500 text-white rounded-xl text-xs font-black hover:bg-rose-600 shadow-lg shadow-rose-500/25 transition-colors flex items-center justify-center gap-2'
               >
                 <Trash2 size={16} />
                 Eliminar Permanentemente
@@ -3089,7 +3191,7 @@ export default function MiembrosPanel() {
       {/* Natural Transition confirmation modal */}
       {naturalTransitionTarget && (
         <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-3'>
               <ShieldAlert size={28} />
             </div>
@@ -3101,11 +3203,9 @@ export default function MiembrosPanel() {
             <div className='flex flex-col gap-2'>
               <button
                 type='button'
-                onClick={async () => {
-                  setNaturalTransitionTarget(null);
-                  await executeDirectTypeChange('Natural');
-                }}
-                className='w-full py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black hover:bg-amber-600 shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2'
+                onClick={handleConfirmNaturalTransition}
+                disabled={submittingChangeType}
+                className='w-full py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black hover:bg-amber-600 shadow-lg shadow-amber-500/25 transition-colors transition-opacity flex items-center justify-center gap-2 disabled:opacity-50'
               >
                 <BadgeCheck size={16} />
                 Sí, cambiar
@@ -3149,7 +3249,7 @@ function DataField({ label, value, isEditing, fieldName, form, setForm, type = '
         type === 'select' ? (
           <div className="relative">
             <select
-              className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+              className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors appearance-none cursor-pointer"
               value={form[fieldName] || ''}
               onChange={(e) => setForm({ ...form, [fieldName]: e.target.value })}
             >
@@ -3163,7 +3263,7 @@ function DataField({ label, value, isEditing, fieldName, form, setForm, type = '
         ) : (
           <input
             type={type}
-            className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+            className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
             value={form[fieldName] || ''}
             onChange={(e) => setForm({ ...form, [fieldName]: e.target.value })}
           />
@@ -3220,7 +3320,7 @@ function DataInput({ label, placeholder, value, onChange, type = 'text', isRequi
       <input
         type={type}
         placeholder={placeholder}
-        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-all ${hasError
+        className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-colors ${hasError
           ? 'border-red-500 ring-4 ring-red-500/10 focus:ring-red-500/20'
           : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'
           }`}
@@ -3277,7 +3377,7 @@ function VinculacionCorporativaSection({
         </label>
 
         {/* Buscador con dropdown de criterio */}
-        <div className={`relative flex items-center bg-slate-50 border rounded-2xl focus-within:ring-4 transition-all h-12 ${hasError ? 'border-red-500 ring-red-500/10' : 'border-emerald-100 focus-within:ring-emerald-500/10 focus-within:border-emerald-500'}`}>
+        <div className={`relative flex items-center bg-slate-50 border rounded-2xl focus-within:ring-4 transition-colors h-12 ${hasError ? 'border-red-500 ring-red-500/10' : 'border-emerald-100 focus-within:ring-emerald-500/10 focus-within:border-emerald-500'}`}>
           <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
             <button
               type="button"
@@ -3293,8 +3393,8 @@ function VinculacionCorporativaSection({
             </button>
             {showCorpDropdown && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowCorpDropdown(false)} />
-                <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowCorpDropdown(false)} />
+                <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-200">
                   {([
                     { key: 'nombre' as const, label: 'Nombre' },
                     { key: 'rif' as const, label: 'RIF' },
@@ -3328,7 +3428,7 @@ function VinculacionCorporativaSection({
               <button
                 type="button"
                 onClick={() => { setCorpSearch(''); onSelect(null); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-all"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-colors"
               >
                 <X size={10} />
               </button>
@@ -3349,7 +3449,7 @@ function VinculacionCorporativaSection({
             <button
               type="button"
               onClick={() => { onSelect(null); setCorpSearch(''); }}
-              className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-all shrink-0"
+              className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors shrink-0"
             >
               <X size={10} />
             </button>
@@ -3359,7 +3459,7 @@ function VinculacionCorporativaSection({
         {/* Lista de resultados */}
         {showCorpResults && corpSearch.trim() && !selectedCompany && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setShowCorpResults(false)} />
+            <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setShowCorpResults(false)} />
             <div className="relative z-20">
               <div className="absolute top-0 left-0 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto py-1">
                 {filteredCompanies.length === 0 ? (
@@ -3415,13 +3515,15 @@ function CompanySearchField({
     return c.id_empresa === selectedIdEmpresa || c.id_afiliado === selectedIdEmpresa;
   })
 
-  React.useEffect(() => {
+  const [prevSelectedCompany, setPrevSelectedCompany] = React.useState(selectedCompany)
+  if (prevSelectedCompany !== selectedCompany) {
+    setPrevSelectedCompany(selectedCompany)
     if (selectedCompany) {
       setCorpSearch(selectedCompany.empresa_razon_social || selectedCompany.nombre_completo || '')
     } else {
       setCorpSearch('')
     }
-  }, [selectedCompany])
+  }
 
   const filteredCompanies = companies.filter((c) => {
     if (!corpSearch.trim()) return true
@@ -3456,7 +3558,7 @@ function CompanySearchField({
 
   return (
     <div className="space-y-2 w-full">
-      <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-10">
+      <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-10">
         <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
           <button
             type="button"
@@ -3472,8 +3574,8 @@ function CompanySearchField({
           </button>
           {showCorpDropdown && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowCorpDropdown(false)} />
-              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowCorpDropdown(false)} />
+              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] fade-in slide-in-from-top-1 duration-200">
                 {([
                   { key: 'nombre' as const, label: 'Nombre' },
                   { key: 'rif' as const, label: 'RIF' },
@@ -3507,7 +3609,7 @@ function CompanySearchField({
             <button
               type="button"
               onClick={() => { setCorpSearch(''); onSelect(null); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-all"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-colors"
             >
               <X size={10} />
             </button>
@@ -3527,14 +3629,14 @@ function CompanySearchField({
           <button
             type="button"
             onClick={() => { onSelect(null); setCorpSearch(''); }}
-            className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-all shrink-0"
+            className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors shrink-0"
           >
             <X size={10} />
           </button>
         </div>
       )}
 
-      <div className={`transition-all duration-500 ease-in-out ${
+      <div className={`transition-colors duration-500 ease-in-out ${
         showCorpResults && corpSearch.trim() && !selectedCompany
           ? 'max-h-48 opacity-100 mt-1.5 border border-gray-200 pointer-events-auto'
           : 'max-h-0 opacity-0 mt-0 border-transparent overflow-hidden pointer-events-none'

@@ -21,7 +21,7 @@ const WidgetSolicitudAfiliacion = () => {
               <h3 className="font-black uppercase tracking-tight text-lg">Gremialízate con Nosotros</h3>
             </div>
             <p className="text-sm text-emerald-800/80 leading-relaxed font-medium">
-              Como estudiante aprobado, ya eres parte de nuestra comunidad. Al afiliarte formalmente a la Cámara Inmobiliaria del Estado Bolívar obtendrás:
+              Como estudiante aprobado, ya eres parte de nuestra comunidad. Al afiliarte formalmente a la Cámara Inmobiliaria de Bolívar obtendrás:
             </p>
             <ul className="mt-4 space-y-2 text-xs font-bold text-emerald-900/70">
               <li className="flex items-center gap-2">• Código CIBIR de identificación gremial.</li>

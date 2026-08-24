@@ -4,6 +4,7 @@ import { SkeletonCard } from '@/components/Skeleton';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
+import { apiFetch } from '@/lib/apiClient';
 
 interface ModuloCurso {
   nombre_modulo: string;
@@ -38,22 +39,29 @@ const WidgetMisCursos = () => {
       setLoading(false);
       return;
     }
+    let active = true;
 
-    fetch(`${API_URL}/api/afiliados/me/cursos`, {
+    apiFetch(`${API_URL}/api/afiliados/me/cursos`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
     })
-      .then((res) => res.json())
       .then((json) => {
+        if (!active) return;
         if (json.success) {
           // Excluir solo Cancelados y Rechazados
           const cursosActivos = json.data.filter((c: MiCurso) => c.estatus !== 'Cancelado' && c.estatus !== 'Rechazado');
           setCursos(cursosActivos);
         }
       })
-      .catch((err) => console.error('Error fetching mis cursos:', err))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!active) return;
+        console.error('Error fetching mis cursos:', err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [token]);
 
   if (loading) {
@@ -83,7 +91,7 @@ const WidgetMisCursos = () => {
     <DashboardCard title="Mis Cursos y Programas" icon={BookOpen} description="Progreso de tus inscripciones actuales">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {cursos.map((curso) => (
-          <div key={curso.id_inscripcion} className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all bg-white relative">
+          <div key={curso.id_inscripcion} className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-colors bg-white relative">
             <div className="h-32 bg-gray-100 overflow-hidden relative">
               {curso.imagen_url ? (
                 <img src={curso.imagen_url} alt={curso.curso_nombre} className="w-full h-full object-cover" />

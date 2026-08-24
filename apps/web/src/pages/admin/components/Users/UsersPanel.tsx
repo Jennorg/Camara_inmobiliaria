@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   RefreshCw,
   ShieldCheck,
@@ -88,16 +88,17 @@ export default function UsersPanel() {
 
   const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }), [token])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const r = await fetch(`${API_URL}/api/users`, { headers: authHeaders })
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) setUsers(d.data)
     } finally { setLoading(false) }
-  }
+  }, [authHeaders])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   // ── Pre-procesado de llaves de búsqueda ─────────────────────────────────────
   const normalizedUsers = useMemo(() => {
@@ -206,6 +207,7 @@ export default function UsersPanel() {
         headers: authHeaders,
         body: JSON.stringify({ rol: newRol }),
       })
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
         toast.success(`Rol de ${u.email} actualizado correctamente`)
@@ -230,18 +232,24 @@ export default function UsersPanel() {
     setNewPassword('')
   }
 
+  const busyInviteRef = useRef(false)
   const confirmSendInvite = async () => {
-    if (!userToInvite) return
+    if (!userToInvite || busyInviteRef.current) return
+    busyInviteRef.current = true
     const u = userToInvite
     setUserToInvite(null)
     
-    if (sendingInvite[u.id]) return
+    if (sendingInvite[u.id]) {
+      busyInviteRef.current = false
+      return
+    }
     setSendingInvite(prev => ({ ...prev, [u.id]: true }))
     try {
       const r = await fetch(`${API_URL}/api/users/${u.id}/invite`, {
         method: 'POST',
         headers: authHeaders,
       })
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
         toast.success(`Correo de invitación enviado con éxito a ${u.email}`)
@@ -252,6 +260,7 @@ export default function UsersPanel() {
       toast.error('Error de conexión al enviar la invitación')
     } finally {
       setSendingInvite(prev => ({ ...prev, [u.id]: false }))
+      busyInviteRef.current = false
     }
   }
 
@@ -266,6 +275,7 @@ export default function UsersPanel() {
         headers: authHeaders,
         body: JSON.stringify({ tipo }),
       })
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
         toast.success(`Correo de acceso de ${u.nombre_completo || u.email} cambiado a ${d.acceso_email}`)
@@ -289,6 +299,7 @@ export default function UsersPanel() {
         headers: authHeaders,
         body: JSON.stringify({ password: newPassword }),
       })
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
         toast.success(`Contraseña de ${resettingUser.email} actualizada con éxito.`)
@@ -312,6 +323,7 @@ export default function UsersPanel() {
         method: 'DELETE',
         headers: authHeaders,
       })
+      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
         toast.success('Usuario eliminado correctamente')
@@ -329,7 +341,7 @@ export default function UsersPanel() {
 
   return (
     <div className='h-full w-full overflow-y-auto'>
-      <div className='p-6 max-w-5xl mx-auto space-y-6'>
+      <div className='p-4 sm:p-6 lg:p-8 max-w-7xl lg:max-w-full mx-auto space-y-6'>
       {/* Header */}
       <div className='flex flex-col sm:flex-row items-center justify-between gap-2'>
         <div>
@@ -354,7 +366,7 @@ export default function UsersPanel() {
       {/* Reset password modal */}
       {resettingUser && (
         <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-xl border border-slate-100 p-6 w-full max-w-md animate-in fade-in zoom-in duration-200'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-xl border border-slate-100 p-6 w-full max-w-md fade-in zoom-in duration-200'>
             <div className='flex items-center gap-3 mb-4'>
               <div className='w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500'>
                 <KeyRound size={20} />
@@ -398,7 +410,7 @@ export default function UsersPanel() {
               <button 
                 type='button' 
                 onClick={() => setResettingUser(null)} 
-                className='px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all duration-200 active:scale-95'
+                className='px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors transition-transform duration-200 active:scale-95'
               >
                 Cancelar
               </button>
@@ -406,7 +418,7 @@ export default function UsersPanel() {
                 type='button'
                 disabled={saving || !newPassword}
                 onClick={confirmPasswordReset}
-                className='px-5 py-2.5 bg-orange-700 hover:bg-orange-800 text-white rounded-xl text-xs font-black shadow-sm hover:shadow-md hover:shadow-orange-700/20 disabled:bg-orange-400 disabled:text-orange-100 border border-transparent transition-all duration-200 active:scale-95 flex items-center justify-center gap-2'
+                className='px-5 py-2.5 bg-orange-700 hover:bg-orange-800 text-white rounded-xl text-xs font-black shadow-sm hover:shadow-md hover:shadow-orange-700/20 disabled:bg-orange-400 disabled:text-orange-100 border border-transparent transition-colors transition-transform duration-200 active:scale-95 flex items-center justify-center gap-2'
               >
                 {saving && <Loader2 size={14} className='animate-spin' />}
                 Confirmar cambio
@@ -419,7 +431,7 @@ export default function UsersPanel() {
       {/* Delete confirmation modal */}
       {userToDelete && (
         <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
             </div>
@@ -433,7 +445,7 @@ export default function UsersPanel() {
                 type='button'
                 disabled={saving}
                 onClick={confirmDelete}
-                className='w-full py-3 bg-rose-500 text-white rounded-xl text-sm font-black hover:bg-rose-600 disabled:opacity-50 shadow-lg shadow-rose-500/25 transition-all flex items-center justify-center gap-2'
+                className='w-full py-3 bg-rose-500 text-white rounded-xl text-sm font-black hover:bg-rose-600 disabled:opacity-50 shadow-lg shadow-rose-500/25 transition-colors transition-opacity flex items-center justify-center gap-2'
               >
                 {saving ? <Loader2 size={18} className='animate-spin' /> : <Trash2 size={18} />}
                 Eliminar Permanentemente
@@ -453,7 +465,7 @@ export default function UsersPanel() {
       {/* Invite confirmation modal */}
       {userToInvite && (
         <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mx-auto mb-4'>
               <Mail size={32} />
             </div>
@@ -466,7 +478,7 @@ export default function UsersPanel() {
               <button
                 type='button'
                 onClick={confirmSendInvite}
-                className='w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2'
+                className='w-full py-3 bg-emerald-600 text-white rounded-xl text-sm font-black hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 transition-colors flex items-center justify-center gap-2'
               >
                 <Mail size={18} />
                 Enviar Invitación
@@ -583,7 +595,7 @@ export default function UsersPanel() {
                             value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
                             onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
                             disabled={updatingEmailId === u.id}
-                            className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-all'
+                            className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
                           >
                             <option value='personal' className='bg-white text-slate-800 font-semibold'>
                               {u.persona_email || 'No definido'}
@@ -637,7 +649,7 @@ export default function UsersPanel() {
                             value={u.rol}
                             onChange={e => handleRoleChange(u, e.target.value as any)}
                             disabled={saving}
-                            className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-all ${
+                            className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
                               u.rol === 'super_admin'
                                 ? 'bg-amber-50 text-amber-800 border-amber-200/80 focus:ring-amber-500/10 focus:border-amber-400'
                                 : u.rol === 'admin'
@@ -776,7 +788,7 @@ export default function UsersPanel() {
                           value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
                           onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
                           disabled={updatingEmailId === u.id}
-                          className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[200px] truncate hover:bg-slate-100 hover:text-slate-900 transition-all'
+                          className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[200px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
                         >
                           <option value='personal' className='bg-white text-slate-800 font-semibold'>
                             {u.persona_email || 'No definido'}
@@ -831,7 +843,7 @@ export default function UsersPanel() {
                           value={u.rol}
                           onChange={e => handleRoleChange(u, e.target.value as any)}
                           disabled={saving}
-                          className={`appearance-none inline-flex items-center gap-1.5 pl-2.5 pr-7 py-1 rounded-xl text-[11px] font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-all ${
+                          className={`appearance-none inline-flex items-center gap-1.5 pl-2.5 pr-7 py-1 rounded-xl text-[11px] font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
                             u.rol === 'super_admin'
                               ? 'bg-amber-50 text-amber-800 border-amber-200/80'
                               : u.rol === 'admin'

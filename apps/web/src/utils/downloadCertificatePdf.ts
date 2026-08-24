@@ -81,13 +81,13 @@ export async function downloadCertificadoAfiliacionPdf(data: CertificadoAfiliaci
   doc.setTextColor(2, 44, 34);
   doc.text('CÁMARA INMOBILIARIA', width / 2, 43, { align: 'center' });
   doc.setTextColor(4, 120, 87);
-  doc.text('DEL ESTADO BOLÍVAR', width / 2, 48, { align: 'center' });
+  doc.text('DE BOLÍVAR', width / 2, 48, { align: 'center' });
 
   // Body text
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(4, 120, 87);
-  doc.text('La Cámara Inmobiliaria del Estado Bolívar (CIEBO)', width / 2, 59, { align: 'center' });
+  doc.text('La Cámara Inmobiliaria de Bolívar (CIEBO)', width / 2, 59, { align: 'center' });
   doc.text('le otorga el presente certificado a', width / 2, 64, { align: 'center' });
 
   // Name
@@ -212,24 +212,19 @@ export async function downloadCertificadoProgramaPdf(data: CertificadoProgramaDa
     loadImageDataUrl(data.qrUrl || ''),
   ]);
 
-  // Header Logo (Left)
+  // Header Logo (Center)
   if (logoData) {
-    doc.addImage(logoData, 'PNG', 45, 12, 45, 25);
+    doc.addImage(logoData, 'PNG', (width - 45) / 2, 12, 45, 25);
   }
 
-  // Header Program Abbr (Right)
   const codeAbbr = (data.programaCodigo || 'CIBIR').toUpperCase();
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(32);
-  doc.setTextColor(15, 84, 49);
-  doc.text(codeAbbr, width - 60, 24, { align: 'center' });
 
-  // Camera Title
+  // Camera Title (Below Logo)
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(16);
   doc.setTextColor(15, 84, 49);
-  doc.text('CÁMARA INMOBILIARIA DEL', width / 2, 48, { align: 'center' });
-  doc.text('ESTADO BOLÍVAR', width / 2, 55, { align: 'center' });
+  doc.text('CÁMARA INMOBILIARIA', width / 2, 44, { align: 'center' });
+  doc.text('DE BOLÍVAR', width / 2, 51, { align: 'center' });
 
   // Otorgamiento
   doc.setFont('helvetica', 'bold');
@@ -239,7 +234,7 @@ export async function downloadCertificadoProgramaPdf(data: CertificadoProgramaDa
 
   // Name
   doc.setFont('times', 'italic');
-  doc.setFontSize(24);
+  doc.setFontSize(32);
   doc.setTextColor(15, 23, 42);
   doc.text(data.titularNombre || '', width / 2, 85, { align: 'center' });
 
@@ -287,7 +282,7 @@ export async function downloadCertificadoProgramaPdf(data: CertificadoProgramaDa
   doc.setFontSize(6.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('PRESIDENTE DE LA CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR', 57.5, footerY + 27.5, { align: 'center' });
+  doc.text('PRESIDENTE DE LA CÁMARA INMOBILIARIA DE BOLÍVAR', 57.5, footerY + 27.5, { align: 'center' });
 
   // Center: QR Code
   if (qrData) {

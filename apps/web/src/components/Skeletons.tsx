@@ -34,8 +34,8 @@ export const CourseSkeleton = () => {
 export const CourseSkeletonGrid = ({ count = 4 }: { count?: number }) => {
   return (
     <>
-      {Array.from({ length: count }).map((_, i) => (
-        <CourseSkeleton key={i} />
+      {Array.from({ length: count }).map((_, skelIdx) => (
+        <CourseSkeleton key={`course-skeleton-${skelIdx}`} />
       ))}
     </>
   );

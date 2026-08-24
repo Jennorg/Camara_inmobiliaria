@@ -73,13 +73,13 @@ export default function BentoGallerySection() {
         {/* Row 1: Right-to-Left (Imágenes pares) */}
         <div className="flex relative overflow-hidden group">
           <div
-            className="flex gap-4 animate-marquee hover:[animation-play-state:paused] will-change-transform h-[240px] md:h-[380px]"
+            className="flex gap-4 animate-marquee hover:[animation-play-state:paused] h-[240px] md:h-[380px]"
             style={{
               animationDuration: `${marqueeDuration}s`
             }}
           >
             {[...ROW_1_IMAGES, ...ROW_1_IMAGES].map(({ src, ratio }, idx) => (
-              <GalleryCell key={`row1-${idx}`} src={src} ratio={ratio} />
+              <GalleryCell key={`row1-${src}-${idx}`} src={src} ratio={ratio} />
             ))}
           </div>
         </div>
@@ -87,13 +87,13 @@ export default function BentoGallerySection() {
         {/* Row 2: Left-to-Right (Imágenes impares) */}
         <div className="flex relative overflow-hidden group">
           <div
-            className="flex gap-4 animate-marquee-reverse hover:[animation-play-state:paused] will-change-transform h-[240px] md:h-[380px]"
+            className="flex gap-4 animate-marquee-reverse hover:[animation-play-state:paused] h-[240px] md:h-[380px]"
             style={{
               animationDuration: `${marqueeDuration}s`
             }}
           >
             {[...ROW_2_IMAGES, ...ROW_2_IMAGES].map(({ src, ratio }, idx) => (
-              <GalleryCell key={`row2-${idx}`} src={src} ratio={ratio} />
+              <GalleryCell key={`row2-${src}-${idx}`} src={src} ratio={ratio} />
             ))}
           </div>
         </div>

@@ -5,6 +5,7 @@ import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
 import { apiUrl } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 // Import directiva images from the repo
 import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
@@ -65,7 +66,7 @@ const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_
     <>
       <div className='relative overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] aspect-[4/5] mb-3 sm:mb-5 bg-gradient-to-br from-slate-50 to-slate-100'>
         {foto ? (
-          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover object-top transition-all duration-700 ease-in-out group-hover:scale-105' />
+          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover object-top transition-transform duration-700 ease-in-out group-hover:scale-105' />
         ) : (
           <div className='w-full h-full flex items-center justify-center text-4xl sm:text-6xl font-black text-slate-300 bg-slate-50'>
             {nombre.charAt(0)}
@@ -85,7 +86,7 @@ const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_
         to={`/miembros/${targetIdentifier}`} 
         ref={setReveal as any} 
         style={{ transitionDelay: `${index * 0.03}s` }} 
-        className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 block cursor-pointer'
+        className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-colors transition-transform duration-300 hover:-translate-y-1.5 block cursor-pointer'
       >
         {cardContent}
       </Link>
@@ -93,7 +94,7 @@ const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_
   }
 
   return (
-    <div ref={setReveal} style={{ transitionDelay: `${index * 0.03}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5'>
+    <div ref={setReveal} style={{ transitionDelay: `${index * 0.03}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-colors transition-transform duration-300 hover:-translate-y-1.5'>
       {cardContent}
     </div>
   )
@@ -107,11 +108,12 @@ export default function EquipoDirectivo() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
+    let active = true
 
     const fetchDirectiva = async () => {
       try {
-        const res = await fetch(apiUrl('/api/cms/directiva'))
-        const data = await res.json()
+        const data = await apiFetch(apiUrl('/api/cms/directiva'))
+        if (!active) return
         if (data && data.success && Array.isArray(data.data)) {
           const activeMembers = data.data
             .filter((m: any) => (m.activo === 1 || m.activo === true) && m.foto_url)
@@ -138,15 +140,15 @@ export default function EquipoDirectivo() {
         } else {
           setDirectiva(hardcodedDirectiva)
         }
-      } catch (err) {
-        console.error('Error fetching directiva:', err)
-        setDirectiva(hardcodedDirectiva)
+      } catch {
+        if (active) setDirectiva(hardcodedDirectiva)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     fetchDirectiva()
+    return () => { active = false }
   }, [])
 
   return (
@@ -174,8 +176,8 @@ export default function EquipoDirectivo() {
 
           {loading ? (
             <div className='grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8'>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className='animate-pulse rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm space-y-4'>
+              {Array.from({ length: 8 }).map((_, skelIdx) => (
+                <div key={`dir-skel-${skelIdx}`} className='animate-pulse rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm space-y-4'>
                   <div className='bg-slate-200 rounded-[1.5rem] aspect-[4/5] w-full' />
                   <div className='space-y-2 flex flex-col items-center'>
                     <div className='bg-slate-200 h-5 w-3/4 rounded-md' />
@@ -187,7 +189,7 @@ export default function EquipoDirectivo() {
           ) : (
             <div className='grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8'>
               {directiva.map((miembro, index) => (
-                <DirectorCard key={index} index={index} id_afiliado={miembro.id_afiliado} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto} />
+                <DirectorCard key={miembro.id_afiliado || miembro.nombre} index={index} id_afiliado={miembro.id_afiliado} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto} />
               ))}
             </div>
           )}
@@ -204,7 +206,7 @@ export default function EquipoDirectivo() {
               </div>
               <h2 className='text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mb-3 sm:mb-4'>¿Deseas contactar con la Junta Directiva?</h2>
               <p className='text-emerald-100/70 mb-6 sm:mb-8 max-w-xl mx-auto text-sm sm:text-lg italic'>Estamos aquí para escucharte. Envíanos tu mensaje y nos pondremos en contacto contigo.</p>
-              <button className='w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-emerald-500 to-emerald-400 text-[#022c22] rounded-full font-black uppercase text-xs tracking-widest hover:from-emerald-400 hover:to-emerald-300 transition-all shadow-xl hover:shadow-2xl hover:shadow-emerald-500/30 hover:scale-105 active:scale-95'>Enviar un mensaje</button>
+              <button className='w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-emerald-500 to-emerald-400 text-[#022c22] rounded-full font-black uppercase text-xs tracking-widest hover:from-emerald-400 hover:to-emerald-300 transition-colors transition-transform shadow-xl hover:shadow-2xl hover:shadow-emerald-500/30 hover:scale-105 active:scale-95'>Enviar un mensaje</button>
             </div>
           </div>
         </div>

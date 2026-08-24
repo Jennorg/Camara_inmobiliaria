@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Users,
   Link as LinkIcon,
@@ -27,6 +27,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatNombreCard, getInitials } from '@/utils/formatters';
+import { apiFetch } from '@/lib/apiClient';
 
 interface Invitacion {
   id_invitacion: number;
@@ -110,57 +111,67 @@ export default function WidgetGestionAfiliadosCorp() {
 
   const [empresaNombre, setEmpresaNombre] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     if (!token) return;
     setLoading(true);
     try {
       let companyId = user?.id_empresa;
-
-      // Fallback: Si no está en el context, intentar obtenerlo del perfil de afiliado
       if (!companyId && user?.id_afiliado) {
         const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          signal
         });
-        const dataProfile = await resProfile.json();
-        if (dataProfile.success && dataProfile.data.id_empresa) {
-          companyId = dataProfile.data.id_empresa;
-          if (dataProfile.data.empresa_razon_social) setEmpresaNombre(dataProfile.data.empresa_razon_social);
+        if (!resProfile.ok) throw new Error(`HTTP error! status: ${resProfile.status}`);
+        const dProfile = await resProfile.json();
+        if (dProfile.success && dProfile.data.id_empresa) {
+          companyId = dProfile.data.id_empresa;
         }
-      } else if (companyId && user?.nombre_completo) {
-        setEmpresaNombre(user.nombre_completo);
       }
 
       if (!companyId) {
-        setLoading(false);
+        if (!signal?.aborted) setLoading(false);
         return;
       }
 
       const [resInv, resMbr, resSol] = await Promise.all([
         fetch(`${API_URL}/api/afiliados/${companyId}/invitaciones`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          signal
         }),
         fetch(`${API_URL}/api/afiliados/${companyId}/afiliados-corp`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          signal
         }),
         fetch(`${API_URL}/api/afiliados/empresa/solicitudes-cambio`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          signal
         })
       ]);
+
+      if (!resInv.ok || !resMbr.ok || !resSol.ok) throw new Error('Response error');
 
       const dataInv = await resInv.json();
       const dataMbr = await resMbr.json();
       const dataSol = await resSol.json();
 
+      if (signal?.aborted) return;
       if (dataInv.success) setInvitaciones(dataInv.data);
       if (dataMbr.success) setMiembros(dataMbr.data);
       if (dataSol.success) setSolicitudesCambio(dataSol.data);
-    } catch (err) {
+    } catch (err: unknown) {
+      if (signal?.aborted || (err as Error).name === 'AbortError') return;
       console.error(err);
       toastError('Error al cargar datos', 'Error al cargar datos de gestión corporativa.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, user?.id_empresa, user?.id_afiliado, toastError]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => { controller.abort(); };
+  }, [fetchData]);
 
   const handleResolveSolicitudCambio = async (idSolicitud: number, aprobado: boolean) => {
     if (!token) return;
@@ -171,6 +182,7 @@ export default function WidgetGestionAfiliadosCorp() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ aprobado, observaciones: aprobado ? 'Aprobado por representante' : 'Rechazado por representante' })
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         toastSuccess(aprobado ? 'Solicitud aprobada' : 'Solicitud rechazada', data.message);
@@ -185,22 +197,17 @@ export default function WidgetGestionAfiliadosCorp() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [user?.id_empresa, user?.id_afiliado, token]);
-
   // Búsqueda con debounce de afiliados independientes disponibles
-  const getCompanyId = async (): Promise<number | null> => {
+  const getCompanyId = useCallback(async (): Promise<number | null> => {
     let companyId = user?.id_empresa;
     if (!companyId && user?.id_afiliado && token) {
-      const res = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+      const d = await apiFetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const d = await res.json();
       if (d.success && d.data.id_empresa) companyId = d.data.id_empresa;
     }
     return companyId ?? null;
-  };
+  }, [user?.id_empresa, user?.id_afiliado, token]);
 
   useEffect(() => {
     if (activeTab !== 'vincular') return;
@@ -225,8 +232,7 @@ export default function WidgetGestionAfiliadosCorp() {
       setLoadingInd(true);
       try {
         const url = `${API_URL}/api/afiliados/${companyId}/independientes-disponibles?q=${encodeURIComponent(q)}&field=${searchField}`;
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        const data = await res.json();
+        const data = await apiFetch(url, { headers: { Authorization: `Bearer ${token}` } });
         if (data.success) {
           setIndependientes(data.data);
           lastQueryRef.current = { q, field: searchField, initialized: true };
@@ -236,7 +242,7 @@ export default function WidgetGestionAfiliadosCorp() {
       }
     }, 350);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [busquedaInd, searchField, activeTab, token]);
+  }, [busquedaInd, searchField, activeTab, token, getCompanyId]);
 
   const handleVincular = async (afiliado: AfiliadoIndependiente) => {
     const companyId = await getCompanyId();
@@ -248,6 +254,7 @@ export default function WidgetGestionAfiliadosCorp() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id_afiliado: afiliado.id_afiliado })
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         setConfirmVincular(null);
@@ -271,6 +278,7 @@ export default function WidgetGestionAfiliadosCorp() {
       const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!resProfile.ok) throw new Error(`HTTP error! status: ${resProfile.status}`);
       const dataProfile = await resProfile.json();
       if (dataProfile.success && dataProfile.data.id_empresa) {
         companyId = dataProfile.data.id_empresa;
@@ -286,6 +294,7 @@ export default function WidgetGestionAfiliadosCorp() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ diasExpiracion: 30 })
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         fetchData();
@@ -314,6 +323,7 @@ export default function WidgetGestionAfiliadosCorp() {
       const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!resProfile.ok) throw new Error(`HTTP error! status: ${resProfile.status}`);
       const dataProfile = await resProfile.json();
       if (dataProfile.success && dataProfile.data.id_empresa) {
         companyId = dataProfile.data.id_empresa;
@@ -336,6 +346,7 @@ export default function WidgetGestionAfiliadosCorp() {
           esCorredorInmobiliario: modalForm.esCorredorInmobiliario === 'si'
         })
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         setShowModal(false);
@@ -356,6 +367,7 @@ export default function WidgetGestionAfiliadosCorp() {
     let companyId = user?.id_empresa;
     if (!companyId && user?.id_afiliado && token) {
       const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resProfile.ok) throw new Error(`HTTP error! status: ${resProfile.status}`);
       const dataProfile = await resProfile.json();
       if (dataProfile.success && dataProfile.data.id_empresa) companyId = dataProfile.data.id_empresa;
     }
@@ -366,6 +378,7 @@ export default function WidgetGestionAfiliadosCorp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         fetchData();
@@ -384,6 +397,7 @@ export default function WidgetGestionAfiliadosCorp() {
     let companyId = user?.id_empresa;
     if (!companyId && user?.id_afiliado && token) {
       const resProfile = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!resProfile.ok) throw new Error(`HTTP error! status: ${resProfile.status}`);
       const dataProfile = await resProfile.json();
       if (dataProfile.success && dataProfile.data.id_empresa) companyId = dataProfile.data.id_empresa;
     }
@@ -394,6 +408,7 @@ export default function WidgetGestionAfiliadosCorp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         fetchData();
@@ -439,7 +454,7 @@ export default function WidgetGestionAfiliadosCorp() {
         <div className="flex gap-2">
           <button
             onClick={() => setShowModal(true)}
-            className={`flex items-center gap-2 px-5 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all active:scale-95 ${BOX_H}`}
+            className={`flex items-center gap-2 px-5 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors transition-transform active:scale-95 ${BOX_H}`}
           >
             <UserPlus size={14} className="text-emerald-500" />
             Crear Solicitud
@@ -447,7 +462,7 @@ export default function WidgetGestionAfiliadosCorp() {
           <button
             onClick={handleGenerarLink}
             disabled={actionLoading}
-            className={`flex items-center gap-2 px-5 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 ${BOX_H}`}
+            className={`flex items-center gap-2 px-5 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform active:scale-95 disabled:opacity-50 ${BOX_H}`}
           >
             {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <LinkIcon size={14} />}
             Generar Link
@@ -466,7 +481,7 @@ export default function WidgetGestionAfiliadosCorp() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
               activeTab === tab.key
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -522,7 +537,7 @@ export default function WidgetGestionAfiliadosCorp() {
                       <button
                         onClick={() => handleAprobarSolicitud(m.id_afiliado!)}
                         disabled={actionLoading}
-                        className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                        className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
                       >
                         <Check size={12} strokeWidth={3} />
                         Aprobar
@@ -530,7 +545,7 @@ export default function WidgetGestionAfiliadosCorp() {
                       <button
                         onClick={() => handleRechazarSolicitud(m.id_afiliado!)}
                         disabled={actionLoading}
-                        className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                        className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
                       >
                         <X size={12} strokeWidth={3} />
                         Rechazar
@@ -642,7 +657,7 @@ export default function WidgetGestionAfiliadosCorp() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleCopyLink(inv.token)}
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${copiedToken === inv.token ? 'bg-emerald-500 text-white shadow-lg' : 'bg-gray-100 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${copiedToken === inv.token ? 'bg-emerald-500 text-white shadow-lg' : 'bg-gray-100 text-gray-500 hover:bg-emerald-50 hover:text-emerald-600'}`}
                       title="Copiar Link"
                     >
                       {copiedToken === inv.token ? <CheckCircle size={16} /> : <Copy size={16} />}
@@ -651,7 +666,7 @@ export default function WidgetGestionAfiliadosCorp() {
                       href={`/afiliacion/invitacion/${inv.token}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                       title="Ver Página de Registro"
                     >
                       <ExternalLink size={16} />
@@ -682,7 +697,7 @@ export default function WidgetGestionAfiliadosCorp() {
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm">
             <div className="p-5 border-b border-gray-50">
-              <div className="relative flex items-center bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-400/10 transition-all h-12 z-20">
+              <div className="relative flex items-center bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-400/10 transition-colors h-12 z-20">
                 {/* Dropdown de criterio */}
                 <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center z-10">
                   <button
@@ -701,7 +716,7 @@ export default function WidgetGestionAfiliadosCorp() {
                   {showSearchDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                      <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-200">
                         {([
                           { key: 'nombre', label: 'Nombre' },
                           { key: 'cedula', label: 'Cédula' },
@@ -741,7 +756,7 @@ export default function WidgetGestionAfiliadosCorp() {
                   {busquedaInd && (
                     <button
                       onClick={() => setBusquedaInd('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-gray-200/80 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-all"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md bg-gray-200/80 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition-colors"
                     >
                       <X size={12} />
                     </button>
@@ -799,7 +814,7 @@ export default function WidgetGestionAfiliadosCorp() {
                     <button
                       onClick={() => setConfirmVincular(a)}
                       disabled={vinculandoId === a.id_afiliado}
-                      className="flex items-center gap-2 px-4 h-10 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] shadow-lg shadow-emerald-600/15 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-60 shrink-0"
+                      className="flex items-center gap-2 px-4 h-10 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] shadow-lg shadow-emerald-600/15 hover:-translate-y-0.5 transition-transform active:scale-95 disabled:opacity-60 shrink-0"
                     >
                       {vinculandoId === a.id_afiliado ? <Loader2 className="animate-spin" size={12} /> : <UserCheck size={12} />}
                       Vincular
@@ -853,7 +868,7 @@ export default function WidgetGestionAfiliadosCorp() {
                     <button
                       onClick={() => handleResolveSolicitudCambio(sol.id_solicitud, true)}
                       disabled={actionLoading}
-                      className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                      className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
                     >
                       <Check size={12} strokeWidth={3} />
                       Aprobar
@@ -861,7 +876,7 @@ export default function WidgetGestionAfiliadosCorp() {
                     <button
                       onClick={() => handleResolveSolicitudCambio(sol.id_solicitud, false)}
                       disabled={actionLoading}
-                      className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                      className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
                     >
                       <X size={12} strokeWidth={3} />
                       Rechazar
@@ -929,7 +944,7 @@ export default function WidgetGestionAfiliadosCorp() {
               <button
                 type="button"
                 onClick={() => setConfirmVincular(null)}
-                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all"
+                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
@@ -937,7 +952,7 @@ export default function WidgetGestionAfiliadosCorp() {
                 type="button"
                 disabled={vinculandoId === confirmVincular.id_afiliado}
                 onClick={() => handleVincular(confirmVincular)}
-                className="flex-[2] h-12 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-[2] h-12 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {vinculandoId === confirmVincular.id_afiliado
                   ? <><Loader2 className="animate-spin" size={14} /> Vinculando...</>
@@ -963,7 +978,7 @@ export default function WidgetGestionAfiliadosCorp() {
                 </h3>
                 <p className="text-xs font-medium text-gray-500 mt-1">Ingresa los datos para crear una solicitud de agente corporativo.</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:shadow-md transition-all">
+              <button onClick={() => setShowModal(false)} className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-900 hover:shadow-md transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -1019,7 +1034,7 @@ export default function WidgetGestionAfiliadosCorp() {
                   <div className="space-y-2 relative">
                     <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nivel Profesional</label>
                     <button type="button" onClick={() => setShowNivelDropdown(!showNivelDropdown)}
-                      className={`w-full px-4 ${BOX_H} bg-white rounded-xl border transition-all flex items-center justify-between group shadow-sm ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-400'}`}>
+                      className={`w-full px-4 ${BOX_H} bg-white rounded-xl border transition-colors flex items-center justify-between group shadow-sm ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-400'}`}>
                       <div className="flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${selectedNivel ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
                           {selectedNivel ? <selectedNivel.icon size={18} /> : <Briefcase size={18} />}
@@ -1036,7 +1051,7 @@ export default function WidgetGestionAfiliadosCorp() {
                           {NIVELES.map(n => (
                             <button key={n.value} type="button"
                               onClick={() => { setModalForm(p => ({ ...p, nivelProfesional: n.value })); setShowNivelDropdown(false) }}
-                              className={`w-full flex items-center justify-between px-4 h-[50px] rounded-xl transition-all ${modalForm.nivelProfesional === n.value ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'}`}>
+                              className={`w-full flex items-center justify-between px-4 h-[50px] rounded-xl transition-colors ${modalForm.nivelProfesional === n.value ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'}`}>
                               <div className="flex items-center gap-3">
                                 <n.icon size={18} className={modalForm.nivelProfesional === n.value ? 'text-white' : 'text-slate-400'} />
                                 <span className="text-[10px] font-black uppercase tracking-tight">{n.label}</span>
@@ -1056,7 +1071,7 @@ export default function WidgetGestionAfiliadosCorp() {
                       {['si', 'no'].map(opt => (
                         <button key={opt} type="button"
                           onClick={() => setModalForm(p => ({ ...p, esCorredorInmobiliario: opt }))}
-                          className={`h-full text-[10px] font-black uppercase tracking-widest transition-all ${modalForm.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
+                          className={`h-full text-[10px] font-black uppercase tracking-widest transition-colors ${modalForm.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
                           {opt === 'si' ? 'Sí' : 'No'}
                         </button>
                       ))}
@@ -1068,10 +1083,10 @@ export default function WidgetGestionAfiliadosCorp() {
 
             {/* Modal Footer */}
             <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex gap-3">
-              <button type="button" onClick={() => setShowModal(false)} className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all">
+              <button type="button" onClick={() => setShowModal(false)} className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors">
                 Cancelar
               </button>
-              <button type="submit" form="direct-reg-form" disabled={actionLoading} className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+              <button type="submit" form="direct-reg-form" disabled={actionLoading} className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform flex items-center justify-center gap-2">
                 {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <><CheckCircle size={14} /> Crear Solicitud</>}
               </button>
             </div>

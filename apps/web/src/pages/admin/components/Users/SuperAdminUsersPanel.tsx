@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { Trash2, ShieldCheck, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react'
@@ -27,15 +27,12 @@ const SuperAdminUsersPanel = () => {
   const [userToDelete, setUserToDelete] = useState<UserAdmin | null>(null)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/users`, {
         headers: { Authorization: `Bearer ${token}` }
       })
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
       const data = await res.json()
       if (data.success) {
         // Filramos para mostrar solo admin y super_admin
@@ -46,7 +43,11 @@ const SuperAdminUsersPanel = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   const confirmDelete = async () => {
     if (!userToDelete) return
@@ -56,6 +57,7 @@ const SuperAdminUsersPanel = () => {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
       const data = await res.json()
       if (data.success) {
         setUsers(users.filter(u => u.id !== userToDelete.id))
@@ -71,8 +73,11 @@ const SuperAdminUsersPanel = () => {
   }
 
 
+  const busyCreateUserRef = useRef(false)
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (busyCreateUserRef.current) return
+    busyCreateUserRef.current = true
     try {
       const res = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
@@ -82,6 +87,7 @@ const SuperAdminUsersPanel = () => {
         },
         body: JSON.stringify({ email: newEmail, password: newPassword, rol: newRol })
       })
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
       const data = await res.json()
       if (data.success) {
         setIsModalOpen(false)
@@ -89,10 +95,12 @@ const SuperAdminUsersPanel = () => {
         setNewPassword('')
         fetchUsers() // Refresh list
       } else {
-        alert(data.message)
+        alert(data.message || 'Error al crear usuario')
       }
     } catch (err) {
       alert('Error de conexión')
+    } finally {
+      busyCreateUserRef.current = false
     }
   }
 
@@ -110,6 +118,7 @@ const SuperAdminUsersPanel = () => {
         },
         body: JSON.stringify({ activo: userObj.activo ? 0 : 1 })
       })
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
       const data = await res.json()
       if (data.success) {
         setUsers(users.map(u => u.id === userObj.id ? { ...u, activo: u.activo ? 0 : 1 } : u))
@@ -248,7 +257,7 @@ const SuperAdminUsersPanel = () => {
       {/* Delete confirmation modal */}
       {userToDelete && (
         <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
             </div>
@@ -262,7 +271,7 @@ const SuperAdminUsersPanel = () => {
                 type='button'
                 disabled={saving}
                 onClick={confirmDelete}
-                className='w-full py-3 bg-rose-500 text-white rounded-xl text-sm font-black hover:bg-rose-600 disabled:opacity-50 shadow-lg shadow-rose-500/25 transition-all flex items-center justify-center gap-2'
+                className='w-full py-3 bg-rose-500 text-white rounded-xl text-sm font-black hover:bg-rose-600 disabled:opacity-50 shadow-lg shadow-rose-500/25 transition-colors transition-opacity flex items-center justify-center gap-2'
               >
                 {saving ? <Loader2 size={18} className='animate-spin' /> : <Trash2 size={18} />}
                 Confirmar Eliminación
@@ -282,7 +291,7 @@ const SuperAdminUsersPanel = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="transition-opacity transition-transform bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative fade-in zoom-in-95 duration-200">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                <div>
                  <h3 className="text-lg font-bold text-slate-800">Registrar Administrador</h3>
@@ -301,7 +310,7 @@ const SuperAdminUsersPanel = () => {
                     required
                     value={newEmail}
                     onChange={e => setNewEmail(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-all placeholder:text-slate-400 text-slate-800"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-colors placeholder:text-slate-400 text-slate-800"
                     placeholder="ejemplo@ciebo.org.ve"
                   />
                </div>
@@ -314,7 +323,7 @@ const SuperAdminUsersPanel = () => {
                       required
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
-                      className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-all placeholder:text-slate-400 text-slate-800"
+                      className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-colors placeholder:text-slate-400 text-slate-800"
                       placeholder="Min. 6 caracteres"
                     />
                     <button
@@ -333,7 +342,7 @@ const SuperAdminUsersPanel = () => {
                   <select 
                      value={newRol} 
                      onChange={e => setNewRol(e.target.value)}
-                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-all text-slate-800"
+                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] focus:bg-white transition-colors text-slate-800"
                   >
                      <option value="admin">Administrador Regular</option>
                      <option value="super_admin">[Peligro] Super Administrador</option>
@@ -341,7 +350,7 @@ const SuperAdminUsersPanel = () => {
                </div>
 
                <div className="pt-2">
-                 <button type="submit" className="w-full py-3.5 bg-[#00D084] hover:bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all hover:-translate-y-0.5">
+                 <button type="submit" className="w-full py-3.5 bg-[#00D084] hover:bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 transition-colors transition-transform hover:-translate-y-0.5">
                    Crear Credencial
                  </button>
                </div>

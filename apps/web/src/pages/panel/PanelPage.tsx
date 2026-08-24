@@ -58,6 +58,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
+import { apiFetch } from '@/lib/apiClient';
 import { formatNombreCard } from '@/utils/formatters';
 
 // ─── Nav Items por sección ────────────────────────────────────────────────────
@@ -129,13 +130,14 @@ const PanelPage = () => {
 
   useEffect(() => {
     if (!token || (!isAdmin && !isAsistente)) return;
+    let active = true;
 
     // 1. Solicitudes de Cambio pendientes
-    fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
+    apiFetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(r => r.json())
       .then(d => {
+        if (!active) return;
         if (d.success && Array.isArray(d.data)) {
           const pending = d.data.filter((s: any) =>
             ['Pendiente_Admin', 'Pendiente_Empresa'].includes(s.estatus)
@@ -146,17 +148,19 @@ const PanelPage = () => {
       .catch(() => {});
 
     // 2. Preinscripciones pendientes
-    fetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
+    apiFetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(r => r.json())
       .then(d => {
+        if (!active) return;
         if (d.success && Array.isArray(d.data)) {
           setPreinscripcionesCount(d.data.length);
         }
       })
       .catch(() => {});
-  }, [token, isAdmin]);
+
+    return () => { active = false; };
+  }, [token, isAdmin, isAsistente]);
 
   const [agentesCorp, setAgentesCorp] = useState<any[]>([]);
   const [loadingAgentes, setLoadingAgentes] = useState(false);
@@ -167,10 +171,9 @@ const PanelPage = () => {
       return;
     }
     setLoadingAfiliado(true);
-    fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+    apiFetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
       .then(d => { 
         if (d.success) {
           setAfiliado(d.data);
@@ -185,10 +188,9 @@ const PanelPage = () => {
 
   const fetchAgentes = (idEmpresa: number) => {
     setLoadingAgentes(true);
-    fetch(`${API_URL}/api/afiliados/${idEmpresa}/afiliados-corp`, {
+    apiFetch(`${API_URL}/api/afiliados/${idEmpresa}/afiliados-corp`, {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(r => r.json())
       .then(d => { if (d.success) setAgentesCorp(d.data); })
       .catch(() => { })
       .finally(() => setLoadingAgentes(false));
@@ -359,7 +361,7 @@ const PanelPage = () => {
               <>
                 {user?.tipo_afiliado === 'Corporativo' && (
                   <div className="lg:col-span-3">
-                    <div className={`rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl transition-all duration-700 ${
+                    <div className={`rounded-[2.5rem] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl transition-colors duration-700 ${
                       solicitudesPendientesCount > 0 
                         ? 'bg-emerald-600 shadow-emerald-600/20 animate-in fade-in slide-in-from-top-4' 
                         : 'bg-[#022c22] shadow-[#022c22]/20'
@@ -385,7 +387,7 @@ const PanelPage = () => {
                           type="button"
                           onClick={fetchAfiliado}
                           disabled={loadingAfiliado || loadingAgentes}
-                          className="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 border border-white/10"
+                          className="w-14 h-14 rounded-2xl bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors transition-transform active:scale-95 border border-white/10"
                           title="Actualizar datos"
                         >
                           <RefreshCw size={20} className={(loadingAfiliado || loadingAgentes) ? 'animate-spin' : ''} />
@@ -393,7 +395,7 @@ const PanelPage = () => {
                         <button 
                           type="button"
                           onClick={() => setActiveTab('Mis Agentes')}
-                          className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all active:scale-95 whitespace-nowrap ${
+                          className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-colors transition-transform active:scale-95 whitespace-nowrap ${
                             solicitudesPendientesCount > 0 
                               ? 'bg-white text-emerald-700' 
                               : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'

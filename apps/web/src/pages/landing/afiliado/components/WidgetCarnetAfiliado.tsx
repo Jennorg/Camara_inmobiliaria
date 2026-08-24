@@ -54,14 +54,34 @@ export default function WidgetCarnetAfiliado({
   }, [profileUrl]);
 
   // Estados para el editor de foto del carnet (react-easy-crop)
-  const [showCropper, setShowCropper] = useState(false);
-  const [isCropperReady, setIsCropperReady] = useState(false);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [cropperZoom, setCropperZoom] = useState(1.4);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [savingCrop, setSavingCrop] = useState(false);
+  const [cropper, setCropper] = useState({
+    show: false,
+    ready: false,
+    crop: { x: 0, y: 0 },
+    zoom: 1.4,
+    croppedAreaPixels: null as any,
+    imageToCrop: null as string | null,
+    imageFile: null as File | null,
+    saving: false,
+  });
+
+  const showCropper = cropper.show;
+  const isCropperReady = cropper.ready;
+  const crop = cropper.crop;
+  const cropperZoom = cropper.zoom;
+  const croppedAreaPixels = cropper.croppedAreaPixels;
+  const imageToCrop = cropper.imageToCrop;
+  const imageFile = cropper.imageFile;
+  const savingCrop = cropper.saving;
+
+  const setShowCropper = (show: boolean) => setCropper(c => ({ ...c, show }));
+  const setIsCropperReady = (ready: boolean) => setCropper(c => ({ ...c, ready }));
+  const setCrop = (cropVal: any) => setCropper(c => ({ ...c, crop: typeof cropVal === 'function' ? cropVal(c.crop) : cropVal }));
+  const setCropperZoom = (zoomVal: any) => setCropper(c => ({ ...c, zoom: typeof zoomVal === 'function' ? zoomVal(c.zoom) : zoomVal }));
+  const setCroppedAreaPixels = (croppedAreaPixels: any) => setCropper(c => ({ ...c, croppedAreaPixels }));
+  const setImageToCrop = (imageToCrop: string | null) => setCropper(c => ({ ...c, imageToCrop }));
+  const setImageFile = (imageFile: File | null) => setCropper(c => ({ ...c, imageFile }));
+  const setSavingCrop = (saving: boolean) => setCropper(c => ({ ...c, saving }));
 
   // delay para evitar que react-easy-crop se inicialice durante la animación
   useEffect(() => {
@@ -269,9 +289,11 @@ export default function WidgetCarnetAfiliado({
     }
   };
 
-  const handleTogglePhoto = async (e: React.MouseEvent) => {
+  const busyTogglePhotoRef = useRef(false);
+  const handleTogglePhotoPreference = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!afiliado) return;
+    if (!afiliado || busyTogglePhotoRef.current) return;
+    busyTogglePhotoRef.current = true;
     const nextVal = !useJuntaPhoto;
     setUseJuntaPhoto(nextVal);
     try {
@@ -301,6 +323,8 @@ export default function WidgetCarnetAfiliado({
       console.error('Error toggling photo preference:', err);
       toast.error('No se pudo guardar la preferencia de foto');
       setUseJuntaPhoto(!nextVal);
+    } finally {
+      busyTogglePhotoRef.current = false;
     }
   };
 
@@ -389,7 +413,7 @@ export default function WidgetCarnetAfiliado({
     >
       <div
         id="dashboard-carnet-widget"
-        className="flex flex-col items-center transition-all duration-300 w-full"
+        className="flex flex-col items-center transition-colors duration-300 w-full"
       >
         {/* AREA DE CAPTURA DEL CARNET */}
         <div className="p-1.5 bg-slate-50 rounded-3xl border border-slate-100 shadow-inner overflow-hidden select-none">
@@ -490,7 +514,7 @@ export default function WidgetCarnetAfiliado({
                   <button
                     type="button"
                     onClick={handleEditClick}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
                     title="Ajustar encuadre / recortar foto"
                   >
                     <Pencil size={12} />
@@ -501,8 +525,8 @@ export default function WidgetCarnetAfiliado({
                 {typeof afiliado?.foto_junta_url === 'string' && (
                   <button
                     type="button"
-                    onClick={handleTogglePhoto}
-                    className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-all shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
+                    onClick={handleTogglePhotoPreference}
+                    className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
                     title="Cambiar foto (Perfil / Junta Directiva)"
                   >
                     <RefreshCw
@@ -539,8 +563,8 @@ export default function WidgetCarnetAfiliado({
                     return (
                       <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
                         {Array.isArray(label)
-                          ? label.map((line, i) => (
-                            <span key={i} className="block">
+                          ? label.map((line) => (
+                            <span key={line} className="block">
                               {line}
                             </span>
                           ))
@@ -615,7 +639,7 @@ export default function WidgetCarnetAfiliado({
           <button
             onClick={handleDownload}
             disabled={exporting}
-            className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs tracking-wider uppercase shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none active:scale-95 cursor-pointer"
+            className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs tracking-wider uppercase shadow-md hover:shadow-lg transition-colors transition-transform flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none active:scale-95 cursor-pointer"
           >
             {exporting ? (
               <>
@@ -634,11 +658,11 @@ export default function WidgetCarnetAfiliado({
         {/* Modal Cropper Overlay */}
         {showCropper && imageToCrop && (
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+            className="transition-opacity fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm fade-in duration-200"
             onClick={() => !savingCrop && setShowCropper(false)}
           >
             <div
-              className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 animate-in zoom-in-95 duration-200"
+              className="transition-transform bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 zoom-in-95 duration-200"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center">
@@ -728,7 +752,7 @@ export default function WidgetCarnetAfiliado({
                   type="button"
                   disabled={savingCrop}
                   onClick={handleCropSave}
-                  className="flex-[2] bg-emerald-600 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-75 cursor-pointer"
+                  className="flex-[2] bg-emerald-600 text-white text-sm font-bold py-3 rounded-2xl hover:bg-emerald-700 transition-colors transition-opacity shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-75 cursor-pointer"
                 >
                   {savingCrop ? (
                     <>

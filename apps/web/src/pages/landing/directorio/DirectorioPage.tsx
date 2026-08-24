@@ -106,6 +106,7 @@ const DirectorioPage = () => {
     try {
       const qs = buildQueryString(targetPage);
       const res = await fetch(`${API_URL}/api/public/afiliados/buscar?${qs}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const json = await res.json();
 
       if (json.success) {
@@ -182,7 +183,7 @@ const DirectorioPage = () => {
 
             {/* Buscador */}
             <div className="relative w-full max-w-4xl px-6 space-y-6 mx-auto mt-8">
-              <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-all text-lg h-[68px] relative z-30">
+              <div className="flex items-center rounded-[2rem] bg-white dark:bg-[#04432f] shadow-xl shadow-slate-200/50 dark:shadow-2xl border-2 border-transparent focus-within:border-emerald-500 transition-colors text-lg h-[68px] relative z-30">
                 {/* Dropdown de criterio de búsqueda */}
                 <div className="relative shrink-0 border-r border-slate-200 dark:border-emerald-500/20 h-full flex items-center z-20 pl-6 pr-3">
                   <button
@@ -201,7 +202,7 @@ const DirectorioPage = () => {
                   {showSearchDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                      <div className="absolute left-6 top-full mt-2 bg-white dark:bg-[#04432f] border border-slate-200 dark:border-emerald-500/20 rounded-xl shadow-xl py-2 z-50 min-w-[140px] animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="transition-opacity transition-transform absolute left-6 top-full mt-2 bg-white dark:bg-[#04432f] border border-slate-200 dark:border-emerald-500/20 rounded-xl shadow-xl py-2 z-50 min-w-[140px] fade-in slide-in-from-top-1 duration-150">
                         {([
                           { key: 'nombre', label: 'Nombre' },
                           { key: 'id', label: 'Cédula / RIF' },
@@ -247,7 +248,7 @@ const DirectorioPage = () => {
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-16 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 dark:bg-emerald-900/50 text-slate-600 dark:text-emerald-200 flex items-center justify-center hover:bg-slate-300 transition-all"
+                      className="absolute right-16 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-200 dark:bg-emerald-900/50 text-slate-600 dark:text-emerald-200 flex items-center justify-center hover:bg-slate-300 transition-colors"
                     >
                       <X size={14} />
                     </button>
@@ -281,7 +282,7 @@ const DirectorioPage = () => {
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`flex-shrink-0 px-4 md:px-5 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center text-center gap-1.5 ${filterType === f.id
+                      className={`flex-shrink-0 px-4 md:px-5 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-colors duration-300 flex items-center justify-center text-center gap-1.5 ${filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
                         }`}
@@ -309,8 +310,8 @@ const DirectorioPage = () => {
           {loadingFirst ? (
             /* Skeleton grid while first page loads */
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <SkeletonCard key={i} />
+              {Array.from({ length: 10 }).map((_, skelIdx) => (
+                <SkeletonCard key={`dir-skel-${skelIdx}`} />
               ))}
             </div>
           ) : afiliados.length > 0 ? (

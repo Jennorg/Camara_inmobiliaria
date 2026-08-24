@@ -3,6 +3,7 @@ import { Building2, User, Mail, Briefcase, Search, X, CheckCircle2, ArrowRight, 
 import AffiliationForm from '@/components/forms/AffiliationForm'
 import CompanySearchSelector from '@/components/CompanySearchSelector'
 import { apiUrl } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 interface Props {
   programaCodigo: string
@@ -62,8 +63,8 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
     let isMounted = true
 
     Promise.all([
-      fetch(apiUrl('/api/public/empresas')).then(r => r.json()).catch(() => ({ success: false, data: [] })),
-      fetch(apiUrl('/api/public/afiliados/buscar')).then(r => r.json()).catch(() => ({ success: false, data: [] }))
+      apiFetch(apiUrl('/api/public/empresas')).catch(() => ({ success: false, data: [] })),
+      apiFetch(apiUrl('/api/public/afiliados/buscar')).catch(() => ({ success: false, data: [] }))
     ]).then(([resEmpresas, resAfiliados]) => {
       if (!isMounted) return
       const rawList: any[] = []
@@ -171,7 +172,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
 
   if (submitted) {
     return (
-      <div className="text-center py-20 px-6 animate-in fade-in zoom-in duration-500">
+      <div className="transition-opacity transition-transform text-center py-20 px-6 fade-in zoom-in duration-500">
         <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-8 ring-8 ring-emerald-500/5">
           <Check className="text-emerald-400" size={40} />
         </div>
@@ -205,7 +206,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                   setTipoAfiliado(val)
                   setEmpresaSelected(null)
                 }}
-                className={`min-h-[56px] sm:min-h-[72px] px-4 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-2 text-center leading-tight ${
+                className={`min-h-[56px] sm:min-h-[72px] px-4 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-2 text-center leading-tight ${
                   tipoAfiliado === val ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -216,7 +217,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           </div>
 
           {/* Descripción contextual del tipo seleccionado */}
-          <div className="text-[10px] font-medium px-3 py-2 rounded-lg transition-all text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20">
+          <div className="text-[10px] font-medium px-3 py-2 rounded-lg transition-colors text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20">
             {tipoAfiliado === 'Agente Corporativo'
               ? 'Agente que opera bajo una empresa ya afiliada a la Cámara'
               : tipoAfiliado === 'Corporativo'
@@ -313,7 +314,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
               <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">¿Eres actualmente corredor inmobiliario?</label>
               <div className={`grid grid-cols-2 bg-white/5 rounded-xl border border-white/10 overflow-hidden ${BOX_H}`}>
                 {['si', 'no'].map(opt => (
-                  <button key={opt} type="button" onClick={() => setFormData(prev => ({ ...prev, esCorredorInmobiliario: opt }))} className={`h-full text-[10px] font-black uppercase tracking-widest transition-all ${formData.esCorredorInmobiliario === opt ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+                  <button key={opt} type="button" onClick={() => setFormData(prev => ({ ...prev, esCorredorInmobiliario: opt }))} className={`h-full text-[10px] font-black uppercase tracking-widest transition-colors ${formData.esCorredorInmobiliario === opt ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
                     {opt === 'si' ? 'Sí, lo soy' : 'No'}
                   </button>
                 ))}
@@ -349,7 +350,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           </div>
 
         {/* Botón Submit */}
-        <button type="submit" disabled={loading || (isAgenteCorporativo && !empresaSelected)} className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white hover:bg-[#022c22] disabled:opacity-50 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs`}>
+        <button type="submit" disabled={loading || (isAgenteCorporativo && !empresaSelected)} className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 transition-colors transition-transform hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white hover:bg-[#022c22] disabled:opacity-50 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs`}>
           {loading
             ? <Loader2 size={18} className="animate-spin" />
             : isAgenteCorporativo

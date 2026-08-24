@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { CheckCircle2, Loader2, ArrowRight, Home, GraduationCap, Briefcase, Award, School, ChevronDown, XCircle, FileText, AlertCircle, Calendar, ShieldCheck, Check, Search, ClipboardList, Mail, CreditCard } from 'lucide-react'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 import Swal from 'sweetalert2'
 import { toast } from 'sonner'
 import FileUpload from '@/components/common/FileUpload'
@@ -141,6 +142,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       setNotFound(false)
       try {
         const res = await fetch(`${API_URL}/api/public/afiliados/buscar?q=${encodeURIComponent(q)}&tipo=${tipo}`)
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
         const json = await res.json()
         const match = json.success && json.data.length > 0 ? json.data[0] : null
         if (match) {
@@ -195,13 +197,14 @@ export default function VerificarPreinscripcionProgramaPage() {
     if (tokenParaValidar === 'session' && lastVerifiedTokenRef.current) return
     if (tokenParaValidar === lastVerifiedTokenRef.current) return
 
+    let active = true
     const verificarToken = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/public/preinscripciones/token/${tokenParaValidar}`, {
+        const json = await apiFetch(`${API_URL}/api/public/preinscripciones/token/${tokenParaValidar}`, {
           credentials: 'include'
         })
-        const json = await res.json()
-        if (res.ok && json.success) {
+        if (!active) return
+        if (json.success) {
           setUserData(json.data)
           const tok = json.data.token as string
           lastVerifiedTokenRef.current = tok // Guardar para evitar re-verificación
@@ -227,10 +230,9 @@ export default function VerificarPreinscripcionProgramaPage() {
           if (user?.id_afiliado || user?.id_estudiante) {
             try {
               const targetId = user.id_afiliado || user.id_estudiante;
-              const profileRes = await fetch(`${API_URL}/api/afiliados/${targetId}`, {
+              const profileJson = await apiFetch(`${API_URL}/api/afiliados/${targetId}`, {
                 headers: { 'Authorization': `Bearer ${sessionToken}` }
               })
-              const profileJson = await profileRes.json()
               if (profileJson.success) profileData = profileJson.data
             } catch (e) { console.error("Error loading profile for pre-fill:", e) }
           }
@@ -621,7 +623,7 @@ export default function VerificarPreinscripcionProgramaPage() {
   const renderAcreditacionSection = () => {
     if (!isAfiliacion) return null;
     return (
-      <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="transition-opacity transition-transform space-y-6 pt-4 fade-in slide-in-from-bottom-4 duration-500">
         <div className="space-y-1.5">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
@@ -639,7 +641,7 @@ export default function VerificarPreinscripcionProgramaPage() {
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, optarAcreditacion: true }))}
-            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${formData.optarAcreditacion === true
+            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-colors font-black text-sm uppercase tracking-wider ${formData.optarAcreditacion === true
               ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md shadow-emerald-500/10'
               : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
               }`}
@@ -649,7 +651,7 @@ export default function VerificarPreinscripcionProgramaPage() {
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, optarAcreditacion: false, diplomados: [] }))}
-            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-all font-black text-sm uppercase tracking-wider ${formData.optarAcreditacion === false
+            className={`flex items-center justify-center gap-2 p-4 rounded-2xl border-2 transition-colors font-black text-sm uppercase tracking-wider ${formData.optarAcreditacion === false
               ? 'border-slate-300 bg-slate-50 text-slate-700 shadow-inner'
               : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
               }`}
@@ -660,7 +662,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
         {/* Sección de Diplomados Realizados (Solo si opta por Acreditación) */}
         {formData.optarAcreditacion && (
-          <div className="space-y-6 pt-4 border-t border-slate-100/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="transition-opacity transition-transform space-y-6 pt-4 border-t border-slate-100/80 fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex items-center justify-between">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-emerald-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Diplomados Realizados</h3></div></div>
@@ -681,7 +683,7 @@ export default function VerificarPreinscripcionProgramaPage() {
             {formData.diplomados.length > 0 && (
               <div className="space-y-2">
                 {formData.diplomados.map((dip, idx) => (
-                  <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div key={(dip as any).id || dip.url || `${dip.nombre}-${idx}`} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                     <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
                       <FileText size={14} className="text-emerald-600" />
                     </div>
@@ -724,7 +726,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
             {/* Input selector + Fecha + Uploader para nuevo diplomado */}
             {formData.diplomados.length < 2 ? (
-              <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 animate-in fade-in duration-300">
+              <div className="transition-opacity space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 fade-in duration-300">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Seleccionar Diplomado</label>
@@ -821,7 +823,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 />
               </div>
             ) : (
-              <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 text-center text-xs font-bold text-emerald-800 animate-in fade-in duration-300">
+              <div className="transition-opacity bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 text-center text-xs font-bold text-emerald-800 fade-in duration-300">
                 ¡Límite máximo alcanzado! Has cargado los certificados correspondientes a FIPPI y PREANI.
               </div>
             )}
@@ -840,7 +842,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       {status !== 'error' && (
-        <section className="relative bg-[#022c22] pt-28 pb-16 overflow-hidden text-center animate-in fade-in duration-500">
+        <section className="transition-opacity relative bg-[#022c22] pt-28 pb-16 overflow-hidden text-center fade-in duration-500">
           <div className="relative z-10 max-w-5xl mx-auto px-6">
             {isMainProgram ? (
               <div className="w-full max-w-5xl mx-auto mb-10 mt-2 px-2">
@@ -849,7 +851,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                   <div
                     className="absolute top-[28px] left-[8%] right-[8%] h-0.5 bg-emerald-500/20 -z-0 hidden md:block" />
                   <div
-                    className="absolute top-[28px] left-[8%] h-0.5 bg-emerald-400 -z-0 hidden md:block transition-all duration-1000"
+                    className="absolute top-[28px] left-[8%] h-0.5 bg-emerald-400 -z-0 hidden md:block transition-colors duration-1000"
                     style={{ width: `${percent}%` }}
                   />
 
@@ -861,7 +863,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     return (
                       <div key={step.id} className="flex flex-col items-center gap-2 relative z-10 flex-1 min-w-[75px] max-w-[120px] md:max-w-none text-center">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md ${isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' :
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-500 shadow-md ${isCompleted ? 'bg-emerald-500 text-white shadow-emerald-950/20' :
                             isCurrent ? 'bg-emerald-400 text-[#022c22] scale-110 font-bold' :
                               'bg-emerald-900/30 text-emerald-100/40 border border-emerald-500/30'
                             }`}
@@ -943,7 +945,7 @@ export default function VerificarPreinscripcionProgramaPage() {
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-6 py-12">
           {status === 'form' && userData && (
-            <form onSubmit={handleConfirmar} className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <form onSubmit={handleConfirmar} className="transition-opacity transition-transform flex flex-col gap-8 fade-in slide-in-from-bottom-4 duration-700">
 
               <div className="space-y-3">
                 <h2 className="text-2xl md:text-3xl font-black text-[#022c22] uppercase tracking-tight">Carga de Documentación</h2>
@@ -999,7 +1001,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                         max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                         value={formData.fecha_nacimiento}
                         onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
-                        className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                        className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-colors text-base font-bold text-slate-700 ${INPUT_H}`}
                       />
                     </div>
                   </div>
@@ -1015,7 +1017,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <button
                         type="button"
                         onClick={() => setShowNivelDropdown(!showNivelDropdown)}
-                        className={`w-full px-5 flex items-center justify-between bg-white border-2 transition-all duration-300 rounded-2xl ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 hover:border-emerald-300'} ${INPUT_H}`}
+                        className={`w-full px-5 flex items-center justify-between bg-white border-2 transition-colors duration-300 rounded-2xl ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 hover:border-emerald-300'} ${INPUT_H}`}
                       >
                         <div className="flex items-center gap-3">
                           {currentNivel ? (
@@ -1033,7 +1035,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                       </button>
 
                       {showNivelDropdown && (
-                        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="transition-opacity transition-transform absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden fade-in zoom-in-95 duration-200">
                           <div className="p-2 grid grid-cols-1 gap-1">
                             {NIVELES.map((nivel) => (
                               <button
@@ -1043,7 +1045,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                   setFormData(prev => ({ ...prev, nivelProfesional: nivel.value as any }))
                                   setShowNivelDropdown(false)
                                 }}
-                                className={`flex items-center gap-4 p-3 rounded-xl transition-all ${formData.nivelProfesional === nivel.value ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}`}
+                                className={`flex items-center gap-4 p-3 rounded-xl transition-colors ${formData.nivelProfesional === nivel.value ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}`}
                               >
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${formData.nivelProfesional === nivel.value ? 'bg-white/20' : 'bg-slate-100'}`}>
                                   <nivel.icon size={20} />
@@ -1077,7 +1079,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           value={formData.profesion}
                           onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                           placeholder="Ej. Derecho, Ingeniería, Administración..."
-                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                          className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-colors text-base font-bold text-slate-700 ${INPUT_H}`}
                         />
                       </div>
                     </div>
@@ -1103,7 +1105,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                             <button
                               type="button"
                               onClick={() => setShowNivelDropdown(!showNivelDropdown)}
-                              className={`w-full px-4 flex items-center justify-between bg-white border-2 transition-all duration-300 rounded-xl ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 hover:border-emerald-300'} h-[50px]`}
+                              className={`w-full px-4 flex items-center justify-between bg-white border-2 transition-colors duration-300 rounded-xl ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 hover:border-emerald-300'} h-[50px]`}
                             >
                               <div className="flex items-center gap-2">
                                 {currentNivel ? (
@@ -1128,7 +1130,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                         setFormData(prev => ({ ...prev, nivelProfesional: nivel.value as any }))
                                         setShowNivelDropdown(false)
                                       }}
-                                      className={`flex items-center gap-3 p-2 rounded-lg transition-all ${formData.nivelProfesional === nivel.value ? 'bg-emerald-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
+                                      className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${formData.nivelProfesional === nivel.value ? 'bg-emerald-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
                                     >
                                       <nivel.icon size={14} />
                                       <span className="text-xs font-bold">{nivel.label}</span>
@@ -1153,7 +1155,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               value={formData.ano_inicio_servicio}
                               onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
                               placeholder="Ej. 2015"
-                              className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
+                              className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-colors text-sm font-bold text-slate-700 h-[50px]"
                             />
                           </div>
                         </div>
@@ -1169,7 +1171,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                               max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                               value={formData.fecha_nacimiento}
                               onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
-                              className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
+                              className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-colors text-sm font-bold text-slate-700 h-[50px]"
                             />
                           </div>
                         </div>
@@ -1186,7 +1188,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 value={formData.profesion}
                                 onChange={(e) => setFormData(prev => ({ ...prev, profesion: e.target.value }))}
                                 placeholder="Ej. Derecho, Ingeniería, Administración..."
-                                className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-all text-sm font-bold text-slate-700 h-[50px]"
+                                className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-colors text-sm font-bold text-slate-700 h-[50px]"
                               />
                             </div>
                           </div>
@@ -1248,7 +1250,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                             value={formData.ano_inicio_servicio}
                             onChange={(e) => setFormData(prev => ({ ...prev, ano_inicio_servicio: e.target.value }))}
                             placeholder="Ej. 2015"
-                            className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-base font-bold text-slate-700 ${INPUT_H}`}
+                            className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-colors text-base font-bold text-slate-700 ${INPUT_H}`}
                           />
                         </div>
                       </div>
@@ -1272,7 +1274,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     {formData.especializaciones.length > 0 && (
                       <div className="space-y-2">
                         {formData.especializaciones.map((esp, idx) => (
-                          <div key={idx} className="group flex items-center gap-3 p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
+                          <div key={(esp as any).id || esp.url || `${esp.nombre}-${idx}`} className="group flex items-center gap-3 p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl">
                             <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
                               <FileText size={14} className="text-emerald-600" />
                             </div>
@@ -1387,7 +1389,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 {formData.cursos_extras.length > 0 && (
                   <div className="space-y-2">
                     {formData.cursos_extras.map((curso, idx) => (
-                      <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div key={(curso as any).id || curso.url || `${curso.nombre}-${idx}`} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                         <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
                           <FileText size={14} className="text-amber-600" />
                         </div>
@@ -1512,7 +1514,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               </div>
 
               {/* Sección de Otros Documentos */}
-              <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="transition-opacity transition-transform space-y-6 pt-4 fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-3 mb-1"><div className="w-1.5 h-6 rounded-full bg-slate-500" /><div><h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">Otros Documentos Relevantes</h3></div></div>
@@ -1525,7 +1527,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                 {formData.otros_docs.length > 0 && (
                   <div className="space-y-2">
                     {formData.otros_docs.map((doc, idx) => (
-                      <div key={idx} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div key={(doc as any).id || doc.url || `${doc.nombre}-${idx}`} className="group flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                         <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
                           <FileText size={14} className="text-slate-600" />
                         </div>
@@ -1658,7 +1660,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
               {/* SECCIÓN REFERENCIAS DE AFILIADOS AL FINAL */}
               {showReferencesSection && (
-                <div className="space-y-6 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="transition-opacity transition-transform space-y-6 pt-4 fade-in slide-in-from-bottom-4 duration-500">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-3 mb-1">
                       <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
@@ -1704,8 +1706,8 @@ export default function VerificarPreinscripcionProgramaPage() {
                         nameField: 'nombre_referencia2' as const,
                         uploadLabel: 'Carta de referencia 2',
                       },
-                    ] as const).map((ref, idx) => (
-                      <div key={idx} className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
+                    ] as const).map((ref) => (
+                      <div key={ref.urlField} className="space-y-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/80">
 
                         {/* Label */}
                         <label className="text-xs md:text-sm font-black uppercase tracking-wider text-emerald-600 ml-1">
@@ -1749,7 +1751,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                         {/* Preloaded reference display */}
                         {!ref.query && formData[ref.nameField] && (
-                          <div className="flex items-start gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold animate-in fade-in duration-200">
+                          <div className="transition-opacity flex items-start gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold fade-in duration-200">
                             <ShieldCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
                             <div className="min-w-0">
                               <span className="text-[11px] uppercase font-black tracking-widest block text-emerald-600 leading-none">Miembro Recomendante Cargado</span>
@@ -1760,7 +1762,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                         {/* Result card */}
                         {ref.query.replace(/\D/g, '').length >= 5 && !ref.searching && (
-                          <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                          <div className="transition-opacity transition-transform fade-in slide-in-from-top-1 duration-200">
                             {ref.selected ? (
                               <div className="flex items-start gap-2 p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl text-emerald-800 text-xs font-bold">
                                 <ShieldCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
@@ -1811,7 +1813,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               )}
 
               <div className="pt-6 border-t border-slate-100/80">
-                <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
+                <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-transform hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
                   {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
                 </button>
               </div>
@@ -1819,7 +1821,7 @@ export default function VerificarPreinscripcionProgramaPage() {
           )}
 
           {status === 'error' && (
-            <div className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-8 animate-in fade-in zoom-in-95 duration-500 min-h-[50vh]">
+            <div className="transition-opacity transition-transform flex flex-col items-center justify-center py-16 px-6 text-center space-y-8 fade-in zoom-in-95 duration-500 min-h-[50vh]">
               <div className="w-20 h-20 rounded-[2rem] flex items-center justify-center bg-rose-50 text-rose-500 shadow-xl shadow-rose-500/10">
                 <XCircle size={44} strokeWidth={1.5} />
               </div>
@@ -1827,14 +1829,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                 <h2 className="text-2xl font-black text-rose-950 uppercase tracking-tight">Error de Verificación</h2>
                 <p className="text-slate-600 text-sm leading-relaxed">{message}</p>
               </div>
-              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all ${INPUT_H}`}>
+              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-transform ${INPUT_H}`}>
                 <Home size={16} /> Volver al Inicio
               </Link>
             </div>
           )}
 
           {status === 'success' && (
-            <div className="flex flex-col items-center py-16 text-center space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="transition-opacity transition-transform flex flex-col items-center py-16 text-center space-y-8 fade-in zoom-in duration-500">
               <div className="w-24 h-24 rounded-[2rem] flex items-center justify-center bg-emerald-50 text-emerald-500 shadow-xl shadow-emerald-500/10"><CheckCircle2 size={52} strokeWidth={1.5} /></div>
               <div className="space-y-3">
                 <h2 className="text-3xl font-black text-[#022c22] uppercase tracking-tighter">
@@ -1849,7 +1851,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                   }
                 </p>
               </div>
-              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-all ${INPUT_H}`}><Home size={16} />Volver al Inicio</Link>
+              <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-transform ${INPUT_H}`}><Home size={16} />Volver al Inicio</Link>
             </div>
           )}
         </div>

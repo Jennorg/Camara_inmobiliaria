@@ -85,8 +85,8 @@ export default function Proposito() {
               "Innovación digital: Sistema de gestión y Web",
             ].map((punto, idx) => (
               <div
-                key={idx}
-                className="flex gap-6 p-8 rounded-[2rem] border-2 border-emerald-50 bg-slate-50/50 hover:border-emerald-500 hover:bg-white hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-900/5 transition-all duration-500 group cursor-default overflow-hidden relative"
+                key={punto}
+                className="flex gap-6 p-8 rounded-[2rem] border-2 border-emerald-50 bg-slate-50/50 hover:border-emerald-500 hover:bg-white hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-900/5 transition-colors transition-transform duration-500 group cursor-default overflow-hidden relative"
               >
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                   <span className="text-8xl font-black text-slate-900 leading-none">
@@ -94,7 +94,7 @@ export default function Proposito() {
                   </span>
                 </div>
 
-                <span className="flex-none w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white group-hover:rotate-6 transition-all duration-300 relative z-10">
+                <span className="flex-none w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black group-hover:bg-emerald-500 group-hover:text-white group-hover:rotate-6 transition-colors transition-transform duration-300 relative z-10">
                   {idx + 1}
                 </span>
 

@@ -59,8 +59,8 @@ export default function CodigoEtica() {
               </div>
             </div>
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-              {principios.map((p, i) => (
-                <div key={i} className='p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-emerald-500 transition-colors group'>
+              {principios.map((p) => (
+                <div key={p.t} className='p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-emerald-500 transition-colors group'>
                   <svg className='w-8 h-8 text-emerald-600 mb-4 group-hover:scale-110 transition-transform' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                     <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d={p.icon} />
                   </svg>
@@ -81,7 +81,7 @@ export default function CodigoEtica() {
                 download='Acta_Oficial.pdf'
                 target='_blank'
                 rel='noopener noreferrer'
-                className='inline-flex items-center gap-3 px-10 py-5 bg-emerald-500 text-[#022c22] rounded-full font-black uppercase text-xs tracking-[0.2em] hover:bg-emerald-400 transition-all shadow-2xl shadow-emerald-500/20 active:scale-95'
+                className='inline-flex items-center gap-3 px-10 py-5 bg-emerald-500 text-[#022c22] rounded-full font-black uppercase text-xs tracking-[0.2em] hover:bg-emerald-400 transition-colors transition-transform shadow-2xl shadow-emerald-500/20 active:scale-95'
               >
                 Descargar PDF Oficial
               </a>

@@ -78,6 +78,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         const incoming: Notification[] = json.data || [];
@@ -94,11 +95,18 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
     }
   }, [token]);
 
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setFilter('TODAS');
+    }
+  }
+
   // ── Carga inicial cuando se abre ─────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
     offsetRef.current = 0;
-    setFilter('TODAS');
     fetchPage(0, true);
   }, [isOpen, fetchPage]);
 
@@ -113,8 +121,10 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
   }, [isOpen]);
 
   // ── Marcar como leída (local + callback) ─────────────────────────────────
+  const markingReadSetRef = useRef(new Set<number>());
   const handleMarkAsRead = async (id: number) => {
-    if (!token) return;
+    if (!token || markingReadSetRef.current.has(id)) return;
+    markingReadSetRef.current.add(id);
     try {
       const res = await fetch(`${API_URL}/api/notifications/${id}/read`, {
         method: 'PATCH',
@@ -123,6 +133,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, leido: 1 } : n));
@@ -131,12 +142,16 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      markingReadSetRef.current.delete(id);
     }
   };
 
   // ── Marcar todas como leídas ──────────────────────────────────────────────
+  const markingAllRef = useRef(false);
   const handleMarkAllAsRead = async () => {
-    if (!token) return;
+    if (!token || markingAllRef.current) return;
+    markingAllRef.current = true;
     try {
       const res = await fetch(`${API_URL}/api/notifications/read-all`, {
         method: 'PATCH',
@@ -145,6 +160,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         setNotifications(prev => prev.map(n => ({ ...n, leido: 1 })));
@@ -153,6 +169,8 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      markingAllRef.current = false;
     }
   };
 
@@ -178,7 +196,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
     <>
       {/* ── Overlay ─────────────────────────────────────────────────────── */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] transition-opacity duration-200"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -190,7 +208,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
         aria-label="Historial de notificaciones"
         className={[
           'fixed z-[61] bg-white shadow-2xl flex flex-col',
-          'animate-in fade-in zoom-in-95 duration-200',
+          'transition-opacity transition-transform duration-200',
           // Móvil: full-screen sheet
           'inset-x-0 bottom-0 top-[5%] rounded-t-3xl',
           // sm+: modal centrado
@@ -239,7 +257,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
               type="button"
               onClick={() => setFilter(f)}
               className={[
-                'text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full whitespace-nowrap transition-all',
+                'text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full whitespace-nowrap transition-colors',
                 filter === f
                   ? 'bg-emerald-500 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-100',
@@ -298,7 +316,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
                     }
                   }}
                   className={[
-                    'group px-5 sm:px-6 py-4 flex gap-3 sm:gap-4 transition-all focus:outline-none focus-visible:bg-slate-50',
+                    'group px-5 sm:px-6 py-4 flex gap-3 sm:gap-4 transition-colors focus:outline-none focus-visible:bg-slate-50',
                     n.leido === 0
                       ? 'bg-emerald-50/30 hover:bg-emerald-50/60 cursor-pointer'
                       : 'hover:bg-slate-50/70 cursor-default',

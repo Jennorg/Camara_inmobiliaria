@@ -47,15 +47,18 @@ export const ConveniosPanel = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const resp = await api.get('/api/cms/convenios');
-    if (resp.success && Array.isArray(resp.data)) {
-      const normalized = resp.data.map((item: any) => ({
-        ...item,
-        id: item.id_convenio
-      }));
-      setItems(normalized);
+    try {
+      const resp = await api.get('/api/cms/convenios');
+      if (resp.success && Array.isArray(resp.data)) {
+        const normalized = resp.data.map((item: any) => ({
+          ...item,
+          id: item.id_convenio
+        }));
+        setItems(normalized);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -126,7 +129,7 @@ export const ConveniosPanel = () => {
     setForm(p => ({ ...p, [k]: e.target.value }))
 
   const formBody = () => (
-    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-all duration-200 h-full overflow-y-auto ${
+    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-colors duration-200 h-full overflow-y-auto ${
       isHiding ? 'opacity-0 scale-95 -translate-x-4 pointer-events-none' : 'animate-in fade-in zoom-in-95 duration-200'
     }`}>
       <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-2">
@@ -134,7 +137,7 @@ export const ConveniosPanel = () => {
           <button
             type="button"
             onClick={closeForm}
-            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors transition-transform hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
             title="Volver a la lista"
           >
             <ArrowLeft size={20} />
@@ -154,7 +157,7 @@ export const ConveniosPanel = () => {
             value={form.nombre}
             onChange={f('nombre')}
             placeholder="Ej. Banco de Venezuela, UCAB, etc."
-            className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-all font-bold"
+            className="!text-sm !py-3 bg-slate-50/50 border-slate-200 focus:bg-white transition-colors font-bold"
           />
         </FormField>
 
@@ -164,7 +167,7 @@ export const ConveniosPanel = () => {
             onChange={f('descripcion')}
             placeholder="Describe brevemente en qué consiste el beneficio para el afiliado..."
             rows={3}
-            className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-all resize-none"
+            className="!text-sm bg-slate-50/50 border-slate-200 focus:bg-white transition-colors resize-none"
           />
         </FormField>
 
@@ -175,7 +178,7 @@ export const ConveniosPanel = () => {
                 value={form.link_web}
                 onChange={f('link_web')}
                 placeholder="https://aliado.com"
-                className="!text-sm !py-3 !pl-10 bg-slate-50/50 border-slate-200 focus:bg-white transition-all"
+                className="!text-sm !py-3 !pl-10 bg-slate-50/50 border-slate-200 focus:bg-white transition-colors"
               />
           </div>
         </FormField>
@@ -209,7 +212,7 @@ export const ConveniosPanel = () => {
               onDrop={() => setIsDraggingOver(false)}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
             />
-            <div className={`flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed rounded-2xl transition-all duration-300 ${uploading
+            <div className={`flex flex-col items-center justify-center py-8 px-4 border-2 border-dashed rounded-2xl transition-colors duration-300 ${uploading
                 ? 'border-emerald-200 bg-emerald-50/30'
                 : isDraggingOver
                   ? 'border-emerald-500 bg-emerald-100 scale-[1.02] shadow-xl shadow-emerald-500/10'
@@ -224,7 +227,7 @@ export const ConveniosPanel = () => {
                   <span className="text-[11px] font-bold text-emerald-700">Subiendo logo...</span>
                 </div>
               ) : form.logo_url ? (
-                <div className="flex flex-col items-center gap-3 animate-in fade-in zoom-in duration-300">
+                <div className="transition-opacity transition-transform flex flex-col items-center gap-3 fade-in zoom-in duration-300">
                   <div className="relative">
                     <img src={form.logo_url} alt="Preview" className="w-24 h-24 object-contain bg-white rounded-xl shadow-md border border-gray-100 p-2 ring-4 ring-emerald-50" />
                     <div className="absolute -top-1 -right-1 bg-emerald-500 text-white p-1 rounded-full shadow-lg ring-2 ring-white">
@@ -289,7 +292,7 @@ export const ConveniosPanel = () => {
         <div className="flex items-center justify-between gap-3 p-1 w-full group cursor-pointer">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-slate-400 font-black text-sm flex-shrink-0 overflow-hidden p-1.5 shadow-xs">
-              {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
+              {item.logo_url ? <img src={item.logo_url} alt={item.nombre || 'Logo Convenio'} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
             </div>
             <div className="flex flex-col min-w-0">
               <span className={`text-sm font-semibold truncate ${sel ? 'text-[#00B870]' : 'text-slate-800'}`}>
@@ -309,7 +312,7 @@ export const ConveniosPanel = () => {
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-slate-400 font-black text-xl overflow-hidden p-2 shadow-sm">
-                {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
+                {item.logo_url ? <img src={item.logo_url} alt={item.nombre || 'Logo Convenio'} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-800 leading-tight">{item.nombre}</h3>

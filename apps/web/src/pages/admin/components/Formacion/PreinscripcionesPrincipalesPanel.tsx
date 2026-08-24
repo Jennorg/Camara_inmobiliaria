@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Award, Clock, Mail } from 'lucide-react'
 import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
+import { apiFetch } from '@/lib/apiClient'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -101,16 +102,41 @@ export default function PreinscripcionesPrincipalesPanel({
     nota: ''
   })
 
-  const fetchData = async () => {
+  const fetchDocumentos = useCallback(async (idEstudiante: number) => {
+    if (!idEstudiante || isNaN(idEstudiante)) {
+      setDocumentos([])
+      return
+    }
+    setLoadingDocs(true)
+    setDocumentos([])
+    try {
+      const res = await fetch(`${API_URL}/api/academia/estudiantes/${idEstudiante}/documentos`, {
+        headers: { ...authHeaders },
+      })
+      const json = await res.json()
+      if (res.ok && json.success) setDocumentos(json.data)
+    } catch { /* silencioso */ }
+    finally { setLoadingDocs(false) }
+  }, [authHeaders])
+
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const qs = new URLSearchParams()
-      if (uiEstatus === 'Todos') qs.set('estatus', 'Todos')
-      else if (uiEstatus === 'Pendiente' || uiEstatus === 'Sin Expediente') qs.set('estatus', 'Preinscrito')
-      else if (uiEstatus === 'Entrevista') qs.set('estatus', 'Entrevista')
-      else if (uiEstatus === 'Inscripción') qs.set('estatus', 'Inscrito')
-      else if (uiEstatus === 'Rechazado') qs.set('estatus', 'Rechazado')
+      if (uiEstatus !== 'Todos') {
+        if (uiEstatus === 'Pendiente') {
+          qs.set('estatus', 'Preinscrito')
+          qs.set('conExpediente', 'true')
+        } else if (uiEstatus === 'Sin Expediente') {
+          qs.set('estatus', 'Preinscrito')
+          qs.set('conExpediente', 'false')
+        } else if (uiEstatus === 'Inscripción') {
+          qs.set('estatus', 'Inscrito')
+        } else {
+          qs.set('estatus', uiEstatus)
+        }
+      }
 
       if (programa !== 'Todos') qs.set('programaCodigo', programa)
 
@@ -162,26 +188,9 @@ export default function PreinscripcionesPrincipalesPanel({
     } finally {
       setLoading(false)
     }
-  }
+  }, [uiEstatus, programa, authHeaders, selected, fetchDocumentos])
 
-  const fetchDocumentos = async (idEstudiante: number) => {
-    if (!idEstudiante || isNaN(idEstudiante)) {
-      setDocumentos([])
-      return
-    }
-    setLoadingDocs(true)
-    setDocumentos([])
-    try {
-      const res = await fetch(`${API_URL}/api/academia/estudiantes/${idEstudiante}/documentos`, {
-        headers: { ...authHeaders },
-      })
-      const json = await res.json()
-      if (res.ok && json.success) setDocumentos(json.data)
-    } catch { /* silencioso */ }
-    finally { setLoadingDocs(false) }
-  }
-
-  const fetchModulos = async (idInscripcion: number) => {
+  const fetchModulos = useCallback(async (idInscripcion: number) => {
     setLoadingModulos(true)
     setModulos([])
     try {
@@ -197,7 +206,7 @@ export default function PreinscripcionesPrincipalesPanel({
     } finally {
       setLoadingModulos(false)
     }
-  }
+  }, [authHeaders])
 
   const handleAprobarModulo = async (nombreModulo: string) => {
     if (!selected) return
@@ -291,24 +300,26 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  const busyAprobarTodosRef = useRef(false)
   const handleAprobarTodos = async () => {
-    if (!selected) return
+    if (!selected || busyAprobarTodosRef.current) return
+    busyAprobarTodosRef.current = true
 
-    const result = await Swal.fire({
-      title: '¿Aprobar todos los módulos?',
-      text: `Esto marcará todos los módulos como "Aprobado" y completará la formación académica de ${selected.estudiante_nombre} automáticamente.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#00D084',
-      cancelButtonColor: '#cbd5e1',
-      confirmButtonText: 'Sí, aprobar todo',
-      cancelButtonText: 'Cancelar'
-    })
-
-    if (!result.isConfirmed) return
-
-    setCompleting(true)
     try {
+      const result = await Swal.fire({
+        title: '¿Aprobar todos los módulos?',
+        text: `Esto marcará todos los módulos como "Aprobado" y completará la formación académica de ${selected.estudiante_nombre} automáticamente.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#00D084',
+        cancelButtonColor: '#cbd5e1',
+        confirmButtonText: 'Sí, aprobar todo',
+        cancelButtonText: 'Cancelar'
+      })
+
+      if (!result.isConfirmed) return
+
+      setCompleting(true)
       Swal.fire({
         title: 'Procesando...',
         text: 'Aprobando todos los módulos',
@@ -335,9 +346,10 @@ export default function PreinscripcionesPrincipalesPanel({
         await fetchModulos(selected.id_inscripcion)
       }
     } catch (e: any) {
-      Swal.fire('Error', e.message || 'No se pudo realizar la aprobación masiva', 'error')
+      Swal.fire('Error', e.message || 'Ocurrió un error al procesar los módulos', 'error')
     } finally {
       setCompleting(false)
+      busyAprobarTodosRef.current = false
     }
   }
 
@@ -397,24 +409,60 @@ export default function PreinscripcionesPrincipalesPanel({
   }
 
   useEffect(() => {
+    let active = true
     if (selected) {
       const isCibir = selected.programa_codigo === 'CIBIR' || (selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '5_CIBIR')
       if (isCibir) {
-        fetchModulos(selected.id_inscripcion)
+        setLoadingModulos(true)
+        apiFetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos`, { headers: { ...authHeaders } })
+          .then(json => {
+            if (active && json.success) setModulos(json.data)
+          })
+          .catch(() => {})
+          .finally(() => {
+            if (active) setLoadingModulos(false)
+          })
       } else {
         setModulos([])
       }
     } else {
       setModulos([])
     }
-  }, [selected?.id_inscripcion, selected?.afiliado_estatus, token])
+    return () => { active = false }
+  }, [selected, authHeaders])
 
   useEffect(() => {
-    fetchData()
-  }, [programa, uiEstatus, token])
+    let active = true
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const qs = new URLSearchParams()
+        if (uiEstatus !== 'Todos') qs.set('uiEstatus', uiEstatus)
+        if (programa !== 'Todos') qs.set('programa', programa)
 
+        const json = await apiFetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
+          headers: { ...authHeaders },
+        })
+        if (!active) return
+        if (!json.success) throw new Error(json.message || 'Error cargando inscripciones')
+
+        setRows(json.data as Row[])
+      } catch (e: any) {
+        if (!active) return
+        setError(e.message || 'Error inesperado')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    load()
+    return () => { active = false }
+  }, [uiEstatus, programa, authHeaders])
+
+  const busyAgendarRef = useRef(false)
   const agendarEntrevista = async () => {
-    if (!selected) return
+    if (!selected || busyAgendarRef.current) return
+    busyAgendarRef.current = true
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/agendar-entrevista`, {
         method: 'PATCH',
@@ -431,11 +479,15 @@ export default function PreinscripcionesPrincipalesPanel({
       await fetchData()
     } catch (e: any) {
       setError(e.message)
+    } finally {
+      busyAgendarRef.current = false
     }
   }
 
+  const busyFinalizarRef = useRef(false)
   const finalizarEntrevista = async () => {
-    if (!selected) return
+    if (!selected || busyFinalizarRef.current) return
+    busyFinalizarRef.current = true
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/finalizar-entrevista`, {
         method: 'PATCH',
@@ -452,6 +504,8 @@ export default function PreinscripcionesPrincipalesPanel({
       await fetchData()
     } catch (e: any) {
       setError(e.message)
+    } finally {
+      busyFinalizarRef.current = false
     }
   }
 
@@ -755,7 +809,7 @@ export default function PreinscripcionesPrincipalesPanel({
               <button
                 type="button"
                 onClick={() => setShowProgramaDropdown(!showProgramaDropdown)}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 <span className="truncate">
                   {programa === 'Todos' ? 'Todos los Programas' : programa}
@@ -766,7 +820,7 @@ export default function PreinscripcionesPrincipalesPanel({
               {showProgramaDropdown && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowProgramaDropdown(false)} />
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[150px] animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[150px] fade-in slide-in-from-top-1 duration-200">
                     {[
                       { key: 'Todos', label: 'Todos los Programas' },
                       { key: 'AFILIACION', label: 'AFILIACION' },
@@ -799,7 +853,7 @@ export default function PreinscripcionesPrincipalesPanel({
               <button
                 type="button"
                 onClick={() => setShowAcreditacionDropdown(!showAcreditacionDropdown)}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 <span className="truncate">
                   {filtroAcreditacion === 'todos' ? 'Todos (Acreditación)' : filtroAcreditacion === 'apto' ? 'Opta por acreditación' : 'No opta por acreditación'}
@@ -810,7 +864,7 @@ export default function PreinscripcionesPrincipalesPanel({
               {showAcreditacionDropdown && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowAcreditacionDropdown(false)} />
-                  <div className="absolute right-0 sm:left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[160px] animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="transition-opacity transition-transform absolute right-0 sm:left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[160px] fade-in slide-in-from-top-1 duration-200">
                     {[
                       { key: 'todos', label: 'Todos (Acreditación)' },
                       { key: 'apto', label: 'Opta por acreditación' },
@@ -884,15 +938,18 @@ export default function PreinscripcionesPrincipalesPanel({
                     )
                   })()}
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-slate-400 truncate">
+                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300/80 uppercase tracking-tight shadow-2xs">
+                    <GraduationCap size={10} className="text-emerald-700 shrink-0" />
                     {r.programa_codigo === 'AFILIACION' && r.afiliado_tipo ? (
                       r.afiliado_tipo === 'Corporativo' ? 'Corporativo' :
                       r.afiliado_tipo === 'Agente Corporativo' || r.afiliado_tipo === 'Agente' 
-                        ? `Agente Corporativo${r.empresa_vinculada_nombre ? ` (${r.empresa_vinculada_nombre})` : ''}` :
-                      'Agente Independiente'
+                        ? `Agente Corp${r.empresa_vinculada_nombre ? ` (${r.empresa_vinculada_nombre})` : ''}` :
+                      'Agente Indep.'
                     ) : r.programa_codigo}
-                    {' • '}{r.estudiante_cedula || 'S/N'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {r.estudiante_cedula || 'S/N'}
                   </span>
                   {r.afiliado_estatus === 'Afiliado' && (
                     <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -946,7 +1003,10 @@ export default function PreinscripcionesPrincipalesPanel({
                     </span>
                   )
                 })()}
-                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{selected.programa_codigo}</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300/80 uppercase tracking-wider shadow-2xs mt-1">
+                  <GraduationCap size={11} className="text-emerald-700 shrink-0" />
+                  {selected.programa_codigo === 'AFILIACION' && selected.afiliado_tipo ? selected.afiliado_tipo : selected.programa_codigo}
+                </span>
               </div>
             </div>
 
@@ -984,7 +1044,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   </div>
                   <div className="relative flex items-start justify-between px-2 pt-2 pb-6">
                     <div className="absolute left-6 right-6 top-[24px] h-0.5 bg-slate-100 -z-0" />
-                    <div className="absolute left-6 top-[24px] h-0.5 bg-emerald-500 -z-0 transition-all duration-500" style={{ width: `calc(${(activeIndex / 6) * 100}% - 12px)` }} />
+                    <div className="absolute left-6 top-[24px] h-0.5 bg-emerald-500 -z-0 transition-colors duration-500" style={{ width: `calc(${(activeIndex / 6) * 100}% - 12px)` }} />
                     {AFILIACION_STEPS_FLOW.map((step, idx) => {
                       const isCompleted = idx < activeIndex;
                       const isCurrent = idx === activeIndex;
@@ -992,12 +1052,12 @@ export default function PreinscripcionesPrincipalesPanel({
                       const StepIcon = step.icon;
                       return (
                         <div
-                          key={idx}
+                          key={step.label}
                           className={`flex flex-col items-center relative z-10 gap-1.5 group ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
                           title={isClickable ? `Mover a: ${step.label}` : step.label}
                           onClick={isClickable ? () => cambiarEtapa(selected.id_inscripcion, idx, step.label) : undefined}
                         >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors transition-transform
                             ${isCompleted
                               ? 'bg-emerald-500 text-white group-hover:bg-emerald-400 group-hover:scale-110'
                               : isCurrent
@@ -1157,7 +1217,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   ) : (
                     <button
                       onClick={handleAprobarTodos}
-                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
+                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
                     >
                       Aprobar Todos
                     </button>
@@ -1183,7 +1243,7 @@ export default function PreinscripcionesPrincipalesPanel({
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                         <div 
-                          className="bg-[#00D084] h-full transition-all duration-500" 
+                          className="bg-[#00D084] h-full transition-colors duration-500" 
                           style={{ width: `${(modulos.filter(m => m.estatus === 'Aprobado').length / modulos.length) * 100}%` }}
                         />
                       </div>
@@ -1243,7 +1303,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                     <button
                                       onClick={() => handleAprobarModulo(mod.nombre_modulo)}
                                       disabled={evaluating !== null}
-                                      className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
+                                      className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
                                     >
                                       {evaluating === mod.nombre_modulo ? '...' : 'Aprobar'}
                                     </button>
@@ -1252,7 +1312,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                     <button
                                       onClick={() => handleRechazarModulo(mod.nombre_modulo)}
                                       disabled={evaluating !== null}
-                                      className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-rose-100 active:scale-95 disabled:opacity-50"
+                                      className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50"
                                     >
                                       {evaluating === mod.nombre_modulo ? '...' : 'Rechazar'}
                                     </button>
@@ -1312,16 +1372,16 @@ export default function PreinscripcionesPrincipalesPanel({
                             <>
                               {selected.apto_acreditacion ? (
                                 <>
-                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar Acreditación y Afiliar</button>
-                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all">Remitir a CIBIR</button>
+                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors">Aprobar Acreditación y Afiliar</button>
+                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">Remitir a CIBIR</button>
                                 </>
                               ) : (
-                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Remitir a CIBIR</button>
+                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors">Remitir a CIBIR</button>
                               )}
-                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">Agendar Cita</button>
+                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-colors">Agendar Cita</button>
                             </>
-                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">Aprobar y Afiliar</button>}
-                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all">Rechazar</button>
+                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors">Aprobar y Afiliar</button>}
+                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors">Rechazar</button>
                         </div>
                         <button 
                           onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
@@ -1342,7 +1402,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         </button>
                         <button 
                           onClick={() => rechazar(selected.id_inscripcion)} 
-                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-all"
+                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-colors"
                         >
                           Rechazar
                         </button>
@@ -1366,7 +1426,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
                     <button
                       onClick={handleAprobarEtapaCibir}
-                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
                     >
                       <Check className="w-3.5 h-3.5" strokeWidth={3} />
                       Aprobar CIBIR y Afiliar
@@ -1379,7 +1439,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aprobación Final</span>
                   <button
                     onClick={() => cambiarEtapa(selected.id_inscripcion, 6, 'Afiliación')}
-                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Check className="w-3.5 h-3.5" strokeWidth={3} />
                     Finalizar y Convertir en Miembro Afiliado Oficial
@@ -1422,7 +1482,7 @@ export default function PreinscripcionesPrincipalesPanel({
             <div className="flex flex-col gap-6">
               <div className="grid grid-cols-3 gap-2">
                 {(['Aprobado', 'Parcial', 'Rechazado'] as const).map(res => (
-                  <button key={res} onClick={() => setFinalizarData({ ...finalizarData, resultado: res })} className={`py-3 rounded-xl text-[10px] font-black uppercase border transition-all ${finalizarData.resultado === res ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white text-slate-400 border-slate-100'}`}>{res}</button>
+                  <button key={res} onClick={() => setFinalizarData({ ...finalizarData, resultado: res })} className={`py-3 rounded-xl text-[10px] font-black uppercase border transition-colors ${finalizarData.resultado === res ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white text-slate-400 border-slate-100'}`}>{res}</button>
                 ))}
               </div>
               {finalizarData.resultado === 'Parcial' && (
@@ -1430,7 +1490,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   <span className="text-[10px] font-black text-emerald-600 uppercase mb-3 block">Módulos Acreditados</span>
                   <div className="grid grid-cols-5 gap-2">
                     {[1, 2, 3, 4, 5].map(m => (
-                      <button key={m} onClick={() => setFinalizarData({ ...finalizarData, modulos: finalizarData.modulos.includes(m) ? finalizarData.modulos.filter(x => x !== m) : [...finalizarData.modulos, m] })} className={`h-10 rounded-lg text-[10px] font-black border transition-all ${finalizarData.modulos.includes(m) ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white text-slate-300 border-slate-100'}`}>M{m}</button>
+                      <button key={m} onClick={() => setFinalizarData({ ...finalizarData, modulos: finalizarData.modulos.includes(m) ? finalizarData.modulos.filter(x => x !== m) : [...finalizarData.modulos, m] })} className={`h-10 rounded-lg text-[10px] font-black border transition-colors ${finalizarData.modulos.includes(m) ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white text-slate-300 border-slate-100'}`}>M{m}</button>
                     ))}
                   </div>
                 </div>

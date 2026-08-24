@@ -51,7 +51,7 @@ const NotificationCenter = () => {
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Notificaciones"
         aria-expanded={isOpen}
-        className="p-2 rounded-full transition-all hover:bg-slate-100 group"
+        className="p-2 rounded-full transition-colors hover:bg-slate-100 group"
       >
         <div className="relative inline-block">
           <Bell
@@ -138,7 +138,7 @@ const NotificationCenter = () => {
                         if (n.leido === 0) markAsRead(n.id)
                       }
                     }}
-                    className={`px-4 sm:px-5 py-4 transition-all cursor-pointer hover:bg-slate-50 flex gap-3 sm:gap-4 ${n.leido === 0 ? 'bg-emerald-50/20' : ''}`}
+                    className={`px-4 sm:px-5 py-4 transition-colors cursor-pointer hover:bg-slate-50 flex gap-3 sm:gap-4 ${n.leido === 0 ? 'bg-emerald-50/20' : ''}`}
                   >
                     <div className="shrink-0 mt-1">
                       <PriorityIcon priority={n.prioridad} leido={n.leido === 1} />

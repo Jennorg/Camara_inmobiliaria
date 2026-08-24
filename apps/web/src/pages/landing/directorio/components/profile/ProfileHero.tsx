@@ -220,7 +220,7 @@ END:VCARD`;
                 href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#25D366] hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#25D366] hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="WhatsApp"
               >
                 <svg className="w-[18px] h-[18px] fill-current" viewBox="0 0 24 24">
@@ -231,7 +231,7 @@ END:VCARD`;
             {(isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email) && (
               <a
                 href={`mailto:${isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email}`}
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title={isCorporativo ? "Correo de la Empresa" : "Correo"}
               >
                 <Mail size={18} />
@@ -242,7 +242,7 @@ END:VCARD`;
                 href={afiliado.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="LinkedIn"
               >
                 <Linkedin size={18} />
@@ -253,7 +253,7 @@ END:VCARD`;
                 href={afiliado.instagram.startsWith('http') ? afiliado.instagram : `https://instagram.com/${afiliado.instagram.replace('@', '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="Instagram"
               >
                 <Instagram size={18} />
@@ -264,7 +264,7 @@ END:VCARD`;
                 href={afiliado.facebook.startsWith('http') ? afiliado.facebook : `https://facebook.com/${afiliado.facebook}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#1877F2] hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#1877F2] hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="Facebook"
               >
                 <Facebook size={18} />
@@ -275,7 +275,7 @@ END:VCARD`;
                 href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@', '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="X"
               >
                 <XIcon size={18} />
@@ -286,7 +286,7 @@ END:VCARD`;
                 href={afiliado.tiktok}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="TikTok"
               >
                 <TikTokIcon size={18} />
@@ -297,7 +297,7 @@ END:VCARD`;
                 href={isCorporativo ? (afiliado.empresa_website || afiliado.website) : afiliado.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
+                className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title="Sitio Web"
               >
                 <Globe size={18} />

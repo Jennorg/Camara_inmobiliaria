@@ -12,6 +12,7 @@ export default function RegisterModal({ onClose }: { onClose: () => void }) {
       />
       <div className='relative bg-white w-full max-w-md p-10 rounded-[2.5rem] shadow-2xl text-center'>
         <button
+          type="button"
           onClick={onClose}
           className='absolute top-6 right-6 text-gray-400 hover:text-emerald-600 transition'
         >
@@ -55,7 +56,7 @@ export default function RegisterModal({ onClose }: { onClose: () => void }) {
             </label>
           </div>
           <div className='pt-6'>
-            <button className='w-full px-10 py-3.5 bg-emerald-500 text-white rounded-full font-bold hover:bg-[#022c22] transition-all shadow-lg shadow-emerald-500/20'>
+            <button type="submit" className='w-full px-10 py-3.5 bg-emerald-500 text-white rounded-full font-bold hover:bg-[#022c22] transition-colors shadow-lg shadow-emerald-500/20'>
               Registrarme ahora
             </button>
           </div>

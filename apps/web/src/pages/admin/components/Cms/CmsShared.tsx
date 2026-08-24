@@ -5,11 +5,19 @@ import { compressImage } from '@/utils/imageCompressor'
 export const API = API_URL
 
 const getAuthHeaders = (extra: Record<string, string> = {}) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('ciebo_token') : null
   return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   }
+}
+
+const handleResponse = async (r: Response) => {
+  if (!r.ok) {
+    const errorText = await r.text().catch(() => '')
+    let errorJson: any = null
+    try { errorJson = JSON.parse(errorText) } catch {}
+    throw new Error(errorJson?.message || `HTTP error ${r.status}`)
+  }
+  return r.json()
 }
 
 export const api = {
@@ -17,14 +25,14 @@ export const api = {
     fetch(`${API}${path}`, {
       credentials: 'include',
       headers: getAuthHeaders(),
-    }).then(r => r.json()),
+    }).then(handleResponse),
   post: <T,>(path: string, body: T) => {
     return fetch(`${API}${path}`, { 
       method: 'POST', 
       credentials: 'include',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
       body: JSON.stringify(body) 
-    }).then(r => r.json())
+    }).then(handleResponse)
   },
   put: <T,>(path: string, body: T) => {
     return fetch(`${API}${path}`, { 
@@ -32,14 +40,14 @@ export const api = {
       credentials: 'include',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
       body: JSON.stringify(body) 
-    }).then(r => r.json())
+    }).then(handleResponse)
   },
   delete: (path: string) => {
     return fetch(`${API}${path}`, { 
       method: 'DELETE',
       credentials: 'include',
       headers: getAuthHeaders(),
-    }).then(r => r.json())
+    }).then(handleResponse)
   },
 }
 
@@ -96,7 +104,7 @@ export const FormField = ({ label, children }: { label: string; children: React.
 export const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     {...props}
-    className={["text-sm rounded-xl border border-gray-200 px-3 py-2 text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all bg-white", className].join(' ')}
+    className={["text-sm rounded-xl border border-gray-200 px-3 py-2 text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors bg-white", className].join(' ')}
   />
 )
 
@@ -104,7 +112,7 @@ export const Textarea = ({ className, ...props }: React.TextareaHTMLAttributes<H
   <textarea
     {...props}
     rows={props.rows || 3}
-    className={["text-sm rounded-xl border border-gray-200 px-3 py-2 text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-all resize-none bg-white", className].join(' ')}
+    className={["text-sm rounded-xl border border-gray-200 px-3 py-2 text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors resize-none bg-white", className].join(' ')}
   />
 )
 
@@ -119,7 +127,7 @@ export const BtnPrimary = ({ onClick, children, disabled, className }: BtnProps)
   <button
     onClick={onClick}
     disabled={disabled}
-    className={["px-4 py-2 rounded-xl bg-[#00D084] text-white text-xs font-semibold hover:bg-[#00B870] active:scale-95 transition-all disabled:opacity-50", className].join(' ')}
+    className={["px-4 py-2 rounded-xl bg-[#00D084] text-white text-xs font-semibold hover:bg-[#00B870] active:scale-95 transition-colors transition-transform disabled:opacity-50", className].join(' ')}
   >
     {children}
   </button>
@@ -128,7 +136,7 @@ export const BtnPrimary = ({ onClick, children, disabled, className }: BtnProps)
 export const BtnDanger = ({ onClick, children, className }: BtnProps) => (
   <button
     onClick={onClick}
-    className={["px-3 py-1.5 rounded-xl bg-red-50 text-red-500 text-xs font-semibold hover:bg-red-100 active:scale-95 transition-all", className].join(' ')}
+    className={["px-3 py-1.5 rounded-xl bg-red-50 text-red-500 text-xs font-semibold hover:bg-red-100 active:scale-95 transition-colors transition-transform", className].join(' ')}
   >
     {children}
   </button>
@@ -137,7 +145,7 @@ export const BtnDanger = ({ onClick, children, className }: BtnProps) => (
 export const BtnSecondary = ({ onClick, children, className }: BtnProps) => (
   <button
     onClick={onClick}
-    className={["px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 active:scale-95 transition-all", className].join(' ')}
+    className={["px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 active:scale-95 transition-colors transition-transform", className].join(' ')}
   >
     {children}
   </button>
@@ -283,7 +291,7 @@ export function ListDetail<T extends { id?: string | number }>({
                   key={item.id}
                   onClick={() => setSelectedId(item.id ?? null)}
                   className={[
-                    'w-full text-left px-4 py-3 transition-all duration-150 group cursor-pointer select-none',
+                    'w-full text-left px-4 py-3 transition-colors duration-150 group cursor-pointer select-none',
                     String(selectedId) === String(item.id)
                       ? 'bg-[#E9FAF4] border-l-2 border-[#00D084]'
                       : 'hover:bg-slate-50 border-l-2 border-transparent',
@@ -303,7 +311,7 @@ export function ListDetail<T extends { id?: string | number }>({
         <div className="p-4 border-t border-gray-100 bg-white">
           <button
             onClick={onNew}
-            className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-semibold hover:bg-[#00B870] active:scale-[0.98] transition-all"
+            className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-semibold hover:bg-[#00B870] active:scale-[0.98] transition-colors transition-transform"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />

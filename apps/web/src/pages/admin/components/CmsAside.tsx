@@ -247,7 +247,7 @@ const NavButton = ({
       ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
       : undefined}
     className={[
-      'relative flex items-center gap-3 rounded-xl transition-all duration-150 w-full text-left group',
+      'relative flex items-center gap-3 rounded-xl transition-colors duration-150 w-full text-left group',
       isCollapsed ? 'justify-center px-0' : 'px-3',
       compact ? 'py-1.5' : 'py-2',
       isActive
@@ -263,15 +263,44 @@ const NavButton = ({
   </button>
 )
 
+async function fetchSolicitudesCambioCountData(token: string, signal?: AbortSignal) {
+  const res = await fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal
+  })
+  if (!res.ok) return 0
+  const json = await res.json()
+  if (json.success && Array.isArray(json.data)) {
+    const pending = json.data.filter((s: any) =>
+      ['Pendiente_Admin', 'Pendiente_Empresa'].includes(s.estatus)
+    )
+    return pending.length > 0 ? pending.length : json.data.length
+  }
+  return 0
+}
+
+async function fetchPreinscripcionesCountData(token: string, signal?: AbortSignal) {
+  const res = await fetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal
+  })
+  if (!res.ok) return 0
+  const json = await res.json()
+  if (json.success && Array.isArray(json.data)) {
+    return json.data.length
+  }
+  return 0
+}
+
 const SidebarContent = ({
-  isCollapsed,
+  isCollapsed = false,
   activeId,
   onNav,
   onClose,
   onLogout,
   isMobile = false,
 }: {
-  isCollapsed: boolean
+  isCollapsed?: boolean
   activeId: string
   onNav: (id: string) => void
   onClose?: () => void
@@ -283,36 +312,28 @@ const SidebarContent = ({
   const [solicitudesCambioCount, setSolicitudesCambioCount] = React.useState(0)
   const [preinscripcionesCount, setPreinscripcionesCount] = React.useState(0)
 
+  const loadCounts = React.useCallback(async (signal: AbortSignal) => {
+    if (!token) return
+    try {
+      const [solicitudesCount, preinscripCount] = await Promise.all([
+        fetchSolicitudesCambioCountData(token, signal).catch(() => 0),
+        fetchPreinscripcionesCountData(token, signal).catch(() => 0),
+      ])
+      if (!signal.aborted) {
+        setSolicitudesCambioCount(solicitudesCount)
+        setPreinscripcionesCount(preinscripCount)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [token])
+
   useEffect(() => {
     if (!token) return
-
-    // 1. Solicitudes de Cambio pendientes
-    fetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(json => {
-        if (json.success && Array.isArray(json.data)) {
-          const pending = json.data.filter((s: any) =>
-            ['Pendiente_Admin', 'Pendiente_Empresa'].includes(s.estatus)
-          )
-          setSolicitudesCambioCount(pending.length > 0 ? pending.length : json.data.length)
-        }
-      })
-      .catch(() => {})
-
-    // 2. Preinscripciones pendientes (programas PREANI, PEGI, PADI, Cursos)
-    fetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(json => {
-        if (json.success && Array.isArray(json.data)) {
-          setPreinscripcionesCount(json.data.length)
-        }
-      })
-      .catch(() => {})
-  }, [token])
+    const controller = new AbortController()
+    loadCounts(controller.signal)
+    return () => controller.abort()
+  }, [token, loadCounts])
 
   const toggleGroup = (id: string) => {
     setExpandedGroups(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id])
@@ -386,7 +407,7 @@ const SidebarContent = ({
                   ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
                   : undefined}
                 className={[
-                  'relative flex items-center gap-3 rounded-xl py-1.5 transition-all duration-150 w-full text-left group',
+                  'relative flex items-center gap-3 rounded-xl py-1.5 transition-colors duration-150 w-full text-left group',
                   isCollapsed ? 'justify-center px-0' : 'px-3',
                   isGroupActive && !hasChildren ? '' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
                   hasChildren && isOpen ? 'text-slate-700 font-semibold' : ''
@@ -440,7 +461,7 @@ const SidebarContent = ({
                             ? { backgroundColor: 'var(--color-admin-accent-muted)', color: 'var(--color-admin-active-text)' }
                             : undefined}
                           className={[
-                            'flex items-center gap-2.5 rounded-xl py-1.5 px-3 text-[13px] transition-all duration-150 w-full text-left',
+                            'flex items-center gap-2.5 rounded-xl py-1.5 px-3 text-[13px] transition-colors duration-150 w-full text-left',
                             isSubActive ? 'text-[#00D084]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                           ].join(' ')}
                         >
@@ -460,7 +481,7 @@ const SidebarContent = ({
                                 key={sc.id}
                                 onClick={() => onNav(sc.id)}
                                 className={[
-                                  'py-1 px-2 text-[10px] font-medium transition-all rounded-lg text-left',
+                                  'py-1 px-2 text-[10px] font-medium transition-colors rounded-lg text-left',
                                   activeId === sc.id
                                     ? 'text-emerald-600 bg-emerald-50'
                                     : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
@@ -501,7 +522,7 @@ const SidebarContent = ({
           onClick={onLogout}
           title={isCollapsed ? 'Cerrar sesión' : undefined}
           className={[
-            'flex items-center gap-3 rounded-xl py-1.5 w-full text-left transition-all duration-150 mt-0.5',
+            'flex items-center gap-3 rounded-xl py-1.5 w-full text-left transition-colors duration-150 mt-0.5',
             isCollapsed ? 'justify-center px-0' : 'px-3',
             'text-red-400 hover:bg-red-50 hover:text-red-600',
           ].join(' ')}

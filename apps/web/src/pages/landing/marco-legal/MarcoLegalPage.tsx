@@ -5,6 +5,7 @@ import bgBolivar from '@/assets/Pzo.webp'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 interface NormativaPublic {
   id: number
@@ -53,8 +54,7 @@ export default function MarcoLegalPage() {
       setError(null)
       try {
         const catValue = config.label
-        const r = await fetch(`${API_URL}/api/public/normativas?categoria=${encodeURIComponent(catValue)}`)
-        const j = await r.json()
+        const j = await apiFetch(`${API_URL}/api/public/normativas?categoria=${encodeURIComponent(catValue)}`)
         if (!j.success) throw new Error(j.message || 'Error al cargar')
         if (!cancelled) setItems(Array.isArray(j.data) ? j.data : [])
       } catch (e) {
@@ -66,7 +66,7 @@ export default function MarcoLegalPage() {
     return () => {
       cancelled = true
     }
-  }, [category, config.label])
+  }, [config.label])
 
   return (
     <div className="min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
@@ -112,12 +112,12 @@ export default function MarcoLegalPage() {
             Aún no hay documentos publicados en esta categoría. Vuelve pronto.
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <div className="transition-opacity transition-transform max-w-7xl mx-auto fade-in slide-in-from-bottom-8 duration-1000">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6 md:gap-8">
               {items.map((item) => (
                 <article
                   key={item.id}
-                  className="group relative bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 sm:p-6 md:p-8 flex flex-col h-full border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 md:hover:-translate-y-2 transition-all duration-300 overflow-hidden"
+                  className="group relative bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 sm:p-6 md:p-8 flex flex-col h-full border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 md:hover:-translate-y-2 transition-colors transition-transform duration-300 overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 w-full h-1 md:h-1.5 bg-gradient-to-r from-emerald-400 to-[#022c22] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -169,7 +169,7 @@ export default function MarcoLegalPage() {
                 <div className="pt-4 md:pt-6">
                   <Link
                     to="/direccion"
-                    className="inline-block bg-emerald-500 text-[#022c22] w-full sm:w-auto px-8 py-4 md:px-12 md:py-5 rounded-full font-black text-xs md:text-sm uppercase tracking-[0.2em] hover:bg-white hover:scale-105 transition-all duration-300 shadow-[0_0_30px_-10px_rgba(16,185,129,0.5)] active:scale-95"
+                    className="inline-block bg-emerald-500 text-[#022c22] w-full sm:w-auto px-8 py-4 md:px-12 md:py-5 rounded-full font-black text-xs md:text-sm uppercase tracking-[0.2em] hover:bg-white hover:scale-105 transition-colors transition-transform duration-300 shadow-[0_0_30px_-10px_rgba(16,185,129,0.5)] active:scale-95"
                   >
                     Contactar
                   </Link>

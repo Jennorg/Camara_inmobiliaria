@@ -49,10 +49,10 @@ export default function Header({ darkMode }: { darkMode?: boolean }) {
         </p>
 
         <div className='pt-6 flex flex-wrap items-center gap-4'>
-          <Link to='/afiliate#formulario' className='cursor-pointer px-8 py-3.5 bg-emerald-500 text-[#011a14] rounded-full font-bold uppercase text-sm tracking-widest hover:bg-emerald-400 hover:-translate-y-1 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]'>
+          <Link to='/afiliate#formulario' className='cursor-pointer px-8 py-3.5 bg-emerald-500 text-[#011a14] rounded-full font-bold uppercase text-sm tracking-widest hover:bg-emerald-400 hover:-translate-y-1 transition-colors transition-transform shadow-[0_0_20px_rgba(16,185,129,0.3)]'>
             {s.btnPrimario}
           </Link>
-          <Link to='/afiliate' className='cursor-pointer px-8 py-3.5 bg-transparent border border-white/30 text-white rounded-full font-bold uppercase text-sm tracking-widest hover:bg-white/10 transition-all'>
+          <Link to='/afiliate' className='cursor-pointer px-8 py-3.5 bg-transparent border border-white/30 text-white rounded-full font-bold uppercase text-sm tracking-widest hover:bg-white/10 transition-colors'>
             {s.btnSecundario}
           </Link>
         </div>

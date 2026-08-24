@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X, UserPlus, Users, ChevronDown } from 'lucide-react'
@@ -55,7 +55,9 @@ export default function AprobarCursosPanel() {
   const [enrollFormData, setEnrollFormData] = useState({
     nombreCompleto: '',
     email: '',
+    cedulaPrefix: 'V',
     cedulaRif: '',
+    codigoPais: '+58',
     telefono: '',
     nivelProfesional: 'Nivel Profesional',
     esCorredorInmobiliario: true
@@ -79,7 +81,7 @@ export default function AprobarCursosPanel() {
     return h
   }, [token])
 
-  const fetchModulos = async (idInscripcion: number) => {
+  const fetchModulos = useCallback(async (idInscripcion: number) => {
     setLoadingModulos(true)
     setModulos([])
     try {
@@ -95,9 +97,9 @@ export default function AprobarCursosPanel() {
     } finally {
       setLoadingModulos(false)
     }
-  }
+  }, [authHeaders])
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     setLoading(true)
     setError('')
     try {
@@ -108,6 +110,7 @@ export default function AprobarCursosPanel() {
 
       const res = await fetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
         headers: { ...authHeaders },
+        signal,
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando inscripciones')
@@ -130,7 +133,7 @@ export default function AprobarCursosPanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [authHeaders, selected, fetchModulos])
 
   const handleOpenEnrollModal = async () => {
     setIsEnrollModalOpen(true);
@@ -139,7 +142,9 @@ export default function AprobarCursosPanel() {
     setEnrollFormData({
       nombreCompleto: '',
       email: '',
+      cedulaPrefix: 'V',
       cedulaRif: '',
+      codigoPais: '+58',
       telefono: '',
       nivelProfesional: 'Nivel Profesional',
       esCorredorInmobiliario: true
@@ -147,6 +152,9 @@ export default function AprobarCursosPanel() {
 
     try {
       const resCursos = await fetch(`${API_URL}/api/academia/cursos`, { headers: { ...authHeaders } });
+      if (!resCursos.ok) {
+        throw new Error(`HTTP error! status: ${resCursos.status}`);
+      }
       const jsonCursos = await resCursos.json();
       if (jsonCursos.success && Array.isArray(jsonCursos.data)) {
         setCursosDisponibles(jsonCursos.data);
@@ -157,6 +165,9 @@ export default function AprobarCursosPanel() {
       }
 
       const resAfil = await fetch(`${API_URL}/api/afiliados`, { headers: { ...authHeaders } });
+      if (!resAfil.ok) {
+        throw new Error(`HTTP error! status: ${resAfil.status}`);
+      }
       const jsonAfil = await resAfil.json();
       if (jsonAfil.success && Array.isArray(jsonAfil.data)) {
         setAfiliadosLista(jsonAfil.data);
@@ -169,11 +180,20 @@ export default function AprobarCursosPanel() {
   const handleSelectAfiliado = (af: any) => {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
     const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || '';
+    const rawCed = String(af.cedula || af.rif || '');
+    const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
+    const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed;
+    const rawTel = String(af.telefono || af.telefono_movil || '');
+    const codeTel = rawTel.startsWith('+') ? (rawTel.match(/^(\+\d{1,4})/)?.[1] || '+58') : '+58';
+    const numTel = rawTel.replace(/^(\+\d{1,4}\s?)/, '');
+
     setEnrollFormData({
       nombreCompleto: nombre,
       email: af.email || '',
-      cedulaRif: af.cedula || af.rif || '',
-      telefono: af.telefono || af.telefono_movil || '',
+      cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
+      cedulaRif: numCed,
+      codigoPais: codeTel,
+      telefono: numTel,
       nivelProfesional: 'Nivel Profesional',
       esCorredorInmobiliario: true
     });
@@ -190,6 +210,12 @@ export default function AprobarCursosPanel() {
       return;
     }
 
+    const payload = {
+      ...enrollFormData,
+      cedulaRif: enrollFormData.cedulaRif ? `${enrollFormData.cedulaPrefix || 'V'}-${enrollFormData.cedulaRif.replace(/^[VEJGP]-?/i, '')}` : '',
+      telefono: enrollFormData.telefono ? `${enrollFormData.codigoPais || '+58'} ${enrollFormData.telefono.replace(/^(\+\d{1,4}\s?)/, '')}` : ''
+    };
+
     setSubmittingEnroll(true);
     try {
       const res = await fetch(`${API_URL}/api/academia/cursos/${selectedCursoId}/asignar`, {
@@ -198,7 +224,7 @@ export default function AprobarCursosPanel() {
           'Content-Type': 'application/json',
           ...authHeaders
         },
-        body: JSON.stringify(enrollFormData)
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -228,7 +254,11 @@ export default function AprobarCursosPanel() {
     finally { setLoadingDocs(false) }
   }
 
-  useEffect(() => { fetchData() }, [token])
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchData(controller.signal)
+    return () => controller.abort()
+  }, [fetchData])
 
   const handleAprobarModulo = async (nombreModulo: string) => {
     if (!selected) return
@@ -323,24 +353,26 @@ export default function AprobarCursosPanel() {
     }
   }
 
+  const busyAprobarTodosRef = useRef(false)
   const handleAprobarTodos = async () => {
-    if (!selected) return
+    if (!selected || busyAprobarTodosRef.current) return
+    busyAprobarTodosRef.current = true
 
-    const result = await Swal.fire({
-      title: '¿Aprobar todos los módulos?',
-      text: `Esto marcará todos los módulos como "Aprobado", completará el curso y generará el certificado de ${selected.estudiante_nombre} automáticamente.`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#00D084',
-      cancelButtonColor: '#cbd5e1',
-      confirmButtonText: 'Sí, aprobar todo',
-      cancelButtonText: 'Cancelar'
-    })
-
-    if (!result.isConfirmed) return
-
-    setCompleting(true)
     try {
+      const result = await Swal.fire({
+        title: '¿Aprobar todos los módulos?',
+        text: `Esto marcará todos los módulos como "Aprobado", completará el curso y generará el certificado de ${selected.estudiante_nombre} automáticamente.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#00D084',
+        cancelButtonColor: '#cbd5e1',
+        confirmButtonText: 'Sí, aprobar todo',
+        cancelButtonText: 'Cancelar'
+      })
+
+      if (!result.isConfirmed) return
+
+      setCompleting(true)
       Swal.fire({
         title: 'Procesando...',
         text: 'Aprobando todos los módulos y emitiendo certificado',
@@ -370,6 +402,7 @@ export default function AprobarCursosPanel() {
       Swal.fire('Error', e.message || 'No se pudo completar la aprobación masiva', 'error')
     } finally {
       setCompleting(false)
+      busyAprobarTodosRef.current = false
     }
   }
 
@@ -423,14 +456,14 @@ export default function AprobarCursosPanel() {
           {/* Button Inscribir Nuevo Estudiante */}
           <button
             onClick={handleOpenEnrollModal}
-            className="w-full flex items-center justify-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-all active:scale-95 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-transform active:scale-95 cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Inscribir estudiante</span>
           </button>
 
           {/* Buscador con Dropdown al estilo Directorio de Miembros */}
-          <div className="relative flex items-center rounded-xl bg-gray-50/50 border border-gray-200 focus-within:bg-white focus-within:border-[#00D084] focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-all text-xs h-10 shadow-xs z-20">
+          <div className="relative flex items-center rounded-xl bg-gray-50/50 border border-gray-200 focus-within:bg-white focus-within:border-[#00D084] focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-colors text-xs h-10 shadow-xs z-20">
             {/* Dropdown de criterio de búsqueda */}
             <div className="relative shrink-0 border-r border-gray-200 h-full flex items-center pl-3 pr-2">
               <button
@@ -449,7 +482,7 @@ export default function AprobarCursosPanel() {
               {showSearchDropdown && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setShowSearchDropdown(false)} />
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                     {[
                       { key: 'nombre', label: 'Nombre' },
                       { key: 'cedula', label: 'Cédula / RIF' },
@@ -493,7 +526,7 @@ export default function AprobarCursosPanel() {
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-colors"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
@@ -508,7 +541,7 @@ export default function AprobarCursosPanel() {
                 key={f.key}
                 onClick={() => setUiFilter(f.key)}
                 className={[
-                  'text-[10px] font-bold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 active:scale-95',
+                  'text-[10px] font-bold px-3 py-1.5 rounded-full transition-transform flex items-center gap-1.5 active:scale-95',
                   uiFilter === f.key
                     ? 'bg-[#00D084] text-white shadow-sm shadow-[#00D084]/20'
                     : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-100',
@@ -547,7 +580,7 @@ export default function AprobarCursosPanel() {
                   key={r.id_inscripcion}
                   onClick={() => { setSelected(r); fetchDocumentos(r.id_estudiante); fetchModulos(r.id_inscripcion); }}
                   className={[
-                    'w-full text-left px-4 py-4 transition-all flex flex-col gap-1.5 border-l-4 border-transparent',
+                    'w-full text-left px-4 py-4 transition-colors flex flex-col gap-1.5 border-l-4 border-transparent',
                     selected?.id_inscripcion === r.id_inscripcion
                       ? 'bg-[#E9FAF4] border-l-[#00D084]'
                       : 'hover:bg-slate-50/50',
@@ -576,7 +609,7 @@ export default function AprobarCursosPanel() {
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="bg-[#00D084] h-full transition-all duration-300"
+                        className="bg-[#00D084] h-full transition-colors duration-300"
                         style={{ width: `${((r.modulos_aprobados || 0) / (r.num_modulos || 1)) * 100}%` }}
                       />
                     </div>
@@ -621,7 +654,7 @@ export default function AprobarCursosPanel() {
                   <h3 className="text-base font-bold text-slate-900 leading-tight">{selected.estudiante_nombre}</h3>
                   <button
                     onClick={() => setIsInfoModalOpen(true)}
-                    className="px-2.5 py-1 text-[10px] font-bold text-slate-500 hover:text-[#00B870] bg-slate-50 hover:bg-[#E9FAF4] border border-slate-200 hover:border-[#00D084]/20 rounded-lg transition-all"
+                    className="px-2.5 py-1 text-[10px] font-bold text-slate-500 hover:text-[#00B870] bg-slate-50 hover:bg-[#E9FAF4] border border-slate-200 hover:border-[#00D084]/20 rounded-lg transition-colors"
                   >
                     Más información
                   </button>
@@ -667,7 +700,7 @@ export default function AprobarCursosPanel() {
                 ) : (
                   <button
                     onClick={handleAprobarTodos}
-                    className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
+                    className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
                   >
                     Aprobar Todos
                   </button>
@@ -693,7 +726,7 @@ export default function AprobarCursosPanel() {
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-[#00D084] h-full transition-all duration-500"
+                        className="bg-[#00D084] h-full transition-colors duration-500"
                         style={{ width: `${(modulos.filter(m => m.estatus === 'Aprobado').length / modulos.length) * 100}%` }}
                       />
                     </div>
@@ -752,7 +785,7 @@ export default function AprobarCursosPanel() {
                                 <button
                                   onClick={() => handleAprobarModulo(mod.nombre_modulo)}
                                   disabled={evaluating !== null}
-                                  className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
+                                  className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
                                 >
                                   {evaluating === mod.nombre_modulo ? '...' : 'Aprobar'}
                                 </button>
@@ -761,7 +794,7 @@ export default function AprobarCursosPanel() {
                                 <button
                                   onClick={() => handleRechazarModulo(mod.nombre_modulo)}
                                   disabled={evaluating !== null}
-                                  className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border border-rose-100 active:scale-95 disabled:opacity-50"
+                                  className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50"
                                 >
                                   {evaluating === mod.nombre_modulo ? '...' : 'Rechazar'}
                                 </button>
@@ -792,7 +825,7 @@ export default function AprobarCursosPanel() {
       {/* ── MODAL DE MÁS INFORMACIÓN ── */}
       {isInfoModalOpen && selected && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-100 shadow-xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="transition-opacity transition-transform bg-white rounded-2xl max-w-2xl w-full border border-slate-100 shadow-xl overflow-hidden flex flex-col max-h-[85vh] fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <div>
@@ -801,7 +834,7 @@ export default function AprobarCursosPanel() {
               </div>
               <button
                 onClick={() => setIsInfoModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -862,7 +895,7 @@ export default function AprobarCursosPanel() {
                         href={doc.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-[#E9FAF4]/35 transition-all group"
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-[#E9FAF4]/35 transition-colors group"
                       >
                         <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                           <FileText className="w-4 h-4" />
@@ -886,7 +919,7 @@ export default function AprobarCursosPanel() {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
               <button
                 onClick={() => setIsInfoModalOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl transition-all"
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl transition-colors"
               >
                 Cerrar
               </button>
@@ -897,7 +930,7 @@ export default function AprobarCursosPanel() {
 
       {/* ── MODAL INSCRIBIR NUEVO ALUMNO / PERSONA ── */}
       {isEnrollModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -950,7 +983,7 @@ export default function AprobarCursosPanel() {
                     <button
                       type="button"
                       onClick={() => { setEnrollMode('afiliado'); setSelectedAfiliadoId(''); }}
-                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'afiliado'
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${enrollMode === 'afiliado'
                         ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -961,7 +994,7 @@ export default function AprobarCursosPanel() {
                     <button
                       type="button"
                       onClick={() => { setEnrollMode('nuevo'); setSelectedAfiliadoId(''); }}
-                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${enrollMode === 'nuevo'
+                      className={`py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors ${enrollMode === 'nuevo'
                         ? 'bg-white text-[#00B870] shadow-xs font-extrabold'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -981,7 +1014,7 @@ export default function AprobarCursosPanel() {
 
                     <div className="relative">
                       {/* Buscador de Nómina de Afiliados al estilo Directorio de Miembros */}
-                      <div className="relative flex items-center rounded-xl bg-white border border-emerald-200 focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-all text-xs h-10 shadow-xs z-30">
+                      <div className="relative flex items-center rounded-xl bg-white border border-emerald-200 focus-within:ring-2 focus-within:ring-[#00D084]/20 transition-colors text-xs h-10 shadow-xs z-30">
                         {/* Dropdown Criterion Selector */}
                         <div className="relative shrink-0 border-r border-emerald-100 h-full flex items-center pl-3 pr-2">
                           <button
@@ -1009,7 +1042,7 @@ export default function AprobarCursosPanel() {
                                   setShowAfiliadoSearchDropdown(false);
                                 }}
                               />
-                              <div className="absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                                 {[
                                   { key: 'nombre', label: 'Nombre' },
                                   { key: 'cedula', label: 'Cédula / RIF' },
@@ -1055,7 +1088,7 @@ export default function AprobarCursosPanel() {
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setAfiliadoSearch(''); }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center hover:bg-emerald-200 transition-all"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center hover:bg-emerald-200 transition-colors"
                             >
                               <X className="w-2.5 h-2.5" />
                             </button>
@@ -1065,7 +1098,7 @@ export default function AprobarCursosPanel() {
 
                       {/* Lista filtrada de afiliados FLOTANTE / position absolute */}
                       {afiliadoSearch.trim().length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="transition-opacity transition-transform absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl fade-in slide-in-from-top-1 duration-150">
                           {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
                             .filter((af: any) => {
                               if (!af) return false;
@@ -1091,7 +1124,7 @@ export default function AprobarCursosPanel() {
                                     handleSelectAfiliado(af);
                                     setAfiliadoSearch('');
                                   }}
-                                  className={`w-full text-left p-3 text-xs flex items-center justify-between transition-all ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                  className={`w-full text-left p-3 text-xs flex items-center justify-between transition-colors ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
                                     }`}
                                 >
                                   <div className="min-w-0">
@@ -1141,15 +1174,28 @@ export default function AprobarCursosPanel() {
 
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Cédula / RIF
+                        Tipo y Cédula / RIF
                       </label>
-                      <input
-                        type="text"
-                        placeholder="V-12345678"
-                        value={enrollFormData.cedulaRif}
-                        onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaRif: e.target.value })}
-                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                      />
+                      <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
+                        <select
+                          value={enrollFormData.cedulaPrefix || 'V'}
+                          onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaPrefix: e.target.value })}
+                          className="bg-slate-50 border-r border-gray-200 px-2.5 text-xs font-black text-slate-700 outline-none cursor-pointer shrink-0"
+                        >
+                          <option value="V">V-</option>
+                          <option value="E">E-</option>
+                          <option value="J">J-</option>
+                          <option value="G">G-</option>
+                          <option value="P">P-</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="12345678"
+                          value={enrollFormData.cedulaRif}
+                          onChange={(e) => setEnrollFormData({ ...enrollFormData, cedulaRif: e.target.value.replace(/[^\d]/g, '') })}
+                          className="w-full text-xs font-semibold px-3 py-2.5 text-slate-800 outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1157,13 +1203,32 @@ export default function AprobarCursosPanel() {
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                       Teléfono de Contacto
                     </label>
-                    <input
-                      type="text"
-                      placeholder="0414-1234567"
-                      value={enrollFormData.telefono}
-                      onChange={(e) => setEnrollFormData({ ...enrollFormData, telefono: e.target.value })}
-                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                    />
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
+                      <select
+                        value={enrollFormData.codigoPais || '+58'}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, codigoPais: e.target.value })}
+                        className="bg-slate-50 border-r border-gray-200 px-2.5 text-xs font-black text-slate-700 outline-none cursor-pointer shrink-0 max-w-[110px]"
+                      >
+                        <option value="+58">🇻🇪 +58</option>
+                        <option value="+57">🇨🇴 +57</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+52">🇲🇽 +52</option>
+                        <option value="+56">🇨🇱 +56</option>
+                        <option value="+54">🇦🇷 +54</option>
+                        <option value="+51">🇵🇪 +51</option>
+                        <option value="+593">🇪🇨 +593</option>
+                        <option value="+507">🇵🇦 +507</option>
+                        <option value="+1-809">🇩🇴 +1</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="0414-1234567"
+                        value={enrollFormData.telefono}
+                        onChange={(e) => setEnrollFormData({ ...enrollFormData, telefono: e.target.value })}
+                        className="w-full text-xs font-semibold px-3 py-2.5 text-slate-800 outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1173,14 +1238,14 @@ export default function AprobarCursosPanel() {
                 <button
                   type="button"
                   onClick={() => setIsEnrollModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                  className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submittingEnroll}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-opacity flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {submittingEnroll ? (
                     <>

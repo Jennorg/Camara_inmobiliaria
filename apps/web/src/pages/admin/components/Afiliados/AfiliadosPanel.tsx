@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif } from '@/utils/formatters'
@@ -10,6 +10,7 @@ import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/apiClient'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -34,7 +35,7 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-emerald-200 hover:shadow-sm transition-all group ${compact ? 'py-2' : ''}`}
+      className={`flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-emerald-200 hover:shadow-sm transition-colors group ${compact ? 'py-2' : ''}`}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
@@ -103,6 +104,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
   const fetchEmpresas = async () => {
     try {
       const res = await fetch(`${API_URL}/api/public/empresas`)
+      if (!res.ok) return
       const json = await res.json()
       if (json.success) setEmpresas(json.data)
     } catch (err) { console.error(err) }
@@ -167,11 +169,25 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
     }
   }
 
-  useEffect(() => {
+  const busyTransitionRef = useRef(false)
+  const handleConfirmNaturalTransition = async () => {
+    if (busyTransitionRef.current) return
+    busyTransitionRef.current = true
+    try {
+      setNaturalTransitionTarget(null)
+      await executeDirectTypeChange('Natural')
+    } finally {
+      busyTransitionRef.current = false
+    }
+  }
+
+  const [prevDefaultViewMode, setPrevDefaultViewMode] = useState(defaultViewMode)
+  if (prevDefaultViewMode !== defaultViewMode) {
+    setPrevDefaultViewMode(defaultViewMode)
     setViewMode(defaultViewMode)
     setSelected(null)
     setSelectedSolicitud(null)
-  }, [defaultViewMode])
+  }
 
   const load = async () => {
     setLoading(true)
@@ -263,18 +279,36 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
   }
 
   useEffect(() => {
-    if (viewMode === 'list') {
-      load()
-    } else {
-      loadSolicitudes()
-    }
-  }, [viewMode]) // initial & viewMode toggles
+    let active = true
+    const fetchData = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        if (viewMode === 'list') {
+          const qs = new URLSearchParams()
+          if (estatus !== 'Todos') qs.set('estatus', estatus)
+          if (filterTipo !== 'Todos') qs.set('tipo_afiliado', filterTipo)
 
-  useEffect(() => {
-    if (viewMode === 'list') {
-      load()
+          const json = await apiFetch(`${API_URL}/api/afiliados?${qs.toString()}`, { headers: authHeaders })
+          if (!active) return
+          if (!json.success) throw new Error(json.message || 'Error cargando afiliados')
+          setItems(json.data as AfiliadoDTO[])
+        } else {
+          const json = await apiFetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, { headers: authHeaders })
+          if (!active) return
+          if (!json.success) throw new Error(json.message || 'Error cargando solicitudes de cambio')
+          setSolicitudes(json.data)
+        }
+      } catch (e: any) {
+        if (!active) return
+        setError(e.message || 'Error inesperado')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
-  }, [estatus, filterTipo]) // reload on filter only in list mode
+    fetchData()
+    return () => { active = false }
+  }, [viewMode, estatus, filterTipo, authHeaders])
 
   const procesar = async (id: number, action: 'aprobar' | 'rechazar') => {
     setError('')
@@ -301,7 +335,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <button
                 type="button"
                 onClick={() => { setViewMode('list'); setSelected(null); setSelectedSolicitud(null); }}
-                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
                   }`}
               >
                 Afiliados CIBIR
@@ -309,7 +343,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <button
                 type="button"
                 onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
-                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative ${viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors relative ${viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
                   }`}
               >
                 Solicitudes Cambio
@@ -556,9 +590,9 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                         const docs = JSON.parse(selectedSolicitud.documentos_empresa || '[]');
                         return (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {docs.map((doc: any, i: number) => (
+                            {docs.map((doc: any) => (
                               <DocLink
-                                key={i}
+                                key={doc.url || doc.tipo_doc}
                                 label={doc.tipo_doc.replace(/_/g, ' ')}
                                 url={doc.url}
                                 detail={doc.nombre_archivo}
@@ -621,7 +655,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <div className="flex gap-3 pt-2 border-t border-slate-50">
                   <button
                     onClick={() => resolverSolicitud(selectedSolicitud.id_solicitud, true)}
-                    className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-xs font-black uppercase tracking-wider hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-all hover:-translate-y-0.5"
+                    className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-xs font-black uppercase tracking-wider hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-colors transition-transform hover:-translate-y-0.5"
                   >
                     Aprobar Cambio
                   </button>
@@ -796,7 +830,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <div className="absolute left-6 right-6 top-[24px] md:top-[28px] h-0.5 bg-slate-100 -z-0" />
                     {/* Active progress line */}
                     <div
-                      className="absolute left-6 top-[24px] md:top-[28px] h-0.5 bg-emerald-500 -z-0 transition-all duration-500"
+                      className="absolute left-6 top-[24px] md:top-[28px] h-0.5 bg-emerald-500 -z-0 transition-colors duration-500"
                       style={{ width: `calc(${(activeIndex / 6) * 100}% - ${activeIndex === 6 ? '12px' : '0px'})` }}
                     />
 
@@ -806,13 +840,13 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       const StepIcon = step.icon;
                       return (
                         <button
-                          key={idx}
+                          key={step.label}
                           type="button"
                           onClick={() => handleStepClick(idx)}
                           className="flex flex-col items-center relative z-10 group cursor-pointer gap-2 focus:outline-none"
                         >
                           <div
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100' :
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors duration-300 ${isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-100' :
                               isCurrent ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 font-extrabold scale-110' :
                                 'bg-white text-slate-400 border-2 border-slate-200'
                               }`}
@@ -977,7 +1011,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       return (
                         <div
                           key={cert.id_certificado || validationCode}
-                          className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl hover:border-amber-200 hover:bg-amber-50/30 transition-all flex items-center justify-between gap-3 group"
+                          className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl hover:border-amber-200 hover:bg-amber-50/30 transition-colors flex items-center justify-between gap-3 group"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-amber-100/80 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200/50">
@@ -996,7 +1030,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                             href={`/comprobante/${encodeURIComponent(validationCode)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-100/80 border border-slate-200 transition-all shrink-0 shadow-2xs"
+                            className="p-1.5 rounded-lg bg-white text-slate-600 hover:text-amber-700 hover:bg-amber-100/80 border border-slate-200 transition-colors shrink-0 shadow-2xs"
                             title="Ver Certificado Digital"
                           >
                             <ExternalLink size={13} />
@@ -1129,7 +1163,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     onChange={(e) => updateField('cibir_acreditado', e.target.checked ? 0 : 1)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
                 </label>
               </div>
 
@@ -1150,7 +1184,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <div className="flex gap-2 pt-2 border-t border-slate-50">
                   <button
                     onClick={() => procesar(selected.id_afiliado, 'aprobar')}
-                    className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-bold hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-all hover:-translate-y-0.5"
+                    className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-bold hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-colors transition-transform hover:-translate-y-0.5"
                   >
                     ✓ Aprobar Afiliación
                   </button>
@@ -1183,8 +1217,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
       {showChangeTypeModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowChangeTypeModal(false)} />
-          <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-all duration-500 ease-in-out">
+          <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" aria-hidden="true" onClick={() => setShowChangeTypeModal(false)} />
+          <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-colors duration-500 ease-in-out">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
@@ -1355,7 +1389,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <button
                 type="button"
                 onClick={() => setShowChangeTypeModal(false)}
-                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all"
+                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors"
               >
                 Cancelar
               </button>
@@ -1387,7 +1421,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   }
                   executeDirectTypeChange(pendingNewType, data);
                 }}
-                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all flex items-center justify-center"
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-colors flex items-center justify-center"
               >
                 {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -1399,7 +1433,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       {/* Natural Transition confirmation modal */}
       {naturalTransitionTarget && (
         <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-          <div className='bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto animate-in fade-in zoom-in duration-200 text-center'>
+          <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-3'>
               <ShieldAlert size={28} />
             </div>
@@ -1411,11 +1445,9 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             <div className='flex flex-col gap-2'>
               <button
                 type='button'
-                onClick={async () => {
-                  setNaturalTransitionTarget(null);
-                  await executeDirectTypeChange('Natural');
-                }}
-                className='w-full py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black hover:bg-amber-600 shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2'
+                onClick={handleConfirmNaturalTransition}
+                disabled={submittingChangeType}
+                className='w-full py-2.5 bg-amber-500 text-white rounded-xl text-xs font-black hover:bg-amber-600 shadow-lg shadow-amber-500/25 transition-colors transition-opacity flex items-center justify-center gap-2 disabled:opacity-50'
               >
                 <BadgeCheck size={16} />
                 Sí, cambiar
@@ -1455,13 +1487,15 @@ function CompanySearchField({
     return c.id_empresa === selectedIdEmpresa || c.id_afiliado === selectedIdEmpresa;
   })
 
-  React.useEffect(() => {
+  const [prevSelectedCompany, setPrevSelectedCompany] = React.useState(selectedCompany)
+  if (prevSelectedCompany !== selectedCompany) {
+    setPrevSelectedCompany(selectedCompany)
     if (selectedCompany) {
       setCorpSearch(selectedCompany.empresa_razon_social || selectedCompany.nombre_completo || '')
     } else {
       setCorpSearch('')
     }
-  }, [selectedCompany])
+  }
 
   const filteredCompanies = companies.filter((c) => {
     if (!corpSearch.trim()) return true
@@ -1496,7 +1530,7 @@ function CompanySearchField({
 
   return (
     <div className="space-y-2 w-full">
-      <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all h-10">
+      <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-10">
         <div className="relative shrink-0 border-r border-gray-200/80 h-full flex items-center">
           <button
             type="button"
@@ -1512,8 +1546,8 @@ function CompanySearchField({
           </button>
           {showCorpDropdown && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowCorpDropdown(false)} />
-              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowCorpDropdown(false)} />
+              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] fade-in slide-in-from-top-1 duration-200">
                 {([
                   { key: 'nombre' as const, label: 'Nombre' },
                   { key: 'rif' as const, label: 'RIF' },
@@ -1547,7 +1581,7 @@ function CompanySearchField({
             <button
               type="button"
               onClick={() => { setCorpSearch(''); onSelect(null); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-all"
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center hover:bg-gray-300 transition-colors"
             >
               <X size={10} />
             </button>
@@ -1567,14 +1601,14 @@ function CompanySearchField({
           <button
             type="button"
             onClick={() => { onSelect(null); setCorpSearch(''); }}
-            className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-all shrink-0"
+            className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center hover:bg-emerald-300 transition-colors shrink-0"
           >
             <X size={10} />
           </button>
         </div>
       )}
 
-      <div className={`transition-all duration-500 ease-in-out ${showCorpResults && corpSearch.trim() && !selectedCompany
+      <div className={`transition-colors duration-500 ease-in-out ${showCorpResults && corpSearch.trim() && !selectedCompany
         ? 'max-h-48 opacity-100 mt-1.5 border border-gray-200 pointer-events-auto'
         : 'max-h-0 opacity-0 mt-0 border-transparent overflow-hidden pointer-events-none'
         } relative z-10 w-full bg-white rounded-xl shadow-inner overflow-y-auto py-1.5`}>

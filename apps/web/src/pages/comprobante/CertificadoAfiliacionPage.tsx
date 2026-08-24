@@ -6,6 +6,7 @@ import { API_URL } from '@/config/env'
 import logoImg from '@/assets/Logo4.webp'
 import firmaImg from '@/assets/firma-francisco.webp'
 import { exportElementToPdf } from '@/utils/domToPdf'
+import { apiFetch } from '@/lib/apiClient'
 
 interface AfiliadoData {
   id_afiliado: number
@@ -55,15 +56,11 @@ const CertificadoAfiliacionPage: React.FC = () => {
       return
     }
 
+    let active = true
     setLoading(true)
-    fetch(`${API_URL}/api/public/afiliados/${id}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('No se pudo encontrar la información del afiliado.')
-        }
-        return res.json()
-      })
+    apiFetch(`${API_URL}/api/public/afiliados/${id}`)
       .then((resJson) => {
+        if (!active) return
         if (resJson.success && resJson.data) {
           setData(resJson.data as AfiliadoData)
         } else {
@@ -71,12 +68,14 @@ const CertificadoAfiliacionPage: React.FC = () => {
         }
       })
       .catch((err) => {
+        if (!active) return
         console.error('Error fetching affiliate:', err)
         setError(err.message || 'Error de conexión con el servidor.')
       })
       .finally(() => {
-        setLoading(false)
+        if (active) setLoading(false)
       })
+    return () => { active = false }
   }, [id])
 
   const [downloadingPdf, setDownloadingPdf] = useState(false)
@@ -176,7 +175,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
             type="button"
             onClick={handleDownloadPdf}
             disabled={downloadingPdf}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-colors transition-transform active:scale-95 cursor-pointer"
           >
             {downloadingPdf ? (
               <>
@@ -275,14 +274,14 @@ const CertificadoAfiliacionPage: React.FC = () => {
                 Cámara Inmobiliaria
               </h2>
               <h2 className="text-emerald-900 font-bold uppercase tracking-[0.2em] text-xs font-sans">
-                del Estado Bolívar
+                de Bolívar
               </h2>
             </div>
 
             {/* Cuerpo Principal */}
             <div className="relative z-10 flex flex-col items-center text-center my-auto px-10">
               <p className="text-emerald-900 font-sans font-medium text-[13px] uppercase tracking-wider max-w-[650px] leading-relaxed">
-                La Cámara Inmobiliaria del Estado Bolívar (CIEBO)
+                La Cámara Inmobiliaria de Bolívar (CIEBO)
                 <br />
                 le otorga el presente certificado a
               </p>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard } from '@/utils/formatters'
@@ -43,7 +43,7 @@ export default function EstudiantesRegularesPanel() {
   const [detail, setDetail] = useState<{ estudiante: Estudiante; inscripciones: Inscripcion[] } | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -63,31 +63,34 @@ export default function EstudiantesRegularesPanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [query, authHeaders, selected])
 
-  const loadDetail = async (id: number) => {
+  const loadDetail = useCallback(async (id: number, signal?: AbortSignal) => {
     setDetailLoading(true)
     setError('')
     try {
-      const res = await fetch(`${API_URL}/api/academia/estudiantes/${id}`, { headers: authHeaders })
+      const res = await fetch(`${API_URL}/api/academia/estudiantes-regulares/${id}`, { headers: authHeaders, signal })
       const json = await res.json()
+      if (signal?.aborted) return
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando detalle')
       setDetail(json.data)
     } catch (e: unknown) {
+      if (signal?.aborted) return
       const err = e as Error
       setError(err.message || 'Error inesperado')
     } finally {
-      setDetailLoading(false)
+      if (!signal?.aborted) setDetailLoading(false)
     }
-  }
+  }, [authHeaders])
 
-  useEffect(() => { load() }, []) // initial
+  useEffect(() => { load() }, [load]) // initial
 
   useEffect(() => {
     if (!selected) { setDetail(null); return }
-    loadDetail(selected.id_estudiante)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.id_estudiante])
+    const controller = new AbortController()
+    loadDetail(selected.id_estudiante, controller.signal)
+    return () => controller.abort()
+  }, [selected, loadDetail])
 
   const procesar = async (idInscripcion: number, action: 'aprobar' | 'rechazar') => {
     setError('')

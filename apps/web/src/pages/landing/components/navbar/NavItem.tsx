@@ -36,9 +36,9 @@ export default function NavItem({ item }: NavItemProps) {
 
       {hasOptions && isOpen && (
         <div className='absolute top-full left-0 w-48 bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-xl rounded-xl py-2 mt-0 border border-emerald-500/10 z-[60]'>
-          {item.items!.map((opt, idx) => (
+          {item.items!.map((opt: any) => (
             <Link
-              key={idx}
+              key={opt.path || opt.label}
               to={opt.path}
               className='block px-4 py-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-600 transition text-xs font-bold'
             >

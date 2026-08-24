@@ -19,9 +19,9 @@ function TickerBlock({
 }) {
   return (
     <div className="flex shrink-0 flex-nowrap" aria-hidden={ariaHidden}>
-      {Array.from({ length: COPIES_PER_BLOCK }, (_, i) => (
+      {Array.from({ length: COPIES_PER_BLOCK }, (_, copyIdx) => (
         <span
-          key={i}
+          key={`ticker-copy-${copyIdx}`}
           className={`inline-flex shrink-0 items-center px-12 sm:px-16 text-xs sm:text-sm font-semibold uppercase tracking-widest whitespace-nowrap ${className}`}
         >
           {TICKER_TEXT}
@@ -48,7 +48,7 @@ export default function AffiliationTicker({ darkMode }: AffiliationTickerProps) 
         aria-label="Afíliate a la Cámara Inmobiliaria de Bolívar"
       >
         {/* Dos bloques idénticos: al mover -50% el segundo ocupa el lugar del primero sin salto */}
-        <div className="flex w-max flex-nowrap animate-affiliation-ticker will-change-transform">
+        <div className="flex w-max flex-nowrap animate-affiliation-ticker">
           <TickerBlock className={textClass} />
           <TickerBlock className={textClass} aria-hidden />
         </div>

@@ -251,7 +251,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
             <img
               src={logoImg}
               alt=""
-              className="w-[580px] h-auto object-contain opacity-[0.06] grayscale contrast-125"
+              className="w-[580px] h-auto object-contain opacity-[0.06] grayscale contrast-125 translate-y-8"
             />
           </div>
 
@@ -262,41 +262,33 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
 
             {/* ── SECCIÓN SUPERIOR: LOGO Y CABECERA ── */}
             <div className="w-full flex flex-col items-center justify-center text-center">
-              <div className="flex items-center justify-center gap-4 text-center">
+              <div className="flex flex-col items-center justify-center gap-2 text-center">
                 <img
                   src={logoImg}
                   alt="Cámara Inmobiliaria de Bolívar"
-                  className="h-16 w-auto object-contain drop-shadow-sm"
+                  className="h-20 w-auto object-contain drop-shadow-sm"
                 />
                 <h2 className="text-[#0f5431] font-black uppercase tracking-[0.12em] text-[18px] text-center leading-tight font-sans">
-                  CAMARA INMOBILIARIA<br />DEL ESTADO BOLIVAR
+                  CÁMARA INMOBILIARIA<br />DE BOLÍVAR
                 </h2>
               </div>
 
-              {/* Título Principal */}
-              <h1
-                className="text-slate-950 font-black uppercase text-[42px] tracking-[0.24em] leading-none mt-4 font-sans drop-shadow-xs"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
-                CERTIFICADO
-              </h1>
-
               {/* Otorgamiento */}
               <p
-                className="text-slate-800 font-extrabold uppercase text-[12px] tracking-[0.22em] mt-2 font-sans"
+                className="text-slate-800 font-extrabold uppercase text-[12.5px] tracking-[0.22em] mt-6 font-sans"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
-                SE OTORGA EL PRESENTE RECONOCIMIENTO A:
+                La Cámara Inmobiliaria del estado Bolívar<br />otorga el siguiente reconocimiento a:
               </p>
             </div>
 
             {/* ── SECCIÓN CENTRAL: NOMBRE DEL DESTINATARIO ── */}
             <div className="w-full flex flex-col items-center my-auto max-w-[820px]">
               {/* Nombre en Fuente Caligráfica Cursiva */}
-              <div className="relative w-full flex items-center justify-center py-1">
+              <div className="relative w-full flex items-center justify-center py-2">
                 <div className="absolute left-10 right-10 h-[1px] bg-gradient-to-r from-transparent via-slate-400 to-transparent bottom-0" />
                 <span
-                  className="text-[52px] sm:text-[56px] text-slate-900 text-center leading-tight tracking-wide px-8 select-all"
+                  className="text-[68px] sm:text-[76px] text-slate-900 text-center leading-tight tracking-wide px-8 select-all"
                   style={{
                     fontFamily: "'Great Vibes', 'Alex Brush', cursive",
                     textShadow: '0 1px 2px rgba(0,0,0,0.08)',
@@ -323,17 +315,18 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                 </p>
 
                 {itemsList.length > 1 ? (
-                  <div className="flex flex-col items-center mt-2.5 space-y-1 max-w-[720px]">
-                    {itemsList.map((item, idx) => (
-                      <p
-                        key={idx}
-                        className="text-slate-900 font-extrabold text-[13.5px] uppercase tracking-wider text-center leading-snug"
+                  <ul className="flex flex-col items-start text-left mt-2.5 space-y-1.5 max-w-[720px] mx-auto">
+                    {itemsList.map((item) => (
+                      <li
+                        key={item}
+                        className="flex items-start gap-2 text-slate-900 font-extrabold text-[13.5px] uppercase tracking-wider text-left leading-snug"
                         style={{ fontFamily: "'Montserrat', sans-serif" }}
                       >
-                        {item}
-                      </p>
+                        <span className="text-[#0f5431] font-bold text-[14px] leading-none shrink-0 select-none">•</span>
+                        <span>{item}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : itemsList.length === 1 ? (
                   <p
                     className="text-slate-950 font-black text-[15px] uppercase tracking-wide mt-1.5"
@@ -356,8 +349,8 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
             <div className="w-full flex flex-col items-center gap-2 px-4 pb-3">
               {/* 5 Firmas (Arriba) */}
               <div className="w-full grid grid-cols-5 gap-1 items-end px-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex flex-col items-center justify-center text-center">
+                {[1, 2, 3, 4, 5].map((firmaNum) => (
+                  <div key={`firma-slot-${firmaNum}`} className="flex flex-col items-center justify-center text-center">
                     <div className="relative h-11 w-32 flex items-center justify-center">
                       <img
                         src={firmaFranciscoImg}
@@ -372,7 +365,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                     <span className="text-[6.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-tight max-w-[130px]">
                       PRESIDENTE DE LA CAMARA
                       <br />
-                      INMOBILIARIA DEL ESTADO BOLIVAR
+                      INMOBILIARIA DE BOLIVAR
                     </span>
                   </div>
                 ))}

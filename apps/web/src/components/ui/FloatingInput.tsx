@@ -38,7 +38,7 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
           <label
             htmlFor={id}
             className={cn(
-              "absolute left-2 text-slate-400 font-medium transition-all duration-200 pointer-events-none origin-[0_0]",
+              "absolute left-2 text-slate-400 font-medium transition-colors duration-200 pointer-events-none origin-[0_0]",
               // Resting state: positioned like placeholder when empty and unfocused
               "peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:scale-100",
               // Floating state: shrunk and moved up when focused or has value

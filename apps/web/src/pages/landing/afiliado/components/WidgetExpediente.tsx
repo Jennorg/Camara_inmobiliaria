@@ -3,6 +3,7 @@ import { FileText, Download, ExternalLink, FileCheck, FileImage, FileBox, Loader
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
+import { apiFetch } from '@/lib/apiClient';
 
 import WidgetSolicitudCambioEstado from './WidgetSolicitudCambioEstado';
 
@@ -53,10 +54,9 @@ const WidgetExpediente = () => {
     const fetchDocs = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+        const data = await apiFetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await res.json();
         if (isMounted) {
           if (data.success && data.data) {
             setDocumentos(data.data.documentos || []);
@@ -108,7 +108,7 @@ const WidgetExpediente = () => {
               return (
                 <div 
                   key={doc.id_documento}
-                  className="group relative flex items-center gap-4 p-4 bg-gray-50/50 hover:bg-white border border-gray-100 rounded-2xl transition-all hover:shadow-md hover:border-emerald-100"
+                  className="group relative flex items-center gap-4 p-4 bg-gray-50/50 hover:bg-white border border-gray-100 rounded-2xl transition-colors hover:shadow-md hover:border-emerald-100"
                 >
                   <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-emerald-600 shadow-xs border border-gray-100 group-hover:scale-110 transition-transform">
                     <Icon size={24} />
@@ -127,7 +127,7 @@ const WidgetExpediente = () => {
                       href={doc.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-all"
+                      className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-colors"
                       title="Ver documento"
                     >
                       <ExternalLink size={16} />
@@ -135,7 +135,7 @@ const WidgetExpediente = () => {
                     <a 
                       href={doc.url} 
                       download
-                      className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-all"
+                      className="p-2.5 rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-xs transition-colors"
                       title="Descargar"
                     >
                       <Download size={16} />

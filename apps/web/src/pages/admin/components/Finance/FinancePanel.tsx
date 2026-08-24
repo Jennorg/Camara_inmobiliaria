@@ -278,7 +278,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
             <div className="flex gap-2">
               {(['ingreso', 'egreso'] as const).map(t => (
                 <button key={t} onClick={() => setTipo(t)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${
                     tipo === t
                       ? t === 'ingreso' ? 'bg-emerald-50 text-emerald-600 ring-2 ring-emerald-400' : 'bg-amber-50 text-amber-600 ring-2 ring-amber-300'
                       : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
@@ -295,7 +295,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
             <div className="grid grid-cols-2 gap-1.5">
               {(Object.entries(CATEGORIAS) as [TxCategory, typeof CATEGORIAS[TxCategory]][]).map(([key, cat]) => (
                 <button key={key} onClick={() => setCategoria(key)}
-                  className={`py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-all text-left ${
+                  className={`py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-colors text-left ${
                     categoria === key ? 'ring-2 text-slate-700' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                   }`}
                   style={categoria === key ? { '--tw-ring-color': cat.color, backgroundColor: cat.color + '12' } as React.CSSProperties : {}}>
@@ -310,7 +310,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Concepto</label>
             <input value={concepto} onChange={e => setConcepto(e.target.value)}
               placeholder="Ej: Inscripción curso — Nombre"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all" />
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors" />
           </div>
 
           {/* Monto */}
@@ -318,7 +318,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Monto ($)</label>
             <input value={monto} onChange={e => setMonto(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder="0.00"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all" />
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors" />
           </div>
 
           {/* Método de pago + Proveedor */}
@@ -326,7 +326,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Método de Pago</label>
               <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all bg-white">
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors bg-white">
                 {['Transferencia', 'Depósito', 'Efectivo', 'Tarjeta', 'Cheque'].map(m => <option key={m}>{m}</option>)}
               </select>
             </div>
@@ -334,7 +334,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{tipo === 'ingreso' ? 'Cliente' : 'Proveedor'}</label>
               <input value={proveedor} onChange={e => setProveedor(e.target.value)}
                 placeholder="Nombre / RIF"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all" />
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors" />
             </div>
           </div>
 
@@ -351,7 +351,7 @@ const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
           <button onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
           <button onClick={handleSave}
             disabled={!concepto || !monto}
-            className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5">
+            className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors transition-opacity flex items-center gap-1.5">
             {I.check} Registrar
           </button>
         </div>
@@ -451,7 +451,7 @@ const LibroCompraVenta = ({ tipo, movimientos }: { tipo: 'compra' | 'venta'; mov
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">{I.search}</div>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder={`Buscar por concepto o comprobante...`}
-          className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all bg-white" />
+          className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors bg-white" />
       </div>
 
       {/* Tabla */}
@@ -545,7 +545,7 @@ const FinancePanel = () => {
           </p>
         </div>
         <button onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-all shadow-sm">
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm">
           {I.plus}
           Nuevo Movimiento
         </button>
@@ -555,7 +555,7 @@ const FinancePanel = () => {
       <div className="flex gap-0.5 bg-slate-100 rounded-lg p-0.5 w-fit border border-slate-200/60">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors ${
               tab === t.id
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-slate-400 hover:text-slate-600'

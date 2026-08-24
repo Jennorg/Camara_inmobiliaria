@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
-import { Upload, CheckCircle, Trash2, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react'
+import { Upload, CheckCircle, Trash2, ArrowLeft, ArrowUp, ArrowDown, Calendar, Clock, MapPin, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, Dot } from 'lucide-react'
 
 interface NoticiaItem {
   id: string | number;
@@ -16,6 +16,7 @@ interface NoticiaItem {
   hora_evento: string;
   lugar_evento: string;
   posicion_imagen: string;
+  orden?: number;
 }
 
 export const NoticiasPanel = () => {
@@ -67,27 +68,31 @@ export const NoticiasPanel = () => {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const data = await api.get('/api/cms/noticias')
-    if (data.success && Array.isArray(data.data)) {
-      // Map API database columns to matches in the component's NoticiaItem interface
-      const mapped: NoticiaItem[] = data.data.map((x: any) => ({
-        id: x.id_noticia,
-        titulo: x.titulo || '',
-        contenido: x.contenido || '',
-        extracto: x.resumen || '',
-        imagen_url: x.imagen_url || '',
-        categoria: x.categoria || 'Noticias',
-        tag: x.tag || '',
-        fecha: x.fecha_publicacion || '',
-        publicado: x.publicado === 1 || x.publicado === true,
-        fecha_evento: x.fecha_evento || '',
-        hora_evento: x.hora_evento || '',
-        lugar_evento: x.lugar_evento || '',
-        posicion_imagen: x.posicion_imagen || 'center center'
-      }))
-      setItems(mapped)
+    try {
+      const data = await api.get('/api/cms/noticias')
+      if (data.success && Array.isArray(data.data)) {
+        // Map API database columns to matches in the component's NoticiaItem interface
+        const mapped: NoticiaItem[] = data.data.map((x: any) => ({
+          id: x.id_noticia,
+          titulo: x.titulo || '',
+          contenido: x.contenido || '',
+          extracto: x.resumen || '',
+          imagen_url: x.imagen_url || '',
+          categoria: x.categoria || 'Noticias',
+          tag: x.tag || '',
+          fecha: x.fecha_publicacion || '',
+          publicado: x.publicado === 1 || x.publicado === true,
+          fecha_evento: x.fecha_evento || '',
+          hora_evento: x.hora_evento || '',
+          lugar_evento: x.lugar_evento || '',
+          posicion_imagen: x.posicion_imagen || 'center center',
+          orden: x.orden !== undefined && x.orden !== null ? Number(x.orden) : 0
+        }))
+        setItems(mapped)
+      }
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -177,7 +182,7 @@ export const NoticiasPanel = () => {
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value }))
 
   const formBody = () => (
-    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl max-w-5xl mx-auto transition-all duration-200 ${
+    <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl max-w-5xl mx-auto transition-colors duration-200 ${
       isHiding ? 'opacity-0 scale-95 -translate-x-4 pointer-events-none' : 'animate-in fade-in zoom-in-95 duration-200'
     }`}>
       {/* Encabezado del Formulario */}
@@ -186,7 +191,7 @@ export const NoticiasPanel = () => {
           <button
             type="button"
             onClick={closeForm}
-            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors transition-transform hover:scale-105 active:scale-95 border border-slate-200/60 shadow-xs cursor-pointer shrink-0"
             title="Volver a la lista"
           >
             <ArrowLeft size={20} />
@@ -201,7 +206,7 @@ export const NoticiasPanel = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-all select-none">
+          <label className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors select-none">
             <input 
               type="checkbox" 
               checked={form.publicado} 
@@ -244,7 +249,7 @@ export const NoticiasPanel = () => {
                 }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
             </label>
           </div>
 
@@ -253,7 +258,7 @@ export const NoticiasPanel = () => {
               value={form.titulo} 
               onChange={f('titulo')} 
               placeholder={form.tag === 'solo_imagen' ? 'Ej. Afiche de Conferencia Marzo...' : 'Ej. Nuevas tendencias del mercado inmobiliario...'} 
-              className="!text-sm !py-3 bg-slate-50/70 border-slate-200 focus:bg-white transition-all font-bold"
+              className="!text-sm !py-3 bg-slate-50/70 border-slate-200 focus:bg-white transition-colors font-bold"
             />
           </FormField>
 
@@ -285,7 +290,7 @@ export const NoticiasPanel = () => {
                   onChange={f('extracto')} 
                   placeholder="Breve resumen de 1 a 2 líneas para la tarjeta de la landing..." 
                   rows={2} 
-                  className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-none font-medium"
+                  className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-colors resize-none font-medium"
                 />
               </FormField>
 
@@ -295,7 +300,7 @@ export const NoticiasPanel = () => {
                   onChange={f('contenido')} 
                   placeholder="Escriba aquí el contenido detallado de la noticia..." 
                   rows={6} 
-                  className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-all resize-y min-h-[140px]"
+                  className="!text-sm bg-slate-50/70 border-slate-200 focus:bg-white transition-colors resize-y min-h-[140px]"
                 />
               </FormField>
             </>
@@ -359,7 +364,7 @@ export const NoticiasPanel = () => {
                 onDrop={() => setIsDraggingOver(false)}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
               />
-              <div className={`flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed rounded-2xl transition-all duration-300 ${
+              <div className={`flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed rounded-2xl transition-colors duration-300 ${
                 uploading 
                   ? 'border-emerald-300 bg-emerald-50/50' 
                   : isDraggingOver
@@ -402,14 +407,14 @@ export const NoticiasPanel = () => {
               </span>
             </div>
 
-            {/* Simulación exacta de la card en la Landing */}
-            <div className="w-full bg-slate-50 border border-slate-200/80 rounded-3xl p-4 shadow-sm space-y-3">
-              <div className="relative w-full aspect-[16/10] bg-slate-200 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+            {/* Simulación exacta de la card vertical en la Landing */}
+            <div className="w-full max-w-[300px] mx-auto bg-white border border-slate-200/80 rounded-[2.5rem] p-4 shadow-md space-y-3 flex flex-col">
+              <div className="relative w-full aspect-[3/4] bg-slate-900/5 rounded-[2rem] overflow-hidden shadow-inner flex items-center justify-center border border-slate-200/60">
                 {form.imagen_url ? (
                   <img 
                     src={form.imagen_url} 
                     alt="Preview Noticia" 
-                    className="w-full h-full object-cover transition-all duration-300"
+                    className="w-full h-full object-contain transition-colors duration-300"
                     style={{ objectPosition: form.posicion_imagen }}
                   />
                 ) : (
@@ -422,37 +427,36 @@ export const NoticiasPanel = () => {
 
               {/* Ajuste de Foco / Encuadre (flechas 3x3) */}
               {form.imagen_url && (
-                <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200/70">
+                <div className="flex items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-200/70">
                   <div className="space-y-0.5 flex-1 min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 block">Encuadre / Punto de Foco</span>
-                    <span className="text-[9px] text-slate-400 font-medium block truncate">Alinee la imagen para evitar que se corten rostros o textos.</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 block">Alineación</span>
                   </div>
                   
                   {/* Selector 3x3 mini */}
-                  <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+                  <div className="grid grid-cols-3 gap-1 p-1 bg-white rounded-xl shrink-0 border border-slate-200/60">
                     {[
-                      { val: 'top left', label: '↖️' },
-                      { val: 'top center', label: '⬆️' },
-                      { val: 'top right', label: '↗️' },
-                      { val: 'center left', label: '⬅️' },
-                      { val: 'center center', label: '•' },
-                      { val: 'center right', label: '➡️' },
-                      { val: 'bottom left', label: '↙️' },
-                      { val: 'bottom center', label: '⬇️' },
-                      { val: 'bottom right', label: '↘️' }
+                      { val: 'top left', icon: <ArrowUpLeft size={10} /> },
+                      { val: 'top center', icon: <ArrowUp size={10} /> },
+                      { val: 'top right', icon: <ArrowUpRight size={10} /> },
+                      { val: 'center left', icon: <ArrowLeftIcon size={10} /> },
+                      { val: 'center center', icon: <Dot size={10} /> },
+                      { val: 'center right', icon: <ArrowRightIcon size={10} /> },
+                      { val: 'bottom left', icon: <ArrowDownLeft size={10} /> },
+                      { val: 'bottom center', icon: <ArrowDown size={10} /> },
+                      { val: 'bottom right', icon: <ArrowDownRight size={10} /> }
                     ].map((pos) => (
                       <button
                         key={pos.val}
                         type="button"
                         onClick={() => setForm(p => ({ ...p, posicion_imagen: pos.val }))}
-                        className={`w-5 h-5 flex items-center justify-center text-[9px] rounded font-bold transition-all ${
+                        className={`w-4 h-4 flex items-center justify-center rounded font-bold transition-colors ${
                           form.posicion_imagen === pos.val 
                             ? 'bg-emerald-500 text-white shadow-xs scale-110' 
                             : 'hover:bg-slate-200 text-slate-400'
                         }`}
                         title={`Alineación: ${pos.val}`}
                       >
-                        {pos.label}
+                        {pos.icon}
                       </button>
                     ))}
                   </div>
@@ -461,20 +465,19 @@ export const NoticiasPanel = () => {
 
               {/* Simulación del contenido de la tarjeta */}
               <div className="space-y-2 px-1 pt-1">
-                <div className="flex items-center justify-between text-[10px] text-emerald-600 font-black uppercase tracking-widest">
-                  <span>{form.categoria || 'NOTICIAS'}</span>
-                  <span>{form.fecha || 'HOY'}</span>
+                <div className="flex items-center justify-between gap-2 text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]">
+                  <span>{form.fecha_evento ? form.fecha_evento : (form.fecha?.split('T')[0] || 'Próximamente')}</span>
+                  {form.lugar_evento && (
+                    <span className="text-[10px] text-slate-400 font-bold truncate max-w-[120px]">📍 {form.lugar_evento}</span>
+                  )}
                 </div>
-                <h4 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">
+                <h4 className="text-base sm:text-lg font-bold text-[#022c22] leading-tight line-clamp-2">
                   {form.titulo || 'Título de la Noticia...'}
                 </h4>
-                <p className="text-xs text-slate-500 line-clamp-2 font-normal leading-relaxed">
-                  {form.extracto || 'El extracto de la noticia aparecerá formateado en este espacio de la tarjeta en la página de inicio...'}
-                </p>
-                {form.lugar_evento && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md mt-1">
-                    📍 {form.lugar_evento}
-                  </span>
+                {form.tag !== 'solo_imagen' && (
+                  <p className="text-xs text-slate-500 line-clamp-2 font-normal leading-relaxed">
+                    {form.extracto || 'Extracto de la noticia...'}
+                  </p>
                 )}
               </div>
             </div>
@@ -541,7 +544,7 @@ export const NoticiasPanel = () => {
               type="button"
               disabled={index === 0}
               onClick={(e) => handleMove(index, 'up', e)}
-              className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+              className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors transition-opacity cursor-pointer"
               title="Subir orden"
             >
               <ArrowUp size={14} />
@@ -550,7 +553,7 @@ export const NoticiasPanel = () => {
               type="button"
               disabled={index === items.length - 1}
               onClick={(e) => handleMove(index, 'down', e)}
-              className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+              className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-transparent transition-colors transition-opacity cursor-pointer"
               title="Bajar orden"
             >
               <ArrowDown size={14} />
@@ -559,45 +562,66 @@ export const NoticiasPanel = () => {
         </div>
       )}
       renderDetail={(item) => (
-        <div className="flex flex-col gap-4 bg-white rounded-2xl p-5 border border-gray-100">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-bold text-slate-800">{item.titulo}</h3>
-            <div className="flex gap-2 flex-shrink-0">
+        <div className="flex flex-col gap-6 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+          {/* Header Bar */}
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                {item.categoria} · {item.fecha?.split('T')[0]}
+              </span>
+              <h3 className="text-xl font-bold text-slate-800 leading-tight mt-0.5">{item.titulo}</h3>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
               <BtnSecondary onClick={() => openEdit(item)}>Editar</BtnSecondary>
               <BtnDanger onClick={() => remove(item.id)}>Eliminar</BtnDanger>
             </div>
           </div>
-          {item.imagen_url && (
-            <img 
-              src={item.imagen_url} 
-              alt="" 
-              className="w-full h-40 object-cover rounded-xl shadow-xs" 
-              style={{ objectPosition: item.posicion_imagen }}
-            />
-          )}
-          
-          {(item.fecha_evento || item.hora_evento || item.lugar_evento) && (
-            <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/50 text-[11px] text-emerald-800 space-y-1">
-              <span className="font-black uppercase tracking-wider block mb-1 text-[10px] text-emerald-600">Detalles del Evento Resaltados:</span>
-              {item.fecha_evento && <div>📅 <strong>Fecha:</strong> {item.fecha_evento}</div>}
-              {item.hora_evento && <div>⏰ <strong>Hora:</strong> {item.hora_evento}</div>}
-              {item.lugar_evento && <div>📍 <strong>Lugar:</strong> {item.lugar_evento}</div>}
-            </div>
-          )}
 
-          <p className="text-sm text-slate-600 leading-relaxed font-bold">{item.extracto}</p>
-          
-          {item.contenido && (
-            <div className="text-xs text-slate-500 whitespace-pre-line border-t border-slate-50 pt-3">
-              <span className="font-bold text-slate-700 block mb-1">Cuerpo Completo:</span>
-              {item.contenido}
-            </div>
-          )}
+          {/* 2 Columns: Left Photo / Right Details */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Photo / Vertical Poster */}
+            {item.imagen_url && (
+              <div className="md:col-span-5 lg:col-span-5 w-full aspect-[3/4] bg-slate-50 rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm flex items-center justify-center">
+                <img 
+                  src={item.imagen_url} 
+                  alt={item.titulo} 
+                  className="w-full h-full object-contain transition-colors duration-300" 
+                  style={{ objectPosition: item.posicion_imagen }}
+                />
+              </div>
+            )}
 
-          <div className="flex flex-wrap gap-2 text-xs text-slate-400 pt-2">
-            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{item.categoria}</span>
-            {item.tag && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">#{item.tag}</span>}
-            <span>{item.fecha?.split('T')[0]}</span>
+            {/* Right Column: Information & Body */}
+            <div className={`space-y-4 ${item.imagen_url ? 'md:col-span-7 lg:col-span-7' : 'md:col-span-12'}`}>
+              {(item.fecha_evento || item.hora_evento || item.lugar_evento) && (
+                <div className="bg-emerald-50/70 rounded-2xl p-4 border border-emerald-100 text-xs text-emerald-950 space-y-2 shadow-xs">
+                  <span className="font-black uppercase tracking-wider block text-[10px] text-emerald-700">Detalles Destacados del Evento:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-semibold">
+                    {item.fecha_evento && <div className="flex items-center gap-1.5"><Calendar size={13} className="text-emerald-600 shrink-0" /> <strong>Fecha:</strong> {item.fecha_evento}</div>}
+                    {item.hora_evento && <div className="flex items-center gap-1.5"><Clock size={13} className="text-emerald-600 shrink-0" /> <strong>Hora:</strong> {item.hora_evento}</div>}
+                    {item.lugar_evento && <div className="sm:col-span-2 flex items-center gap-1.5"><MapPin size={13} className="text-emerald-600 shrink-0" /> <strong>Lugar:</strong> {item.lugar_evento}</div>}
+                  </div>
+                </div>
+              )}
+
+              {item.extracto && item.tag !== 'solo_imagen' && (
+                <p className="text-sm text-slate-700 leading-relaxed font-bold border-l-4 border-emerald-500 pl-3 py-1 italic bg-slate-50/50 rounded-r-xl">
+                  {item.extracto}
+                </p>
+              )}
+
+              {item.contenido && item.tag !== 'solo_imagen' && (
+                <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-line border-t border-slate-100 pt-3">
+                  <span className="font-bold text-slate-800 block mb-1">Cuerpo Completo:</span>
+                  {item.contenido}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 text-xs text-slate-400 pt-2 border-t border-slate-100">
+                <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase">{item.categoria}</span>
+                {item.tag && <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border border-emerald-100">#{item.tag}</span>}
+              </div>
+            </div>
           </div>
         </div>
       )}

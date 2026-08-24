@@ -34,18 +34,39 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
   const selected = afiliado ?? afiliados.find(a => a.id_afiliado === pickedId) ?? null
 
   useEffect(() => {
-    if (afiliado) return
-    if (!token) return
-    setLoadingList(true)
-    fetch(`${API_URL}/api/afiliados`, { headers: authHeaders })
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) setAfiliados(d.data as AfiliadoDTO[])
-      })
-      .finally(() => setLoadingList(false))
-  }, [token, afiliado, authHeaders])
+    let active = true
+    if (afiliado || !token) return
+    const controller = new AbortController()
 
-  useEffect(() => {
+    const loadAfiliados = async () => {
+      setLoadingList(true)
+      try {
+        const r = await fetch(`${API_URL}/api/afiliados`, {
+          headers: authHeaders,
+          signal: controller.signal
+        })
+        if (!r.ok) throw new Error('Error al cargar afiliados')
+        const d = await r.json()
+        if (!active || controller.signal.aborted) return
+        if (d.success) setAfiliados(d.data as AfiliadoDTO[])
+      } catch (err: unknown) {
+        if (!active || controller.signal.aborted || (err as Error).name === 'AbortError') return
+        console.error('Error al cargar afiliados para acceso:', err)
+      } finally {
+        if (active) setLoadingList(false)
+      }
+    }
+
+    loadAfiliados()
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [afiliado, token, authHeaders])
+
+  const [prevSelected, setPrevSelected] = useState(selected)
+  if (prevSelected !== selected) {
+    setPrevSelected(selected)
     if (selected) {
       const defaultEmail = selected.tipo_afiliado === 'Corporativo'
         ? (selected.empresa_email || selected.email || '')
@@ -54,7 +75,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
       setPassword('')
       setLocalMsg(null)
     }
-  }, [selected?.id_afiliado, selected?.email, selected?.empresa_email])
+  }
 
   const filteredPick = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -83,6 +104,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
         headers: authHeaders,
         body: JSON.stringify({ password, email: email.trim() || undefined }),
       })
+      if (!r.ok) throw new Error('Error al guardar acceso')
       const d = await r.json()
       if (d.success) {
         const msg = d.message as string

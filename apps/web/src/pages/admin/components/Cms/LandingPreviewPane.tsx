@@ -99,7 +99,7 @@ export const LandingPreviewPane = ({
             target="_blank"
             rel="noopener noreferrer"
             title="Abrir en nueva pestaña"
-            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-all"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -112,7 +112,7 @@ export const LandingPreviewPane = ({
           <button
             onClick={onToggle}
             title="Ocultar preview"
-            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-all"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <polyline points="15 18 9 12 15 6" />
@@ -130,7 +130,7 @@ export const LandingPreviewPane = ({
           onLoad={handleLoad}
           className="w-full h-full border-0"
           title="Landing Page Preview"
-          sandbox="allow-scripts allow-same-origin allow-forms"
+          sandbox="allow-scripts allow-forms allow-popups"
           style={{ colorScheme: 'normal' }}
         />
         {/* Overlay prevents accidental iframe interaction while typing */}

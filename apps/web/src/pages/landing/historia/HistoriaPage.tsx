@@ -5,6 +5,7 @@ import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 const useScrollReveal = () => {
   const [node, setNode] = useState<HTMLElement | null>(null)
@@ -42,14 +43,16 @@ export default function Historia() {
   const [hitos, setHitos] = useState<{ año: string, titulo: string, descripcion: string }[]>([])
 
   useEffect(() => {
-    fetch(`${API_URL}/api/cms/hitos`)
-      .then(r => r.json())
+    let active = true
+    apiFetch(`${API_URL}/api/cms/hitos`)
       .then(data => {
+        if (!active) return
         if (data.success && data.data.length > 0) {
           setHitos(data.data.map((h: any) => ({ año: h.anio, titulo: h.titulo, descripcion: h.descripcion })))
         }
       })
       .catch(() => { })
+    return () => { active = false }
   }, [])
   return (
     <div className='min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth'>
@@ -81,12 +84,12 @@ export default function Historia() {
           <div className='relative'>
             <div className='absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-1 bg-slate-100 hidden md:block' />
             {hitos.map((hito, index) => (
-              <HitoHistoria key={index} index={index} año={hito.año} titulo={hito.titulo} descripcion={hito.descripcion} />
+              <HitoHistoria key={hito.año || hito.titulo} index={index} año={hito.año} titulo={hito.titulo} descripcion={hito.descripcion} />
             ))}
           </div>
           <div className='mt-20 p-12 rounded-[3rem] bg-slate-50 border border-emerald-100 text-center space-y-6'>
             <h3 className='text-2xl font-black text-[#022c22]'>¿Quieres ser parte de nuestra historia futura?</h3>
-            <button onClick={() => navigate('/contacto')} className='px-10 py-4 bg-[#022c22] text-emerald-400 rounded-full font-black uppercase text-xs tracking-widest hover:scale-105 transition-all shadow-xl shadow-emerald-900/10'>
+            <button onClick={() => navigate('/contacto')} className='px-10 py-4 bg-[#022c22] text-emerald-400 rounded-full font-black uppercase text-xs tracking-widest hover:scale-105 transition-transform shadow-xl shadow-emerald-900/10'>
               Afíliate hoy mismo
             </button>
           </div>

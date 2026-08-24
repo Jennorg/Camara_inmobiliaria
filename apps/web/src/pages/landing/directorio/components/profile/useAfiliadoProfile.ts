@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { API_URL } from '@/config/env';
+import { apiFetch } from '@/lib/apiClient';
 import { AfiliadoData } from '../AfiliadoCard';
 import logoCibir from '@/assets/Logo3.webp';
 
@@ -33,25 +34,28 @@ export const useAfiliadoProfile = (): UseAfiliadoProfileResult => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     const fetchProfile = async () => {
       try {
         if (!id) return;
-        const res = await fetch(`${API_URL}/api/public/afiliados/${encodeURIComponent(id)}`);
-        const json = await res.json();
+        const json = await apiFetch(`${API_URL}/api/public/afiliados/${encodeURIComponent(id)}`);
+        if (!active) return;
         if (json.success) {
           setAfiliado(json.data);
         } else {
           setError(json.message || 'No se pudo cargar el perfil');
         }
       } catch (err) {
+        if (!active) return;
         console.error('Error fetching profile:', err);
         setError('Error de conexión con el servidor');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     if (id) fetchProfile();
+    return () => { active = false; };
   }, [id]);
 
   const isRepMode = useMemo(() =>

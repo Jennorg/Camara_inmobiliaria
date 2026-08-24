@@ -208,7 +208,7 @@ export default function Cibir() {
                 </p>
                 <button
                   onClick={() => window.open("/brochure-cibir.pdf", "_blank")}
-                  className="px-10 py-4 bg-emerald-500 text-[#022c22] rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-400 transition-all shadow-xl self-start"
+                  className="px-10 py-4 bg-emerald-500 text-[#022c22] rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-400 transition-colors shadow-xl self-start"
                 >
                   Descargar Pensum (PDF)
                 </button>
@@ -264,7 +264,7 @@ export default function Cibir() {
             <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px bg-slate-200 hidden md:block" />
             {modulos.map((mod, index) => (
               <ModuloCibir
-                key={index}
+                key={mod.numero || mod.titulo}
                 index={index}
                 numero={mod.numero}
                 titulo={mod.titulo}
@@ -277,7 +277,7 @@ export default function Cibir() {
           <div className="relative mt-16 group">
             <div
               ref={(el) => setRevealEstudiosa(el)}
-              className="reveal-on-scroll absolute -bottom-50 -left-150 z-10 pointer-events-none hidden lg:block transition-all duration-1000 opacity-0 [&.active]:opacity-20"
+              className="reveal-on-scroll absolute -bottom-50 -left-150 z-10 pointer-events-none hidden lg:block transition-colors duration-1000 opacity-0 [&.active]:opacity-20"
             >
               <img
                 src={Estudiosa}
@@ -287,7 +287,7 @@ export default function Cibir() {
             </div>
             <div
               ref={(el) => setRevealEstudioso(el)}
-              className="reveal-on-scroll absolute -bottom-40 left-270 z-10 pointer-events-none hidden lg:block transition-all duration-1000 opacity-0 [&.active]:opacity-20"
+              className="reveal-on-scroll absolute -bottom-40 left-270 z-10 pointer-events-none hidden lg:block transition-colors duration-1000 opacity-0 [&.active]:opacity-20"
             >
               <img
                 src={Estudioso}

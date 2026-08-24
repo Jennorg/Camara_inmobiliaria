@@ -71,7 +71,7 @@ export default function ForgotPasswordModal({ onClose }: { onClose: () => void }
               <button
                 type='submit'
                 disabled={loading}
-                className='w-full px-6 py-3 bg-emerald-500 text-white rounded-full font-bold text-sm hover:bg-emerald-600 transition-all disabled:opacity-50'
+                className='w-full px-6 py-3 bg-emerald-500 text-white rounded-full font-bold text-sm hover:bg-emerald-600 transition-colors transition-opacity disabled:opacity-50'
               >
                 {loading ? 'Enviando...' : 'Enviar enlace'}
               </button>
@@ -93,7 +93,7 @@ export default function ForgotPasswordModal({ onClose }: { onClose: () => void }
             </p>
             <button
               onClick={onClose}
-              className='px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-bold hover:bg-emerald-50 transition-all'
+              className='px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-bold hover:bg-emerald-50 transition-colors'
             >
               Entendido
             </button>

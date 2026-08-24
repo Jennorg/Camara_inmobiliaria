@@ -97,7 +97,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
 
   if (submitted) {
     return (
-      <div className="text-center py-24 px-6 animate-in fade-in zoom-in duration-700">
+      <div className="transition-opacity transition-transform text-center py-24 px-6 fade-in zoom-in duration-700">
         <div className="w-24 h-24 bg-emerald-500/20 rounded-[2rem] flex items-center justify-center mx-auto mb-10 ring-1 ring-emerald-500/30 shadow-2xl shadow-emerald-500/20 backdrop-blur-md">
           <Check className="text-emerald-400" size={48} strokeWidth={3} />
         </div>
@@ -158,14 +158,14 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
 
           {/* Mensaje de error general de validación */}
           {Object.keys(methods.formState.errors).length > 0 && methods.formState.submitCount > 0 && (
-            <div className="flex items-center gap-3 text-amber-100 bg-amber-500/20 border border-amber-400/40 p-5 rounded-2xl text-xs font-bold justify-center animate-in slide-in-from-top-2 duration-300">
+            <div className="transition-transform flex items-center gap-3 text-amber-100 bg-amber-500/20 border border-amber-400/40 p-5 rounded-2xl text-xs font-bold justify-center slide-in-from-top-2 duration-300">
               <AlertCircle size={18} className="text-amber-400" />
               Por favor, complete todos los campos obligatorios marcados en rojo.
             </div>
           )}
 
           {errorMsg && (
-            <div className="flex items-center gap-3 text-white bg-red-600 border border-red-700 p-5 rounded-2xl text-xs font-bold justify-center shadow-md shadow-red-600/20 animate-in slide-in-from-top-2 duration-300">
+            <div className="transition-transform flex items-center gap-3 text-white bg-red-600 border border-red-700 p-5 rounded-2xl text-xs font-bold justify-center shadow-md shadow-red-600/20 slide-in-from-top-2 duration-300">
               <AlertCircle size={18} className="text-white shrink-0" />
               {errorMsg}
             </div>

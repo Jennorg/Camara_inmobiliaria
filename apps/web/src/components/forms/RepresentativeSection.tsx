@@ -16,7 +16,7 @@ export default function RepresentativeSection() {
   const { register, formState: { errors } } = useFormContext()
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+    <div className="transition-opacity transition-transform space-y-6 fade-in slide-in-from-bottom-4 duration-500 delay-100">
       <div className="flex items-center gap-4 border-b border-white/5 pb-4">
         <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
           <UserCheck className="text-emerald-400" size={20} />
@@ -38,7 +38,7 @@ export default function RepresentativeSection() {
             icon={<User size={16} />}
             className={errors.representanteNombres ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.representanteNombres && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.representanteNombres.message as string}</p>}
+          {errors.representanteNombres && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.representanteNombres.message as string}</p>}
         </div>
 
         <div className="space-y-2">
@@ -51,7 +51,7 @@ export default function RepresentativeSection() {
             icon={<User size={16} />}
             className={errors.representanteApellidos ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.representanteApellidos && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.representanteApellidos.message as string}</p>}
+          {errors.representanteApellidos && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.representanteApellidos.message as string}</p>}
         </div>
 
         <div className="space-y-2">
@@ -61,7 +61,7 @@ export default function RepresentativeSection() {
           <div className="flex gap-2">
             <select 
               {...register('cedulaRepresentantePrefix')}
-              className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
+              className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-colors"
             >
               {['V', 'E', 'P'].map(p => <option key={p} value={p}>{p}</option>)}
             </select>
@@ -71,7 +71,7 @@ export default function RepresentativeSection() {
               className={errors.cedulaRepresentante ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
           </div>
-          {errors.cedulaRepresentante && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.cedulaRepresentante.message as string}</p>}
+          {errors.cedulaRepresentante && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.cedulaRepresentante.message as string}</p>}
         </div>
 
         <div className="space-y-2">
@@ -85,7 +85,7 @@ export default function RepresentativeSection() {
             icon={<Mail size={16} />}
             className={errors.emailRepresentante ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.emailRepresentante && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.emailRepresentante.message as string}</p>}
+          {errors.emailRepresentante && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.emailRepresentante.message as string}</p>}
         </div>
 
         <div className="space-y-2 md:col-span-2">
@@ -95,7 +95,7 @@ export default function RepresentativeSection() {
           <div className="flex gap-2">
             <select 
               {...register('phonePrefix')}
-              className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-all"
+              className="h-[58px] bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-black text-slate-700 outline-none focus:border-emerald-500 transition-colors"
             >
               {COUNTRIES.map(c => <option key={`${c.code}-${c.label}`} value={c.code}>{c.flag} {c.code}</option>)}
             </select>
@@ -105,7 +105,7 @@ export default function RepresentativeSection() {
               className={errors.telefono ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
           </div>
-          {errors.telefono && <p className="text-[10px] text-red-400 font-bold ml-1 uppercase animate-in fade-in slide-in-from-left-2 duration-300">{errors.telefono.message as string}</p>}
+          {errors.telefono && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.telefono.message as string}</p>}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Award, Copy, ExternalLink, ShieldCheck } from 'lucide-react'
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 interface CertRow {
   id_certificado: number
@@ -37,36 +38,44 @@ const WidgetMisCertificados: React.FC = () => {
       setLoading(false)
       return
     }
+    let active = true
     setFetchError(null)
 
     // Cargar certificados académicos
-    fetch(`${API_URL}/api/afiliados/me/certificados`, {
+    apiFetch(`${API_URL}/api/afiliados/me/certificados`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
       .then((j) => {
+        if (!active) return
         if (j.success && Array.isArray(j.data)) setRows(j.data)
         else setFetchError(typeof j.message === 'string' ? j.message : 'No se pudieron cargar los certificados.')
       })
-      .catch(() => setFetchError('Error de conexión al cargar certificados.'))
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (active) setFetchError('Error de conexión al cargar certificados.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
 
     // Cargar estatus de afiliado si corresponde
     if (user?.id_afiliado) {
       setLoadingAfi(true)
-      fetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
+      apiFetch(`${API_URL}/api/afiliados/${user.id_afiliado}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-        .then((r) => r.json())
         .then((j) => {
+          if (!active) return
           if (j.success && j.data) {
             console.log('DEBUG: afiliadoData:', j.data);
             setAfiliadoData(j.data)
           }
         })
         .catch(() => { })
-        .finally(() => setLoadingAfi(false))
+        .finally(() => {
+          if (active) setLoadingAfi(false)
+        })
     }
+    return () => { active = false }
   }, [token, user?.id_afiliado])
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -119,7 +128,7 @@ const WidgetMisCertificados: React.FC = () => {
               </h4>
               <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
                 {afiliadoData?.estatus === 'Afiliado' 
-                  ? "Como miembro registrado en la Cámara Inmobiliaria del Estado Bolívar, dispones de tu certificado de afiliación digital y público."
+                  ? "Como miembro registrado en la Cámara Inmobiliaria de Bolívar, dispones de tu certificado de afiliación digital y público."
                   : "Has aprobado el programa CIBIR. Dispones de tu certificado digital y público."
                 }
               </p>
@@ -130,7 +139,7 @@ const WidgetMisCertificados: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirCertificadoAfiliacion}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-all shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-colors shadow-xs cursor-pointer"
                   >
                     <ExternalLink size={14} />
                     Ver Certificado
@@ -138,7 +147,7 @@ const WidgetMisCertificados: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => copiar(urlAfiliacion)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
                   >
                     <Copy size={14} />
                     Copiar Enlace

@@ -9,7 +9,8 @@ import NavItem from './NavItem'
 import AffiliationTicker from './AffiliationTicker'
 import { NAV_ITEMS } from './navData'
 import { API_URL } from '@/config/env'
-import { Menu, X, LogOut, Moon, Sun } from 'lucide-react'
+import { apiFetch } from '@/lib/apiClient'
+import { Menu, X, LogOut, Moon, Sun, User } from 'lucide-react'
 
 interface NavbarProps {
   darkMode: boolean;
@@ -29,14 +30,16 @@ const Navbar = ({
   const [hasOtherCourses, setHasOtherCourses] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/public/cursos`)
-      .then(res => res.json())
+    let active = true;
+    apiFetch(`${API_URL}/api/public/cursos`)
       .then(data => {
+        if (!active) return;
         if (data.success && data.data && data.data.length > 0) {
           setHasOtherCourses(true);
         }
       })
       .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   const buildDynamicNavItems = () => {
@@ -69,10 +72,10 @@ const Navbar = ({
           
           {/* 1. ZONA LOGO */}
           <div className="flex-1 flex justify-start pl-[5%]">
-            <Link to="/" className="relative group flex items-center p-1 transition-all duration-300 z-50">
+            <Link to="/" className="relative group flex items-center p-1 transition-colors duration-300 z-50">
               <img 
                 src={darkMode ? logoDark : logoLight} 
-                className={`h-16 lg:h-20 w-auto object-contain transition-all duration-500 group-hover:scale-105 ${
+                className={`h-16 lg:h-20 w-auto object-contain transition-transform duration-500 group-hover:scale-105 ${
                   darkMode ? "drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "drop-shadow-[0_0_12px_rgba(5,150,105,0.2)]"
                 }`} 
                 alt="Logo CIBIR" 
@@ -83,8 +86,8 @@ const Navbar = ({
           {/* 2. MENU DESKTOP */}
           <div className="hidden xl:block">
             <ul className="flex items-center space-x-8 text-[12px] font-bold uppercase tracking-wider text-emerald-600">
-              {dynamicNavItems.map((item, index) => (
-                <NavItem key={index} item={item as any} />
+              {dynamicNavItems.map((item) => (
+                <NavItem key={item.Tpath || item.title} item={item as any} />
               ))}
             </ul>
           </div>
@@ -108,20 +111,23 @@ const Navbar = ({
                 <>
                   <Link
                     to='/panel'
-                    className='hidden md:flex items-center gap-2 px-4 py-1.5 bg-emerald-900/30 border border-emerald-500/30 rounded-full text-emerald-300 text-xs font-bold hover:bg-emerald-800/50 hover:border-emerald-400 transition-all shadow-inner'
+                    className={`hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-full text-xs font-black transition-colors shadow-md border ${
+                      darkMode
+                        ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-200 hover:bg-emerald-900'
+                        : 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-emerald-900/10'
+                    }`}
                   >
-                    <span className='relative flex h-2.5 w-2.5'>
-                      <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75'></span>
-                      <span className='relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500'></span>
-                    </span>
-                    {user.email.split('@')[0]}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 shadow-xs ${darkMode ? 'bg-emerald-400 text-slate-950' : 'bg-white text-emerald-700'}`}>
+                      <User size={13} strokeWidth={2.8} />
+                    </div>
+                    <span className="truncate max-w-[130px] font-extrabold">{user.email.split('@')[0]}</span>
                   </Link>
 
                   <button
                     type="button"
                     onClick={logout}
                     title={labelSalir}
-                    className='p-2 text-emerald-500/70 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-all flex items-center gap-1 text-xs font-bold'
+                    className='p-2 text-emerald-500/70 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors flex items-center gap-1 text-xs font-bold'
                   >
                     <LogOut size={20} />
                   </button>
@@ -130,7 +136,7 @@ const Navbar = ({
                 <button
                   type="button"
                   onClick={() => setShowLoginModal(true)}
-                  className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95'
+                  className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-colors transition-transform active:scale-95'
                 >
                   {labelLogin}
                 </button>
@@ -171,8 +177,8 @@ const Navbar = ({
           </div>
 
           <div className="flex-grow overflow-y-auto p-6 space-y-6">
-            {dynamicNavItems.map((item, idx) => (
-              <div key={idx} className="space-y-4">
+            {dynamicNavItems.map((item) => (
+              <div key={item.Tpath || item.title} className="space-y-4">
                 <Link
                   to={item.items ? "#" : item.Tpath}
                   onClick={() => !item.items && setIsMobileMenuOpen(false)}
@@ -184,8 +190,8 @@ const Navbar = ({
                 </Link>
                 {item.items && (
                   <div className="ml-4 pl-4 border-l-2 border-emerald-500/20 flex flex-col gap-3">
-                    {item.items.map((sub, sidx) => (
-                      <Link key={sidx} to={sub.path} onClick={() => setIsMobileMenuOpen(false)}
+                    {item.items.map((sub: any) => (
+                      <Link key={sub.path || sub.label} to={sub.path} onClick={() => setIsMobileMenuOpen(false)}
                         className={`text-sm font-bold ${darkMode ? 'text-emerald-400 hover:text-white' : 'text-emerald-600 hover:text-emerald-900'}`}>
                         {sub.label}
                       </Link>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { formatNombreCard } from '@/utils/formatters'
 import { apiUrl } from '@/config/env'
+import { apiFetch } from '@/lib/apiClient'
 
 // Import directiva images from the repo
 import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
@@ -45,10 +46,11 @@ export default function DirectivaSection() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    let active = true
     const fetchDirectiva = async () => {
       try {
-        const res = await fetch(apiUrl('/api/cms/directiva'))
-        const data = await res.json()
+        const data = await apiFetch(apiUrl('/api/cms/directiva'))
+        if (!active) return
         if (data && data.success && Array.isArray(data.data)) {
           const activeMembers = data.data
             .filter((m: any) => (m.activo === 1 || m.activo === true) && m.foto_url)
@@ -63,14 +65,14 @@ export default function DirectivaSection() {
         } else {
           setDirectivaMembers(fallbackDirectiva)
         }
-      } catch (err) {
-        console.error('Error fetching directiva for section:', err)
-        setDirectivaMembers(fallbackDirectiva)
+      } catch {
+        if (active) setDirectivaMembers(fallbackDirectiva)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
     fetchDirectiva()
+    return () => { active = false }
   }, [])
 
   const scroll = useCallback((direction: 'left' | 'right') => {
@@ -116,8 +118,8 @@ export default function DirectivaSection() {
           {/* Mobile Grid View */}
           <div className="grid grid-cols-2 gap-3.5 sm:hidden w-full">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="animate-pulse bg-slate-50 border border-slate-100 rounded-2xl p-3 flex flex-col items-center text-center space-y-3">
+              Array.from({ length: 4 }).map((_, skelIdx) => (
+                <div key={`dir-mob-skel-${skelIdx}`} className="animate-pulse bg-slate-50 border border-slate-100 rounded-2xl p-3 flex flex-col items-center text-center space-y-3">
                   <div className="w-full aspect-[4/5] rounded-xl bg-slate-200" />
                   <div className="space-y-1.5 w-full flex flex-col items-center">
                     <div className="bg-slate-200 h-4 w-3/4 rounded-md" />
@@ -126,7 +128,7 @@ export default function DirectivaSection() {
                 </div>
               ))
             ) : (
-              directivaMembers.map((m, i) => {
+              directivaMembers.map((m) => {
                 const cardContent = (
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center text-center space-y-2.5 h-full shadow-xs hover:shadow-md transition">
                     <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xs bg-slate-100">
@@ -145,14 +147,15 @@ export default function DirectivaSection() {
                   </div>
                 )
 
+                const memberKey = m.id_afiliado || m.codigo || m.nombre;
                 if (m.id_afiliado || m.codigo) {
                   return (
-                    <Link key={i} to={`/miembros/${m.codigo || m.id_afiliado}`} className="block h-full cursor-pointer">
+                    <Link key={memberKey} to={`/miembros/${m.codigo || m.id_afiliado}`} className="block h-full cursor-pointer">
                       {cardContent}
                     </Link>
                   )
                 }
-                return <div key={i} className="h-full">{cardContent}</div>
+                return <div key={memberKey} className="h-full">{cardContent}</div>
               })
             )}
           </div>
@@ -160,7 +163,7 @@ export default function DirectivaSection() {
           {/* Desktop & Tablet Carousel View */}
           <button 
             onClick={() => scroll('left')} 
-            className='hidden sm:flex absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+            className='hidden sm:flex absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
           </button>
@@ -171,8 +174,8 @@ export default function DirectivaSection() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="animate-pulse flex flex-col items-center text-center space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
+              Array.from({ length: 4 }).map((_, skelIdx) => (
+                <div key={`dir-desk-skel-${skelIdx}`} className="animate-pulse flex flex-col items-center text-center space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
                   <div className="w-full h-52 lg:w-48 lg:h-60 rounded-[2.5rem] bg-slate-200" />
                   <div className="space-y-2 flex flex-col items-center w-full">
                     <div className="bg-slate-200 h-5 w-3/4 rounded-md animate-pulse" />
@@ -181,10 +184,10 @@ export default function DirectivaSection() {
                 </div>
               ))
             ) : (
-              directivaMembers.map((m, i) => {
+              directivaMembers.map((m) => {
                 const cardInner = (
                   <>
-                    <div className="relative w-full h-52 lg:w-48 lg:h-60 rounded-[2.5rem] overflow-hidden shadow-md ring-4 ring-slate-100 transition-all group-hover:ring-slate-200 aspect-[4/5]">
+                    <div className="relative w-full h-52 lg:w-48 lg:h-60 rounded-[2.5rem] overflow-hidden shadow-md ring-4 ring-slate-100 transition-colors group-hover:ring-slate-200 aspect-[4/5]">
                       <img
                         src={m.foto_url}
                         alt={m.nombre}
@@ -200,10 +203,11 @@ export default function DirectivaSection() {
                   </>
                 )
 
+                const memberKey = m.id_afiliado || m.codigo || m.nombre;
                 if (m.id_afiliado || m.codigo) {
                   return (
                     <Link
-                      key={i}
+                      key={memberKey}
                       to={`/miembros/${m.codigo || m.id_afiliado}`}
                       className="group relative flex flex-col items-center text-center space-y-3 sm:space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs cursor-pointer"
                     >
@@ -214,7 +218,7 @@ export default function DirectivaSection() {
 
                 return (
                   <div
-                    key={i}
+                    key={memberKey}
                     className="group relative flex flex-col items-center text-center space-y-3 sm:space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs"
                   >
                     {cardInner}
@@ -226,14 +230,14 @@ export default function DirectivaSection() {
 
           <button 
             onClick={() => scroll('right')} 
-            className='hidden sm:flex absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+            className='hidden sm:flex absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
           </button>
         </div>
 
         <div className="flex justify-center pt-8">
-          <Link to="/junta-directiva" className="px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
+          <Link to="/junta-directiva" className="px-10 py-3 border-2 border-emerald-500 text-emerald-600 rounded-full font-black uppercase text-xs tracking-widest hover:bg-emerald-500 hover:text-white transition-colors">
             {s.verTodos}
           </Link>
         </div>

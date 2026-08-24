@@ -137,7 +137,7 @@ const AdminPage = () => {
             flex items-center justify-center w-5 h-5 rounded-full
             bg-white border border-gray-200 text-slate-400 shadow-sm
             hover:bg-[#00D084] hover:text-white hover:border-[#00D084]
-            transition-all duration-150"
+            transition-colors duration-150"
         >
           <svg
             viewBox="0 0 24 24"

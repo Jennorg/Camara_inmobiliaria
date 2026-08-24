@@ -5,6 +5,7 @@ import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import Swal from 'sweetalert2';
+import { apiFetch } from '@/lib/apiClient';
 
 import cibirCatalog from '@/assets/cibir_catalog.webp';
 import preaniCatalog from '@/assets/preani_catalog.webp';
@@ -81,18 +82,20 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
   const { user, token } = useAuth(); // Para obtener info básica y prellenar modal
 
   useEffect(() => {
+    let active = true;
     // 1. Fetch catálogo
-    const fetchCatalogo = fetch(`${API_URL}/api/public/cursos`).then(res => res.json());
+    const fetchCatalogo = apiFetch(`${API_URL}/api/public/cursos`);
     
     // 2. Fetch inscripciones del usuario si está logueado
     const fetchInscripciones = token 
-      ? fetch(`${API_URL}/api/afiliados/me/cursos`, {
+      ? apiFetch(`${API_URL}/api/afiliados/me/cursos`, {
           headers: { Authorization: `Bearer ${token}` }
-        }).then(res => res.json())
+        })
       : Promise.resolve({ success: true, data: [] });
 
     Promise.all([fetchCatalogo, fetchInscripciones])
       .then(([catalogoJson, inscripcionesJson]) => {
+        if (!active) return;
         if (catalogoJson.success) {
           const dynamicCourses = catalogoJson.data;
           const combined = [...FLAGSHIP_PROGRAMS, ...dynamicCourses];
@@ -116,9 +119,12 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         }
       })
       .catch(() => {
-        setCourses(FLAGSHIP_PROGRAMS);
+        if (active) setCourses(FLAGSHIP_PROGRAMS);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [limit, token]);
 
   const handleInscribir = (curso: CursoDB) => {
@@ -168,7 +174,10 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then(json => {
         if (json.success) {
           if (json.data?.token) {
@@ -242,7 +251,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 py-2 min-h-[12rem]">
         {loading ? (
-          Array.from({ length: limit > 0 ? limit : 4 }).map((_, i) => <SkeletonCard key={i} />)
+          Array.from({ length: limit > 0 ? limit : 4 }).map((_, skelIdx) => <SkeletonCard key={`acad-skel-${skelIdx}`} />)
         ) : courses.length === 0 ? (
           <div className="col-span-full flex items-center justify-center p-10"><span className="text-sm font-semibold text-slate-400">Pronto se anunciarán nuevos cursos.</span></div>
         ) : (
@@ -312,7 +321,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 </h4>
                 {!isEnrolled && (
                   <div
-                    className="mt-3 flex items-center text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0"
+                    className="mt-3 flex items-center text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-transform -translate-x-2 group-hover:translate-x-0"
                     style={{ color: 'var(--color-accent-hover)' }}
                   >
                     {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo') ? 'Ver Información' : 'Formalizar Inscripción'} <ChevronRight size={12} className="ml-1" />

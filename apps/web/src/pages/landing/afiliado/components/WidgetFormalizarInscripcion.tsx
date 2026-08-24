@@ -114,7 +114,7 @@ const WidgetFormalizarInscripcion = ({ onSuccess }: WidgetFormalizarInscripcionP
           <button
             type="submit"
             disabled={loading}
-            className="w-full font-black mt-4 py-4 rounded-xl flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
+            className="w-full font-black mt-4 py-4 rounded-xl flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
             style={{
               backgroundColor: 'var(--color-primary)',
               color: 'var(--color-text-on-dark)',

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2, Home } from 'lucide-react';
 import { API_URL } from '@/config/env';
+import { apiFetch } from '@/lib/apiClient';
 
 const VerificarEmailPage = () => {
   const [searchParams] = useSearchParams();
@@ -10,6 +11,8 @@ const VerificarEmailPage = () => {
   const [message, setMessage] = useState('Verificando tu correo electrónico...');
 
   useEffect(() => {
+    let active = true;
+
     if (!token) {
       setStatus('error');
       setMessage('El enlace de verificación de correo es incorrecto o está incompleto.');
@@ -18,7 +21,7 @@ const VerificarEmailPage = () => {
 
     const verificarToken = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/afiliados/registro/verificar`, {
+        const data = await apiFetch(`${API_URL}/api/afiliados/registro/verificar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -26,26 +29,26 @@ const VerificarEmailPage = () => {
           body: JSON.stringify({ token })
         });
 
-        const data = await response.json();
+        if (!active) return;
 
-        if (response.ok) {
-          setStatus('success');
-          setMessage(data.message || 'Correo verificado y candidato registrado exitosamente.');
-        } else {
-          setStatus('error');
-          let errMsg = data.message || 'Error al verificar el correo.';
-          if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
-            errMsg = 'El enlace de verificación no es válido o ha caducado. Por favor, realiza tu registro nuevamente.';
-          }
-          setMessage(errMsg);
-        }
-      } catch (error) {
+        setStatus('success');
+        setMessage(data.message || 'Correo verificado y candidato registrado exitosamente.');
+      } catch (err: any) {
+        if (!active) return;
         setStatus('error');
-        setMessage('No se pudo establecer conexión con el servidor. Por favor, comprueba tu conexión a internet.');
+        let errMsg = err.message || 'Error al verificar el correo.';
+        if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('expira') || errMsg.toLowerCase().includes('vencido') || errMsg.toLowerCase().includes('caducado')) {
+          errMsg = 'El enlace de verificación no es válido o ha caducado. Por favor, realiza tu registro nuevamente.';
+        }
+        setMessage(errMsg);
       }
     };
 
     verificarToken();
+
+    return () => {
+      active = false;
+    };
   }, [token]);
 
   return (
