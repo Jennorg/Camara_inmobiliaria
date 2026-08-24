@@ -4,7 +4,7 @@ import { isOriginAllowed, corsMiddleware } from './lib/cors.js'
 import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes } from './routes/index.js'
 
 
-const app = express() // v1.0.1
+const app = express() // v1.0.3
 
 // Normaliza paths con doble barra (evita 308 en Vercel sin cabeceras CORS)
 app.use((req, _res, next) => {

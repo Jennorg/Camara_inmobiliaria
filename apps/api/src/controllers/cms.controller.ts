@@ -15,7 +15,7 @@ export const getNoticias = async (req: Request, res: Response) => {
       sql += ' WHERE (publicado = ? OR publicado = ? OR publicado IS NULL)';
       args.push(isPub ? 1 : 0, isPub ? '1' : '0');
     }
-    sql += ' ORDER BY fecha_publicacion DESC';
+    sql += ' ORDER BY CASE WHEN orden IS NULL OR orden = 0 THEN 999999 ELSE orden END ASC, fecha_publicacion DESC';
     const result = await db.execute({ sql, args });
     let noticias: any[] = [...result.rows];
 
@@ -23,11 +23,11 @@ export const getNoticias = async (req: Request, res: Response) => {
     if (publicado === undefined || publicado === '1' || publicado === 'true') {
       try {
         const cursosRes = await db.execute({
-          sql: `SELECT id_curso, titulo, descripcion as contenido, imagen_url, estatus, solo_informativo, fecha_inicio as fecha_evento, creado_en as fecha_publicacion
+          sql: `SELECT id_curso, titulo, descripcion as contenido, imagen_url, estatus, solo_informativo, fecha_inicio as fecha_evento, creado_en as fecha_publicacion, COALESCE(orden, 0) as orden
                 FROM cursos 
                 WHERE (solo_informativo = ? OR estatus = ?)
                   AND imagen_url IS NOT NULL AND LENGTH(TRIM(imagen_url)) > 0
-                ORDER BY creado_en DESC`,
+                ORDER BY CASE WHEN orden IS NULL OR orden = 0 THEN 999999 ELSE orden END ASC, creado_en DESC`,
           args: [1, 'Solo Informativo']
         });
         
@@ -48,8 +48,8 @@ export const getNoticias = async (req: Request, res: Response) => {
         }));
 
         noticias = [...cursosAsNoticias, ...noticias].sort((a: any, b: any) => {
-          const ordA = a.orden !== undefined && a.orden !== null && Number(a.orden) > 0 ? Number(a.orden) : 999;
-          const ordB = b.orden !== undefined && b.orden !== null && Number(b.orden) > 0 ? Number(b.orden) : 999;
+          const ordA = a.orden !== undefined && a.orden !== null && Number(a.orden) > 0 ? Number(a.orden) : 999999;
+          const ordB = b.orden !== undefined && b.orden !== null && Number(b.orden) > 0 ? Number(b.orden) : 999999;
           if (ordA !== ordB) return ordA - ordB;
           const dateA = new Date(a.fecha_publicacion || 0).getTime();
           const dateB = new Date(b.fecha_publicacion || 0).getTime();

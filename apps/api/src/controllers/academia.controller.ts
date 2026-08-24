@@ -2231,19 +2231,25 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     const now = new Date().toISOString()
 
-    await db.execute({
-      sql: `INSERT INTO inscripciones_cursos (id_estudiante, id_curso, tipo_inscripcion, estatus, asignado_por, aprobado_por, creado_en, actualizado_en)
-            VALUES (?, ?, 'curso', 'Inscrito', ?, ?, ?, ?)
-            ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
-              estatus='Inscrito',
-              estatus_academico='Inscrito',
-              completado=0,
-              tipo_inscripcion='curso',
-              asignado_por=excluded.asignado_por,
-              aprobado_por=excluded.aprobado_por,
-              actualizado_en=excluded.actualizado_en`,
-      args: [id_estudiante, idCurso, req.user?.id ?? null, req.user?.id ?? null, now, now],
+    const updateRes = await db.execute({
+      sql: `UPDATE inscripciones_cursos 
+            SET estatus = 'Inscrito',
+                estatus_academico = 'Inscrito',
+                completado = 0,
+                tipo_inscripcion = 'curso',
+                aprobado_por = ?,
+                actualizado_en = ?
+            WHERE id_estudiante = ? AND id_curso = ?`,
+      args: [req.user?.id ?? null, now, id_estudiante, idCurso],
     })
+
+    if ((updateRes.rowsAffected ?? 0) === 0) {
+      await db.execute({
+        sql: `INSERT INTO inscripciones_cursos (id_estudiante, id_curso, tipo_inscripcion, estatus, estatus_academico, aprobado_por, creado_en, actualizado_en)
+              VALUES (?, ?, 'curso', 'Inscrito', 'Inscrito', ?, ?, ?)`,
+        args: [id_estudiante, idCurso, req.user?.id ?? null, now, now],
+      })
+    }
 
     res.status(201).json({ success: true, message: 'Estudiante asignado e inscrito en el curso.' })
   } catch (error) {
