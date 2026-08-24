@@ -9,7 +9,7 @@
  *
  * This prevents the API round-trip from blocking the initial page render.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { API_URL } from '@/config/env'
 
 const CACHE_KEY = 'ciebo_cms_config:v1'
@@ -41,8 +41,9 @@ function writeCache(config: Record<string, string>) {
   }
 }
 
-async function fetchConfig(): Promise<Record<string, string>> {
-  const response = await fetch(`${API_URL}/api/cms/config`)
+async function fetchConfig(signal?: AbortSignal): Promise<Record<string, string>> {
+  const response = await fetch(`${API_URL}/api/cms/config`, { signal })
+  if (!response.ok) throw new Error('Config fetch failed')
   const data = await response.json()
   if (!data.success) throw new Error('Config fetch failed')
   return data.config as Record<string, string>
@@ -53,30 +54,33 @@ async function fetchConfig(): Promise<Record<string, string>> {
  * The hook serves stale data instantly and refreshes in the background.
  */
 export function useCachedConfig(): Record<string, string> {
-  const [config, setConfig] = useState<Record<string, string>>(readCache() ?? {})
+  const [config, setConfig] = useState<Record<string, string>>(() => readCache() ?? {})
 
-  useEffect(() => {
-    const cached = readCache()
-
-    if (cached) {
-      // Serve cache immediately, then silently refresh
-      setConfig(cached)
-      fetchConfig()
-        .then(fresh => {
-          writeCache(fresh)
-          setConfig(fresh)
-        })
-        .catch(() => { /* keep stale cache on network error */ })
-    } else {
-      // No cache — fetch and store
-      fetchConfig()
-        .then(fresh => {
-          writeCache(fresh)
-          setConfig(fresh)
-        })
-        .catch(() => { /* rely on component defaults */ })
+  const syncConfig = useCallback(async (signal: AbortSignal) => {
+    try {
+      const fresh = await fetchConfig(signal)
+      if (!signal.aborted) {
+        writeCache(fresh)
+        setConfig(fresh)
+      }
+    } catch {
+      /* keep stale cache or defaults on error */
     }
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const cached = readCache()
+    if (cached) {
+      setConfig(cached)
+    }
+
+    syncConfig(controller.signal)
+
+    return () => {
+      controller.abort()
+    }
+  }, [syncConfig])
 
   return config
 }

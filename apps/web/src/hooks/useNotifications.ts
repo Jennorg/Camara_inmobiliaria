@@ -30,6 +30,7 @@ export function useNotifications() {
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         setNotifications(json.data || []);
@@ -52,6 +53,7 @@ export function useNotifications() {
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         setNotifications(prev =>
@@ -74,6 +76,7 @@ export function useNotifications() {
           Authorization: `Bearer ${token}`
         }
       });
+      if (!res.ok) return;
       const json = await res.json();
       if (json.success) {
         setNotifications(prev => prev.map(n => ({ ...n, leido: 1 })));

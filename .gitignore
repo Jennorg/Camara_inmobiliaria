@@ -28,6 +28,12 @@ dist-ssr
 .vercel
 .env*.local
 
+# Agent / Skills directory
+.agents/
+.agents
+@.agents/
+@.agents
+
 scripts/
 scripts/temp_*
 apps/api/src/scripts/inspect_*
