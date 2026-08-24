@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
 
@@ -171,6 +171,16 @@ function normalizeUser(rawUser: any): AuthUser {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
+async function requestRefreshSession(signal: AbortSignal) {
+  const res = await fetch(`${API_URL}/api/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    signal,
+  })
+  if (!res.ok) return null
+  return res.json()
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]         = useState<AuthUser | null>(null)
   const [token, setTokenState]  = useState<string | null>(null)
@@ -211,8 +221,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [navigate, setToken])
 
+  const restoreSession = useCallback(async (signal: AbortSignal, failsafe: NodeJS.Timeout) => {
+    try {
+      const data = await requestRefreshSession(signal)
+      if (!signal.aborted && data && data.success && data.token && data.user) {
+        setToken(data.token)
+        setUser(normalizeUser(data.user))
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false)
+        clearTimeout(failsafe)
+      }
+    }
+  }, [setToken])
+
   // Restore session on mount
   useEffect(() => {
+    const controller = new AbortController()
     // Failsafe timeout: si en 10 segundos no ha cargado, forzar setLoading(false)
     const failsafe = setTimeout(() => {
       setLoading(false);
@@ -223,56 +251,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const urlToken = urlParams.get('token');
     
     if (urlToken) {
-      localStorage.setItem(TOKEN_KEY, urlToken);
+      setToken(urlToken);
       // Limpiar el token de la URL para seguridad y estética
       window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
     }
 
-    const storedToken = urlToken || localStorage.getItem(TOKEN_KEY)
+    restoreSession(controller.signal, failsafe)
 
-    // Intentamos recuperar sesión con el endpoint /refresh
-    fetch(`${API_URL}/api/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && data.token && data.user) {
-          setToken(data.token)
-          setUser(normalizeUser(data.user))
-          setLoading(false)
-        } else {
-          // Si falla, intentamos usar el token legacy de localStorage (si existe)
-          if (storedToken) {
-            fetch(`${API_URL}/api/auth/me`, {
-              headers: { Authorization: `Bearer ${storedToken}` },
-              credentials: 'include'
-            })
-              .then(r => r.json())
-              .then(meData => {
-                if (meData.success && meData.user) {
-                  setToken(storedToken)
-                  setUser(normalizeUser(meData.user))
-                } else {
-                  localStorage.removeItem(TOKEN_KEY)
-                }
-              })
-              .catch(() => localStorage.removeItem(TOKEN_KEY))
-              .finally(() => setLoading(false))
-          } else {
-            setLoading(false)
-          }
-        }
-      })
-      .catch(() => {
-        setLoading(false)
-      })
-      .finally(() => {
-        clearTimeout(failsafe);
-      });
-
-    return () => clearTimeout(failsafe);
-  }, [setToken])
+    return () => {
+      controller.abort()
+      clearTimeout(failsafe)
+    }
+  }, [setToken, restoreSession])
 
   // Login function
   const login = useCallback(async (email: string, password: string) => {
@@ -282,9 +272,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body:    JSON.stringify({ email, password }),
     })
 
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.message || `Error HTTP ${res.status}: Credenciales incorrectas`)
+    }
+
     const data = await res.json()
 
-    if (!res.ok || !data.success) {
+    if (!data.success) {
       throw new Error(data.message || 'Credenciales incorrectas')
     }
 
@@ -331,17 +326,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` }
     })
+    if (!res.ok) {
+      throw new Error(`Error HTTP ${res.status} al ingresar como usuario`)
+    }
     const data = await res.json()
     if (!data.success) {
       throw new Error(data.message || 'Error al ingresar como usuario')
     }
 
-    if (!localStorage.getItem(ORIGINAL_ADMIN_TOKEN_KEY)) {
-      localStorage.setItem(ORIGINAL_ADMIN_TOKEN_KEY, token)
-      localStorage.setItem(ORIGINAL_ADMIN_INFO_KEY, JSON.stringify(data.data.originalAdmin))
-    }
-
-    localStorage.setItem(TOKEN_KEY, data.data.token)
     setToken(data.data.token)
     setUser(normalizeUser(data.data.user))
     setOriginalAdmin(data.data.originalAdmin)
@@ -350,29 +342,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, navigate, setToken])
 
   const stopImpersonation = useCallback(async () => {
-    const origToken = localStorage.getItem(ORIGINAL_ADMIN_TOKEN_KEY)
-    localStorage.removeItem(ORIGINAL_ADMIN_TOKEN_KEY)
-    localStorage.removeItem(ORIGINAL_ADMIN_INFO_KEY)
     setOriginalAdmin(null)
 
-    if (origToken) {
-      localStorage.setItem(TOKEN_KEY, origToken)
-      setToken(origToken)
-      try {
-        const res = await fetch(`${API_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${origToken}` },
-        })
-        const data = await res.json()
-        if (data.success && data.user) {
+    fetch(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include'
+    })
+      .then(r => {
+        if (!r.ok) return null
+        return r.json()
+      })
+      .then(data => {
+        if (data && data.success && data.token && data.user) {
+          setToken(data.token)
           setUser(normalizeUser(data.user))
         }
-      } catch (err) {
-        console.error('Error al restaurar sesión admin:', err)
-      }
-    } else {
-      setToken(null)
-      setUser(null)
-    }
+      })
+      .catch(() => {})
 
     navigate('/panel')
   }, [navigate, setToken])
@@ -384,9 +370,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       credentials: 'include'
     }).catch(err => console.error('Error logging out on backend:', err))
 
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(ORIGINAL_ADMIN_TOKEN_KEY)
-    localStorage.removeItem(ORIGINAL_ADMIN_INFO_KEY)
     setOriginalAdmin(null)
     setToken(null)
     setUser(null)
@@ -400,6 +383,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${API_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+      if (!res.ok) return
       const data = await res.json()
       if (data.success && data.user) {
         setUser(normalizeUser(data.user))
@@ -420,21 +404,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
+  const value = useMemo(() => ({
+    user, token, isLoading, login, logout,
+    hasRole,
+    isAdmin: isAdminVal,
+    isSuperAdmin: isSuperAdminVal,
+    isAsistente: isAsistenteVal,
+    isAfiliado: isAfiliadoVal,
+    isEstudiante: isEstudianteVal,
+    refreshUser,
+    isImpersonating: !!originalAdmin,
+    originalAdmin,
+    impersonateUser,
+    stopImpersonation
+  }), [
+    user, token, isLoading, login, logout,
+    hasRole, isAdminVal, isSuperAdminVal, isAsistenteVal,
+    isAfiliadoVal, isEstudianteVal, refreshUser,
+    originalAdmin, impersonateUser, stopImpersonation
+  ])
+
   return (
-    <AuthContext.Provider value={{
-      user, token, isLoading, login, logout,
-      hasRole,
-      isAdmin: isAdminVal,
-      isSuperAdmin: isSuperAdminVal,
-      isAsistente: isAsistenteVal,
-      isAfiliado: isAfiliadoVal,
-      isEstudiante: isEstudianteVal,
-      refreshUser,
-      isImpersonating: !!originalAdmin,
-      originalAdmin,
-      impersonateUser,
-      stopImpersonation
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

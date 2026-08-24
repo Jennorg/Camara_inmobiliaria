@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,8 +54,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const warning = useCallback((title: string, message?: string) => toast({ title, message, variant: 'warning' }), [toast]);
   const info    = useCallback((title: string, message?: string) => toast({ title, message, variant: 'info' }), [toast]);
 
+  const value = useMemo(
+    () => ({ toasts, toast, success, error, warning, info, dismiss }),
+    [toasts, toast, success, error, warning, info, dismiss]
+  );
+
   return (
-    <ToastContext.Provider value={{ toasts, toast, success, error, warning, info, dismiss }}>
+    <ToastContext.Provider value={value}>
       {children}
       <ToastContainer toasts={toasts} dismiss={dismiss} />
     </ToastContext.Provider>
@@ -162,7 +167,7 @@ function ToastItem({ t, dismiss }: { t: Toast; dismiss: (id: string) => void }) 
       {/* Dismiss button */}
       <button
         onClick={() => dismiss(t.id)}
-        className={`absolute top-3 right-3 w-6 h-6 rounded-lg flex items-center justify-center transition-all ${cfg.closeColor}`}
+        className={`absolute top-3 right-3 w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${cfg.closeColor}`}
         aria-label="Cerrar"
       >
         <X size={12} strokeWidth={2.5} />
