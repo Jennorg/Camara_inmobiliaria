@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useReducer } from 'react'
 import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
 import { 
   Users, 
@@ -167,6 +167,158 @@ export function formatPeriodoCompleto(periodoStr?: string) {
   return `${formatPart(start)} - ${formatPart(end)}`
 }
 
+interface PeriodState {
+  showSuccessionModal: boolean
+  succStartMonth: string
+  succStartYear: string
+  succEndMonth: string
+  succEndYear: string
+  cloning: boolean
+
+  showEditPeriodModal: boolean
+  editStartMonth: string
+  editStartYear: string
+  editEndMonth: string
+  editEndYear: string
+  updatingPeriodDates: boolean
+
+  showCreatePeriodModal: boolean
+  createStartMonth: string
+  createStartYear: string
+  createEndMonth: string
+  createEndYear: string
+}
+
+type PeriodAction =
+  | { type: 'SET_FIELD'; field: keyof PeriodState; value: any }
+
+function periodReducer(state: PeriodState, action: PeriodAction): PeriodState {
+  if (action.type === 'SET_FIELD') {
+    return { ...state, [action.field]: action.value }
+  }
+  return state
+}
+
+interface PanelState {
+  items: DirectivaItem[]
+  loading: boolean
+  affiliates: any[]
+  loadingAffiliates: boolean
+  viewMode: 'table'
+  selectedPeriodFilter: string
+  searchMemberQuery: string
+  customPeriods: string[]
+  draggedIndex: number | null
+  dragOverIndex: number | null
+  dropPosition: 'top' | 'bottom' | null
+  movedRowId: string | number | null
+  movedDirection: 'up' | 'down' | null
+  swappingState: { upId: string | number; downId: string | number } | null
+}
+
+type PanelAction =
+  | { type: 'SET_FIELD'; field: keyof PanelState; value: any }
+
+function panelReducer(state: PanelState, action: PanelAction): PanelState {
+  if (action.type === 'SET_FIELD') {
+    const val = typeof action.value === 'function' ? action.value(state[action.field]) : action.value
+    return { ...state, [action.field]: val }
+  }
+  return state
+}
+
+interface MemberFormState {
+  isModalOpen: boolean
+  editingItem: DirectivaItem | null
+  form: {
+    id_afiliado: string | number
+    cargo: string
+    cargo_canonical: string
+    periodo: string
+    orden: number
+    activo: boolean
+    foto_junta_url: string
+  }
+  saving: boolean
+  uploadingPhoto: boolean
+  uploadPhotoError: string | null
+  cropModal: {
+    show: boolean
+    file: File | null
+    preview: string | null
+    crop: { x: number; y: number }
+    zoom: number
+    croppedAreaPixels: any
+    aspectChoice: number
+  }
+  searchTerm: string
+  showDropdown: boolean
+  startMonth: string
+  startYear: string
+  endMonth: string
+  endYear: string
+  isCustomCargo: boolean
+  showCargoSuggestions: boolean
+}
+
+type MemberFormAction =
+  | { type: 'SET_FIELD'; field: keyof MemberFormState; value: any }
+  | { type: 'OPEN_NEW_MODAL'; targetPeriod: string; parsed: { startMonth: string; startYear: string; endMonth: string; endYear: string }; maxOrden: number }
+  | { type: 'OPEN_EDIT_MODAL'; item: DirectivaItem; parsed: { startMonth: string; startYear: string; endMonth: string; endYear: string }; isCustom: boolean }
+
+function memberFormReducer(state: MemberFormState, action: MemberFormAction): MemberFormState {
+  switch (action.type) {
+    case 'SET_FIELD': {
+      const val = typeof action.value === 'function' ? action.value(state[action.field]) : action.value
+      return { ...state, [action.field]: val }
+    }
+    case 'OPEN_NEW_MODAL':
+      return {
+        ...state,
+        editingItem: null,
+        searchTerm: '',
+        isCustomCargo: false,
+        startMonth: action.parsed.startMonth,
+        startYear: action.parsed.startYear,
+        endMonth: action.parsed.endMonth,
+        endYear: action.parsed.endYear,
+        form: {
+          id_afiliado: '',
+          cargo: '',
+          cargo_canonical: '',
+          periodo: action.targetPeriod,
+          orden: action.maxOrden + 1,
+          activo: true,
+          foto_junta_url: ''
+        },
+        isModalOpen: true
+      }
+    case 'OPEN_EDIT_MODAL':
+      return {
+        ...state,
+        editingItem: action.item,
+        searchTerm: action.item.nombre,
+        isCustomCargo: action.isCustom,
+        startMonth: action.parsed.startMonth,
+        startYear: action.parsed.startYear,
+        endMonth: action.parsed.endMonth,
+        endYear: action.parsed.endYear,
+        form: {
+          id_afiliado: action.item.id_afiliado,
+          cargo: action.item.cargo,
+          cargo_canonical: action.item.cargo_canonical || action.item.cargo,
+          periodo: action.item.periodo || '',
+          orden: action.item.orden,
+          activo: action.item.activo === true || (action.item.activo as any) === 1,
+          foto_junta_url: action.item.foto_junta_url || ''
+        },
+        isModalOpen: true
+      }
+    default:
+      return state
+  }
+}
+
 function purgeCache() {
   invalidateDirectivaCache()
   window.dispatchEvent(new CustomEvent('directiva-cache-invalidated'))
@@ -174,42 +326,117 @@ function purgeCache() {
 
 export const DirectivaPanel = () => {
   const { token } = useAuth()
-  const [items, setItems] = useState<DirectivaItem[]>([])
-  const [loading, setLoading] = useState(true)
-  
-  const [affiliates, setAffiliates] = useState<any[]>([])
-  const [loadingAffiliates, setLoadingAffiliates] = useState(false)
 
-  // View state: 'table' only by default
-  const [viewMode, setViewMode] = useState<'table'>('table')
-  
-  // Member drawer / modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<DirectivaItem | null>(null)
-  
-  const [form, setForm] = useState({ 
-    id_afiliado: '' as string | number, 
-    cargo: '', 
-    cargo_canonical: '',
-    periodo: '', 
-    orden: 0, 
-    activo: true,
-    foto_junta_url: ''
-  })
-  const [saving, setSaving] = useState(false)
+  const [panelState, dispatchPanel] = useReducer(panelReducer, null, () => ({
+    items: [],
+    loading: true,
+    affiliates: [],
+    loadingAffiliates: false,
+    viewMode: 'table' as const,
+    selectedPeriodFilter: 'all',
+    searchMemberQuery: '',
+    customPeriods: [],
+    draggedIndex: null,
+    dragOverIndex: null,
+    dropPosition: null,
+    movedRowId: null,
+    movedDirection: null,
+    swappingState: null,
+  }))
 
-  // Subida de foto específica para la junta directiva (landing) con recorte/encuadre
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [uploadPhotoError, setUploadPhotoError] = useState<string | null>(null)
+  const {
+    items, loading, affiliates, loadingAffiliates, viewMode, selectedPeriodFilter,
+    searchMemberQuery, customPeriods, draggedIndex, dragOverIndex, dropPosition,
+    movedRowId, movedDirection, swappingState
+  } = panelState
 
-  // Estados para el recorte de la foto
-  const [showCropModal, setShowCropModal] = useState(false)
-  const [cropFile, setCropFile] = useState<File | null>(null)
-  const [cropPreview, setCropPreview] = useState<string | null>(null)
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
-  const [cropAspectChoice, setCropAspectChoice] = useState<number>(4 / 5)
+  const setItems = (v: DirectivaItem[] | ((prev: DirectivaItem[]) => DirectivaItem[])) => dispatchPanel({ type: 'SET_FIELD', field: 'items', value: v })
+  const setLoading = (v: boolean | ((prev: boolean) => boolean)) => dispatchPanel({ type: 'SET_FIELD', field: 'loading', value: v })
+  const setAffiliates = (v: any[] | ((prev: any[]) => any[])) => dispatchPanel({ type: 'SET_FIELD', field: 'affiliates', value: v })
+  const setLoadingAffiliates = (v: boolean | ((prev: boolean) => boolean)) => dispatchPanel({ type: 'SET_FIELD', field: 'loadingAffiliates', value: v })
+  const setViewMode = (v: 'table' | ((prev: 'table') => 'table')) => dispatchPanel({ type: 'SET_FIELD', field: 'viewMode', value: v })
+  const setSelectedPeriodFilter = (v: string | ((prev: string) => string)) => dispatchPanel({ type: 'SET_FIELD', field: 'selectedPeriodFilter', value: v })
+  const setSearchMemberQuery = (v: string | ((prev: string) => string)) => dispatchPanel({ type: 'SET_FIELD', field: 'searchMemberQuery', value: v })
+  const setCustomPeriods = (v: string[] | ((prev: string[]) => string[])) => dispatchPanel({ type: 'SET_FIELD', field: 'customPeriods', value: v })
+  const setDraggedIndex = (v: number | null | ((prev: number | null) => number | null)) => dispatchPanel({ type: 'SET_FIELD', field: 'draggedIndex', value: v })
+  const setDragOverIndex = (v: number | null | ((prev: number | null) => number | null)) => dispatchPanel({ type: 'SET_FIELD', field: 'dragOverIndex', value: v })
+  const setDropPosition = (v: 'top' | 'bottom' | null | ((prev: 'top' | 'bottom' | null) => 'top' | 'bottom' | null)) => dispatchPanel({ type: 'SET_FIELD', field: 'dropPosition', value: v })
+  const setMovedRowId = (v: string | number | null | ((prev: string | number | null) => string | number | null)) => dispatchPanel({ type: 'SET_FIELD', field: 'movedRowId', value: v })
+  const setMovedDirection = (v: 'up' | 'down' | null | ((prev: 'up' | 'down' | null) => 'up' | 'down' | null)) => dispatchPanel({ type: 'SET_FIELD', field: 'movedDirection', value: v })
+  const setSwappingState = (v: any) => dispatchPanel({ type: 'SET_FIELD', field: 'swappingState', value: v })
+
+  const [memberFormState, dispatchMemberForm] = useReducer(memberFormReducer, null, () => ({
+    isModalOpen: false,
+    editingItem: null,
+    form: {
+      id_afiliado: '' as string | number,
+      cargo: '',
+      cargo_canonical: '',
+      periodo: '',
+      orden: 0,
+      activo: true,
+      foto_junta_url: ''
+    },
+    saving: false,
+    uploadingPhoto: false,
+    uploadPhotoError: null,
+    cropModal: {
+      show: false,
+      file: null as File | null,
+      preview: null as string | null,
+      crop: { x: 0, y: 0 },
+      zoom: 1,
+      croppedAreaPixels: null as any,
+      aspectChoice: 4 / 5,
+    },
+    searchTerm: '',
+    showDropdown: false,
+    startMonth: '01',
+    startYear: new Date().getFullYear().toString(),
+    endMonth: '01',
+    endYear: (new Date().getFullYear() + 2).toString(),
+    isCustomCargo: false,
+    showCargoSuggestions: false,
+  }))
+
+  const {
+    isModalOpen, editingItem, form, saving, uploadingPhoto, uploadPhotoError,
+    cropModal, searchTerm, showDropdown, startMonth, startYear, endMonth, endYear,
+    isCustomCargo, showCargoSuggestions
+  } = memberFormState
+
+  type FormType = typeof memberFormState.form
+  const setIsModalOpen = (v: boolean | ((prev: boolean) => boolean)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'isModalOpen', value: v })
+  const setEditingItem = (v: DirectivaItem | null | ((prev: DirectivaItem | null) => DirectivaItem | null)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'editingItem', value: v })
+  const setForm = (v: FormType | ((prev: FormType) => FormType)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'form', value: v })
+  const setSaving = (v: boolean | ((prev: boolean) => boolean)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'saving', value: v })
+  const setUploadingPhoto = (v: boolean | ((prev: boolean) => boolean)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'uploadingPhoto', value: v })
+  const setUploadPhotoError = (v: string | null | ((prev: string | null) => string | null)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'uploadPhotoError', value: v })
+  const setCropModal = (v: any) => dispatchMemberForm({ type: 'SET_FIELD', field: 'cropModal', value: v })
+  const setSearchTerm = (v: string | ((prev: string) => string)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'searchTerm', value: v })
+  const setShowDropdown = (v: boolean | ((prev: boolean) => boolean)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'showDropdown', value: v })
+  const setStartMonth = (v: string | ((prev: string) => string)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'startMonth', value: v })
+  const setStartYear = (v: string | ((prev: string) => string)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'startYear', value: v })
+  const setEndMonth = (v: string | ((prev: string) => string)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'endMonth', value: v })
+  const setEndYear = (v: string | ((prev: string) => string)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'endYear', value: v })
+  const setIsCustomCargo = (v: boolean | ((prev: boolean) => boolean)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'isCustomCargo', value: v })
+  const setShowCargoSuggestions = (v: boolean | ((prev: boolean) => boolean)) => dispatchMemberForm({ type: 'SET_FIELD', field: 'showCargoSuggestions', value: v })
+
+  const showCropModal = cropModal.show
+  const cropFile = cropModal.file
+  const cropPreview = cropModal.preview
+  const crop = cropModal.crop
+  const zoom = cropModal.zoom
+  const croppedAreaPixels = cropModal.croppedAreaPixels
+  const cropAspectChoice = cropModal.aspectChoice
+
+  const setShowCropModal = (show: boolean) => setCropModal((c: any) => ({ ...c, show }))
+  const setCropFile = (file: File | null) => setCropModal((c: any) => ({ ...c, file }))
+  const setCropPreview = (preview: string | null) => setCropModal((c: any) => ({ ...c, preview }))
+  const setCrop = (cropVal: any) => setCropModal((c: any) => ({ ...c, crop: typeof cropVal === 'function' ? cropVal(c.crop) : cropVal }))
+  const setZoom = (zoomVal: any) => setCropModal((c: any) => ({ ...c, zoom: typeof zoomVal === 'function' ? zoomVal(c.zoom) : zoomVal }))
+  const setCroppedAreaPixels = (pixels: any) => setCropModal((c: any) => ({ ...c, croppedAreaPixels: pixels }))
+  const setCropAspectChoice = (aspectChoice: number) => setCropModal((c: any) => ({ ...c, aspectChoice }))
 
   const handleSelectFile = (file: File) => {
     setCropFile(file)
@@ -241,7 +468,7 @@ export const DirectivaPanel = () => {
         const webpName = cropFile.name.replace(/\.[^/.]+$/, '') + '.webp'
         const croppedFile = new File([croppedImageBlob], webpName, { type: 'image/webp' })
         const publicUrl = await uploadFileSupabase(croppedFile, 'directiva', true)
-        setForm(p => ({ ...p, foto_junta_url: publicUrl }))
+        setForm((p: any) => ({ ...p, foto_junta_url: publicUrl }))
         toast.success('Foto de junta directiva recortada y subida con éxito.')
       }
     } catch (e: any) {
@@ -253,46 +480,53 @@ export const DirectivaPanel = () => {
       setCropFile(null)
     }
   }
-  
-  // Search and Filter states
-  const [searchMemberQuery, setSearchMemberQuery] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
 
-  // Period filtering states
-  const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('all')
-  
-  // Year/Month states for form
-  const [startMonth, setStartMonth] = useState('01')
-  const [startYear, setStartYear] = useState(new Date().getFullYear().toString())
-  const [endMonth, setEndMonth] = useState('01')
-  const [endYear, setEndYear] = useState((new Date().getFullYear() + 2).toString())
+  // Period modals state managed via useReducer with lazy initialization
+  const [periodState, dispatchPeriod] = useReducer(periodReducer, null, () => ({
+    showSuccessionModal: false,
+    succStartMonth: '05',
+    succStartYear: new Date().getFullYear().toString(),
+    succEndMonth: '05',
+    succEndYear: (new Date().getFullYear() + 2).toString(),
+    cloning: false,
+    showEditPeriodModal: false,
+    editStartMonth: '01',
+    editStartYear: new Date().getFullYear().toString(),
+    editEndMonth: '01',
+    editEndYear: (new Date().getFullYear() + 2).toString(),
+    updatingPeriodDates: false,
+    showCreatePeriodModal: false,
+    createStartMonth: '01',
+    createStartYear: new Date().getFullYear().toString(),
+    createEndMonth: '01',
+    createEndYear: (new Date().getFullYear() + 2).toString(),
+  }))
 
-  const [isCustomCargo, setIsCustomCargo] = useState(false)
-  const [showCargoSuggestions, setShowCargoSuggestions] = useState(false)
+  const {
+    showSuccessionModal, succStartMonth, succStartYear, succEndMonth, succEndYear, cloning,
+    showEditPeriodModal, editStartMonth, editStartYear, editEndMonth, editEndYear, updatingPeriodDates,
+    showCreatePeriodModal, createStartMonth, createStartYear, createEndMonth, createEndYear,
+  } = periodState
 
-  // Succession modal states
-  const [showSuccessionModal, setShowSuccessionModal] = useState(false)
-  const [succStartMonth, setSuccStartMonth] = useState('05')
-  const [succStartYear, setSuccStartYear] = useState(new Date().getFullYear().toString())
-  const [succEndMonth, setSuccEndMonth] = useState('05')
-  const [succEndYear, setSuccEndYear] = useState((new Date().getFullYear() + 2).toString())
-  const [cloning, setCloning] = useState(false)
+  const setShowSuccessionModal = (v: boolean) => dispatchPeriod({ type: 'SET_FIELD', field: 'showSuccessionModal', value: v })
+  const setSuccStartMonth = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'succStartMonth', value: v })
+  const setSuccStartYear = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'succStartYear', value: v })
+  const setSuccEndMonth = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'succEndMonth', value: v })
+  const setSuccEndYear = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'succEndYear', value: v })
+  const setCloning = (v: boolean) => dispatchPeriod({ type: 'SET_FIELD', field: 'cloning', value: v })
 
-  // Edit period modal states
-  const [showEditPeriodModal, setShowEditPeriodModal] = useState(false)
-  const [editStartMonth, setEditStartMonth] = useState('01')
-  const [editStartYear, setEditStartYear] = useState(new Date().getFullYear().toString())
-  const [editEndMonth, setEditEndMonth] = useState('01')
-  const [editEndYear, setEditEndYear] = useState((new Date().getFullYear() + 2).toString())
-  const [updatingPeriodDates, setUpdatingPeriodDates] = useState(false)
+  const setShowEditPeriodModal = (v: boolean) => dispatchPeriod({ type: 'SET_FIELD', field: 'showEditPeriodModal', value: v })
+  const setEditStartMonth = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'editStartMonth', value: v })
+  const setEditStartYear = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'editStartYear', value: v })
+  const setEditEndMonth = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'editEndMonth', value: v })
+  const setEditEndYear = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'editEndYear', value: v })
+  const setUpdatingPeriodDates = (v: boolean) => dispatchPeriod({ type: 'SET_FIELD', field: 'updatingPeriodDates', value: v })
 
-  // Create period modal states
-  const [showCreatePeriodModal, setShowCreatePeriodModal] = useState(false)
-  const [createStartMonth, setCreateStartMonth] = useState('01')
-  const [createStartYear, setCreateStartYear] = useState(new Date().getFullYear().toString())
-  const [createEndMonth, setCreateEndMonth] = useState('01')
-  const [createEndYear, setCreateEndYear] = useState((new Date().getFullYear() + 2).toString())
+  const setShowCreatePeriodModal = (v: boolean) => dispatchPeriod({ type: 'SET_FIELD', field: 'showCreatePeriodModal', value: v })
+  const setCreateStartMonth = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'createStartMonth', value: v })
+  const setCreateStartYear = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'createStartYear', value: v })
+  const setCreateEndMonth = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'createEndMonth', value: v })
+  const setCreateEndYear = (v: string) => dispatchPeriod({ type: 'SET_FIELD', field: 'createEndYear', value: v })
 
   const loadAffiliates = useCallback(async () => {
     if (!token) return
@@ -338,8 +572,6 @@ export const DirectivaPanel = () => {
     }
   }, [loadAffiliates, token])
 
-  const [customPeriods, setCustomPeriods] = useState<string[]>([])
-
   const periods = useMemo(() => {
     const uniquePeriods = Array.from(new Set([
       ...customPeriods,
@@ -348,21 +580,17 @@ export const DirectivaPanel = () => {
     return uniquePeriods.sort((a, b) => b.localeCompare(a))
   }, [items, customPeriods])
 
-  // Load and auto-select latest period if filter is 'all'
-  useEffect(() => {
-    if (items.length > 0 && selectedPeriodFilter === 'all') {
-      if (periods.length > 0) {
-        setSelectedPeriodFilter(periods[0])
-      }
+  const activePeriodFilter = useMemo(() => {
+    if (selectedPeriodFilter === 'all' && periods.length > 0) {
+      return periods[0]
     }
-  }, [items, selectedPeriodFilter, periods])
-
-
+    return selectedPeriodFilter
+  }, [selectedPeriodFilter, periods])
 
   const filteredItems = useMemo(() => {
     let result = items.filter(item => {
-      if (selectedPeriodFilter === 'all') return true
-      return item.periodo === selectedPeriodFilter
+      if (activePeriodFilter === 'all') return true
+      return item.periodo === activePeriodFilter
     })
     
     if (searchMemberQuery.trim()) {
@@ -374,17 +602,7 @@ export const DirectivaPanel = () => {
     }
 
     return result.sort((a, b) => a.orden - b.orden)
-  }, [items, selectedPeriodFilter, searchMemberQuery])
-
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null)
-  const [movedRowId, setMovedRowId] = useState<string | number | null>(null)
-  const [movedDirection, setMovedDirection] = useState<'up' | 'down' | null>(null)
-  const [swappingState, setSwappingState] = useState<{
-    upId: string | number;
-    downId: string | number;
-  } | null>(null)
+  }, [items, activePeriodFilter, searchMemberQuery])
 
   const createDragGhost = (e: React.DragEvent, item: DirectivaItem, rank: number) => {
     const ghost = document.createElement('div');
@@ -435,10 +653,10 @@ export const DirectivaPanel = () => {
   const getSwapAnimationClass = (itemId: string | number) => {
     if (!swappingState) return '';
     if (swappingState.upId === itemId) {
-      return '-translate-y-full scale-[1.02] shadow-xl z-30 bg-emerald-50/95 border-l-4 border-l-emerald-600 ring-1 ring-emerald-500/30 transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
+      return '-translate-y-full scale-[1.02] shadow-xl z-30 bg-emerald-50/95 border-l-4 border-l-emerald-600 ring-1 ring-emerald-500/30 transition-colors duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
     }
     if (swappingState.downId === itemId) {
-      return 'translate-y-full scale-[0.98] opacity-75 shadow-xs z-10 bg-slate-100/90 transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
+      return 'translate-y-full scale-[0.98] opacity-75 shadow-xs z-10 bg-slate-100/90 transition-colors duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
     }
     return '';
   };
@@ -563,51 +781,30 @@ export const DirectivaPanel = () => {
       setSelectedPeriodFilter(periods[0])
     }
 
-    setEditingItem(null)
-    setSearchTerm('')
-    setIsCustomCargo(false)
-    
     const parsed = parsePeriodo(targetPeriod)
-    setStartMonth(parsed.startMonth)
-    setStartYear(parsed.startYear)
-    setEndMonth(parsed.endMonth)
-    setEndYear(parsed.endYear)
-
     const maxOrden = items.length > 0 ? Math.max(...items.map(i => i.orden)) : 0
-    setForm({
-      id_afiliado: '',
-      cargo: '',
-      cargo_canonical: '',
-      periodo: targetPeriod,
-      orden: maxOrden + 1,
-      activo: true,
-      foto_junta_url: ''
+    dispatchMemberForm({
+      type: 'OPEN_NEW_MODAL',
+      targetPeriod,
+      parsed,
+      maxOrden
     })
-    setIsModalOpen(true)
   }
 
   const openEditModal = (item: DirectivaItem) => {
-    setEditingItem(item)
-    setSearchTerm(item.nombre)
     const isCustom = !PRESET_CARGOS.includes(item.cargo_canonical || item.cargo)
-    setIsCustomCargo(isCustom)
-    if (item.periodo) {
-      const parsed = parsePeriodo(item.periodo)
-      setStartMonth(parsed.startMonth)
-      setStartYear(parsed.startYear)
-      setEndMonth(parsed.endMonth)
-      setEndYear(parsed.endYear)
+    const parsed = item.periodo ? parsePeriodo(item.periodo) : {
+      startMonth: '01',
+      startYear: new Date().getFullYear().toString(),
+      endMonth: '01',
+      endYear: (new Date().getFullYear() + 2).toString()
     }
-    setForm({
-      id_afiliado: item.id_afiliado,
-      cargo: item.cargo,
-      cargo_canonical: item.cargo_canonical || item.cargo,
-      periodo: item.periodo || '',
-      orden: item.orden,
-      activo: item.activo === true || item.activo === 1,
-      foto_junta_url: item.foto_junta_url || ''
+    dispatchMemberForm({
+      type: 'OPEN_EDIT_MODAL',
+      item,
+      parsed,
+      isCustom
     })
-    setIsModalOpen(true)
   }
 
   const save = async () => {
@@ -679,9 +876,11 @@ export const DirectivaPanel = () => {
 
     setUpdatingPeriodDates(true)
     try {
-      for (const item of currentPeriodItems) {
-        await api.put(`/api/cms/directiva/${item.id}`, { periodo: newPeriod })
-      }
+      await Promise.all(
+        currentPeriodItems.map(item =>
+          api.put(`/api/cms/directiva/${item.id}`, { periodo: newPeriod })
+        )
+      )
       purgeCache()
       await load()
       setSelectedPeriodFilter(newPeriod)
@@ -791,7 +990,7 @@ export const DirectivaPanel = () => {
           <div className="flex items-center flex-wrap gap-2.5">
             <button
               onClick={openNewModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-colors transition-transform shadow-md shadow-emerald-600/20"
             >
               <Plus size={16} />
               <span>Nuevo Miembro</span>
@@ -817,7 +1016,7 @@ export const DirectivaPanel = () => {
                 }
                 setShowCreatePeriodModal(true)
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold transition-all"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs font-bold transition-colors transition-transform"
             >
               <Calendar size={15} className="text-slate-500" />
               <span>Nueva Gestión</span>
@@ -837,7 +1036,7 @@ export const DirectivaPanel = () => {
               <button
                 key={p}
                 onClick={() => setSelectedPeriodFilter(p)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 ${
                   selectedPeriodFilter === p
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -884,7 +1083,7 @@ export const DirectivaPanel = () => {
                   setEditEndYear(parsed.endYear)
                   setShowEditPeriodModal(true)
                 }}
-                className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-all shadow-xs"
+                className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors shadow-xs"
               >
                 Editar Fechas
               </button>
@@ -911,7 +1110,7 @@ export const DirectivaPanel = () => {
           </div>
           <button
             onClick={openNewModal}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-600/20 flex items-center gap-2"
           >
             <Plus size={16} />
             <span>Agregar Primer Miembro</span>
@@ -1066,7 +1265,7 @@ export const DirectivaPanel = () => {
                         setDragOverIndex(null);
                         setDropPosition(null);
                       }}
-                      className={`transition-all duration-300 ease-in-out group ${getSwapAnimationClass(item.id)} ${getRowDisplacement(index)} ${
+                      className={`transition-colors duration-300 ease-in-out group ${getSwapAnimationClass(item.id)} ${getRowDisplacement(index)} ${
                         movedRowId === item.id
                           ? 'bg-emerald-50/90 border-l-4 border-l-emerald-600 transition-colors duration-500'
                           : isBeingDragged
@@ -1085,7 +1284,7 @@ export const DirectivaPanel = () => {
                             <GripVertical size={14} />
                           </div>
 
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border min-w-[34px] text-center flex items-center justify-center gap-1 transition-all ${
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border min-w-[34px] text-center flex items-center justify-center gap-1 transition-colors ${
                             movedRowId === item.id 
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold scale-105 shadow-xs' 
                               : 'text-slate-500 bg-slate-100 border-slate-200/60'
@@ -1157,7 +1356,7 @@ export const DirectivaPanel = () => {
                       <td className="px-5 py-3.5 text-center">
                         <button
                           onClick={() => toggleStatus(item)}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
                             item.activo
                               ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -1171,14 +1370,14 @@ export const DirectivaPanel = () => {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditModal(item)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Editar"
                           >
                             <Edit3 size={15} />
                           </button>
                           <button
                             onClick={() => remove(item.id)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Eliminar"
                           >
                             <Trash2 size={15} />
@@ -1196,8 +1395,8 @@ export const DirectivaPanel = () => {
 
       {/* ── MODAL: Crear / Editar Miembro ──────────────────────────────────── */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col gap-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <div className="transition-opacity fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 fade-in duration-200">
+          <div className="transition-transform bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col gap-6 zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
@@ -1209,7 +1408,7 @@ export const DirectivaPanel = () => {
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)} 
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -1233,7 +1432,7 @@ export const DirectivaPanel = () => {
                     onFocus={() => setShowDropdown(true)}
                     onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                     placeholder="Buscar por nombre o código de afiliado..."
-                    className="!text-sm !py-3 bg-slate-50 border-slate-200 focus:bg-white transition-all text-slate-800 w-full rounded-2xl"
+                    className="!text-sm !py-3 bg-slate-50 border-slate-200 focus:bg-white transition-colors text-slate-800 w-full rounded-2xl"
                   />
                   {showDropdown && (
                     <div className="absolute z-50 w-full mt-1.5 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl divide-y divide-slate-50">
@@ -1253,7 +1452,7 @@ export const DirectivaPanel = () => {
                             >
                               <div className="flex items-center gap-3">
                                 {a.foto_url ? (
-                                  <img src={a.foto_url} loading="lazy" decoding="async" className="w-8 h-8 rounded-xl object-cover object-top shrink-0" />
+                                  <img src={a.foto_url} alt={representativeName || 'Foto Afiliado'} loading="lazy" decoding="async" className="w-8 h-8 rounded-xl object-cover object-top shrink-0" />
                                 ) : (
                                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center shrink-0">
                                     {(representativeName || 'A').charAt(0)}
@@ -1286,7 +1485,7 @@ export const DirectivaPanel = () => {
 
               {/* Selected Affiliate Preview Badge */}
               {form.id_afiliado && selectedAffiliate && (
-                <div className="bg-emerald-50/50 border border-emerald-200/60 rounded-2xl p-4 flex items-center gap-3.5 animate-in fade-in duration-300">
+                <div className="transition-opacity bg-emerald-50/50 border border-emerald-200/60 rounded-2xl p-4 flex items-center gap-3.5 fade-in duration-300">
                   {selectedAffiliate.foto_url ? (
                     <img
                       src={selectedAffiliate.foto_url}
@@ -1356,7 +1555,7 @@ export const DirectivaPanel = () => {
 
                     {/* Botón de carga */}
                     <div className="flex-1 min-w-0">
-                      <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition-all border border-slate-200">
+                      <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition-colors transition-transform border border-slate-200">
                         <Upload size={14} />
                         {uploadingPhoto ? 'Subiendo...' : 'Subir Foto Específica'}
                         <input 
@@ -1395,7 +1594,7 @@ export const DirectivaPanel = () => {
                           setIsCustomCargo(false);
                         }
                       }}
-                      className="w-full text-sm mt-1 py-3 px-4 bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 rounded-2xl text-slate-800 transition-all focus:outline-none cursor-pointer font-medium"
+                      className="w-full text-sm mt-1 py-3 px-4 bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 rounded-2xl text-slate-800 transition-colors focus:outline-none cursor-pointer font-medium"
                     >
                       <option value="" disabled>Selecciona un cargo de referencia...</option>
                       {PRESET_CARGOS.map(opt => (
@@ -1408,7 +1607,7 @@ export const DirectivaPanel = () => {
 
                   {/* Input for Custom Cargo if selected */}
                   {(isCustomCargo || (form.cargo_canonical && !PRESET_CARGOS.includes(form.cargo_canonical))) && (
-                    <div className="animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="transition-opacity transition-transform fade-in slide-in-from-top-1 duration-150">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Especificar Cargo de Referencia (Masculino)</span>
                       <Input
                         value={form.cargo_canonical}
@@ -1424,7 +1623,7 @@ export const DirectivaPanel = () => {
                           });
                         }}
                         placeholder="Ej. Director de Relaciones Públicas"
-                        className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-all text-slate-800 w-full rounded-2xl"
+                        className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-colors text-slate-800 w-full rounded-2xl"
                       />
                     </div>
                   )}
@@ -1436,7 +1635,7 @@ export const DirectivaPanel = () => {
                       value={form.cargo}
                       onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))}
                       placeholder="Ej. Directora de Finanzas, Presidente de Honor..."
-                      className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-all text-slate-800 w-full rounded-2xl"
+                      className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-colors text-slate-800 w-full rounded-2xl"
                     />
                     <p className="text-[10px] text-slate-400 mt-1.5 ml-1 leading-relaxed">
                       Este es el nombre exacto que se mostrará en la web pública. Por defecto se llena con el cargo seleccionado, pero puedes adaptarlo (ej. cambiar a femenino).
@@ -1455,7 +1654,7 @@ export const DirectivaPanel = () => {
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-colors transition-transform shadow-md shadow-emerald-600/20 disabled:opacity-50"
               >
                 {saving ? 'Guardando...' : 'Guardar Autoridad'}
               </button>
@@ -1464,7 +1663,7 @@ export const DirectivaPanel = () => {
                 <button
                   type="button"
                   onClick={() => remove(editingItem.id)}
-                  className="px-4 py-3 rounded-2xl bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 text-xs font-bold transition-all"
+                  className="px-4 py-3 rounded-2xl bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 text-xs font-bold transition-colors transition-transform"
                 >
                   Eliminar
                 </button>
@@ -1473,7 +1672,7 @@ export const DirectivaPanel = () => {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 text-xs font-bold transition-all"
+                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 text-xs font-bold transition-colors transition-transform"
               >
                 Cancelar
               </button>
@@ -1487,8 +1686,8 @@ export const DirectivaPanel = () => {
 
       {/* ── MODAL: Editar Fechas del Período ──────────────────────────────── */}
       {showEditPeriodModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+        <div className="transition-opacity fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 fade-in duration-200">
+          <div className="transition-transform bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 zoom-in-95 duration-200">
             <div>
               <h3 className="text-base font-black text-slate-900">Editar Fechas del Período</h3>
               <p className="text-xs text-slate-400 mt-1">
@@ -1551,7 +1750,7 @@ export const DirectivaPanel = () => {
                 type="button"
                 onClick={handleUpdatePeriodDates}
                 disabled={updatingPeriodDates}
-                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors transition-opacity shadow-md shadow-emerald-600/20 disabled:opacity-50"
               >
                 {updatingPeriodDates ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -1559,7 +1758,7 @@ export const DirectivaPanel = () => {
                 type="button"
                 onClick={() => setShowEditPeriodModal(false)}
                 disabled={updatingPeriodDates}
-                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-all"
+                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-colors"
               >
                 Cancelar
               </button>
@@ -1570,8 +1769,8 @@ export const DirectivaPanel = () => {
 
       {/* ── MODAL: Crear Nueva Gestión ────────────────────────────────────── */}
       {showCreatePeriodModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+        <div className="transition-opacity fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 fade-in duration-200">
+          <div className="transition-transform bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 zoom-in-95 duration-200">
             <div>
               <h3 className="text-base font-black text-slate-900">Crear Nueva Gestión</h3>
               <p className="text-xs text-slate-400 mt-1">
@@ -1635,14 +1834,14 @@ export const DirectivaPanel = () => {
               <button
                 type="button"
                 onClick={() => handleStartCreatePeriod(`${createStartYear}-${createStartMonth}/${createEndYear}-${createEndMonth}`)}
-                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20"
+                className="flex-1 px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-md shadow-emerald-600/20"
               >
                 Confirmar y Crear Gestión
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreatePeriodModal(false)}
-                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-all"
+                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold transition-colors"
               >
                 Cancelar
               </button>
@@ -1653,8 +1852,8 @@ export const DirectivaPanel = () => {
 
       {/* Modal para Recorte de Foto de Junta Directiva */}
       {showCropModal && cropPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 relative flex flex-col gap-6 animate-in zoom-in-95 duration-200">
+        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs fade-in duration-200">
+          <div className="transition-transform bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 relative flex flex-col gap-6 zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-800 text-base">Ajustar Encuadre</h3>
@@ -1698,21 +1897,21 @@ export const DirectivaPanel = () => {
                 <button
                   type="button"
                   onClick={() => setCropAspectChoice(1)}
-                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-all ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-colors ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Cuadrado (1:1)
                 </button>
                 <button
                   type="button"
                   onClick={() => setCropAspectChoice(4 / 5)}
-                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-all ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-colors ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Perfil (4:5)
                 </button>
                 <button
                   type="button"
                   onClick={() => setCropAspectChoice(16 / 9)}
-                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-all ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-colors ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Horizontal (16:9)
                 </button>
@@ -1741,14 +1940,14 @@ export const DirectivaPanel = () => {
               <button
                 type="button"
                 onClick={handleConfirmCrop}
-                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20"
+                className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-colors transition-transform shadow-md shadow-emerald-600/20"
               >
                 Confirmar Recorte
               </button>
               <button
                 type="button"
                 onClick={() => { setShowCropModal(false); setCropPreview(null); setCropFile(null); }}
-                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 text-xs font-bold transition-all"
+                className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 active:scale-95 text-xs font-bold transition-colors transition-transform"
               >
                 Cancelar
               </button>
