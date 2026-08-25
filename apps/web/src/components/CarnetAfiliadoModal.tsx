@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useReducer } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, Loader2, Award, CheckCircle, RefreshCw, Pencil, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Download, Loader2, Award, CheckCircle, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
 import { AfiliadoDTO } from '@/types/afiliados';
@@ -28,140 +28,7 @@ const parseRedes = (redes: any): Record<string, any> => {
   return redes;
 };
 
-/* ── SUB-COMPONENT: CarnetCardPreview (El carnet físico imprimible/descargable) ── */
-interface CarnetCardPreviewProps {
-  cardRef: React.RefObject<HTMLDivElement | null>;
-  afiliado: AfiliadoDTO;
-  useJuntaPhoto: boolean;
-  qrCodeUrl: string;
-  onEditClick: (e: React.MouseEvent) => void;
-  onToggleJuntaPhoto: (e: React.MouseEvent) => void;
-}
-
-function CarnetCardPreview({
-  cardRef,
-  afiliado,
-  useJuntaPhoto,
-  qrCodeUrl,
-  onEditClick,
-  onToggleJuntaPhoto
-}: CarnetCardPreviewProps) {
-  const redes = parseRedes(afiliado.redes_sociales);
-  const carnetPhotoUrl = useJuntaPhoto ? redes?.foto_junta_carnet_url : redes?.foto_carnet_url;
-  const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && afiliado.foto_junta_url) ? afiliado.foto_junta_url : afiliado.foto_url);
-  const isCropped = !!carnetPhotoUrl;
-
-  const tipoLabelMap: Record<string, string | string[]> = {
-    'Natural': 'Agente Independiente',
-    'Agente': 'Agente Independiente',
-    'Agente Corporativo': 'Agente Corporativo',
-    'Corporativo': ['Corporativo', 'Repr. Legal'],
-  };
-  const label = afiliado.tipo_afiliado ? (tipoLabelMap[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado) : null;
-
-  return (
-    <div
-      ref={cardRef}
-      id="carnet-card-capture"
-      className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
-      }}
-    >
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none z-0">
-        <img src={LogoBgImg} alt="Fondo de agua" className="h-200 w-auto object-contain opacity-[0.14] filter blur-[1.5px] transform translate-y-5" />
-      </div>
-      <div className="absolute -bottom-22 -left-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-        <img src={LogoBgImg} alt="Fondo de agua secundario" className="w-full h-full object-contain opacity-[0.14]" />
-      </div>
-      <div className="absolute -bottom-22 -right-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-        <img src={LogoBgImg} alt="Fondo de agua secundario" className="w-full h-full object-contain opacity-[0.14]" />
-      </div>
-
-      <div className="relative z-10 flex items-center justify-center gap-0.5 w-full border-b border-emerald-600/10 py-1.5 xs:py-2.5">
-        <img src={LogoBgImg} alt="Logo CIEBO" className="h-12 xs:h-16 w-auto object-contain" />
-        <p className="text-[12px] xs:text-[15px] font-bold text-black leading-tight uppercase text-center">
-          <span className="block whitespace-nowrap text-emerald-800">Cámara Inmobiliaria</span>
-          <span className="block whitespace-nowrap text-emerald-800">de Bolívar</span>
-        </p>
-      </div>
-
-      <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-1.5 xs:gap-2 pt-1 pb-1">
-        <div className="w-[130px] xs:w-[155px] h-[155px] xs:h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
-          {activePhoto ? (
-            <img
-              src={activePhoto}
-              alt="Foto Afiliado"
-              crossOrigin="anonymous"
-              className="w-full h-full object-cover"
-              style={isCropped ? { objectPosition: 'center center' } : { transform: 'scale(2)', transformOrigin: 'center top' }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
-              {afiliado.nombres ? afiliado.nombres.charAt(0) : 'A'}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={onEditClick}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
-            title="Ajustar encuadre / recortar foto"
-          >
-            <Pencil size={12} />
-          </button>
-
-          {afiliado.foto_junta_url && (
-            <button
-              type="button"
-              onClick={onToggleJuntaPhoto}
-              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
-              title="Cambiar foto (Perfil / Junta Directiva)"
-            >
-              <RefreshCw size={12} className={useJuntaPhoto ? "rotate-180 transition-transform duration-500" : "transition-transform duration-500"} />
-            </button>
-          )}
-        </div>
-
-        <div className="text-center leading-none my-0.5 xs:my-1">
-          <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-            {afiliado.nombres}  {afiliado.apellidos}
-          </div>
-          <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
-            <span className="font-extrabold">AFILIADO - CÓDIGO:</span> {afiliado.codigo}
-          </span>
-          {label && (
-            <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
-              {Array.isArray(label) ? label.map((line) => <span key={line} className="block">{line}</span>) : label}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[82px] xs:min-h-[96px]">
-          <div className="flex-1 flex flex-col items-center justify-center gap-1">
-            <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 relative">
-              <img src={qrCodeUrl} alt="Código QR Perfil" crossOrigin="anonymous" className="w-full h-full" />
-            </div>
-            <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
-              Verificar QR
-            </span>
-          </div>
-
-          {afiliado.empresa_logo_url && (
-            <>
-              <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
-              <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0">
-                  <img src={afiliado.empresa_logo_url} alt="Logo Empresa" crossOrigin="anonymous" className="max-h-full max-w-full object-contain" />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { CarnetCardPreview } from '@/components/CarnetCardPreview';
 
 /* ── SUB-COMPONENT: CarnetCropperModal ── */
 interface CarnetCropperModalProps {
@@ -314,7 +181,7 @@ type CropperState = {
 };
 
 type CropperAction =
-  | { type: 'OPEN_CROPPER'; payload: { imageToCrop: string; imageFile?: File | null } }
+  | { type: 'OPEN_CROPPER'; payload: { imageToCrop: string; imageFile?: File | null; crop?: { x: number; y: number }; zoom?: number } }
   | { type: 'SET_READY'; payload: boolean }
   | { type: 'SET_CROP'; payload: { x: number; y: number } }
   | { type: 'SET_ZOOM'; payload: number }
@@ -342,8 +209,8 @@ function cropperReducer(state: CropperState, action: CropperAction): CropperStat
         isCropperReady: false,
         imageToCrop: action.payload.imageToCrop,
         imageFile: action.payload.imageFile ?? null,
-        crop: { x: 0, y: 0 },
-        cropperZoom: 1.4,
+        crop: action.payload.crop ?? { x: 0, y: 0 },
+        cropperZoom: action.payload.zoom ?? 1.4,
       };
     case 'SET_READY':
       return { ...state, isCropperReady: action.payload };
@@ -417,10 +284,10 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
 
     try {
       const currentRedes = parseRedes(afiliado.redes_sociales);
-      const updatedRedes = { ...currentRedes, use_junta_photo: nextVal };
+      const updatedRedes = { ...currentRedes, use_junta_photo: nextVal, prefer_junta_photo: nextVal };
 
-      const res = await fetch(`${API_URL}/api/afiliados/perfil`, {
-        method: 'PUT',
+      const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -441,11 +308,20 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
     e.stopPropagation();
     if (!afiliado) return;
     const redes = parseRedes(afiliado.redes_sociales);
-    const carnetPhotoUrl = useJuntaPhoto ? redes?.foto_junta_carnet_url : redes?.foto_carnet_url;
-    const currentPhoto = carnetPhotoUrl || ((useJuntaPhoto && afiliado.foto_junta_url) ? afiliado.foto_junta_url : afiliado.foto_url);
+    const originalPhoto = useJuntaPhoto
+      ? (redes?.foto_junta_original_url || afiliado.foto_junta_url || redes?.foto_original_url || afiliado.foto_url)
+      : (redes?.foto_original_url || afiliado.foto_url);
 
-    if (currentPhoto) {
-      dispatch({ type: 'OPEN_CROPPER', payload: { imageToCrop: currentPhoto } });
+    if (originalPhoto) {
+      const cropConfig = useJuntaPhoto ? redes?.junta_carnet_crop : redes?.carnet_crop;
+      dispatch({
+        type: 'OPEN_CROPPER',
+        payload: {
+          imageToCrop: originalPhoto,
+          crop: cropConfig ? { x: cropConfig.x, y: cropConfig.y } : { x: 0, y: 0 },
+          zoom: cropConfig?.zoom ?? 1.4,
+        }
+      });
     } else {
       fileInputRef.current?.click();
     }
@@ -474,65 +350,119 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
     dispatch({ type: 'SET_SAVING', payload: true });
 
     try {
-      const croppedBlob = await getCroppedImg(cropperState.imageToCrop, cropperState.croppedAreaPixels);
-      if (!croppedBlob) throw new Error('No se pudo procesar la imagen recortada');
-      const croppedFile = new File([croppedBlob], 'cropped.jpg', { type: 'image/jpeg' });
-      const compressedBlob = await compressImage(croppedFile, 720, 0.88);
+      const fileType = 'image/webp';
+      const fileName = `foto_carnet_${afiliado.codigo || afiliado.id_afiliado}_${Date.now()}.webp`;
 
-      const formData = new FormData();
-      const filename = useJuntaPhoto ? `carnet_junta_${afiliado.id_afiliado}.jpg` : `carnet_${afiliado.id_afiliado}.jpg`;
-      formData.append('foto_carnet', compressedBlob, filename);
-      formData.append('tipo_foto', useJuntaPhoto ? 'junta' : 'perfil');
+      const croppedImageBlob = await getCroppedImg(
+        cropperState.imageToCrop,
+        cropperState.croppedAreaPixels,
+        0,
+        { horizontal: false, vertical: false },
+        fileType
+      );
+      if (!croppedImageBlob) throw new Error('No se pudo procesar la imagen recortada');
 
-      const res = await fetch(`${API_URL}/api/afiliados/perfil/foto-carnet`, {
+      const rawFile = new File([croppedImageBlob], fileName, { type: fileType });
+      const fileToUpload = await compressImage(rawFile, 800, 0.85);
+
+      // 1. Presign upload URL
+      const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: fileToUpload.name,
+          folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
+        }),
       });
-      const json = await res.json();
 
-      if (!res.ok || !json.success) throw new Error(json.message || 'Error al guardar encuadre');
+      const presignData = await presignRes.json();
+      if (!presignRes.ok || !presignData.success) {
+        throw new Error(presignData.message || 'Error al obtener URL de subida');
+      }
 
-      const newPhotoUrl = json.foto_carnet_url;
+      const { signedUploadUrl, token: uploadToken, publicUrl } = presignData.data;
+
+      // 2. Upload to Supabase Storage via PUT
+      const uploadRes = await fetch(signedUploadUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${uploadToken}`,
+          'Content-Type': fileToUpload.type,
+        },
+        body: fileToUpload,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Error al subir la imagen al storage');
+      }
+
+      // 3. Update affiliate via PATCH /api/afiliados/:id
       const currentRedes = parseRedes(afiliado.redes_sociales);
-      const updatedRedes = {
+      const cropData = { x: cropperState.crop.x, y: cropperState.crop.y, zoom: cropperState.cropperZoom };
+
+      let originalUrl = currentRedes.foto_original_url || (!afiliado.foto_url?.includes('foto_carnet_') ? afiliado.foto_url : null);
+      if (cropperState.imageFile) {
+        try {
+          const rawFileName = `foto_original_${afiliado.codigo || afiliado.id_afiliado}_${Date.now()}.${cropperState.imageFile.name.split('.').pop() || 'jpg'}`;
+          const compressedRaw = await compressImage(cropperState.imageFile, 1200, 0.9);
+          const presignRaw = await fetch(`${API_URL}/api/public/uploads/presign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: rawFileName,
+              folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
+            }),
+          });
+          const presignRawData = await presignRaw.json();
+          if (presignRaw.ok && presignRawData.success) {
+            const { signedUploadUrl: sUrl, token: uTok, publicUrl: origPubUrl } = presignRawData.data;
+            const uRes = await fetch(sUrl, {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${uTok}`, 'Content-Type': compressedRaw.type },
+              body: compressedRaw,
+            });
+            if (uRes.ok) {
+              originalUrl = origPubUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not save raw original photo:', e);
+        }
+      }
+
+      const updatedRedes: Record<string, any> = {
         ...currentRedes,
-        [useJuntaPhoto ? 'foto_junta_carnet_url' : 'foto_carnet_url']: newPhotoUrl
+        [useJuntaPhoto ? 'foto_junta_carnet_url' : 'foto_carnet_url']: publicUrl,
+        [useJuntaPhoto ? 'junta_carnet_crop' : 'carnet_crop']: cropData,
       };
+
+      if (originalUrl) {
+        updatedRedes.foto_original_url = originalUrl;
+      }
+
+      const payload: any = { redes_sociales: updatedRedes };
+      const updateRes = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const updateData = await updateRes.json();
+      if (!updateRes.ok || !updateData.success) {
+        throw new Error(updateData.message || 'Error al guardar encuadre');
+      }
 
       toast.success('¡Encuadre de foto guardado con éxito!');
       dispatch({ type: 'CLOSE_CROPPER' });
 
-      if (onUpdateAfiliado) onUpdateAfiliado({ redes_sociales: updatedRedes });
+      if (onUpdateAfiliado) onUpdateAfiliado(payload);
     } catch (err: any) {
       toast.error(err.message || 'Error al guardar encuadre de la foto');
+    } finally {
       dispatch({ type: 'SET_SAVING', payload: false });
-    }
-  };
-
-  const handleRemoveCroppedPhoto = async () => {
-    if (!afiliado) return;
-    try {
-      const currentRedes = parseRedes(afiliado.redes_sociales);
-      const targetKey = useJuntaPhoto ? 'foto_junta_carnet_url' : 'foto_carnet_url';
-      const updatedRedes = { ...currentRedes };
-      delete updatedRedes[targetKey];
-
-      const res = await fetch(`${API_URL}/api/afiliados/perfil`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ redes_sociales: updatedRedes })
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        toast.success('Se ha restablecido el encuadre original de la foto');
-        if (onUpdateAfiliado) onUpdateAfiliado({ redes_sociales: updatedRedes });
-      }
-    } catch {
-      toast.error('No se pudo restablecer el encuadre');
     }
   };
 
@@ -616,18 +546,6 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                         {exporting ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
                         {exporting ? 'Generando...' : 'Descargar Carnet PNG'}
                       </button>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 px-1 pt-1">
-                      {parseRedes(afiliado?.redes_sociales)?.[useJuntaPhoto ? 'foto_junta_carnet_url' : 'foto_carnet_url'] && (
-                        <button
-                          type="button"
-                          onClick={handleRemoveCroppedPhoto}
-                          className="text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1 uppercase tracking-wider cursor-pointer"
-                        >
-                          <Trash2 size={12} /> Restablecer encuadre original
-                        </button>
-                      )}
                     </div>
                   </div>
                 </>

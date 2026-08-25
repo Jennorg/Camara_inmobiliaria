@@ -121,7 +121,7 @@ export default function WidgetCarnetAfiliado({
     const redes = parseRedes(afiliado?.redes_sociales);
     const activePhoto =
       useJuntaPhoto && afiliado?.foto_junta_url
-        ? afiliado.foto_junta_url
+        ? (redes?.foto_junta_original_url || afiliado.foto_junta_url)
         : (redes?.foto_original_url || afiliado?.foto_url);
 
     if (activePhoto) {
@@ -255,7 +255,7 @@ export default function WidgetCarnetAfiliado({
         updatedRedes.foto_original_url = originalUrl;
       }
 
-      const payload: any = { redes_sociales: updatedRedes, foto_url: publicUrl };
+      const payload: any = { redes_sociales: updatedRedes };
       const updateRes = await fetch(
         `${API_URL}/api/afiliados/${afiliado.id_afiliado}`,
         {
@@ -600,7 +600,7 @@ export default function WidgetCarnetAfiliado({
                     <>
                       <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
                       <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                        <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0">
+                        <div className="w-full max-w-[105px] xs:max-w-[125px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 px-1">
                           <img
                             src={logo}
                             alt="Logo Empresa"
