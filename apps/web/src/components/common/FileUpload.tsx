@@ -31,6 +31,8 @@ interface FileUploadProps {
   disableImagePreview?: boolean;
   /** Si es true, bloquea la relación de aspecto y no permite cambiarla en el modal */
   lockAspect?: boolean;
+  /** Tamaño máximo permitido en MB (por defecto 10MB) */
+  maxSizeMB?: number;
 }
 
 export default function FileUpload({ 
@@ -50,6 +52,7 @@ export default function FileUpload({
   hasError = false,
   disableImagePreview = false,
   lockAspect = false,
+  maxSizeMB = 10,
 }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -168,8 +171,8 @@ export default function FileUpload({
 
     if (!selectedFile) return;
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setError('El archivo es demasiado grande (Máx 5MB)');
+    if (selectedFile.size > maxSizeMB * 1024 * 1024) {
+      setError(`El archivo es demasiado grande (Máx ${maxSizeMB}MB)`);
       return;
     }
 
@@ -303,7 +306,7 @@ export default function FileUpload({
                 {isDragging ? 'Suelta el archivo aquí' : 'Haz clic o arrastra un archivo'}
               </p>
               <p className="text-[10px] sm:text-xs text-slate-400 font-medium uppercase tracking-normal">
-                Soporta PDF, JPG, PNG (Máx 5MB)
+                Soporta PDF, JPG, PNG (Máx {maxSizeMB}MB)
               </p>
             </div>
           </div>

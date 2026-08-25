@@ -557,6 +557,7 @@ export default function WidgetSolicitudCambioEstado() {
                       required
                       accept=".pdf,image/*"
                       folder="documentos_empresa"
+                      maxSizeMB={10}
                       onUploadSuccess={(url: string, name?: string) => {
                         setUrlRegistro(url);
                         setNombreRegistro(name || 'Registro_Mercantil.pdf');

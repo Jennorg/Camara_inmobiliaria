@@ -814,6 +814,7 @@ const SettingsPanel = () => {
                       initialUrl={getDocUrl('registro_mercantil')}
                       initialFileName={getDocName('registro_mercantil')}
                       disableImagePreview
+                      maxSizeMB={10}
                       onUploadSuccess={(url, name) => handleUploadSuccess('registro_mercantil', url, name)}
                       onClear={() => handleClearDoc('registro_mercantil')}
                     />
