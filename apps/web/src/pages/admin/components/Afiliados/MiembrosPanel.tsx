@@ -18,6 +18,7 @@ import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/Expo
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/utils/cropImage'
 import CarnetAfiliadoModal from '@/components/CarnetAfiliadoModal'
+import { CarnetCardPreview } from '@/components/CarnetCardPreview'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
@@ -399,7 +400,6 @@ export default function MiembrosPanel() {
   const [naturalTransitionTarget, setNaturalTransitionTarget] = useState<any | null>(null)
   const [empresas, setEmpresas] = useState<any[]>([])
   const [selectedEmpresaId, setSelectedEmpresaId] = useState('')
-
   const [batchDownloading, setBatchDownloading] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
   const [batchTotal, setBatchTotal] = useState(0);
@@ -429,7 +429,7 @@ export default function MiembrosPanel() {
 
       const activeMembers = json.data;
       if (activeMembers.length === 0) {
-        toast.info('No se encontraron afiliados activos con fotografía.');
+        toast.error('No se encontraron afiliados activos con fotografía.');
         setBatchDownloading(false);
         return;
       }
@@ -439,6 +439,18 @@ export default function MiembrosPanel() {
       const zip = new JSZip();
       let generatedCount = 0;
 
+      const preloadImg = (url?: string | null) => {
+        if (!url) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = url;
+        });
+      };
+
+      // Procesamiento de a 1 por 1 (chunkSize = 1)
       for (let i = 0; i < activeMembers.length; i++) {
         if (cancelRef.current) {
           break;
@@ -447,35 +459,48 @@ export default function MiembrosPanel() {
         const member = activeMembers[i];
         setBatchCurrent(i + 1);
         setCurrentMember(member);
-        
+
         const mCode = (member.codigo && String(member.codigo).trim() !== '') ? String(member.codigo).trim() : null;
         const pUrl = mCode ? `${window.location.origin}/miembros/${mCode}` : `${window.location.origin}/miembros/${member.id_afiliado}?by=id`;
-        const qrUrl = await QRCode.toDataURL(pUrl, {
-          margin: 1,
-          width: 240,
-          color: {
-            dark: '#000000',
-            light: '#00000000'
-          },
-          errorCorrectionLevel: 'H'
-        });
+
+        const rawRedes = member?.redes_sociales;
+        const redes = rawRedes
+          ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
+          : {};
+        const useJuntaPhoto = Boolean(redes?.use_junta_photo);
+        const carnetPhotoUrl = useJuntaPhoto
+          ? (redes?.foto_junta_carnet_url || member.foto_junta_url)
+          : redes?.foto_carnet_url;
+        const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && member.foto_junta_url) ? member.foto_junta_url : member.foto_url);
+
+        const [qrUrl] = await Promise.all([
+          QRCode.toDataURL(pUrl, {
+            margin: 1,
+            width: 240,
+            color: { dark: '#000000', light: '#00000000' },
+            errorCorrectionLevel: 'H'
+          }),
+          preloadImg(activePhoto),
+          preloadImg(member.empresa_logo_url)
+        ]);
+
         setCurrentMemberQrUrl(qrUrl);
 
-        // Esperar a que se actualice el DOM y cargue la foto/QR
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        // Breve espera para actualización de estado del DOM (60ms)
+        await new Promise((resolve) => setTimeout(resolve, 60));
 
         if (bulkCardRef.current) {
           try {
             const dataUrl = await toPng(bulkCardRef.current, {
-              quality: 1.0,
-              pixelRatio: 3,
+              quality: 0.98,
+              pixelRatio: 2,
               backgroundColor: '#ffffff',
               style: {
                 transform: 'none',
                 borderRadius: '0px',
               }
             });
-            
+
             const base64Data = dataUrl.split(',')[1];
             const filename = `carnet-${member.codigo || member.id_afiliado}.png`;
             zip.file(filename, base64Data, { base64: true });
@@ -484,8 +509,6 @@ export default function MiembrosPanel() {
             console.error(`Error procesando carnet de ${member.codigo}:`, cardErr);
           }
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
       if (generatedCount > 0) {
@@ -946,11 +969,16 @@ export default function MiembrosPanel() {
 
       const res = await fetch(`${API_URL}/api/afiliados/${selected.id_afiliado}`, {
         method: 'PATCH',
-        headers: authHeaders,
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      const json = await res.json()
-      if (res.ok && json.success) {
+      let json: any = null
+      try {
+        json = await res.json()
+      } catch (e) {
+        console.error('Error parseando JSON en handleSave:', e)
+      }
+      if (res.ok && json?.success) {
         setIsEditing(false)
         await load()
         if (json.data) {
@@ -958,7 +986,7 @@ export default function MiembrosPanel() {
         }
         toast.success(json.message || 'Afiliado actualizado con éxito')
       } else {
-        toast.error(json.message || 'Error al actualizar')
+        toast.error(json?.message || `Error (${res.status}): No se pudo actualizar`)
       }
     } catch (err) {
       console.error(err)
@@ -977,13 +1005,18 @@ export default function MiembrosPanel() {
         method: 'DELETE',
         headers: authHeaders
       })
+      let json: any = null
+      try {
+        json = await res.json()
+      } catch (e) {
+        console.error('Error parseando JSON en confirmDelete:', e)
+      }
       if (res.ok) {
         setSelected(null)
         load()
         toast.success('Afiliado eliminado con éxito')
       } else {
-        const json = await res.json()
-        toast.error(json.message || 'Error al eliminar el afiliado')
+        toast.error(json?.message || `Error (${res.status}): No se pudo eliminar el afiliado`)
       }
     } catch (err) {
       console.error(err)
@@ -1106,11 +1139,16 @@ export default function MiembrosPanel() {
 
       const res = await fetch(`${API_URL}/api/afiliados`, {
         method: 'POST',
-        headers: authHeaders,
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      const json = await res.json()
-      if (res.ok && json.success) {
+      let json: any = null
+      try {
+        json = await res.json()
+      } catch (e) {
+        console.error('Error parseando JSON en handleCreate:', e)
+      }
+      if (res.ok && json?.success) {
         setShowNewModal(false)
         setNewForm({ tipo_afiliado: 'Natural', estatus: 'Afiliado' })
         setNewUrlCv('')
@@ -1124,7 +1162,7 @@ export default function MiembrosPanel() {
         setFormErrors({})
         load()
       } else {
-        setCreateError(json.message || 'Error al crear')
+        setCreateError(json?.message || `Error (${res.status}): No se pudo crear`)
       }
     } catch (err) {
       console.error(err)
@@ -2717,7 +2755,7 @@ export default function MiembrosPanel() {
             </div>
             {currentMember && (
               <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate max-w-[250px]">
-                {currentMember.nombre_completo || currentMember.representante_nombre}
+                {currentMember.nombres || currentMember.nombre_completo || currentMember.representante_nombre}
               </div>
             )}
           </div>
@@ -2745,189 +2783,23 @@ export default function MiembrosPanel() {
       {/* Contenedor Oculto para Captura de Carnet en Lote */}
       {currentMember && (
         <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', pointerEvents: 'none' }}>
-          <div
-            ref={bulkCardRef}
-            id="carnet-card-capture"
-            className="w-[310px] h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
-            style={{
-              backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
-            }}
-          >
-            {/* Fondo de agua con logo sin letras (mayor opacidad para visibilidad clara, levemente desplazado hacia abajo) */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none z-0">
-              <img
-                src={LogoBgImg}
-                alt="Fondo de agua"
-                className="h-200 w-auto object-contain opacity-[0.14] filter blur-[1.5px] transform translate-y-5"
-              />
-            </div>
-
-            <div className="absolute -bottom-22 -left-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-              <img
-                src={LogoBgImg}
-                alt="Fondo de agua secundario"
-                className="w-full h-full object-contain opacity-[0.14]"
-              />
-            </div>
-
-            <div className="absolute -bottom-22 -right-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-              <img
-                src={LogoBgImg}
-                alt="Fondo de agua secundario"
-                className="w-full h-full object-contain opacity-[0.14]"
-              />
-            </div>
-
-            {/* 1. Encabezado del Carnet Minimalista Centrado */}
-            <div className="relative z-10 flex items-center justify-center gap-0 w-full border-b border-emerald-600/10 py-2.5">
-              <img
-                src={LogoBgImg}
-                alt="Logo CIEBO"
-                className="h-20 w-auto object-contain"
-              />
-              <p className="text-[15px] font-extrabold text-black leading-tight uppercase text-center">
-                <span className="block whitespace-nowrap text-emerald-800">Cámara Inmobiliaria</span>
-                <span className="block whitespace-nowrap text-emerald-800">de Bolívar</span>
-              </p>
-            </div>
-
-            {/* 2. Cuerpo del Carnet (Máxima relevancia a la foto con espaciado ajustado) */}
-            <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-2 pt-1 pb-1">
-
-              {/* Photo Container */}
-              <div className="w-[155px] h-[185px] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
-                {(() => {
-                  const rawRedes = currentMember?.redes_sociales;
-                  const redes = rawRedes
-                    ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
-                    : {};
-                  const useJuntaPhoto = Boolean(redes?.use_junta_photo);
-                  const carnetPhotoUrl = useJuntaPhoto
-                    ? (redes?.foto_junta_carnet_url || currentMember.foto_junta_url)
-                    : redes?.foto_carnet_url;
-                  const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && currentMember.foto_junta_url) ? currentMember.foto_junta_url : currentMember.foto_url);
-                  
-                  if (activePhoto) {
-                    const isCropped = !!carnetPhotoUrl;
-                    
-                    return (
-                      <img
-                        src={activePhoto}
-                        alt="Foto"
-                        className="w-full h-full object-cover"
-                        style={isCropped ? {
-                          objectPosition: 'center center'
-                        } : {
-                          transform: 'scale(2)',
-                          transformOrigin: 'center top'
-                        }}
-                        crossOrigin="anonymous"
-                      />
-                    );
-                  }
-                  
-                  return (
-                    <div className="w-full h-full flex items-center justify-center font-black text-6xl text-emerald-700 bg-emerald-50">
-                      {currentMember.nombres ? currentMember.nombres.charAt(0) : 'A'}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Bloque Nombre, Apellido y Código */}
-              <div className="text-center leading-none my-1">
-                <div className="text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-                  <span className="font-extrabold">Nombre:</span> {currentMember.nombres || currentMember.representante_nombre || currentMember.nombre_completo}
-                  <br />
-                  <span className="font-extrabold">Apellido:</span> {currentMember.apellidos || ''}
-                </div>
-                <span className="text-[9px] font-extrabold text-black tracking-wider block mt-0.5">
-                  <span className='font-extrabold'>CÓDIGO:</span> {currentMember.codigo}
-                </span>
-                {/* Tipo de afiliado debajo del código */}
-                {currentMember.tipo_afiliado && (() => {
-                  const tipoLabel: Record<string, string | string[]> = {
-                    'Natural':            'Agente Independiente',
-                    'Agente':             'Agente Independiente',
-                    'Agente Corporativo': 'Agente Corporativo',
-                    'Corporativo':        ['Corporativo', 'Repr. Legal'],
-                  };
-                  const label = tipoLabel[currentMember.tipo_afiliado] ?? currentMember.tipo_afiliado;
-                  return (
-                    <span className="text-[8.5px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
-                      {Array.isArray(label)
-                        ? label.map((line) => <span key={line} className="block">{line}</span>)
-                        : label}
-                    </span>
-                  );
-                })()}
-                <span className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-[0.2em] block mt-1 opacity-90">
-                  Miembro Activo
-                </span>
-              </div>
-
-              {/* Bloque Código QR y Detalles de la Empresa en horizontal (Simétrico) */}
-              <div className="flex flex-row items-center justify-center gap-2 w-full px-2 min-h-[96px]">
-                {/* QR Code Column */}
-                <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
-                  <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0 relative">
-                    {(() => {
-                      const qrUrl = currentMemberQrUrl;
-                      return (
-                        <img
-                          src={qrUrl}
-                          alt="QR"
-                          className="w-full h-full"
-                          crossOrigin="anonymous"
-                        />
-                      );
-                    })()}
-                  </div>
-                  <span className="text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
-                    Verificar QR
-                  </span>
-                </div>
-
-                {/* Logo de Empresa/Marca si aplica */}
-                {(() => {
-                  const logo = currentMember.empresa_logo_url;
-
-                  // Sin logo → solo se muestra el QR, sin columna extra
-                  if (!logo) return null;
-
-                  return (
-                    <>
-                      {/* Línea divisoria vertical */}
-                      <div className="w-[1px] h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
-                      
-                      {/* Logo Column */}
-                      <div className="flex-1 flex flex-col items-center justify-center gap-1.5">
-                        <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0">
-                          <img
-                            src={logo}
-                            alt="Logo Empresa"
-                            crossOrigin="anonymous"
-                            className="max-h-full max-w-full object-contain"
-                            onError={(e) => {
-                              if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                e.currentTarget.removeAttribute('crossOrigin');
-                                e.currentTarget.src = logo;
-                              } else {
-                                e.currentTarget.style.display = 'none';
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-            </div>
-          </div>
+          <CarnetCardPreview
+            cardRef={bulkCardRef}
+            afiliado={currentMember as any}
+            useJuntaPhoto={(() => {
+              const rawRedes = currentMember?.redes_sociales;
+              const redes = rawRedes
+                ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
+                : {};
+              return Boolean(redes?.use_junta_photo);
+            })()}
+            qrCodeUrl={currentMemberQrUrl}
+            hideActionButtons={true}
+          />
         </div>
       )}
+
+
 
       <ExportAfiliadosModal
         open={showExportModal}

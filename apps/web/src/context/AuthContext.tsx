@@ -17,6 +17,16 @@ function onRefreshed(token: string | null) {
   refreshSubscribers = [];
 }
 
+async function safeParseResponse(res: Response): Promise<any> {
+  try {
+    const text = await res.text()
+    if (!text || text.trim().length === 0) return null
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
 const originalFetch = window.fetch;
 
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -47,9 +57,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
           method: 'POST',
           credentials: 'include',
         });
-        const refreshData = await refreshRes.json();
+        const refreshData = await safeParseResponse(refreshRes);
         
-        if (refreshRes.ok && refreshData.success && refreshData.token) {
+        if (refreshRes.ok && refreshData?.success && refreshData?.token) {
           activeAccessToken = refreshData.token;
           isRefreshing = false;
           onRefreshed(refreshData.token);
@@ -92,7 +102,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria'
+export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
 
 export interface AuthUser {
   id: number
@@ -151,11 +161,17 @@ function normalizeUser(rawUser: any): AuthUser {
   const roles: UserRole[] = Array.isArray(rawUser.roles)
     ? rawUser.roles
     : [rawUser.rol ?? 'afiliado']
+
+  const isStaffRoleName = (r: string) => {
+    const norm = r.toLowerCase().trim().replace(/[\s_-]+/g, '_')
+    return ['asistente', 'administrativo', 'secretaria', 'secretario', 'personal', 'personal_admin', 'personal_administrativo'].includes(norm)
+  }
+
   const rol: UserRole = roles.includes('super_admin')
     ? 'super_admin'
     : roles.includes('admin')
       ? 'admin'
-      : roles.includes('asistente') || roles.includes('administrativo') || roles.includes('secretario') || roles.includes('secretaria')
+      : roles.some(isStaffRoleName)
         ? 'asistente'
         : roles.includes('estudiante')
           ? 'estudiante'
@@ -178,7 +194,7 @@ async function requestRefreshSession(signal: AbortSignal) {
     signal,
   })
   if (!res.ok) return null
-  return res.json()
+  return safeParseResponse(res)
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -272,15 +288,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body:    JSON.stringify({ email, password }),
     })
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      throw new Error(errData.message || `Error HTTP ${res.status}: Credenciales incorrectas`)
-    }
-
-    const data = await res.json()
-
-    if (!data.success) {
-      throw new Error(data.message || 'Credenciales incorrectas')
+    const data = await safeParseResponse(res)
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || `Error HTTP ${res.status}: Credenciales incorrectas`)
     }
 
     const newUser = normalizeUser(data.user)
@@ -326,12 +336,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` }
     })
-    if (!res.ok) {
-      throw new Error(`Error HTTP ${res.status} al ingresar como usuario`)
-    }
-    const data = await res.json()
-    if (!data.success) {
-      throw new Error(data.message || 'Error al ingresar como usuario')
+    const data = await safeParseResponse(res)
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || `Error HTTP ${res.status} al ingresar como usuario`)
     }
 
     setToken(data.data.token)
@@ -350,7 +357,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
       .then(r => {
         if (!r.ok) return null
-        return r.json()
+        return safeParseResponse(r)
       })
       .then(data => {
         if (data && data.success && data.token && data.user) {
@@ -384,8 +391,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) return
-      const data = await res.json()
-      if (data.success && data.user) {
+      const data = await safeParseResponse(res)
+      if (data?.success && data?.user) {
         setUser(normalizeUser(data.user))
       }
     } catch (err) {
@@ -395,12 +402,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Helpers de roles
   const hasRole = useCallback((role: UserRole) => {
-    return user?.roles?.includes(role) ?? false
+    if (!user?.roles) return false
+    const normTarget = role.toLowerCase().trim().replace(/[\s_-]+/g, '_')
+    return user.roles.some(r => r === role || r.toLowerCase().trim().replace(/[\s_-]+/g, '_') === normTarget)
   }, [user])
 
   const isAdminVal      = (user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) ?? false
   const isSuperAdminVal = user?.roles?.includes('super_admin') ?? false
-  const isAsistenteVal  = (user?.roles?.includes('asistente') || user?.roles?.includes('administrativo') || user?.roles?.includes('secretario') || user?.roles?.includes('secretaria')) ?? false
+  const staffRoleNames  = ['asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
+  const isAsistenteVal  = (user?.roles?.some(r => staffRoleNames.includes(r.toLowerCase().trim().replace(/[\s_-]+/g, '_')))) ?? false
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
