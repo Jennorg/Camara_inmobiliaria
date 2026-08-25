@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 import { env } from '../config/env.js';
-import { isAsistente } from '../middlewares/auth.middleware.js';
+import { isAsistente, isStaff } from '../middlewares/auth.middleware.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 
@@ -393,10 +393,9 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
     const { id } = req.params;
     const { tipo } = req.body; // 'personal' | 'empresa'
     const requesterId = req.user!.id_afiliado;
-    const requesterRoles = req.user!.roles ?? [req.user!.rol];
-    const isAdmin = requesterRoles.some(r => ['admin', 'super_admin'].includes(r));
+    const isStaffUser = isStaff(req.user!);
 
-    if (!isAdmin && requesterId !== Number(id)) {
+    if (!isStaffUser && requesterId !== Number(id)) {
       res.status(403).json({ success: false, message: 'No tienes permiso para realizar esta acción.' });
       return;
     }
@@ -1517,11 +1516,10 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const { id } = req.params;
     const fields = req.body;
     const requesterId = req.user!.id_afiliado;
-    const requesterRoles = req.user!.roles ?? [req.user!.rol];
-    const isAdmin = requesterRoles.some(r => ['admin', 'super_admin'].includes(r));
+    const isStaffMember = isStaff(req.user!);
 
-    // 1. Autorización: Solo el dueño o un admin
-    if (!isAdmin && requesterId !== Number(id)) {
+    // 1. Autorización: Personal administrativo (Staff: admin, super_admin, asistente, secretaria, personal, personal admin) o el propio afiliado
+    if (!isStaffMember && requesterId !== Number(id)) {
       return res.status(403).json({ success: false, message: 'No tienes permiso para actualizar este perfil.' });
     }
 
@@ -1549,8 +1547,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       empresa_logo_url: 'logo_url'
     };
 
-    // Si no es admin, limpiar campos restringidos
-    if (!isAdmin) {
+    // Si no es staff, limpiar campos restringidos
+    if (!isStaffMember) {
       adminOnlyFields.forEach(f => delete fields[f]);
     }
 
@@ -2133,8 +2131,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 /** Helper para autorizar si un usuario puede gestionar la empresa dada (admin, agente asignado, o representante legal/dueño) */
 async function canManageEmpresa(reqUser: any, targetIdEmpresa: number): Promise<boolean> {
   if (!reqUser) return false;
-  const roles = reqUser.roles || [reqUser.rol];
-  if (roles.some((r: string) => ['admin', 'super_admin'].includes(r))) return true;
+  if (isStaff(reqUser)) return true;
 
   if (reqUser.id_empresa && Number(reqUser.id_empresa) === Number(targetIdEmpresa)) return true;
 

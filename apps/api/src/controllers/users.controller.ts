@@ -33,7 +33,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    if (!['admin', 'afiliado', 'super_admin', 'asistente', 'administrativo', 'estudiante'].includes(rol)) {
+    if (!['admin', 'afiliado', 'super_admin', 'asistente', 'administrativo', 'estudiante', 'secretaria', 'secretario', 'personal', 'personal_admin', 'personal_administrativo'].includes(rol)) {
       res.status(400).json({ success: false, message: 'rol inválido' })
       return
     }
@@ -44,8 +44,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    // Only admin/super_admin can create 'asistente' or 'administrativo' roles
-    if (['asistente', 'administrativo'].includes(rol) && !isAdmin(req.user!)) {
+    // Only admin/super_admin can create staff roles
+    if (['asistente', 'administrativo', 'secretaria', 'secretario', 'personal', 'personal_admin', 'personal_administrativo'].includes(rol) && !isAdmin(req.user!)) {
       res.status(403).json({ success: false, message: 'Acceso denegado: Solo administradores pueden crear personal administrativo' })
       return
     }
