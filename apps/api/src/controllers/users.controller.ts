@@ -175,6 +175,33 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
  */
 export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
+    // Sincronizar/crear cuentas de usuario en `users` para afiliados que carecen de ellas
+    try {
+      await db.execute({
+        sql: `INSERT INTO users (email, password_hash, roles, activo)
+              SELECT LOWER(TRIM(p.email)), '$2a$10$dummyHashToPreventEmptyLogin', '["afiliado"]', 1
+              FROM afiliados a
+              JOIN personas p ON a.id_persona = p.id
+              WHERE (a.id_user IS NULL OR a.id_user NOT IN (SELECT id FROM users))
+                AND p.email IS NOT NULL AND TRIM(p.email) != ''
+                AND LOWER(TRIM(p.email)) NOT IN (SELECT LOWER(TRIM(email)) FROM users)`,
+        args: []
+      });
+
+      await db.execute({
+        sql: `UPDATE afiliados
+              SET id_user = (
+                SELECT u.id FROM users u 
+                WHERE LOWER(TRIM(u.email)) = LOWER(TRIM((SELECT p.email FROM personas p WHERE p.id = afiliados.id_persona)))
+                LIMIT 1
+              )
+              WHERE id_user IS NULL OR id_user NOT IN (SELECT id FROM users)`,
+        args: []
+      });
+    } catch (syncErr) {
+      console.warn('Advertencia al auto-sincronizar usuarios de afiliados:', syncErr);
+    }
+
     const result = await db.execute({
       sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
                    a.id_afiliado, a.tipo_afiliado,
