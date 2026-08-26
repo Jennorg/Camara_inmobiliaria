@@ -2067,51 +2067,15 @@ export default function MiembrosPanel() {
               </div>
             </div>
 
-            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-6">
-              <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                    <FileText size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Soportes</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Documentación cargada en el expediente</p>
-                  </div>
-                </div>
-                {selected.documentos && selected.documentos.length > 0 && (
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                    {selected.documentos.length} {selected.documentos.length === 1 ? 'Archivo' : 'Archivos'}
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                {selected.documentos === undefined ? (
-                  <div className="p-8 text-center border border-dashed border-slate-200 rounded-[2rem] bg-slate-50/50 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400">
-                    <RefreshCw size={16} className="animate-spin text-emerald-500" />
-                    Cargando expediente...
-                  </div>
-                ) : selected.documentos && selected.documentos.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selected.documentos.map((doc: any) => (
-                      <DocLink
-                        key={doc.id_documento}
-                        label={doc.tipo_doc.replace(/_/g, ' ')}
-                        url={doc.url}
-                        detail={doc.nombre_archivo}
-                        compact
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center border border-dashed border-slate-200 rounded-[2rem] bg-slate-50/50">
-                    <FileText size={24} className="mx-auto text-slate-300 mb-2" />
-                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Sin documentos adjuntos</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Este miembro no tiene soportes cargados en su perfil.</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <AdminDocumentosManager
+              afiliado={selected}
+              token={token}
+              onUpdateDocs={(updatedDocs) => {
+                setSelected((prev: any) => prev ? { ...prev, documentos: updatedDocs } : prev);
+                setEditForm((prev: any) => prev ? { ...prev, documentos: updatedDocs } : prev);
+                setApprovedMembers((prev: any[]) => prev.map(m => m.id_afiliado === selected.id_afiliado ? { ...m, documentos: updatedDocs } : m));
+              }}
+            />
 
             <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium pt-2">
               <Calendar size={12} /> Registrado el {new Date(selected.fecha_registro).toLocaleDateString()}
@@ -3365,6 +3329,365 @@ function VinculacionCorporativaSection({
       </div>
     </FormSection>
   )
+}
+
+interface AdminDocumentosManagerProps {
+  afiliado: AfiliadoDTO;
+  token: string | null;
+  onUpdateDocs: (updatedDocs: any[]) => void;
+}
+
+const PREDEFINED_DOC_TYPES = [
+  { key: 'cv', label: 'Curriculum Vitae', icon: FileText, folder: 'cvs' },
+  { key: 'titulo', label: 'Título Académico', icon: GraduationCap, folder: 'titulos' },
+  { key: 'referencia_afiliado_1', label: 'Referencia Gremial 1', icon: Award, folder: 'referencias' },
+  { key: 'referencia_afiliado_2', label: 'Referencia Gremial 2', icon: Award, folder: 'referencias' },
+  { key: 'curso_extra', label: 'Certificado de Curso Relevante', icon: Award, folder: 'cursos' },
+  { key: 'especializacion', label: 'Especialización', icon: Award, folder: 'especializaciones' },
+  { key: 'diplomado', label: 'Diplomado', icon: Award, folder: 'diplomados' },
+  { key: 'otro_documento', label: 'Otro Documento', icon: FileText, folder: 'otros' },
+];
+
+const CORP_DOC_TYPES = [
+  { key: 'registro_mercantil', label: 'Registro Mercantil', icon: Building2, folder: 'documentos_empresa' },
+  { key: 'rif_empresa', label: 'RIF de la Empresa', icon: Building2, folder: 'documentos_empresa' },
+  { key: 'titulo_representante', label: 'Título del Representante Legal', icon: GraduationCap, folder: 'documentos_empresa' },
+];
+
+function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocumentosManagerProps) {
+  const [activeUploadKey, setActiveUploadKey] = useState<string | null>(null);
+  const [editingDoc, setEditingDoc] = useState<any | null>(null);
+  const [customTitle, setCustomTitle] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
+  const isCorp = afiliado.tipo_afiliado === 'Corporativo' || Boolean(afiliado.empresa_razon_social);
+  const availableTypes = isCorp ? [...PREDEFINED_DOC_TYPES, ...CORP_DOC_TYPES] : PREDEFINED_DOC_TYPES;
+
+  const currentDocs = (afiliado.documentos || []) as any[];
+
+  const getDocLabel = (tipoKey: string) => {
+    if (tipoKey.startsWith('curso_extra')) return 'Certificado de Curso Relevante';
+    if (tipoKey.startsWith('otro_documento')) return 'Otro Documento';
+    const found = availableTypes.find(t => t.key === tipoKey);
+    return found?.label || tipoKey.replace(/_/g, ' ');
+  };
+
+  const isMultiInstance = (key: string) => key.startsWith('curso_extra') || key.startsWith('otro_documento');
+
+  useEffect(() => {
+    if (editingDoc) {
+      setCustomTitle(editingDoc.nombre_archivo || getDocLabel(editingDoc.tipo_doc));
+    } else if (activeUploadKey) {
+      setCustomTitle(getDocLabel(activeUploadKey));
+    } else {
+      setCustomTitle('');
+    }
+  }, [activeUploadKey, editingDoc]);
+
+  const handleSaveDoc = async (tipoKey: string, url: string, name?: string) => {
+    if (!url) return;
+    setIsSaving(true);
+    try {
+      let newDocsArray: any[];
+      const finalDocName = customTitle.trim() || name || 'Documento.pdf';
+
+      if (editingDoc) {
+        newDocsArray = currentDocs.map(d => {
+          const isTarget = editingDoc.id_documento 
+            ? d.id_documento === editingDoc.id_documento 
+            : d.tipo_doc === editingDoc.tipo_doc;
+          return isTarget ? { ...d, url, nombre_archivo: finalDocName } : d;
+        });
+      } else {
+        let finalTipoKey = tipoKey;
+        if (isMultiInstance(tipoKey)) {
+          finalTipoKey = `${tipoKey}_ts_${Date.now()}`;
+        }
+        const existingFiltered = currentDocs.filter(d => 
+          isMultiInstance(tipoKey) ? false : d.tipo_doc === finalTipoKey
+        );
+        const newDoc = { tipo_doc: finalTipoKey, url, nombre_archivo: finalDocName };
+        newDocsArray = [...existingFiltered, newDoc];
+      }
+
+      const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ documentos: newDocsArray })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al guardar el documento');
+
+      const updatedFromBackend = json.data?.documentos || newDocsArray;
+      onUpdateDocs(updatedFromBackend);
+      toast.success('Expediente actualizado con éxito');
+      setActiveUploadKey(null);
+      setEditingDoc(null);
+      setCustomTitle('');
+      setShowAddMenu(false);
+    } catch (err: any) {
+      toast.error(err.message || 'No se pudo guardar el documento');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docObj: any) => {
+    const labelName = getDocLabel(docObj.tipo_doc);
+
+    const confirm = await Swal.fire({
+      title: '¿Eliminar documento?',
+      text: `Se eliminará "${labelName}" (${docObj.nombre_archivo || 'archivo'}) del expediente de este afiliado.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsSaving(true);
+    try {
+      const remainingDocs = currentDocs.filter(d => {
+        if (docObj.id_documento) return d.id_documento !== docObj.id_documento;
+        return d.tipo_doc !== docObj.tipo_doc;
+      });
+
+      const payloadDocs = [
+        ...remainingDocs, 
+        { id_documento: docObj.id_documento, tipo_doc: docObj.tipo_doc, url: '', nombre_archivo: '' }
+      ];
+
+      const res = await fetch(`${API_URL}/api/afiliados/${afiliado.id_afiliado}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ documentos: payloadDocs })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar el documento');
+
+      onUpdateDocs(remainingDocs);
+      toast.success(`Documento "${labelName}" eliminado.`);
+    } catch (err: any) {
+      toast.error(err.message || 'No se pudo eliminar el documento');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const uploadedBaseKeys = new Set(currentDocs.map(d => d.tipo_doc.split('_ts_')[0]));
+  const missingTypes = availableTypes.filter(t => !uploadedBaseKeys.has(t.key) || isMultiInstance(t.key));
+
+  return (
+    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 space-y-6">
+      <div className="flex items-center justify-between border-b border-gray-50 pb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <FileText size={16} />
+          </div>
+          <div>
+            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Documentación y Expediente</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Soportes digitales del afiliado</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {currentDocs.length > 0 && (
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+              {currentDocs.length} {currentDocs.length === 1 ? 'Archivo' : 'Archivos'}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setShowAddMenu(!showAddMenu);
+              setEditingDoc(null);
+              if (activeUploadKey) setActiveUploadKey(null);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+          >
+            <Upload size={14} />
+            <span>+ Cargar Documento</span>
+          </button>
+        </div>
+      </div>
+
+      {(showAddMenu || activeUploadKey) && (
+        <div className="p-4 bg-slate-50 border border-emerald-100 rounded-2xl space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-black text-slate-800 uppercase tracking-tight">
+              {editingDoc
+                ? `Reemplazar: ${getDocLabel(editingDoc.tipo_doc)}`
+                : activeUploadKey
+                  ? `Cargar: ${getDocLabel(activeUploadKey)}`
+                  : 'Selecciona el Tipo de Documento a Cargar'}
+            </p>
+            <button
+              type="button"
+              onClick={() => { setActiveUploadKey(null); setEditingDoc(null); setShowAddMenu(false); }}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {!activeUploadKey ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              {availableTypes.map(t => {
+                const isMulti = isMultiInstance(t.key);
+                const countUploaded = currentDocs.filter(d => d.tipo_doc === t.key || d.tipo_doc.startsWith(`${t.key}_ts_`)).length;
+                const isAlreadyUploaded = countUploaded > 0;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => { setEditingDoc(null); setActiveUploadKey(t.key); }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl text-left border transition-all text-xs font-bold cursor-pointer ${
+                      isMulti
+                        ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900 hover:bg-emerald-100/60'
+                        : isAlreadyUploaded
+                          ? 'bg-amber-50/60 border-amber-200 text-amber-900 hover:bg-amber-100'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-500 hover:text-emerald-700'
+                    }`}
+                  >
+                    <span className="truncate">{t.label} {isMulti && countUploaded > 0 ? `(${countUploaded})` : ''}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-extrabold shrink-0 ml-1">
+                      {isMulti ? '+ Subir Nuevo' : (isAlreadyUploaded ? 'Reemplazar' : '+ Subir')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="pt-2 space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block">
+                  Nombre o Título del Documento:
+                </label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  placeholder="Ej. Certificado de Tasación Inmobiliaria 2025"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white shadow-xs"
+                />
+              </div>
+
+              <FileUpload
+                label={customTitle || (editingDoc ? getDocLabel(editingDoc.tipo_doc) : getDocLabel(activeUploadKey))}
+                accept=".pdf,image/*"
+                folder={availableTypes.find(t => activeUploadKey.startsWith(t.key))?.folder || 'documentos'}
+                maxSizeMB={10}
+                onUploadSuccess={(url, name) => handleSaveDoc(activeUploadKey, url, customTitle.trim() || name)}
+                onClear={() => { setActiveUploadKey(null); setEditingDoc(null); setCustomTitle(''); }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {isSaving && (
+        <div className="p-4 text-center border border-dashed border-emerald-200 rounded-2xl bg-emerald-50/50 flex items-center justify-center gap-2 text-xs font-semibold text-emerald-700">
+          <Loader2 size={16} className="animate-spin text-emerald-600" />
+          Actualizando expediente...
+        </div>
+      )}
+
+      {currentDocs.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {currentDocs.map(doc => {
+            const baseKey = doc.tipo_doc.split('_ts_')[0];
+            const typeObj = availableTypes.find(t => t.key === baseKey);
+            const labelText = getDocLabel(doc.tipo_doc);
+            const IconComp = typeObj?.icon || FileText;
+
+            return (
+              <div
+                key={doc.id_documento || doc.tipo_doc}
+                className="group relative flex flex-col justify-between p-3.5 bg-slate-50/60 hover:bg-white border border-slate-100 hover:border-emerald-200 rounded-2xl transition-all shadow-xs hover:shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100/70 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/50 mt-0.5">
+                    <IconComp size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight truncate">{labelText}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">{doc.nombre_archivo || 'Archivo cargado'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-1.5 pt-3 mt-2 border-t border-slate-100">
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-300 transition-colors text-[10px] font-bold flex items-center gap-1"
+                    title="Ver archivo"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Ver</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingDoc(doc); setActiveUploadKey(doc.tipo_doc); setShowAddMenu(true); }}
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-amber-600 hover:border-amber-300 transition-colors text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    title="Reemplazar este archivo"
+                  >
+                    <Edit3 size={13} />
+                    <span>Editar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDoc(doc)}
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    title="Eliminar documento"
+                  >
+                    <Trash2 size={13} />
+                    <span>Borrar</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="p-8 text-center border border-dashed border-slate-200 rounded-[2rem] bg-slate-50/50 space-y-2">
+          <FileText size={28} className="mx-auto text-slate-300" />
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sin documentos en el expediente</p>
+          <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+            Este afiliado no tiene documentos cargados actualmente. Haz clic en <strong>+ Cargar Documento</strong> para añadir archivos a su expediente.
+          </p>
+        </div>
+      )}
+
+      {missingTypes.length > 0 && !showAddMenu && !activeUploadKey && (
+        <div className="pt-2 border-t border-slate-50">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Añadir más documentos al expediente:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {missingTypes.map(t => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => { setEditingDoc(null); setActiveUploadKey(t.key); setShowAddMenu(true); }}
+                className="text-[10px] font-bold px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>+ {t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CompanySearchField({

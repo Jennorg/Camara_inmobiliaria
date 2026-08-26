@@ -2081,15 +2081,22 @@ export const updateAfiliado = async (req: Request, res: Response) => {
           }
         }
 
-        // Delete previous document of the same type across all associated entities to prevent duplicates
-        await db.execute({
-          sql: `DELETE FROM documentos 
-                WHERE ((entidad_tipo = 'afiliado' AND entidad_id = ?)
-                   OR (entidad_tipo = 'empresa' AND entidad_id = ?)
-                   OR (entidad_tipo = 'estudiante' AND entidad_id = ?))
-                  AND tipo_archivo = ?`,
-          args: [Number(id), idEmpresa || -1, idEstudiante || -1, tipo_doc]
-        });
+        // Delete previous document of the same type or by explicit id_documento
+        if (doc.id_documento) {
+          await db.execute({
+            sql: `DELETE FROM documentos WHERE id_documento = ?`,
+            args: [Number(doc.id_documento)]
+          });
+        } else {
+          await db.execute({
+            sql: `DELETE FROM documentos 
+                  WHERE ((entidad_tipo = 'afiliado' AND entidad_id = ?)
+                     OR (entidad_tipo = 'empresa' AND entidad_id = ?)
+                     OR (entidad_tipo = 'estudiante' AND entidad_id = ?))
+                    AND tipo_archivo = ?`,
+            args: [Number(id), idEmpresa || -1, idEstudiante || -1, tipo_doc]
+          });
+        }
 
         // Insert new one if URL is provided
         if (url) {

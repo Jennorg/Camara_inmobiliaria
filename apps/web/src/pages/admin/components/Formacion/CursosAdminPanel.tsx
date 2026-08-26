@@ -3,7 +3,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, X, User, ChevronDown, Trash2 } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2 } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
 import { apiFetch } from '@/lib/apiClient';
@@ -1306,6 +1306,151 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     }
   };
 
+  // Selecciones múltiples para acciones en lote
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === rows.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(rows.map(r => r.id_inscripcion));
+    }
+  };
+
+  const toggleSelectRow = (id: number) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchGraduar = async () => {
+    if (selectedIds.length === 0) return;
+    const confirm = await Swal.fire({
+      title: '¿Graduar seleccionados?',
+      text: `Se graduará a los ${selectedIds.length} participantes seleccionados en este programa.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#2563eb',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sí, graduar participantes',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsProcessingBatch(true);
+    Swal.fire({
+      title: 'Procesando graduaciones...',
+      text: `Graduando ${selectedIds.length} participantes...`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      let successCount = 0;
+      for (const id of selectedIds) {
+        const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/completar`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) successCount++;
+      }
+      Swal.fire('¡Proceso Completado!', `Se graduó con éxito a ${successCount} participantes.`, 'success');
+      setSelectedIds([]);
+      fetchRows();
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Error al graduar participantes', 'error');
+    } finally {
+      setIsProcessingBatch(false);
+    }
+  };
+
+  const handleBatchRevocar = async () => {
+    if (selectedIds.length === 0) return;
+    const confirm = await Swal.fire({
+      title: '¿Revocar seleccionados?',
+      text: `Se cambiará a estado revocado/rechazado la inscripción de ${selectedIds.length} participantes.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d97706',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sí, revocar inscripciones',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsProcessingBatch(true);
+    Swal.fire({
+      title: 'Revocando inscripciones...',
+      text: `Procesando ${selectedIds.length} participantes...`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      let successCount = 0;
+      for (const id of selectedIds) {
+        const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/rechazar`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ notaAdmin: '' })
+        });
+        if (res.ok) successCount++;
+      }
+      Swal.fire('¡Proceso Completado!', `Se revocaron ${successCount} inscripciones.`, 'success');
+      setSelectedIds([]);
+      fetchRows();
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Error al revocar inscripciones', 'error');
+    } finally {
+      setIsProcessingBatch(false);
+    }
+  };
+
+  const handleBatchEliminar = async () => {
+    if (selectedIds.length === 0) return;
+    const confirm = await Swal.fire({
+      title: '¿Eliminar inscritos seleccionados?',
+      text: `Se eliminarán permanentemente ${selectedIds.length} participantes del curso. Esta acción no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sí, eliminar permanentemente',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setIsProcessingBatch(true);
+    Swal.fire({
+      title: 'Eliminando inscritos...',
+      text: `Eliminando ${selectedIds.length} registros...`,
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      let successCount = 0;
+      for (const id of selectedIds) {
+        const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) successCount++;
+      }
+      Swal.fire('¡Eliminación Completada!', `Se eliminaron ${successCount} participantes.`, 'success');
+      setSelectedIds([]);
+      fetchRows();
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'Error al eliminar inscritos', 'error');
+    } finally {
+      setIsProcessingBatch(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full min-w-0 flex-1 bg-white">
       {/* Header Premium */}
@@ -1354,8 +1499,68 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         </div>
       </div>
 
+      {/* Floating Toolbar for Batch Actions */}
+      {selectedIds.length > 0 && (
+        <div className="mx-6 my-3 p-3 bg-white border border-[#00D084]/30 rounded-2xl flex items-center justify-between shadow-xl shadow-[#00D084]/10 animate-in fade-in slide-in-from-top-2 duration-150 shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-[#E9FAF4] text-[#00B870] font-black text-xs flex items-center justify-center border border-[#00D084]/20 shadow-xs">
+              {selectedIds.length}
+            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-slate-800 tracking-tight">
+                {selectedIds.length === 1 ? '1 participante seleccionado' : `${selectedIds.length} participantes seleccionados`}
+              </span>
+              <span className="text-[10px] text-slate-400 font-semibold">Acciones disponibles para el lote</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBatchGraduar}
+              disabled={isProcessingBatch}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E9FAF4] text-[#00B870] hover:bg-[#D3F5E7] active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-[#00D084]/20 disabled:opacity-50"
+            >
+              <CheckCircle2 size={14} />
+              <span>Graduar ({selectedIds.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBatchRevocar}
+              disabled={isProcessingBatch}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-amber-200/60 disabled:opacity-50"
+            >
+              <XCircle size={14} />
+              <span>Revocar ({selectedIds.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBatchEliminar}
+              disabled={isProcessingBatch}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-rose-200/60 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              <span>Eliminar ({selectedIds.length})</span>
+            </button>
+
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Cancelar selección"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table Section */}
-      <div className="flex-1 min-h-0 overflow-hidden bg-white">
+      <div className="flex-1 min-h-0 overflow-auto bg-white">
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center gap-4">
             <div className="w-8 h-8 border-3 border-[#00D084] border-t-transparent rounded-full animate-spin" />
@@ -1375,10 +1580,19 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <p className="text-sm text-slate-400 max-w-xs mx-auto font-medium">Aún no se han recibido solicitudes de preinscripción para este programa académico.</p>
           </div>
         ) : (
-          <div className="h-full overflow-x-auto scrollbar-hide">
+          <div className="h-full overflow-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/50 sticky top-0 z-10 border-b border-gray-100">
+              <thead className="bg-slate-100 sticky top-0 z-10 border-b border-slate-200 shadow-2xs">
                 <tr>
+                  <th className="px-4 py-4 text-center w-12">
+                    <input
+                      type="checkbox"
+                      checked={rows.length > 0 && selectedIds.length === rows.length}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-300 text-[#00D084] focus:ring-[#00D084] cursor-pointer accent-[#00D084]"
+                      title="Seleccionar todos"
+                    />
+                  </th>
                   <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Participante</th>
                   <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Identificación</th>
                   <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Fecha Registro</th>
@@ -1387,9 +1601,22 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {rows.map(r => (
-                  <tr key={r.id_inscripcion} className="hover:bg-slate-50/30 transition-colors group">
-                    <td className="px-6 py-4">
+                {rows.map(r => {
+                  const isSelected = selectedIds.includes(r.id_inscripcion);
+                  return (
+                    <tr
+                      key={r.id_inscripcion}
+                      className={`transition-colors group ${isSelected ? 'bg-[#E9FAF4]/60' : 'hover:bg-slate-50/30'}`}
+                    >
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(r.id_inscripcion)}
+                          className="w-4 h-4 rounded border-slate-300 text-[#00D084] focus:ring-[#00D084] cursor-pointer accent-[#00D084]"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-[#E9FAF4] text-[#00B870] flex items-center justify-center font-black text-xs shrink-0 border border-[#00D084]/10 shadow-sm">
                           {r.estudiante_nombre?.charAt(0)}
@@ -1455,7 +1682,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
