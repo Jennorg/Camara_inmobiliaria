@@ -58,6 +58,8 @@ interface AfiliadosPanelProps {
   hideViewModeTabs?: boolean
 }
 
+const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
+
 export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeTabs = false }: AfiliadosPanelProps) {
   const { token } = useAuth()
   const authHeaders = useMemo(() => {
@@ -1398,7 +1400,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 disabled={
                   submittingChangeType ||
                   (pendingNewType === 'Agente Corporativo' && !selectedEmpresaId) ||
-                  (pendingNewType === 'Corporativo' && (!razonSocial || !rifNumero || !emailEmpresa || !telefonoEmpresa || !urlRegistro || !urlRif))
+                  (pendingNewType === 'Corporativo' && (!razonSocial || !rifNumero || (!isCleanEmail(emailEmpresa) && !isCleanEmail(selected?.email)) || (!telefonoEmpresa.trim() && !selected?.telefono?.trim()) || !urlRegistro || !urlRif))
                 }
                 onClick={() => {
                   const data: any = {};
@@ -1409,7 +1411,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       razon_social: razonSocial.trim(),
                       rif_tipo: rifTipo,
                       rif_numero: rifNumero.replace(/\D/g, ''),
-                      email: emailEmpresa.trim().toLowerCase(),
+                      email: emailEmpresa.trim() ? emailEmpresa.trim().toLowerCase() : (selected?.email || '').trim().toLowerCase(),
                       telefono: telefonoEmpresa.trim(),
                       direccion: direccionEmpresa.trim(),
                       website: websiteEmpresa.trim()

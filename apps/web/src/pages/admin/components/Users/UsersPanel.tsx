@@ -265,6 +265,10 @@ export default function UsersPanel() {
   }
 
   const handleEmailTipoChange = async (u: SystemUser, tipo: 'personal' | 'empresa') => {
+    if (!u.id_afiliado) {
+      toast.error('Este usuario no tiene un perfil de afiliado vinculado.')
+      return
+    }
     // Determinar el tipo actual comparando u.email con empresa_email
     const tipoActual = u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'
     if (tipo === tipoActual) return
@@ -275,16 +279,15 @@ export default function UsersPanel() {
         headers: authHeaders,
         body: JSON.stringify({ tipo }),
       })
-      if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
-      const d = await r.json()
-      if (d.success) {
+      const d = await r.json().catch(() => null)
+      if (r.ok && d?.success) {
         toast.success(`Correo de acceso de ${u.nombre_completo || u.email} cambiado a ${d.acceso_email}`)
         load()
       } else {
-        toast.error(d.message || 'Error al cambiar el correo de acceso')
+        toast.error(d?.message || `Error ${r.status}: No se pudo cambiar el correo de acceso`)
       }
-    } catch {
-      toast.error('Error de conexión')
+    } catch (err: any) {
+      toast.error(err?.message || 'Error de conexión al servidor')
     } finally {
       setUpdatingEmailId(null)
     }

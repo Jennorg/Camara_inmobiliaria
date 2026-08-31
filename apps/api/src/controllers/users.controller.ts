@@ -198,17 +198,28 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
               WHERE id_user IS NULL OR id_user NOT IN (SELECT id FROM users)`,
         args: []
       });
+      // Limpiar usuarios ficticios huérfanos sin vincular para no duplicar filas en Control de Acceso
+      await db.execute({
+        sql: `DELETE FROM users
+              WHERE password_hash = '$2a$10$dummyHashToPreventEmptyLogin'
+                AND id NOT IN (SELECT id_user FROM afiliados WHERE id_user IS NOT NULL)
+                AND id NOT IN (SELECT id_user FROM empresas WHERE id_user IS NOT NULL)
+                AND id NOT IN (SELECT id_user FROM estudiantes WHERE id_user IS NOT NULL)`,
+        args: []
+      });
     } catch (syncErr) {
       console.warn('Advertencia al auto-sincronizar usuarios de afiliados:', syncErr);
     }
 
     const result = await db.execute({
       sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
-                   a.id_afiliado, a.tipo_afiliado,
+                   COALESCE(a.id_afiliado, a_emp.id_afiliado) AS id_afiliado,
+                   COALESCE(a.tipo_afiliado, a_emp.tipo_afiliado) AS tipo_afiliado,
                    COALESCE(p.email, p_by_email.email, p_est.email) AS persona_email,
-                   COALESCE(e.email, e_by_email.email) AS empresa_email,
+                   COALESCE(e.email, e_emp.email, e_by_email.email) AS empresa_email,
                    COALESCE(
                      NULLIF(TRIM(e.razon_social), ''),
+                     NULLIF(TRIM(e_emp.razon_social), ''),
                      NULLIF(TRIM(e_by_email.razon_social), ''),
                      NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''),
                      NULLIF(TRIM(COALESCE(p_by_email.nombres, '') || ' ' || COALESCE(p_by_email.apellidos, '')), ''),
@@ -220,14 +231,17 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
                    ) as nombre_completo,
                    COALESCE(p.nombres, p_by_email.nombres, p_est.nombres) as nombres,
                    COALESCE(p.apellidos, p_by_email.apellidos, p_est.apellidos) as apellidos,
-                   COALESCE(e.razon_social, e_by_email.razon_social) as razon_social,
-                   a.codigo, a.estatus as estatus_afiliado,
+                   COALESCE(e.razon_social, e_emp.razon_social, e_by_email.razon_social) as razon_social,
+                   COALESCE(a.codigo, a_emp.codigo) as codigo,
+                   COALESCE(a.estatus, a_emp.estatus) as estatus_afiliado,
                    COALESCE(p.cedula_tipo, p_by_email.cedula_tipo, p_est.cedula_tipo) as cedula_tipo,
                    COALESCE(p.cedula, p_by_email.cedula, p_est.cedula) as cedula,
-                   COALESCE(e.rif_tipo, e_by_email.rif_tipo) as rif_tipo,
-                   COALESCE(e.rif_numero, e_by_email.rif_numero) as rif_numero
+                   COALESCE(e.rif_tipo, e_emp.rif_tipo, e_by_email.rif_tipo) as rif_tipo,
+                   COALESCE(e.rif_numero, e_emp.rif_numero, e_by_email.rif_numero) as rif_numero
             FROM users u
             LEFT JOIN afiliados a ON u.id = a.id_user
+            LEFT JOIN empresas e_emp ON u.id = e_emp.id_user
+            LEFT JOIN afiliados a_emp ON e_emp.id_empresa = a_emp.id_empresa
             LEFT JOIN personas p ON a.id_persona = p.id
             LEFT JOIN personas p_by_email ON LOWER(TRIM(p_by_email.email)) = LOWER(TRIM(u.email))
             LEFT JOIN estudiantes est ON u.id = est.id_user

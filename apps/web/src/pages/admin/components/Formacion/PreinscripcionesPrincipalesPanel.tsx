@@ -66,7 +66,6 @@ export default function PreinscripcionesPrincipalesPanel({
   const [showProgramaDropdown, setShowProgramaDropdown] = useState(false)
   const [showAcreditacionDropdown, setShowAcreditacionDropdown] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
-  const [counts, setCounts] = useState({ Todos: 0, Pendiente: 0, 'Sin Expediente': 0, Entrevista: 0, Inscripción: 0, Rechazado: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Row | null>(null)
@@ -124,20 +123,7 @@ export default function PreinscripcionesPrincipalesPanel({
     setError('')
     try {
       const qs = new URLSearchParams()
-      if (uiEstatus !== 'Todos') {
-        if (uiEstatus === 'Pendiente') {
-          qs.set('estatus', 'Preinscrito')
-          qs.set('conExpediente', 'true')
-        } else if (uiEstatus === 'Sin Expediente') {
-          qs.set('estatus', 'Preinscrito')
-          qs.set('conExpediente', 'false')
-        } else if (uiEstatus === 'Inscripción') {
-          qs.set('estatus', 'Inscrito')
-        } else {
-          qs.set('estatus', uiEstatus)
-        }
-      }
-
+      qs.set('estatus', 'Todos')
       if (programa !== 'Todos') qs.set('programaCodigo', programa)
 
       const res = await fetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
@@ -147,24 +133,7 @@ export default function PreinscripcionesPrincipalesPanel({
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando preinscripciones')
 
       const data = json.data as Row[]
-      
-      // Calcular dinámicamente los contadores de expediente vacío
-      const preinscritosCount = data.filter(r => r.estatus === 'Preinscrito').length
-      const sinExpedienteCount = data.filter(r => r.estatus === 'Preinscrito' && (r.num_documentos === 0 || !r.num_documentos)).length
-      const conExpedienteCount = preinscritosCount - sinExpedienteCount
-
       setRows(data)
-
-      if (json.meta && json.meta.counts) {
-        setCounts({
-          Todos: json.meta.counts.Todos || 0,
-          Pendiente: conExpedienteCount,
-          'Sin Expediente': sinExpedienteCount,
-          Entrevista: json.meta.counts.Entrevista || 0,
-          Inscripción: json.meta.counts.Aprobado || 0,
-          Rechazado: json.meta.counts.Rechazado || 0,
-        })
-      }
 
       const urlParams = new URLSearchParams(window.location.search)
       const idFromUrl = urlParams.get('id')
@@ -188,7 +157,7 @@ export default function PreinscripcionesPrincipalesPanel({
     } finally {
       setLoading(false)
     }
-  }, [uiEstatus, programa, authHeaders, selected, fetchDocumentos])
+  }, [programa, authHeaders, selected, fetchDocumentos])
 
   const fetchModulos = useCallback(async (idInscripcion: number) => {
     setLoadingModulos(true)
@@ -741,6 +710,31 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  const counts = useMemo(() => {
+    let base = rows
+    if (filtroAcreditacion === 'apto') {
+      base = base.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
+    } else if (filtroAcreditacion === 'no_apto') {
+      base = base.filter(r => r.programa_codigo !== 'AFILIACION' || !r.apto_acreditacion)
+    }
+
+    const todos = base.length
+    const pendiente = base.filter(r => r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0).length
+    const sinExpediente = base.filter(r => r.estatus === 'Preinscrito' && (!r.num_documentos || r.num_documentos === 0)).length
+    const entrevista = base.filter(r => r.estatus === 'Entrevista').length
+    const inscripcion = base.filter(r => r.estatus === 'Inscrito' && r.afiliado_estatus !== 'Afiliado').length
+    const rechazado = base.filter(r => r.estatus === 'Rechazado').length
+
+    return {
+      Todos: todos,
+      Pendiente: pendiente,
+      'Sin Expediente': sinExpediente,
+      Entrevista: entrevista,
+      Inscripción: inscripcion,
+      Rechazado: rechazado,
+    }
+  }, [rows, filtroAcreditacion])
+
   const filteredRows = useMemo(() => {
     let result = rows
     if (filtroAcreditacion === 'apto') {
@@ -751,12 +745,16 @@ export default function PreinscripcionesPrincipalesPanel({
 
     // Filtro por sub-estado de expediente
     if (uiEstatus === 'Pendiente') {
-      result = result.filter(r => r.num_documentos && r.num_documentos > 0)
+      result = result.filter(r => r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0)
     } else if (uiEstatus === 'Sin Expediente') {
-      result = result.filter(r => !r.num_documentos || r.num_documentos === 0)
+      result = result.filter(r => r.estatus === 'Preinscrito' && (!r.num_documentos || r.num_documentos === 0))
+    } else if (uiEstatus === 'Entrevista') {
+      result = result.filter(r => r.estatus === 'Entrevista')
     } else if (uiEstatus === 'Inscripción') {
       // Para la pestaña 'Inscripción', mostrar solo quienes están pendientes de finalizar inscripción/pago y NO son ya Afiliados
-      result = result.filter(r => r.afiliado_estatus !== 'Afiliado')
+      result = result.filter(r => r.estatus === 'Inscrito' && r.afiliado_estatus !== 'Afiliado')
+    } else if (uiEstatus === 'Rechazado') {
+      result = result.filter(r => r.estatus === 'Rechazado')
     }
     if (!search) return result
     const q = search.toLowerCase()

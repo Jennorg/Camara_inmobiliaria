@@ -99,7 +99,9 @@ const Navbar = ({
               onClick={() => {
                 const nextMode = !darkMode;
                 setDarkMode(nextMode);
-                localStorage.setItem('darkMode:v1', JSON.stringify(nextMode));
+                try {
+                  localStorage.setItem('darkMode:v1', JSON.stringify(nextMode));
+                } catch { /* ignore */ }
               }}
               className={`hidden p-2 rounded-full transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-emerald-50"}`}
             >

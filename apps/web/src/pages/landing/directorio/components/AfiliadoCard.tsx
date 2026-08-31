@@ -204,6 +204,11 @@ export const AfiliadoCard = ({
     ? formatWhatsAppUrl(phoneNumber)
     : '#';
 
+  const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
+  const cardEmail = isCorpView
+    ? (isCleanEmail(afiliado.empresa_email) ? afiliado.empresa_email : (isCleanEmail(afiliado.email) ? afiliado.email : null))
+    : (isCleanEmail(afiliado.email) ? afiliado.email : null);
+
   return (
     <div
       className={`relative overflow-hidden bg-white dark:bg-[#04432f] rounded-[1.25rem] p-0 shadow-sm border transition-colors transition-transform duration-500 group hover:-translate-y-1 flex flex-col h-full ${highlighted
@@ -259,7 +264,7 @@ export const AfiliadoCard = ({
       </Link>
 
       {/* Acciones de Contacto */}
-      {((isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok || afiliado.website || (isCorpView && afiliado.empresa_website) || phoneNumber || (onViewCarnet && afiliado.codigo)) && (
+      {(cardEmail || afiliado.instagram || afiliado.linkedin || afiliado.facebook || afiliado.twitter || afiliado.tiktok || afiliado.website || (isCorpView && afiliado.empresa_website) || phoneNumber || (onViewCarnet && afiliado.codigo)) && (
         <div className="flex gap-2 items-center justify-center px-4 pt-3 pb-5 border-t border-slate-100 dark:border-emerald-50/10 w-full mt-auto">
           {onViewCarnet && afiliado.codigo && (
             <button
@@ -274,9 +279,9 @@ export const AfiliadoCard = ({
               <CarnetIcon w={12} h={12} />
             </button>
           )}
-          {(isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email) && (
+          {cardEmail && (
             <a
-              href={`mailto:${isCorpView ? (afiliado.empresa_email || afiliado.email) : afiliado.email}`}
+              href={`mailto:${cardEmail}`}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors duration-300"

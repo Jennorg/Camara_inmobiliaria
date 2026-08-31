@@ -13,6 +13,8 @@ interface DataSectionsProps {
   showAfiliadoSection: boolean;
 }
 
+const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
+
 export const DataSections = ({ 
   afiliado, 
   isCorporativo, 
@@ -50,17 +52,17 @@ export const DataSections = ({
               >
                 {afiliado.empresa_codigo || (isCorporativo ? afiliado.codigo : undefined) || (afiliado as any).afiliados_asociados?.find((a: any) => a.tipo_afiliado === 'Corporativo')?.codigo || 'En proceso'}
               </InfoCard>
-              {(afiliado.empresa_email || (isCorporativo && afiliado.email)) && (
-                <InfoCard icon={Mail} label="Correo" variant="compact">
-                  <a href={`mailto:${afiliado.empresa_email || afiliado.email}`} className="hover:underline">
-                    {afiliado.empresa_email || afiliado.email}
+              {isCleanEmail(afiliado.empresa_email) && (
+                <InfoCard icon={Mail} label="Correo de la Empresa" variant="compact">
+                  <a href={`mailto:${afiliado.empresa_email}`} className="hover:underline">
+                    {afiliado.empresa_email}
                   </a>
                 </InfoCard>
               )}
-              {(afiliado.empresa_telefono || (isCorporativo && afiliado.telefono)) && (
-                <InfoCard icon={Phone} label="Teléfono" variant="compact">
-                  <a href={`tel:${afiliado.empresa_telefono || afiliado.telefono}`} className="hover:underline">
-                    {afiliado.empresa_telefono || afiliado.telefono}
+              {afiliado.empresa_telefono && (
+                <InfoCard icon={Phone} label="Teléfono de la Empresa" variant="compact">
+                  <a href={`tel:${afiliado.empresa_telefono}`} className="hover:underline">
+                    {afiliado.empresa_telefono}
                   </a>
                 </InfoCard>
               )}
@@ -74,7 +76,7 @@ export const DataSections = ({
             </div>
           </div>
 
-          {isCorporativo && !isRepMode && (afiliado.email || afiliado.telefono || afiliado.cedula) && (
+          {isCorporativo && !isRepMode && (isCleanEmail(afiliado.email) || afiliado.telefono || afiliado.cedula) && (
             <div className="mt-8 pt-6 border-t border-slate-100 dark:border-emerald-500/10">
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Representante Legal</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
@@ -88,7 +90,7 @@ export const DataSections = ({
                     {afiliado.profesion}
                   </InfoCard>
                 )}
-                {afiliado.email && (
+                {isCleanEmail(afiliado.email) && (
                   <InfoCard icon={Mail} label="Correo" variant="compact">
                     <a href={`mailto:${afiliado.email}`} className="hover:underline">
                       {afiliado.email}
@@ -136,7 +138,7 @@ export const DataSections = ({
                   {afiliado.codigo || 'En proceso'}
                 </InfoCard>
               )}
-              {afiliado.email && (
+              {isCleanEmail(afiliado.email) && (
                 <InfoCard icon={Mail} label="Correo" variant="compact">
                   <a href={`mailto:${afiliado.email}`} className="hover:underline">
                     {afiliado.email}

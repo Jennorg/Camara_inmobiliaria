@@ -104,6 +104,8 @@ const formatCedulaOrRifParts = (item: AfiliadoDTO): { prefix: string; number: st
   }
 };
 
+const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
+
 const formatPhoneParts = (rawPhone: string | null | undefined): { countryCode: string; number: string; hasPhone: boolean } => {
   if (!rawPhone) return { countryCode: '+58', number: '', hasPhone: false };
   let clean = rawPhone.trim();
@@ -1075,8 +1077,11 @@ export default function MiembrosPanel() {
       // Basic validation
       if (!newForm.nombres?.trim()) errors.nombres = true
       if (!newForm.apellidos?.trim()) errors.apellidos = true
-      if (!newForm.email?.trim()) errors.email = true
       if (!newForm.cedula?.trim()) errors.cedula = true
+
+      if (tipoFinal !== 'Corporativo' && !isCleanEmail(newForm.email)) {
+        errors.email = true
+      }
 
       if (tipoFinal === 'Agente Corporativo' && !newForm.id_empresa) {
         errors.id_empresa = true
@@ -1085,6 +1090,14 @@ export default function MiembrosPanel() {
       if (tipoFinal === 'Corporativo') {
         if (!newForm.empresa_razon_social?.trim()) errors.empresa_razon_social = true
         if (!newForm.empresa_rif_numero?.trim()) errors.empresa_rif_numero = true
+        if (!isCleanEmail(newForm.email) && !isCleanEmail(newForm.empresa_email)) {
+          errors.email = true
+          errors.empresa_email = true
+        }
+        if (!newForm.telefono?.trim() && !newForm.empresa_telefono?.trim()) {
+          errors.telefono = true
+          errors.empresa_telefono = true
+        }
 
         // Validar documentos obligatorios de Corporativo
         if (!newUrlCv) errors.newUrlCv = true
@@ -1910,68 +1923,74 @@ export default function MiembrosPanel() {
                           })()
                         )}
                       </div>
-                      <DataField label="Correo de la Empresa" value={selected.empresa_email || 'Sin correo'} isEditing={isEditing} fieldName="empresa_email" form={editForm} setForm={setEditForm} />
+                      {(isEditing || !!selected.empresa_email) && (
+                        <DataField label="Correo de la Empresa" value={selected.empresa_email || 'Sin correo'} isEditing={isEditing} fieldName="empresa_email" form={editForm} setForm={setEditForm} />
+                      )}
                       {/* Teléfono de la Empresa con código de país */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono de la Empresa</label>
-                        {isEditing ? (
-                          (() => {
-                            const parts = formatPhoneParts(editForm.empresa_telefono);
-                            const countryCodeOptions = ['+58', '+1', '+34', '+57', '+54', '+55', '+56', '+52', '+51', '+507'];
-                            const currentCode = countryCodeOptions.includes(parts.countryCode) ? parts.countryCode : '+58';
-                            const numOnly = parts.number;
-                            return (
-                              <div className="flex gap-0 w-full">
-                                <div className="relative shrink-0">
-                                  <select
-                                    className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-2.5 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer text-slate-700"
-                                    value={currentCode}
-                                    onChange={(e) => {
-                                      const newCode = e.target.value;
-                                      setEditForm({ ...editForm, empresa_telefono: `${newCode} ${numOnly}`.trim() });
-                                    }}
-                                  >
-                                    {countryCodeOptions.map(code => (
-                                      <option key={code} value={code}>{code}</option>
-                                    ))}
-                                  </select>
-                                  <ChevronDown size={14} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                </div>
-                                <input
-                                  type="text"
-                                  className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors text-slate-700"
-                                  value={numOnly}
-                                  onChange={(e) => {
-                                    setEditForm({ ...editForm, empresa_telefono: `${currentCode} ${e.target.value}`.trim() });
-                                  }}
-                                />
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          (() => {
-                            const phoneParts = formatPhoneParts(selected.empresa_telefono);
-                            if (!phoneParts.hasPhone) {
+                      {(isEditing || !!selected.empresa_telefono) && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono de la Empresa</label>
+                          {isEditing ? (
+                            (() => {
+                              const parts = formatPhoneParts(editForm.empresa_telefono);
+                              const countryCodeOptions = ['+58', '+1', '+34', '+57', '+54', '+55', '+56', '+52', '+51', '+507'];
+                              const currentCode = countryCodeOptions.includes(parts.countryCode) ? parts.countryCode : '+58';
+                              const numOnly = parts.number;
                               return (
-                                <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 w-fit">
-                                  Sin teléfono
-                                </p>
+                                <div className="flex gap-0 w-full">
+                                  <div className="relative shrink-0">
+                                    <select
+                                      className="w-16 bg-slate-50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-2.5 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer text-slate-700"
+                                      value={currentCode}
+                                      onChange={(e) => {
+                                        const newCode = e.target.value;
+                                        setEditForm({ ...editForm, empresa_telefono: `${newCode} ${numOnly}`.trim() });
+                                      }}
+                                    >
+                                      {countryCodeOptions.map(code => (
+                                        <option key={code} value={code}>{code}</option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    className="flex-1 bg-slate-50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors text-slate-700"
+                                    value={numOnly}
+                                    onChange={(e) => {
+                                      setEditForm({ ...editForm, empresa_telefono: `${currentCode} ${e.target.value}`.trim() });
+                                    }}
+                                  />
+                                </div>
                               );
-                            }
-                            return (
-                              <div className="flex gap-0 w-full">
-                                <div className="bg-slate-50/50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-3 py-2 text-sm font-black text-slate-700 flex items-center justify-center min-w-[52px] shrink-0">
-                                  {phoneParts.countryCode}
+                            })()
+                          ) : (
+                            (() => {
+                              const phoneParts = formatPhoneParts(selected.empresa_telefono);
+                              if (!phoneParts.hasPhone) {
+                                return (
+                                  <p className="bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 w-fit">
+                                    Sin teléfono
+                                  </p>
+                                );
+                              }
+                              return (
+                                <div className="flex gap-0 w-full">
+                                  <div className="bg-slate-50/50 border border-gray-100 rounded-l-xl rounded-r-none border-r-0 px-3 py-2 text-sm font-black text-slate-700 flex items-center justify-center min-w-[52px] shrink-0">
+                                    {phoneParts.countryCode}
+                                  </div>
+                                  <div className="bg-slate-50/50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-bold text-slate-700 flex-1">
+                                    {phoneParts.number}
+                                  </div>
                                 </div>
-                                <div className="bg-slate-50/50 border border-gray-100 rounded-r-xl rounded-l-none px-4 py-2 text-sm font-bold text-slate-700 flex-1">
-                                  {phoneParts.number}
-                                </div>
-                              </div>
-                            );
-                          })()
-                        )}
-                      </div>
-                      <DataField label="Sitio Web" value={selected.empresa_website || 'Sin sitio web'} isEditing={isEditing} fieldName="empresa_website" form={editForm} setForm={setEditForm} />
+                              );
+                            })()
+                          )}
+                        </div>
+                      )}
+                      {(isEditing || !!selected.empresa_website) && (
+                        <DataField label="Sitio Web" value={selected.empresa_website || 'Sin sitio web'} isEditing={isEditing} fieldName="empresa_website" form={editForm} setForm={setEditForm} />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1986,12 +2005,12 @@ export default function MiembrosPanel() {
                   <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Redes Sociales y Web</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <DataField label="Sitio Web" value={selected.website || 'No configurado'} isEditing={isEditing} fieldName="website" form={editForm} setForm={setEditForm} />
-                  <DataField label="Instagram" value={selected.instagram || 'No configurado'} isEditing={isEditing} fieldName="instagram" form={editForm} setForm={setEditForm} />
-                  <DataField label="Facebook" value={selected.facebook || 'No configurado'} isEditing={isEditing} fieldName="facebook" form={editForm} setForm={setEditForm} />
-                  <DataField label="LinkedIn" value={selected.linkedin || 'No configurado'} isEditing={isEditing} fieldName="linkedin" form={editForm} setForm={setEditForm} />
-                  <DataField label="X (Twitter)" value={selected.twitter || 'No configurado'} isEditing={isEditing} fieldName="twitter" form={editForm} setForm={setEditForm} />
-                  <DataField label="TikTok" value={selected.tiktok || 'No configurado'} isEditing={isEditing} fieldName="tiktok" form={editForm} setForm={setEditForm} />
+                  {(isEditing || !!selected.website) && <DataField label="Sitio Web" value={selected.website || 'No configurado'} isEditing={isEditing} fieldName="website" form={editForm} setForm={setEditForm} />}
+                  {(isEditing || !!selected.instagram) && <DataField label="Instagram" value={selected.instagram || 'No configurado'} isEditing={isEditing} fieldName="instagram" form={editForm} setForm={setEditForm} />}
+                  {(isEditing || !!selected.facebook) && <DataField label="Facebook" value={selected.facebook || 'No configurado'} isEditing={isEditing} fieldName="facebook" form={editForm} setForm={setEditForm} />}
+                  {(isEditing || !!selected.linkedin) && <DataField label="LinkedIn" value={selected.linkedin || 'No configurado'} isEditing={isEditing} fieldName="linkedin" form={editForm} setForm={setEditForm} />}
+                  {(isEditing || !!selected.twitter) && <DataField label="X (Twitter)" value={selected.twitter || 'No configurado'} isEditing={isEditing} fieldName="twitter" form={editForm} setForm={setEditForm} />}
+                  {(isEditing || !!selected.tiktok) && <DataField label="TikTok" value={selected.tiktok || 'No configurado'} isEditing={isEditing} fieldName="tiktok" form={editForm} setForm={setEditForm} />}
                 </div>
               </div>
             {/* Certificados Entregados / Emitidos */}
@@ -2073,7 +2092,7 @@ export default function MiembrosPanel() {
               onUpdateDocs={(updatedDocs) => {
                 setSelected((prev: any) => prev ? { ...prev, documentos: updatedDocs } : prev);
                 setEditForm((prev: any) => prev ? { ...prev, documentos: updatedDocs } : prev);
-                setApprovedMembers((prev: any[]) => prev.map(m => m.id_afiliado === selected.id_afiliado ? { ...m, documentos: updatedDocs } : m));
+                setItems((prev: any[]) => prev.map(m => m.id_afiliado === selected.id_afiliado ? { ...m, documentos: updatedDocs } : m));
               }}
             />
 
@@ -2959,7 +2978,7 @@ export default function MiembrosPanel() {
                 disabled={
                   submittingChangeType ||
                   (pendingNewType === 'Agente Corporativo' && !selectedEmpresaId) ||
-                  (pendingNewType === 'Corporativo' && (!razonSocial || !rifNumero || !emailEmpresa || !telefonoEmpresa || !urlRegistro || !urlRif))
+                  (pendingNewType === 'Corporativo' && (!razonSocial || !rifNumero || (!isCleanEmail(emailEmpresa) && !isCleanEmail(selected?.email)) || (!telefonoEmpresa.trim() && !selected?.telefono?.trim()) || !urlRegistro || !urlRif))
                 }
                 onClick={() => {
                   const data: any = {};
@@ -2970,7 +2989,7 @@ export default function MiembrosPanel() {
                       razon_social: razonSocial.trim(),
                       rif_tipo: rifTipo,
                       rif_numero: rifNumero.replace(/\D/g, ''),
-                      email: emailEmpresa.trim().toLowerCase(),
+                      email: emailEmpresa.trim() ? emailEmpresa.trim().toLowerCase() : (selected?.email || '').trim().toLowerCase(),
                       telefono: telefonoEmpresa.trim(),
                       direccion: direccionEmpresa.trim(),
                       website: websiteEmpresa.trim()

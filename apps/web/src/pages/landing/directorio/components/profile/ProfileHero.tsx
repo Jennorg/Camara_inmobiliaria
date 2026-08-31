@@ -108,6 +108,11 @@ END:VCARD`;
     document.body.removeChild(link);
   };
 
+  const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
+  const heroEmail = isCorporativo
+    ? (isCleanEmail(afiliado.empresa_email) ? afiliado.empresa_email : (isCleanEmail(afiliado.email) ? afiliado.email : null))
+    : (isCleanEmail(afiliado.email) ? afiliado.email : null);
+
   return (
     <div className="w-full">
       {/* ── CARD PRINCIPAL DE PERFIL ── */}
@@ -228,9 +233,9 @@ END:VCARD`;
                 </svg>
               </a>
             )}
-            {(isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email) && (
+            {heroEmail && (
               <a
-                href={`mailto:${isCorporativo ? afiliado.empresa_email || afiliado.email : afiliado.email}`}
+                href={`mailto:${heroEmail}`}
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
                 title={isCorporativo ? "Correo de la Empresa" : "Correo"}
               >

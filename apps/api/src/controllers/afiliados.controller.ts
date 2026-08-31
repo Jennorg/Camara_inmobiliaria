@@ -21,6 +21,8 @@ const sqlNormalize = (expr: string): string => {
   return `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(${expr}), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'Á', 'a'), 'É', 'e'), 'Í', 'i'), 'Ó', 'o'), 'Ú', 'u'), 'ñ', 'n'), 'Ñ', 'n')`;
 };
 
+const isCleanEmail = (e?: string | null): boolean => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
+
 import {
   enviarCorreoVerificacion,
   enviarCorreoAprobacion,
@@ -405,9 +407,9 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Obtener los correos del afiliado y su id_user
+    // Obtener los correos del afiliado y su id_user (buscando también id_user en la empresa si no está en afiliados)
     const afiResult = await db.execute({
-      sql: `SELECT a.id_user, a.tipo_afiliado, p.email AS persona_email, e.email AS empresa_email
+      sql: `SELECT a.id_user, a.id_empresa, a.tipo_afiliado, p.email AS persona_email, e.email AS empresa_email, e.id_user AS empresa_user_id
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -420,24 +422,38 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const { id_user, tipo_afiliado, persona_email, empresa_email } = afiResult.rows[0] as any;
+    const row = afiResult.rows[0] as any;
+    let id_user = row.id_user ? Number(row.id_user) : (row.empresa_user_id ? Number(row.empresa_user_id) : null);
+    const { id_empresa, tipo_afiliado, persona_email, empresa_email } = row;
 
-    if (tipo_afiliado !== 'Corporativo') {
+    if (tipo_afiliado !== 'Corporativo' && tipo_afiliado !== 'Agente Corporativo') {
       res.status(400).json({ success: false, message: 'Solo los afiliados corporativos pueden elegir el correo de acceso.' });
       return;
     }
 
-    if (!id_user) {
-      res.status(400).json({ success: false, message: 'Este afiliado aún no tiene cuenta de acceso configurada.' });
+    const personaMailClean = isCleanEmail(persona_email) ? String(persona_email).trim().toLowerCase() : '';
+    const empresaMailClean = isCleanEmail(empresa_email) ? String(empresa_email).trim().toLowerCase() : '';
+
+    const targetEmail = tipo === 'empresa' ? empresaMailClean : personaMailClean;
+
+    if (!targetEmail) {
+      res.status(400).json({ success: false, message: `El correo de tipo "${tipo}" no está definido o no es válido para este afiliado.` });
       return;
     }
 
-    const targetEmail: string = tipo === 'empresa'
-      ? (empresa_email || '').trim().toLowerCase()
-      : (persona_email || '').trim().toLowerCase();
+    // Si aún no se tenía id_user enlazado, buscar si existe un usuario con ese correo
+    if (!id_user) {
+      const searchUser = await db.execute({
+        sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? OR (LOWER(TRIM(email)) = ? AND ? != '') OR (LOWER(TRIM(email)) = ? AND ? != '') LIMIT 1`,
+        args: [targetEmail, personaMailClean, personaMailClean, empresaMailClean, empresaMailClean]
+      });
+      if (searchUser.rows.length > 0) {
+        id_user = Number(searchUser.rows[0].id);
+      }
+    }
 
-    if (!targetEmail) {
-      res.status(400).json({ success: false, message: `El correo de tipo "${tipo}" no está definido para este afiliado.` });
+    if (!id_user) {
+      res.status(400).json({ success: false, message: 'Este afiliado aún no tiene cuenta de acceso configurada.' });
       return;
     }
 
@@ -447,6 +463,55 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
       args: [targetEmail, id_user]
     });
     if (dupCheck.rows.length > 0) {
+      const existingUserId = Number(dupCheck.rows[0].id);
+
+      // Verificar si dicha cuenta pertenece a otro afiliado diferente
+      const otherAffiliateCheck = await db.execute({
+        sql: `SELECT id_afiliado FROM afiliados WHERE id_user = ? AND id_afiliado <> ? LIMIT 1`,
+        args: [existingUserId, Number(id)]
+      });
+
+      const isUnlinkedOrSame = otherAffiliateCheck.rows.length === 0;
+
+      if (isUnlinkedOrSame) {
+        // Es la cuenta original de la misma persona -> unificar id_user a la cuenta existente
+        const previousIdUser = id_user;
+        id_user = existingUserId;
+
+        const nowTs = new Date().toISOString();
+        await db.execute({
+          sql: `UPDATE users SET email = ?, activo = 1, actualizado_en = ? WHERE id = ?`,
+          args: [targetEmail, nowTs, id_user]
+        });
+
+        await db.execute({
+          sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ?`,
+          args: [id_user, Number(id)]
+        });
+
+        if (id_empresa) {
+          await db.execute({
+            sql: `UPDATE empresas SET id_user = ? WHERE id_empresa = ?`,
+            args: [id_user, id_empresa]
+          });
+        }
+
+        // Si la cuenta temporal/dummy previa quedó sin vinculación, eliminarla
+        if (previousIdUser && previousIdUser !== id_user) {
+          await db.execute({
+            sql: `DELETE FROM users 
+                  WHERE id = ? 
+                    AND id NOT IN (SELECT id_user FROM afiliados WHERE id_user IS NOT NULL) 
+                    AND id NOT IN (SELECT id_user FROM empresas WHERE id_user IS NOT NULL)
+                    AND id NOT IN (SELECT id_user FROM estudiantes WHERE id_user IS NOT NULL)`,
+            args: [previousIdUser]
+          });
+        }
+
+        res.json({ success: true, message: 'Correo de acceso re-vinculado a la cuenta del afiliado.', acceso_email: targetEmail });
+        return;
+      }
+
       res.status(400).json({ success: false, message: `El correo "${targetEmail}" ya está en uso por otro usuario.` });
       return;
     }
@@ -456,6 +521,19 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
       sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
       args: [targetEmail, now, id_user]
     });
+
+    // Sincronizar id_user en afiliados y empresas
+    await db.execute({
+      sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ?`,
+      args: [id_user, Number(id)]
+    });
+
+    if (id_empresa) {
+      await db.execute({
+        sql: `UPDATE empresas SET id_user = ? WHERE id_empresa = ?`,
+        args: [id_user, id_empresa]
+      });
+    }
 
     res.json({ success: true, message: 'Correo de acceso actualizado correctamente.', acceso_email: targetEmail });
   } catch (error) {
@@ -1664,6 +1742,22 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       });
     }
 
+    if (targetTipoAfiliado === 'Corporativo') {
+      const pTel = fields.telefono !== undefined ? String(fields.telefono || '').trim() : String(oldPersonaTelefono || '').trim();
+      const eTel = fields.empresa_telefono !== undefined ? String(fields.empresa_telefono || '').trim() : '';
+      if (!pTel && !eTel) {
+        return res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un teléfono (el de la empresa o el del representante).' });
+      }
+
+      const pMailRaw = fields.email !== undefined ? String(fields.email || '').trim() : String(oldPersonaEmail || '').trim();
+      const eMailRaw = fields.empresa_email !== undefined ? String(fields.empresa_email || '').trim() : String(oldEmpresaEmail || '').trim();
+      const pMail = isCleanEmail(pMailRaw) ? pMailRaw : '';
+      const eMail = isCleanEmail(eMailRaw) ? eMailRaw : '';
+      if (!pMail && !eMail) {
+        return res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un correo electrónico (el de la empresa o el del representante).' });
+      }
+    }
+
     for (const key of Object.keys(fields)) {
       if (personaFields.includes(key) || key === 'cedula_tipo') {
         let val = fields[key];
@@ -1837,6 +1931,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       });
     }
 
+    // ── Auto-sincronización del correo de acceso ─────────────────────────────
+    let effectiveIdUser = idUser;
+
     if (eUpdates.length > 0) {
       if (idEmpresa) {
         eUpdates.push('actualizado_en = ?');
@@ -1926,10 +2023,10 @@ export const updateAfiliado = async (req: Request, res: Response) => {
           const eLogo = fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null;
 
           const insRes = await db.execute({
-            sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, website, logo_url, fecha_registro, id_representante_legal)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, website, logo_url, fecha_registro, id_representante_legal, id_user)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                   RETURNING id_empresa`,
-            args: [rSocial, rTipo, rNumFinal, eEmail, eTel, eWeb, eLogo, now, Number(id)]
+            args: [rSocial, rTipo, rNumFinal, eEmail, eTel, eWeb, eLogo, now, Number(id), effectiveIdUser || null]
           });
 
           const newEmpresaId = insRes.lastInsertRowid
@@ -1946,12 +2043,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       }
     }
 
-    // ── Auto-sincronización del correo de acceso ─────────────────────────────
-    let effectiveIdUser = idUser;
-
-    // Si idUser no está vinculado al afiliado, buscar el usuario por el correo actual de la persona
+    // Si idUser no está vinculado al afiliado, buscar el usuario por el correo actual de la persona o de la empresa
     if (!effectiveIdUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
-      const lookupEmail = ((oldPersonaEmail as string) || '').trim().toLowerCase();
+      const lookupEmail = ((fields.empresa_email as string) || (fields.email as string) || (oldPersonaEmail as string) || '').trim().toLowerCase();
       if (lookupEmail) {
         try {
           const userByEmail = await db.execute({
@@ -1966,8 +2060,6 @@ export const updateAfiliado = async (req: Request, res: Response) => {
               args: [effectiveIdUser, now, id]
             });
             console.log(`[SYNC] 🔗 Vinculado afiliado ${id} → id_user=${effectiveIdUser} (encontrado por email "${lookupEmail}")`);
-          } else {
-            console.log(`[SYNC] ⚠️ No se encontró ningún usuario con el email "${lookupEmail}"`);
           }
         } catch (lookupErr) {
           console.error('[SYNC] Error buscando usuario por email:', lookupErr);
@@ -1975,7 +2067,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       }
     }
 
-    if (effectiveIdUser && (fields.email !== undefined || fields.empresa_email !== undefined)) {
+    if (effectiveIdUser) {
       try {
         const accessRow = await db.execute({
           sql: `SELECT email FROM users WHERE id = ?`,
@@ -1985,11 +2077,10 @@ export const updateAfiliado = async (req: Request, res: Response) => {
         const empEmailOld = (oldEmpresaEmail as string || '').trim().toLowerCase();
         const isUsingEmpresa = !!(empEmailOld && curAccess === empEmailOld);
 
-        console.log(`[SYNC] idUser=${effectiveIdUser} curAccess="${curAccess}" empEmailOld="${empEmailOld}" isUsingEmpresa=${isUsingEmpresa}`);
-        console.log(`[SYNC] fields.email="${fields.email}" fields.empresa_email="${fields.empresa_email}"`);
-
         let emailToSync: string | null = null;
-        if (fields.email !== undefined && !isUsingEmpresa) {
+        if (targetTipoAfiliado === 'Corporativo' && fields.empresa_email !== undefined && String(fields.empresa_email).trim() !== '') {
+          emailToSync = String(fields.empresa_email).trim().toLowerCase();
+        } else if (fields.email !== undefined && !isUsingEmpresa) {
           emailToSync = String(fields.email).trim().toLowerCase();
         } else if (fields.empresa_email !== undefined && isUsingEmpresa) {
           emailToSync = String(fields.empresa_email).trim().toLowerCase();
@@ -2659,7 +2750,13 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
       empresa_instagram, empresa_facebook, empresa_linkedin, empresa_twitter, empresa_tiktok
     } = req.body;
 
-    if (!cedula || !email) {
+    const pEmailRaw = String(email || '').trim().toLowerCase();
+    const eEmailRaw = String(empresa_email || '').trim().toLowerCase();
+    const pEmail = isCleanEmail(pEmailRaw) ? pEmailRaw : '';
+    const eEmail = isCleanEmail(eEmailRaw) ? eEmailRaw : '';
+    const finalEmail = pEmail || eEmail;
+
+    if (!cedula || !finalEmail) {
       res.status(400).json({ success: false, message: 'Cédula/RIF y Email son obligatorios.' });
       return;
     }
@@ -2668,6 +2765,15 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     if (tipoFinal === 'Agente Corporativo' && !id_empresa) {
       res.status(400).json({ success: false, message: 'La empresa es obligatoria para un Agente Corporativo.' });
       return;
+    }
+
+    if (tipoFinal === 'Corporativo') {
+      const pTel = String(telefono || '').trim();
+      const eTel = String(empresa_telefono || '').trim();
+      if (!pTel && !eTel) {
+        res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un teléfono (el de la empresa o el del representante).' });
+        return;
+      }
     }
 
     // Verificar duplicados en personas
@@ -3668,12 +3774,46 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
         const datos = typeof sol.datos_empresa === 'string' ? JSON.parse(sol.datos_empresa || '{}') : (sol.datos_empresa || {});
         const docs = typeof sol.documentos_empresa === 'string' ? JSON.parse(sol.documentos_empresa || '[]') : (sol.documentos_empresa || []);
         const cleanedRif = String(datos.rif_numero || '').replace(/\D/g, '');
+        const personaEmailQuery = await tx.execute({
+          sql: `SELECT p.email FROM afiliados a JOIN personas p ON a.id_persona = p.id WHERE a.id_afiliado = ?`,
+          args: [sol.id_afiliado]
+        });
+        const personaEmailRaw = (personaEmailQuery.rows[0]?.email as string || '').trim().toLowerCase();
+        const personaEmail = isCleanEmail(personaEmailRaw) ? personaEmailRaw : '';
+        const datosEmailRaw = datos.email ? String(datos.email).trim().toLowerCase() : '';
+        const datosEmail = isCleanEmail(datosEmailRaw) ? datosEmailRaw : '';
+        const cleanedEmail = datosEmail || personaEmail || null;
+
+        let userIdToUse: number | null = sol.afiliado_user_id ? Number(sol.afiliado_user_id) : null;
+
+        if (!userIdToUse && sol.id_afiliado) {
+          const userCheck = await tx.execute({
+            sql: `SELECT id_user FROM afiliados WHERE id_afiliado = ? LIMIT 1`,
+            args: [sol.id_afiliado]
+          });
+          if (userCheck.rows.length > 0 && userCheck.rows[0].id_user) {
+            userIdToUse = Number(userCheck.rows[0].id_user);
+          }
+        }
+
+        if (userIdToUse && cleanedEmail) {
+          const dupUser = await tx.execute({
+            sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id != ? LIMIT 1`,
+            args: [cleanedEmail, userIdToUse]
+          });
+          if (dupUser.rows.length === 0) {
+            await tx.execute({
+              sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
+              args: [cleanedEmail, now, userIdToUse]
+            });
+          }
+        }
 
         let companyId: number | null = null;
-        if (sol.afiliado_user_id) {
+        if (userIdToUse) {
           const checkCompany = await tx.execute({
             sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
-            args: [sol.afiliado_user_id]
+            args: [userIdToUse]
           });
           if (checkCompany.rows.length > 0) {
             companyId = Number(checkCompany.rows[0].id_empresa);
@@ -3682,7 +3822,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
 
         if (companyId) {
           await tx.execute({
-            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, eliminado_en=NULL, actualizado_en=? WHERE id_empresa=?`,
+            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, id_user=?, eliminado_en=NULL, actualizado_en=? WHERE id_empresa=?`,
             args: [
               datos.razon_social,
               datos.rif_tipo || 'J',
@@ -3693,6 +3833,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
               datos.website || null,
               datos.logo_url || null,
               sol.id_afiliado,
+              userIdToUse,
               now,
               companyId
             ]
@@ -3703,7 +3844,7 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
                     id_user, razon_social, rif_tipo, rif_numero, email, direccion, telefono, website, logo_url, id_representante_legal, fecha_registro
                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
             args: [
-              sol.afiliado_user_id || null,
+              userIdToUse,
               datos.razon_social,
               datos.rif_tipo || 'J',
               cleanedRif,
@@ -3722,8 +3863,8 @@ export const resolverSolicitudCambioAdmin = async (req: Request, res: Response):
         const newCompanyId = companyId;
 
         await tx.execute({
-          sql: `UPDATE afiliados SET tipo_afiliado = 'Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
-          args: [newCompanyId, now, sol.id_afiliado]
+          sql: `UPDATE afiliados SET tipo_afiliado = 'Corporativo', id_empresa = ?, id_user = COALESCE(?, id_user), actualizado_en = ? WHERE id_afiliado = ?`,
+          args: [newCompanyId, userIdToUse, now, sol.id_afiliado]
         });
 
         if (Array.isArray(docs)) {
@@ -3801,11 +3942,32 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
     const now = new Date().toISOString();
 
     if (tipo_destino === 'Corporativo') {
-      if (!datos_empresa || !datos_empresa.razon_social || !datos_empresa.rif_numero || !datos_empresa.email || !datos_empresa.telefono) {
-        res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social, RIF, Email, Teléfono).' }); return;
+      if (!datos_empresa || !datos_empresa.razon_social || !datos_empresa.rif_numero) {
+        res.status(400).json({ success: false, message: 'Datos de empresa incompletos (Razón Social y RIF son obligatorios).' }); return;
       }
+
+      const personaInfoQuery = await db.execute({
+        sql: `SELECT p.telefono, p.email FROM afiliados a JOIN personas p ON a.id_persona = p.id WHERE a.id_afiliado = ?`,
+        args: [idAfiliado]
+      });
+      const personaTelefono = (personaInfoQuery.rows[0]?.telefono as string || '').trim();
+      const personaEmailRaw = (personaInfoQuery.rows[0]?.email as string || '').trim().toLowerCase();
+      const personaEmail = isCleanEmail(personaEmailRaw) ? personaEmailRaw : '';
+
+      const empresaTelefono = String(datos_empresa.telefono || '').trim();
+      const empresaEmailRaw = String(datos_empresa.email || '').trim().toLowerCase();
+      const empresaEmail = isCleanEmail(empresaEmailRaw) ? empresaEmailRaw : '';
+
+      if (!empresaTelefono && !personaTelefono) {
+        res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un teléfono (el de la empresa o el del representante).' }); return;
+      }
+
+      const cleanedEmail = empresaEmail || personaEmail;
+      if (!cleanedEmail) {
+        res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un correo electrónico (el de la empresa o el del representante).' }); return;
+      }
+
       const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
-      const cleanedEmail = String(datos_empresa.email || '').trim().toLowerCase();
 
       // Buscar si el usuario ya posee una empresa registrada
       let existingCompanyId: number | null = null;
@@ -3890,11 +4052,38 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
         const cleanedRif = String(datos_empresa.rif_numero || '').replace(/\D/g, '');
         const cleanedEmail = String(datos_empresa.email || '').trim().toLowerCase();
 
+        let userIdToUse: number | null = af.id_user ? Number(af.id_user) : null;
+
+        // Si no tiene id_user vinculado en afiliados, buscar el usuario por el correo de la empresa
+        if (!userIdToUse && cleanedEmail) {
+          const checkUser = await tx.execute({
+            sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? LIMIT 1`,
+            args: [cleanedEmail]
+          });
+          if (checkUser.rows.length > 0) {
+            userIdToUse = Number(checkUser.rows[0].id);
+          }
+        }
+
+        // Actualizar el correo en users para la cuenta existente del afiliado
+        if (userIdToUse && cleanedEmail) {
+          const dupUser = await tx.execute({
+            sql: `SELECT id FROM users WHERE LOWER(TRIM(email)) = ? AND id != ? LIMIT 1`,
+            args: [cleanedEmail, userIdToUse]
+          });
+          if (dupUser.rows.length === 0) {
+            await tx.execute({
+              sql: `UPDATE users SET email = ?, actualizado_en = ? WHERE id = ?`,
+              args: [cleanedEmail, now, userIdToUse]
+            });
+          }
+        }
+
         let companyId: number | null = null;
-        if (af.id_user) {
+        if (userIdToUse) {
           const checkCompany = await tx.execute({
             sql: `SELECT id_empresa FROM empresas WHERE id_user = ? LIMIT 1`,
-            args: [af.id_user]
+            args: [userIdToUse]
           });
           if (checkCompany.rows.length > 0) {
             companyId = Number(checkCompany.rows[0].id_empresa);
@@ -3903,7 +4092,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
 
         if (companyId) {
           await tx.execute({
-            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, eliminado_en=NULL, actualizado_en=? WHERE id_empresa=?`,
+            sql: `UPDATE empresas SET razon_social=?, rif_tipo=?, rif_numero=?, email=?, direccion=?, telefono=?, website=?, logo_url=?, id_representante_legal=?, id_user=?, eliminado_en=NULL, actualizado_en=? WHERE id_empresa=?`,
             args: [
               datos_empresa.razon_social,
               datos_empresa.rif_tipo || 'J',
@@ -3914,6 +4103,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
               datos_empresa.website || null,
               datos_empresa.logo_url || null,
               idAfiliado,
+              userIdToUse,
               now,
               companyId
             ]
@@ -3924,7 +4114,7 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
                     id_user, razon_social, rif_tipo, rif_numero, email, direccion, telefono, website, logo_url, id_representante_legal, fecha_registro
                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
             args: [
-              af.id_user || null,
+              userIdToUse,
               datos_empresa.razon_social,
               datos_empresa.rif_tipo || 'J',
               cleanedRif,
@@ -3943,8 +4133,8 @@ export const cambiarMembresiaDirectoAdmin = async (req: Request, res: Response):
         const newCompanyId = companyId;
 
         await tx.execute({
-          sql: `UPDATE afiliados SET tipo_afiliado = 'Corporativo', id_empresa = ?, actualizado_en = ? WHERE id_afiliado = ?`,
-          args: [newCompanyId, now, idAfiliado]
+          sql: `UPDATE afiliados SET tipo_afiliado = 'Corporativo', id_empresa = ?, id_user = COALESCE(?, id_user), actualizado_en = ? WHERE id_afiliado = ?`,
+          args: [newCompanyId, userIdToUse, now, idAfiliado]
         });
 
         if (Array.isArray(documentos_empresa)) {

@@ -218,8 +218,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     
     const handleExpired = () => {
-      localStorage.removeItem(TOKEN_KEY)
-      const hadUser = !!activeAccessToken || !!localStorage.getItem(TOKEN_KEY)
+      let hadUser = false;
+      try {
+        hadUser = !!activeAccessToken || !!localStorage.getItem(TOKEN_KEY)
+        localStorage.removeItem(TOKEN_KEY)
+      } catch {
+        hadUser = !!activeAccessToken;
+      }
       setToken(null)
       setUser(null)
       // Solo redirigir si realmente había una sesión activa que falló
@@ -299,7 +304,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser)
     
     // Remover token legacy si iniciamos sesión con cookie
-    localStorage.removeItem(TOKEN_KEY)
+    try {
+      localStorage.removeItem(TOKEN_KEY)
+    } catch { /* ignore */ }
 
     // Selector general si tiene múltiples roles al panel unificado
     if (newUser.roles.length > 1) {
