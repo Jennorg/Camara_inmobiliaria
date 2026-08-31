@@ -22,6 +22,7 @@ type ApiData = {
   modulos_lista?: string | null
   instructor_nombre?: string | null
   instructor_cargo?: string | null
+  firmantes?: any[]
   vigente: boolean
 }
 
@@ -176,6 +177,7 @@ const ComprobantePublicoPage: React.FC = () => {
               urlVerificacion={urlVerificacion}
               vigente={data.vigente}
               cedula={data.cedula}
+              firmantes={data.firmantes}
             />
           ) : (
             <CertificadoCursoView
@@ -192,6 +194,7 @@ const ComprobantePublicoPage: React.FC = () => {
               urlVerificacion={urlVerificacion}
               vigente={data.vigente}
               cedula={data.cedula}
+              firmantes={data.firmantes}
             />
           )
         )}

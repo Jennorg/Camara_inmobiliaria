@@ -3,6 +3,14 @@ import logoImg from '@/assets/Logo4.webp'
 import logoWatermark from '@/assets/Logo2.webp'
 import firmaFranciscoImg from '@/assets/firma-francisco.webp'
 
+export interface Firmante {
+  id?: string | number
+  nombre: string
+  cargo: string
+  firma_url?: string | null
+  mostrar_firma?: boolean
+}
+
 export interface CertificadoCursoViewProps {
   codigo: string
   fechaEmisionIso: string
@@ -17,6 +25,7 @@ export interface CertificadoCursoViewProps {
   vigente: boolean
   cedula?: string | null
   modulosLista?: string | string[] | null
+  firmantes?: Firmante[]
 }
 
 function formatFecha(iso: string): string {
@@ -135,6 +144,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
   vigente,
   cedula,
   modulosLista,
+  firmantes,
 }) => {
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
@@ -300,7 +310,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
 
               {/* Cédula si está disponible */}
               {cedula && (
-                <p className="text-slate-600 font-bold text-[11px] tracking-widest font-mono mt-1">
+                <p className="text-slate-900 font-black text-[14px] sm:text-[15px] tracking-widest font-mono mt-1.5 opacity-90">
                   C.I.: {cedula.replace(/\D/g, '').length >= 5 ? Number(cedula.replace(/\D/g, '')).toLocaleString('es-VE') : cedula}
                 </p>
               )}
@@ -345,37 +355,59 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
               </div>
             </div>
 
-            {/* ── SECCIÓN INFERIOR: 5 FIRMAS Y FECHA ABAJO ── */}
-            <div className="w-full flex flex-col items-center gap-2 px-4 pb-3">
-              {/* 5 Firmas (Arriba) */}
-              <div className="w-full grid grid-cols-5 gap-1 items-end px-2">
-                {[1, 2, 3, 4, 5].map((firmaNum) => (
-                  <div key={`firma-slot-${firmaNum}`} className="flex flex-col items-center justify-center text-center">
-                    <div className="relative h-11 w-32 flex items-center justify-center">
-                      <img
-                        src={firmaFranciscoImg}
-                        className="absolute bottom-[-4px] h-16 w-auto object-contain select-none pointer-events-none"
-                        alt="Firma Francisco Piñango"
-                      />
-                    </div>
-                    <div className="w-32 h-[1px] bg-slate-800 mb-1" />
-                    <span className="text-[9px] font-black text-slate-800 uppercase tracking-wider font-sans leading-tight">
-                      FRANCISCO PIÑANGO
-                    </span>
-                    <span className="text-[6.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-tight max-w-[130px]">
-                      PRESIDENTE DE LA CAMARA
-                      <br />
-                      INMOBILIARIA DE BOLIVAR
-                    </span>
-                  </div>
-                ))}
-              </div>
+            {/* ── SECCIÓN INFERIOR: FIRMAS CONFIGURADAS Y FECHA ── */}
+            {(() => {
+              const activeFirmantes = (firmantes && firmantes.length > 0) ? firmantes : [{
+                nombre: 'FRANCISCO PIÑANGO',
+                cargo: 'PRESIDENTE DE LA CAMARA INMOBILIARIA DE BOLIVAR',
+                firma_url: null,
+                mostrar_firma: true
+              }];
+              const count = activeFirmantes.length;
+              let gridLayout = 'flex flex-wrap justify-center gap-6';
+              if (count === 1) gridLayout = 'flex justify-center';
+              else if (count === 2) gridLayout = 'grid grid-cols-2 max-w-md mx-auto gap-4';
+              else if (count === 3) gridLayout = 'grid grid-cols-3 max-w-xl mx-auto gap-3';
+              else if (count === 4) gridLayout = 'grid grid-cols-4 max-w-2xl mx-auto gap-2';
+              else gridLayout = 'grid grid-cols-5 gap-1';
 
-              {/* Fecha de Emisión (Abajo de las firmas) */}
-              <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans mt-3">
-                {formatFecha(fechaEmisionIso).toUpperCase()}
-              </span>
-            </div>
+              return (
+                <div className="w-full flex flex-col items-center gap-2 px-4 pb-3">
+                  <div className={`w-full ${gridLayout} items-start px-2`}>
+                    {activeFirmantes.map((f, idx) => {
+                      const nombreStr = (f?.nombre || '').toString()
+                      const cargoStr = (f?.cargo || '').toString()
+                      const imgSource = f?.firma_url || (nombreStr.toUpperCase().includes('FRANCISCO') ? firmaFranciscoImg : null);
+                      return (
+                        <div key={`firma-slot-${idx}`} className="flex flex-col items-center justify-start text-center min-w-[120px]">
+                          <div className="relative h-14 w-32 flex items-end justify-center">
+                            {f?.mostrar_firma !== false && imgSource ? (
+                              <img
+                                src={imgSource}
+                                className="absolute bottom-[-4px] h-16 w-auto object-contain select-none pointer-events-none"
+                                alt={`Firma ${nombreStr}`}
+                              />
+                            ) : null}
+                          </div>
+                          <div className="w-32 h-[1px] bg-slate-800 mb-1 shrink-0" />
+                          <span className="text-[9px] font-black text-slate-800 uppercase tracking-wider font-sans leading-tight">
+                            {nombreStr}
+                          </span>
+                          <span className="text-[6.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-tight max-w-[130px]">
+                            {cargoStr}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Fecha de Emisión (Abajo de las firmas) */}
+                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans mt-3">
+                    {formatFecha(fechaEmisionIso).toUpperCase()}
+                  </span>
+                </div>
+              );
+            })()}
 
           </div>
         </article>

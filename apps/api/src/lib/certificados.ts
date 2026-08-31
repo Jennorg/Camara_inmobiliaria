@@ -18,6 +18,51 @@ export type EmitirComprobanteOptions = {
   skipEmail?: boolean
 }
 
+export async function getDefaultFirmantesSnapshot(idInscripcion: number): Promise<string> {
+  try {
+    if (idInscripcion > 0) {
+      const courseRes = await db.execute({
+        sql: `SELECT c.firmantes 
+              FROM inscripciones_cursos ic 
+              JOIN cursos c ON ic.id_curso = c.id_curso 
+              WHERE ic.id_inscripcion = ?`,
+        args: [idInscripcion]
+      })
+      if (courseRes.rows.length > 0 && courseRes.rows[0].firmantes) {
+        const fStr = String(courseRes.rows[0].firmantes).trim()
+        if (fStr && fStr !== '[]') return fStr
+      }
+    }
+
+    const dirRes = await db.execute(`
+      SELECT p.nombres || ' ' || p.apellidos as nombre, dc.cargo, dc.firma_url
+      FROM directiva_cargos dc
+      JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
+      JOIN personas p ON a.id_persona = p.id
+      WHERE dc.activo = 1 AND (dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%')
+      LIMIT 1
+    `)
+    if (dirRes.rows.length > 0) {
+      const pres = dirRes.rows[0] as any
+      return JSON.stringify([{
+        nombre: pres.nombre,
+        cargo: pres.cargo || 'PRESIDENTE DE LA CÁMARA INMOBILIARIA',
+        firma_url: pres.firma_url || null,
+        mostrar_firma: true
+      }])
+    }
+  } catch (e) {
+    console.error('Error snapshotting firmantes:', e)
+  }
+
+  return JSON.stringify([{
+    nombre: 'FRANCISCO PIÑANGO',
+    cargo: 'PRESIDENTE DE LA CÁMARA INMOBILIARIA DE BOLÍVAR',
+    firma_url: null,
+    mostrar_firma: true
+  }])
+}
+
 /**
  * Crea fila en `certificados` cuando una inscripción queda marcada como completada.
  * Idempotente si ya existe comprobante para esa inscripción.
@@ -55,13 +100,14 @@ export async function emitirComprobanteSiCompleto(
   if (exists.rows.length > 0) return
 
   const fecha = new Date().toISOString()
+  const firmantesSnapshot = await getDefaultFirmantesSnapshot(idInscripcion)
   let insertedCodigo: string | null = null
   for (let a = 0; a < 8; a++) {
     const codigo = nuevoCodigoValidacion()
     try {
       await db.execute({
-        sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, fecha_emision) VALUES (?, ?, ?, ?)`,
-        args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, fecha],
+        sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, firmantes_snapshot, fecha_emision) VALUES (?, ?, ?, ?, ?)`,
+        args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, firmantesSnapshot, fecha],
       })
       insertedCodigo = codigo
       break
@@ -231,9 +277,10 @@ export async function syncCibirCertificateState(idAfiliado: number, cibirAcredit
         if (certExist.rows.length === 0) {
           const fecha = new Date().toISOString()
           const codigo = nuevoCodigoValidacion()
+          const firmantesSnapshot = await getDefaultFirmantesSnapshot(idInscripcion)
           await db.execute({
-            sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, fecha_emision) VALUES (?, ?, ?, ?)`,
-            args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, fecha]
+            sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, firmantes_snapshot, fecha_emision) VALUES (?, ?, ?, ?, ?)`,
+            args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, firmantesSnapshot, fecha]
           })
         }
       }

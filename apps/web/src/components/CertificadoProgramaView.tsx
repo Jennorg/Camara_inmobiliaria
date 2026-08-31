@@ -3,6 +3,14 @@ import logoImg from '@/assets/Logo2.webp'
 import firmaFranciscoImg from '@/assets/firma-francisco.webp'
 import firmaGracielaImg from '@/assets/firma-graciela-ledezma.webp'
 
+export interface Firmante {
+  id?: string | number
+  nombre: string
+  cargo: string
+  firma_url?: string | null
+  mostrar_firma?: boolean
+}
+
 export interface CertificadoProgramaViewProps {
   codigo: string
   fechaEmisionIso: string
@@ -12,6 +20,7 @@ export interface CertificadoProgramaViewProps {
   urlVerificacion: string
   vigente: boolean
   cedula?: string | null
+  firmantes?: Firmante[]
 }
 
 const PROGRAM_INFO: Record<string, { abbr: string; title: string }> = {
@@ -42,6 +51,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
   urlVerificacion,
   vigente,
   cedula,
+  firmantes,
 }) => {
   const info = PROGRAM_INFO[programaCodigo.toUpperCase()] || {
     abbr: programaCodigo,
@@ -207,7 +217,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           {/* Cédula del Alumno */}
           {cedula && (
             <div className="absolute top-[368px] left-[24px] right-[24px] flex flex-col items-center text-center z-10">
-              <p className="text-[#0f2e59] font-bold text-xs tracking-widest font-mono">
+              <p className="text-[#0f2e59] font-black text-[14px] tracking-widest font-mono">
                 C.I.: {cedula.replace(/\D/g, '').length >= 5 ? Number(cedula.replace(/\D/g, '')).toLocaleString('es-VE') : cedula}
               </p>
             </div>
@@ -229,59 +239,96 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           </div>
 
           {/* Pie de Página: Firmas, QR y Fecha */}
-          <div className="absolute bottom-[50px] left-[24px] right-[24px] h-[160px] grid grid-cols-3 items-end px-12 z-10">
-            {/* Firma Izquierda: Francisco Piñango */}
-            <div className="flex flex-col items-center justify-center">
-              <div className="relative w-48 h-16 flex items-center justify-center">
-                <img
-                  src={firmaFranciscoImg}
-                  className="absolute bottom-[-8px] h-28 w-auto object-contain select-none pointer-events-none"
-                  alt="Firma Francisco Piñango"
-                />
-              </div>
-              <div className="w-48 h-[1px] bg-slate-800 mb-1.5" />
-              <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans">
-                FRANCISCO PIÑANGO
-              </span>
-              <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal">
-                PRESIDENTE DE LA CAMARA
-                <br />
-                INMOBILIARIA DEL ESTADO BOLIVAR
-              </span>
-            </div>
+          {(() => {
+            const activeFirmantes = (firmantes && firmantes.length > 0) ? firmantes : [
+              {
+                nombre: 'FRANCISCO PIÑANGO',
+                cargo: 'PRESIDENTE DE LA CAMARA INMOBILIARIA DEL ESTADO BOLIVAR',
+                firma_url: null,
+                mostrar_firma: true
+              },
+              {
+                nombre: 'GRACIELA LEDEZMA',
+                cargo: 'DIRECTORA DE FORMACIÓN',
+                firma_url: null,
+                mostrar_firma: true
+              }
+            ];
 
-            {/* Centro: QR y Fecha de Emisión */}
-            <div className="flex flex-col items-center justify-center pb-1">
-              <div className="bg-white p-1 rounded-lg shadow-sm border border-slate-200/50 mb-2">
-                <img
-                  src={qrApiUrl}
-                  className="h-[76px] w-[76px] object-contain"
-                  alt="Código QR de Verificación"
-                />
-              </div>
-              <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans">
-                {formatFecha(fechaEmisionIso).toUpperCase()}
-              </span>
-            </div>
+            const leftFirmante = activeFirmantes[0];
+            const rightFirmante = activeFirmantes.length > 1 ? activeFirmantes[1] : null;
 
-            {/* Firma Derecha: Graciela Ledezma */}
-            <div className="flex flex-col items-center justify-center">
-              <div className="relative w-48 h-16 flex items-center justify-center">
-                <img
-                  src={firmaGracielaImg}
-                  className="absolute bottom-[-2px] h-[72px] w-auto object-contain select-none pointer-events-none"
-                  alt="Firma Graciela Ledezma"
-                />
+            const getFirmaImage = (f: Firmante) => {
+              if (!f) return null;
+              if (f.firma_url) return f.firma_url;
+              const nameUpper = (f.nombre || '').toString().toUpperCase();
+              if (nameUpper.includes('FRANCISCO')) return firmaFranciscoImg;
+              if (nameUpper.includes('GRACIELA')) return firmaGracielaImg;
+              return null;
+            };
+
+            return (
+              <div className="absolute bottom-[50px] left-[24px] right-[24px] grid grid-cols-3 items-start px-12 z-10">
+                {/* Firma Izquierda */}
+                <div className="flex flex-col items-center justify-start text-center">
+                  <div className="relative w-48 h-16 flex items-end justify-center">
+                    {leftFirmante.mostrar_firma !== false && getFirmaImage(leftFirmante) ? (
+                      <img
+                        src={getFirmaImage(leftFirmante)!}
+                        className="absolute bottom-[-8px] h-28 w-auto object-contain select-none pointer-events-none"
+                        alt={`Firma ${leftFirmante.nombre}`}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="w-48 h-[1px] bg-slate-800 mb-1.5 shrink-0" />
+                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans text-center">
+                    {leftFirmante.nombre}
+                  </span>
+                  <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal max-w-[160px]">
+                    {leftFirmante.cargo}
+                  </span>
+                </div>
+
+                {/* Centro: QR y Fecha de Emisión */}
+                <div className="flex flex-col items-center justify-center pt-2">
+                  <div className="bg-white p-1 rounded-lg shadow-sm border border-slate-200/50 mb-2">
+                    <img
+                      src={qrApiUrl}
+                      className="h-[76px] w-[76px] object-contain"
+                      alt="Código QR de Verificación"
+                    />
+                  </div>
+                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans">
+                    {formatFecha(fechaEmisionIso).toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Firma Derecha */}
+                <div className="flex flex-col items-center justify-start text-center">
+                  {rightFirmante ? (
+                    <>
+                      <div className="relative w-48 h-16 flex items-end justify-center">
+                        {rightFirmante.mostrar_firma !== false && getFirmaImage(rightFirmante) ? (
+                          <img
+                            src={getFirmaImage(rightFirmante)!}
+                            className="absolute bottom-[-2px] h-[72px] w-auto object-contain select-none pointer-events-none"
+                            alt={`Firma ${rightFirmante.nombre}`}
+                          />
+                        ) : null}
+                      </div>
+                      <div className="w-48 h-[1px] bg-slate-800 mb-1.5 shrink-0" />
+                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans text-center">
+                        {rightFirmante.nombre}
+                      </span>
+                      <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal max-w-[160px]">
+                        {rightFirmante.cargo}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
               </div>
-              <div className="w-48 h-[1px] bg-slate-800 mb-1.5" />
-              <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans">
-                GRACIELA LEDEZMA
-              </span>
-              <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal">
-                DIRECTORA DE FORMACIÓN
-              </span>
-            </div>
-          </div>
+            );
+          })()}
         </article>
       </div>
     </div>
