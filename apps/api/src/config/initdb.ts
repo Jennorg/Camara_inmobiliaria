@@ -204,6 +204,7 @@ const statements = [
     imagen_url        TEXT,
     banner_url        TEXT,
     cupos_totales     INTEGER,
+    firmantes         TEXT,
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en    TEXT,
     eliminado_en      TEXT
@@ -233,6 +234,7 @@ const statements = [
     id_inscripcion      INTEGER     NOT NULL UNIQUE REFERENCES inscripciones_cursos(id_inscripcion) ON DELETE CASCADE,
     codigo_validacion   TEXT        NOT NULL UNIQUE,
     url                 TEXT        NOT NULL,
+    firmantes_snapshot  TEXT,
     fecha_emision       TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     eliminado_en        TEXT
   )`,
@@ -360,6 +362,7 @@ const statements = [
     orden           INTEGER DEFAULT 0,
     activo          INTEGER DEFAULT 1 CHECK (activo IN (0,1)),
     foto_junta_url  TEXT,
+    firma_url       TEXT,
     creado_en       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en  TEXT
   )`,
@@ -505,9 +508,26 @@ async function run() {
     await db.execute(`UPDATE personas SET cedula = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(cedula, 'V', ''), 'E', ''), 'P', ''), '-', ''), '.', '') WHERE cedula GLOB '*[^0-9]*'`)
     // empresas: quitar prefijos J, G, P, V, E, guiones y puntos
     await db.execute(`UPDATE empresas SET rif_numero = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(rif_numero, 'J', ''), 'G', ''), 'P', ''), 'V', ''), 'E', ''), '-', ''), '.', '') WHERE rif_numero GLOB '*[^0-9]*'`)
-    // Migración: asegurar que exista foto_junta_url en directiva_cargos
+    // Migración: asegurar que exista foto_junta_url y firma_url en directiva_cargos
     try {
       await db.execute(`ALTER TABLE directiva_cargos ADD COLUMN foto_junta_url TEXT`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    try {
+      await db.execute(`ALTER TABLE directiva_cargos ADD COLUMN firma_url TEXT`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: asegurar que exista firmantes en cursos
+    try {
+      await db.execute(`ALTER TABLE cursos ADD COLUMN firmantes TEXT`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: asegurar que exista firmantes_snapshot en certificados
+    try {
+      await db.execute(`ALTER TABLE certificados ADD COLUMN firmantes_snapshot TEXT`)
     } catch (e) {
       // Ignorar si la columna ya existe
     }
