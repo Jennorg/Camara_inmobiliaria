@@ -38,6 +38,7 @@ interface DirectivaItem {
   foto_url?: string;
   foto_url_miembro?: string;
   foto_junta_url?: string;
+  firma_url?: string;
   orden: number;
   activo: number | boolean;
 }
@@ -289,7 +290,8 @@ function memberFormReducer(state: MemberFormState, action: MemberFormAction): Me
           periodo: action.targetPeriod,
           orden: action.maxOrden + 1,
           activo: true,
-          foto_junta_url: ''
+          foto_junta_url: '',
+          firma_url: ''
         },
         isModalOpen: true
       }
@@ -310,7 +312,8 @@ function memberFormReducer(state: MemberFormState, action: MemberFormAction): Me
           periodo: action.item.periodo || '',
           orden: action.item.orden,
           activo: action.item.activo === true || (action.item.activo as any) === 1,
-          foto_junta_url: action.item.foto_junta_url || ''
+          foto_junta_url: action.item.foto_junta_url || '',
+          firma_url: action.item.firma_url || ''
         },
         isModalOpen: true
       }
@@ -1572,6 +1575,51 @@ export const DirectivaPanel = () => {
                       {uploadPhotoError && (
                         <p className="text-[10px] text-rose-600 font-bold mt-1">× {uploadPhotoError}</p>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </FormField>
+
+              {/* Firma Digital para Certificados */}
+              <FormField label="Firma Digital para Certificados">
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-4">
+                    <div className="w-32 h-14 rounded-xl border border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0 relative">
+                      {form.firma_url ? (
+                        <img 
+                          src={form.firma_url} 
+                          alt="Firma Digital" 
+                          className="max-h-12 w-auto object-contain" 
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium text-center px-1">Sin firma cargada</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs cursor-pointer transition-colors border border-emerald-200">
+                        <Upload size={14} />
+                        <span>Subir Imagen de Firma</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const url = await uploadFileSupabase(file, 'firmas_directiva');
+                                setForm(p => ({ ...p, firma_url: url }));
+                                toast.success('Firma subida con éxito');
+                              } catch (err: any) {
+                                toast.error(err.message || 'Error al subir la firma');
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Se usará como firma oficial en los certificados emitidos durante esta gestión.
+                      </p>
                     </div>
                   </div>
                 </div>

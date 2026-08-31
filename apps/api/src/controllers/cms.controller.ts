@@ -323,14 +323,15 @@ export const deleteConvenio = async (req: Request, res: Response) => {
 // DIRECTIVA — Schema: id_miembro, nombre, cargo, foto_url, orden
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getDirectiva = async (_req: Request, res: Response) => {
+export const getDirectiva = async (req: Request, res: Response) => {
   try {
     const result = await db.execute(`
       SELECT dc.*, 
              a.codigo,
              p.nombres || ' ' || p.apellidos as nombre,
              p.foto_url as foto_url_miembro,
-             COALESCE(dc.foto_junta_url, p.foto_url) as foto_url
+             COALESCE(dc.foto_junta_url, p.foto_url) as foto_url,
+             dc.firma_url
       FROM directiva_cargos dc
       JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
       JOIN personas p ON a.id_persona = p.id
@@ -345,7 +346,7 @@ export const getDirectiva = async (_req: Request, res: Response) => {
 
 export const createMiembroDirectiva = async (req: Request, res: Response) => {
   try {
-    const { id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url } = req.body;
+    const { id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url, firma_url } = req.body;
     if (!id_afiliado || !cargo) return res.status(400).json({ success: false, message: 'id_afiliado y cargo son requeridos' });
 
     // Validar duplicado de afiliado en el mismo período
@@ -368,8 +369,8 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo === false ? 0 : 1, foto_junta_url ?? null]
+      sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url, firma_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo === false ? 0 : 1, foto_junta_url ?? null, firma_url ?? null]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -381,7 +382,7 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
 export const updateMiembroDirectiva = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url } = req.body;
+    const { id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url, firma_url } = req.body;
 
     // Validar duplicado de afiliado en el mismo período (excluyendo el actual)
     const checkAfi = await db.execute({
@@ -403,8 +404,8 @@ export const updateMiembroDirectiva = async (req: Request, res: Response) => {
     }
 
     const result = await db.execute({
-      sql: `UPDATE directiva_cargos SET id_afiliado=?, cargo=?, cargo_canonical=?, periodo=?, orden=?, activo=?, foto_junta_url=? WHERE id=? RETURNING *`,
-      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo ? 1 : 0, foto_junta_url ?? null, id]
+      sql: `UPDATE directiva_cargos SET id_afiliado=?, cargo=?, cargo_canonical=?, periodo=?, orden=?, activo=?, foto_junta_url=?, firma_url=? WHERE id=? RETURNING *`,
+      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo ? 1 : 0, foto_junta_url ?? null, firma_url ?? null, id]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Miembro no encontrado' });
     return res.json({ success: true, data: result.rows[0] });
