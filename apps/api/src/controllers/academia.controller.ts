@@ -342,43 +342,53 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
     }
 
     // --- CONTROL DE ESTADO DE AFILIACIÓN ---
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
     if (programaCodigo === 'AFILIACION') {
       const activeAfiliado = await db.execute({
         sql: `SELECT a.estatus FROM afiliados a
-              JOIN personas p ON a.id_persona = p.id
-              WHERE p.email = ? OR (p.cedula = ? AND p.cedula IS NOT NULL) 
+              LEFT JOIN personas p ON a.id_persona = p.id
+              LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+              WHERE (LOWER(TRIM(p.email)) = ? AND ? != '')
+                 OR (LOWER(TRIM(e.email)) = ? AND ? != '')
+                 OR (? != '' AND (
+                   REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(p.cedula)), 'v-', ''), 'v', ''), 'e-', ''), '.', '') = ?
+                   OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(e.rif_numero)), 'j-', ''), 'j', ''), 'g-', ''), '.', '') = ?
+                 ))
               LIMIT 1`,
-        args: [email, cedulaRif],
+        args: [cleanEmail, cleanEmail, cleanEmail, cleanEmail, cleanCed, cleanCed, cleanCed],
       })
 
       if (activeAfiliado.rows.length > 0) {
         const row = activeAfiliado.rows[0] as any
-        if (['1_PREINSCRIPCION', '2_EXPEDIENTE', '3_ENTREVISTA'].includes(row.estatus)) {
+        const isAfiliadoFinalRechazado = row.estatus === 'Rechazado' || row.estatus === 'Cancelado';
+
+        if (!isAfiliadoFinalRechazado) {
+          if (row.estatus === 'Requiere Acción') {
+            res.status(200).json({
+              success: true,
+              message: 'Ya posees una solicitud de afiliación activa que requiere correcciones. Por favor, revisa tu correo electrónico para encontrar el enlace de edición y completar tu registro.'
+            })
+            return
+          }
+          if (['Afiliado', 'CIBIR', 'Aprobado'].includes(row.estatus)) {
+            res.status(409).json({
+              success: false,
+              message: 'Ya eres un miembro afiliado activo de la Cámara Inmobiliaria.'
+            })
+            return
+          }
           res.status(409).json({
             success: false,
             message: 'Ya posees una solicitud de afiliación en proceso de revisión administrativa.'
           })
           return
         }
-        if (row.estatus === 'Requiere Acción') {
-          res.status(200).json({
-            success: true,
-            message: 'Ya posees una solicitud de afiliación activa que requiere correcciones. Por favor, revisa tu correo electrónico para encontrar el enlace de edición y completar tu registro.'
-          })
-          return
-        }
-        if (['Afiliado', 'CIBIR', 'Aprobado'].includes(row.estatus)) {
-          res.status(409).json({
-            success: false,
-            message: 'Ya eres un miembro afiliado activo de la Cámara Inmobiliaria.'
-          })
-          return
-        }
       }
     }
 
-    // Si ya existe estudiante por email o cédula/RIF, lo buscamos para ver si ya tiene inscripción.
-    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
+    // Si ya existe estudiante por email o cédula/RIF, lo buscamos para ver si ya tiene inscripción activa.
     const existingInscripcion = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico 
             FROM inscripciones_cursos ic
@@ -387,11 +397,16 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
             LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
             WHERE ic.programa_codigo = ? AND ic.id_curso IS NULL
               AND (
-                p.email = ? OR emp.email = ? 
-                OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+                (LOWER(TRIM(p.email)) = ? AND ? != '') 
+                OR (LOWER(TRIM(emp.email)) = ? AND ? != '')
+                OR (? != '' AND (
+                  REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(p.cedula)), 'v-', ''), 'v', ''), 'e-', ''), '.', '') = ?
+                  OR REPLACE(REPLACE(REPLACE(REPLACE(LOWER(TRIM(emp.rif_numero)), 'j-', ''), 'j', ''), 'g-', ''), '.', '') = ?
+                ))
               )
+            ORDER BY ic.fecha_inscripcion DESC
             LIMIT 1`,
-      args: [programaCodigo, email, email, cleanCed, cleanCed, cleanCed]
+      args: [programaCodigo, cleanEmail, cleanEmail, cleanEmail, cleanEmail, cleanCed, cleanCed, cleanCed]
     })
 
     if (existingInscripcion.rows.length > 0) {
@@ -424,7 +439,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
           }
           res.status(409).json({
             success: false,
-            message: `Ya tienes una solicitud de afiliación en estado "${prev.estatus}".`,
+            message: `Ya tienes una solicitud de afiliación activa en estado "${prev.estatus}".`,
           })
           return
         } else {
@@ -1615,12 +1630,24 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo ? 1 : 0
 
+    let firmantesStr: string | null = null;
+    if (req.body.firmantes) {
+      firmantesStr = Array.isArray(req.body.firmantes) ? JSON.stringify(req.body.firmantes) : String(req.body.firmantes);
+    } else {
+      try {
+        const { getDefaultFirmantesSnapshot } = await import('../lib/certificados.js');
+        firmantesStr = await getDefaultFirmantesSnapshot(0);
+      } catch (e) {
+        console.error('Error fetching default firmantes for new course:', e);
+      }
+    }
+
     const result = await db.execute({
       sql: `INSERT INTO cursos (
               titulo, slug, descripcion, contenido, categoria, modalidad,
               cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
-              estatus, solo_informativo, creado_en, actualizado_en
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              estatus, solo_informativo, firmantes, creado_en, actualizado_en
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
         courseTitle,
@@ -1636,6 +1663,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         banner_url ?? null,
         estatus ?? 'Abierto',
         isSoloInformativo,
+        firmantesStr,
         now,
         now,
       ],
@@ -1710,11 +1738,17 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       banner_url,
       estatus,
       solo_informativo,
+      firmantes,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo !== undefined ? (solo_informativo ? 1 : 0) : null
+
+    let firmantesStr: string | null = null;
+    if (firmantes !== undefined) {
+      firmantesStr = Array.isArray(firmantes) ? JSON.stringify(firmantes) : (typeof firmantes === 'string' ? firmantes : null);
+    }
 
     const result = await db.execute({
       sql: `UPDATE cursos SET
@@ -1730,6 +1764,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
               banner_url = ?,
               estatus = COALESCE(?, estatus),
               solo_informativo = COALESCE(?, solo_informativo),
+              firmantes = COALESCE(?, firmantes),
               actualizado_en = ?
             WHERE id_curso = ?
             RETURNING *`,
@@ -1746,6 +1781,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
         banner_url ?? null,
         estatus ?? null,
         isSoloInformativo,
+        firmantesStr,
         now,
         id,
       ],
@@ -2010,7 +2046,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     }
     const programaCodigo = normalizeProgramaCodigo(req.query?.programaCodigo)
     const cursoId = req.query?.cursoId ? Number(req.query.cursoId) : null
-    const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : 'Preinscrito'
+    const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : 'Todos'
     const allowedStatus = new Set(['Todos', 'Preinscrito', 'Entrevista', 'Inscrito', 'Rechazado', 'Cancelado'])
     if (!allowedStatus.has(estatus)) {
       res.status(400).json({ success: false, message: 'estatus inválido' })

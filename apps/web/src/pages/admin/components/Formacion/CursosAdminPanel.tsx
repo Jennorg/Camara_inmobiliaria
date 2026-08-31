@@ -2,11 +2,20 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
+import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2 } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react';
 
 import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared';
 import { apiFetch } from '@/lib/apiClient';
+
+export interface FirmanteItem {
+  id?: string | number;
+  nombre: string;
+  cargo: string;
+  firma_url?: string | null;
+  mostrar_firma: boolean;
+}
 
 interface CursoDB {
   id_curso: number;
@@ -24,6 +33,7 @@ interface CursoDB {
   precio: string | null;
   estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
   solo_informativo?: number | boolean;
+  firmantes?: string | FirmanteItem[];
   creado_en: string;
   actualizado_en: string | null;
   instructor_nombre?: string;
@@ -68,6 +78,7 @@ const CursosAdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [viewingCurso, setViewingCurso] = useState<CursoDB | null>(null);
   const [profesores, setProfesores] = useState<any[]>([]);
+  const [directivaMembers, setDirectivaMembers] = useState<any[]>([]);
 
   // States for Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,6 +127,7 @@ const CursosAdminPanel = () => {
     estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
     solo_informativo: number;
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
+    firmantes: FirmanteItem[];
   }>({
     nombre: '',
     descripcion: '',
@@ -128,6 +140,7 @@ const CursosAdminPanel = () => {
     estatus: 'Abierto',
     solo_informativo: 0,
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
+    firmantes: [],
   });
 
   const headers: Record<string, string> = token
@@ -183,19 +196,35 @@ const CursosAdminPanel = () => {
     }
   };
 
+  const fetchDirectivaMembers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/cms/directiva`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setDirectivaMembers(json.data.filter((m: any) => m.activo));
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching directiva:', e);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     if (!token) return;
     const load = async () => {
       setLoading(true);
       try {
-        const [jsonC, jsonP] = await Promise.all([
+        const [jsonC, jsonP, jsonD] = await Promise.all([
           apiFetch(`${API_URL}/api/academia/cursos`, { headers: { Authorization: `Bearer ${token}` } }),
-          apiFetch(`${API_URL}/api/academia/profesores`, { headers: { Authorization: `Bearer ${token}` } })
+          apiFetch(`${API_URL}/api/academia/profesores`, { headers: { Authorization: `Bearer ${token}` } }),
+          apiFetch(`${API_URL}/api/cms/directiva`)
         ]);
         if (!active) return;
         if (jsonC.success) setCursos(jsonC.data);
         if (jsonP.success) setProfesores(jsonP.data);
+        if (jsonD.success) setDirectivaMembers(jsonD.data.filter((m: any) => m.activo));
       } catch (e) {
         console.error(e);
       } finally {
@@ -208,6 +237,38 @@ const CursosAdminPanel = () => {
 
   const handleOpenModal = (curso?: CursoDB) => {
     fetchProfesores(); // Refresh list when modal opens
+    fetchDirectivaMembers();
+
+    let parsedFirmantes: FirmanteItem[] = [];
+    if (curso?.firmantes) {
+      try {
+        parsedFirmantes = typeof curso.firmantes === 'string' ? JSON.parse(curso.firmantes) : curso.firmantes;
+      } catch (e) {}
+    }
+
+    if ((!parsedFirmantes || parsedFirmantes.length === 0) && !curso) {
+      const pres = directivaMembers.find((m: any) => 
+        (m.cargo_canonical || '').toLowerCase() === 'presidente' || 
+        (m.cargo || '').toLowerCase().includes('presidente')
+      );
+      if (pres) {
+        parsedFirmantes = [{
+          id: pres.id,
+          nombre: pres.nombre,
+          cargo: pres.cargo,
+          firma_url: pres.firma_url || null,
+          mostrar_firma: true
+        }];
+      } else {
+        parsedFirmantes = [{
+          nombre: 'FRANCISCO PIÑANGO',
+          cargo: 'PRESIDENTE DE LA CAMARA INMOBILIARIA DE BOLIVAR',
+          firma_url: null,
+          mostrar_firma: true
+        }];
+      }
+    }
+
     if (curso) {
       setEditingId(curso.id_curso);
       setFormData({
@@ -222,6 +283,7 @@ const CursosAdminPanel = () => {
         estatus: (curso.estatus as any) || 'Abierto',
         solo_informativo: curso.solo_informativo ? 1 : 0,
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
+        firmantes: parsedFirmantes,
       });
     } else {
       setEditingId(null);
@@ -237,6 +299,7 @@ const CursosAdminPanel = () => {
         estatus: 'Abierto',
         solo_informativo: 0,
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
+        firmantes: parsedFirmantes,
       });
     }
     setIsModalOpen(true);
@@ -907,6 +970,299 @@ const CursosAdminPanel = () => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Firmantes del Certificado */}
+                <div className="space-y-4 border-t border-gray-100 pt-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Firmantes del Certificado</label>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Selecciona autoridades de la Junta Directiva y personaliza el orden de las firmas</p>
+                  </div>
+
+                  {/* 1. Selección Rápida de Junta Directiva */}
+                  {directivaMembers.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                          <Users size={14} className="text-emerald-600" />
+                          <span>Seleccionar Autoridades de la Junta Directiva</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          {directivaMembers.filter(m => formData.firmantes?.some(f => (f.id && String(f.id) === String(m.id)) || f.nombre.trim().toLowerCase() === m.nombre.trim().toLowerCase())).length} seleccionados
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                        {directivaMembers.map((member) => {
+                          const isSelected = formData.firmantes?.some(
+                            f => (f.id && String(f.id) === String(member.id)) || f.nombre.trim().toLowerCase() === member.nombre.trim().toLowerCase()
+                          );
+                          const hasFirma = Boolean(member.firma_url);
+
+                          return (
+                            <div
+                              key={member.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  const updated = (formData.firmantes || []).filter(
+                                    f => !(f.id && String(f.id) === String(member.id)) && f.nombre.trim().toLowerCase() !== member.nombre.trim().toLowerCase()
+                                  );
+                                  setFormData({ ...formData, firmantes: updated });
+                                } else {
+                                  const newSigner: FirmanteItem = {
+                                    id: member.id,
+                                    nombre: member.nombre,
+                                    cargo: member.cargo,
+                                    firma_url: member.firma_url || null,
+                                    mostrar_firma: true
+                                  };
+                                  setFormData({ ...formData, firmantes: [...(formData.firmantes || []), newSigner] });
+                                }
+                              }}
+                              className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2.5 ${
+                                isSelected 
+                                  ? 'bg-emerald-50/90 border-emerald-300' 
+                                  : 'bg-white border-slate-200 hover:bg-slate-100/60'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 pointer-events-none"
+                              />
+                              <div className="w-7 h-7 rounded-full bg-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                {member.foto_url ? (
+                                  <img src={member.foto_url} alt={member.nombre} className="w-full h-full object-cover" />
+                                ) : (
+                                  <User size={14} className="text-slate-400" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate">{member.nombre}</p>
+                                <p className="text-[10px] text-slate-500 font-medium truncate">{member.cargo}</p>
+                                {!hasFirma && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] text-amber-700 font-extrabold mt-0.5">
+                                    <AlertTriangle size={10} /> Sin firma digital cargada
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {directivaMembers.some(m => !m.firma_url) && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-2 text-[11px] text-amber-800">
+                          <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
+                          <p>
+                            <strong>Nota sobre firmas faltantes:</strong> Si el miembro seleccionado no tiene su firma digital cargada, debes acceder a la sección <strong>Junta Directiva</strong> para subir su firma, o subir la firma directamente en este curso.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 2. Lista de Firmantes Unificada con Controles de Reordenamiento */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div>
+                        <span className="text-xs font-extrabold text-slate-800">Orden Final de Firmas en el Certificado ({formData.firmantes?.length || 0})</span>
+                        <p className="text-[10px] text-slate-400 font-medium">Combina y reordena libremente los miembros de la junta y los firmantes personalizados</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newSigner: FirmanteItem = {
+                            nombre: '',
+                            cargo: '',
+                            firma_url: null,
+                            mostrar_firma: true
+                          };
+                          setFormData(prev => ({ ...prev, firmantes: [...(prev.firmantes || []), newSigner] }));
+                        }}
+                        className="text-xs font-bold text-[#00B870] hover:underline cursor-pointer self-start sm:self-auto"
+                      >
+                        + Firmante Personalizado
+                      </button>
+                    </div>
+
+                    {(!formData.firmantes || formData.firmantes.length === 0) ? (
+                      <p className="text-xs text-slate-400 italic bg-slate-100/70 p-3 rounded-xl">No hay firmantes asignados. Se utilizará el Presidente por defecto.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {formData.firmantes.map((firmante, index) => (
+                          <div key={index} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col gap-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center flex-wrap gap-2">
+                                <span className="text-[10px] font-black bg-slate-800 text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                  Posición #{index + 1}
+                                </span>
+
+                                {firmante.id ? (
+                                  <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-md">
+                                    Junta Directiva
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300 px-2 py-0.5 rounded-md">
+                                    Personalizado
+                                  </span>
+                                )}
+                                
+                                {/* Selector directo de Posición */}
+                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-0.5">
+                                  <span className="text-[10px] font-bold text-slate-500">Mover a:</span>
+                                  <select
+                                    value={index}
+                                    onChange={(e) => {
+                                      const newIdx = parseInt(e.target.value, 10);
+                                      if (newIdx === index || newIdx < 0 || newIdx >= formData.firmantes.length) return;
+                                      const updated = [...formData.firmantes];
+                                      const [item] = updated.splice(index, 1);
+                                      updated.splice(newIdx, 0, item);
+                                      setFormData({ ...formData, firmantes: updated });
+                                    }}
+                                    className="text-xs font-black text-slate-800 bg-transparent outline-none cursor-pointer"
+                                  >
+                                    {formData.firmantes.map((_, i) => (
+                                      <option key={i} value={i}>Posición #{i + 1}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {/* Botones de subida y bajada */}
+                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5">
+                                  <button
+                                    type="button"
+                                    disabled={index === 0}
+                                    title="Mover arriba"
+                                    onClick={() => {
+                                      const updated = [...formData.firmantes];
+                                      const [item] = updated.splice(index, 1);
+                                      updated.splice(index - 1, 0, item);
+                                      setFormData({ ...formData, firmantes: updated });
+                                    }}
+                                    className="p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 rounded cursor-pointer disabled:cursor-not-allowed flex items-center gap-0.5 text-[10px] font-bold"
+                                  >
+                                    <ArrowUp size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={index === formData.firmantes.length - 1}
+                                    title="Mover abajo"
+                                    onClick={() => {
+                                      const updated = [...formData.firmantes];
+                                      const [item] = updated.splice(index, 1);
+                                      updated.splice(index + 1, 0, item);
+                                      setFormData({ ...formData, firmantes: updated });
+                                    }}
+                                    className="p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 rounded cursor-pointer disabled:cursor-not-allowed flex items-center gap-0.5 text-[10px] font-bold"
+                                  >
+                                    <ArrowDown size={13} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={firmante.mostrar_firma !== false}
+                                    onChange={(e) => {
+                                      const updated = [...(formData.firmantes || [])];
+                                      updated[index].mostrar_firma = e.target.checked;
+                                      setFormData({ ...formData, firmantes: updated });
+                                    }}
+                                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                  />
+                                  <span>Mostrar firma</span>
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = (formData.firmantes || []).filter((_, i) => i !== index);
+                                    setFormData({ ...formData, firmantes: updated });
+                                  }}
+                                  className="text-rose-600 hover:text-rose-800 text-xs font-bold"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Alerta de firma faltante */}
+                            {!firmante.firma_url && (
+                              <div className="bg-amber-50 border border-amber-200/80 text-amber-800 rounded-xl p-2 flex items-center gap-2 text-[11px]">
+                                <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                                <span>
+                                  Falta la imagen de la firma. Debes acceder a <strong>Junta Directiva</strong> para subir la firma del miembro, o subirla manualmente abajo.
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                required
+                                placeholder="Nombre y Apellidos"
+                                value={firmante.nombre}
+                                onChange={(e) => {
+                                  const updated = [...(formData.firmantes || [])];
+                                  updated[index].nombre = e.target.value;
+                                  setFormData({ ...formData, firmantes: updated });
+                                }}
+                                className="bg-white rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                              />
+                              <input
+                                type="text"
+                                required
+                                placeholder="Cargo / Subtítulo (ej. Presidente)"
+                                value={firmante.cargo}
+                                onChange={(e) => {
+                                  const updated = [...(formData.firmantes || [])];
+                                  updated[index].cargo = e.target.value;
+                                  setFormData({ ...formData, firmantes: updated });
+                                }}
+                                className="bg-white rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-32 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
+                                {firmante.firma_url ? (
+                                  <img src={firmante.firma_url} alt="Firma" className="max-h-10 w-auto object-contain" />
+                                ) : (
+                                  <span className="text-[9px] text-slate-400">Sin imagen</span>
+                                )}
+                              </div>
+                              <label className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-colors">
+                                <span>{firmante.firma_url ? 'Cambiar Firma' : 'Subir Firma Digital'}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const url = await uploadFileSupabase(file, 'firmas_cursos');
+                                        const updated = [...(formData.firmantes || [])];
+                                        updated[index].firma_url = url;
+                                        setFormData({ ...formData, firmantes: updated });
+                                        toast.success('Firma cargada');
+                                      } catch (err: any) {
+                                        Swal.fire('Error', err.message || 'Error al subir la firma', 'error');
+                                      }
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
