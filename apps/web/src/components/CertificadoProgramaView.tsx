@@ -267,6 +267,20 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
               return null;
             };
 
+            const formatCargo = (cargoStr?: string) => {
+              const str = (cargoStr || '').toString().trim();
+              const upper = str.toUpperCase();
+              if (
+                (upper.includes('PRESIDENTE') || upper.includes('VICEPRESIDENTE')) &&
+                !upper.includes('CAMARA INMOBILIARIA') &&
+                !upper.includes('DEL ESTADO BOLIVAR') &&
+                !upper.includes('DE BOLIVAR')
+              ) {
+                return `${str} DE LA CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR`;
+              }
+              return str;
+            };
+
             return (
               <div className="absolute bottom-[50px] left-[24px] right-[24px] grid grid-cols-3 items-start px-12 z-10">
                 {/* Firma Izquierda */}
@@ -285,7 +299,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                     {leftFirmante.nombre}
                   </span>
                   <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal max-w-[160px]">
-                    {leftFirmante.cargo}
+                    {formatCargo(leftFirmante.cargo)}
                   </span>
                 </div>
 
@@ -321,7 +335,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                         {rightFirmante.nombre}
                       </span>
                       <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal max-w-[160px]">
-                        {rightFirmante.cargo}
+                        {formatCargo(rightFirmante.cargo)}
                       </span>
                     </>
                   ) : null}

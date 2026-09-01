@@ -376,7 +376,18 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                   <div className={`w-full ${gridLayout} items-start px-2`}>
                     {activeFirmantes.map((f, idx) => {
                       const nombreStr = (f?.nombre || '').toString()
-                      const cargoStr = (f?.cargo || '').toString()
+                      let cargoStr = (f?.cargo || '').toString().trim()
+                      const cargoUpper = cargoStr.toUpperCase()
+
+                      if (
+                        (cargoUpper.includes('PRESIDENTE') || cargoUpper.includes('VICEPRESIDENTE')) &&
+                        !cargoUpper.includes('CAMARA INMOBILIARIA') &&
+                        !cargoUpper.includes('DEL ESTADO BOLIVAR') &&
+                        !cargoUpper.includes('DE BOLIVAR')
+                      ) {
+                        cargoStr = `${cargoStr} DE LA CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR`
+                      }
+
                       const imgSource = f?.firma_url || (nombreStr.toUpperCase().includes('FRANCISCO') ? firmaFranciscoImg : null);
                       return (
                         <div key={`firma-slot-${idx}`} className="flex flex-col items-center justify-start text-center min-w-[120px]">
