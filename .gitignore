@@ -33,6 +33,8 @@ dist-ssr
 .agents
 @.agents/
 @.agents
+graphify-out/
+
 
 scripts/
 scripts/temp_*
@@ -64,6 +66,7 @@ apps/api/src/config/verify-emails-are-affiliates.ts
 !/package.json
 !/package-lock.json
 !/turbo.json
+!.mcp.json
 
 # Diagrams and documentation
 apps/web/casos de uso/
