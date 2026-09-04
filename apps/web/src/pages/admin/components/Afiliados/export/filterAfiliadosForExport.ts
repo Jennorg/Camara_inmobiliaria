@@ -2,6 +2,7 @@ import { AfiliadoDTO, EstatusAfiliado } from '@/types/afiliados'
 
 export type ExportTipoFilter = 'Todos' | 'Natural' | 'Corporativo' | 'Agente Corporativo'
 export type ExportActivoFilter = 'todos' | 'activos' | 'inactivos'
+export type ExportFotoFilter = 'todos' | 'con_foto' | 'sin_foto'
 export type ExportEstatusFilter = 'Todos' | EstatusAfiliado
 
 export type SearchFieldType = 'todos' | 'nombre' | 'id' | 'codigo'
@@ -10,6 +11,7 @@ export interface ExportRowFilters {
   tipo: ExportTipoFilter
   estatus: ExportEstatusFilter
   activo: ExportActivoFilter
+  foto: ExportFotoFilter
   search: string
   searchField?: SearchFieldType
   desdeCodigo: string
@@ -40,6 +42,15 @@ export function filterAfiliadosForExport(
     if (filters.estatus !== 'Todos' && item.estatus !== filters.estatus) return false
     if (filters.activo === 'activos' && !item.activo) return false
     if (filters.activo === 'inactivos' && item.activo) return false
+
+    // Filtro por Fotografía
+    if (filters.foto === 'con_foto') {
+      const hasPhoto = Boolean((item.foto_url && item.foto_url.trim()) || (item.empresa_logo_url && item.empresa_logo_url.trim()))
+      if (!hasPhoto) return false
+    } else if (filters.foto === 'sin_foto') {
+      const hasPhoto = Boolean((item.foto_url && item.foto_url.trim()) || (item.empresa_logo_url && item.empresa_logo_url.trim()))
+      if (hasPhoto) return false
+    }
 
     // Filtro por Código desde
     if (!isNaN(desdeCodigo) && item.codigo) {
@@ -124,6 +135,12 @@ export function describeExportFilters(filters: ExportRowFilters): string[] {
         : 'Solo inactivos'
     }`
   )
+
+  if (filters.foto && filters.foto !== 'todos') {
+    lines.push(
+      `Fotografía: ${filters.foto === 'con_foto' ? 'Con foto' : 'Sin foto'}`
+    )
+  }
 
   if (filters.desdeCodigo) {
     lines.push(`Desde código determinado: ${filters.desdeCodigo}`)

@@ -121,3 +121,24 @@ export const formatWhatsAppUrl = (phone: string | null | undefined, text?: strin
   return baseUrl;
 };
 
+/**
+ * Formatea una cédula de identidad con prefijo y puntos de miles.
+ * Ej: "12345678" -> "V-12.345.678", "V12345678" -> "V-12.345.678"
+ */
+export const formatCedula = (cedula?: string | null): string => {
+  if (!cedula) return '—'
+  const trimmed = String(cedula).trim()
+  if (!trimmed || trimmed === '—' || trimmed === 'null' || trimmed === 'undefined') return '—'
+
+  const clean = trimmed.replace(/[\s.-]/g, '')
+  if (!clean) return '—'
+
+  const hasPrefix = /^[a-zA-Z]/.test(clean)
+  const prefix = hasPrefix ? clean[0].toUpperCase() : 'V'
+  const numbers = hasPrefix ? clean.substring(1) : clean
+  if (!numbers) return '—'
+
+  const formattedNumbers = numbers.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return `${prefix}-${formattedNumbers}`
+};
+

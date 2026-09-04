@@ -14,7 +14,8 @@ import {
   UserCheck,
   Check,
   Container,
-  ChevronDown
+  ChevronDown,
+  Camera
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { API_URL } from '@/config/env'
@@ -28,6 +29,7 @@ import {
   describeExportFilters,
   ExportActivoFilter,
   ExportEstatusFilter,
+  ExportFotoFilter,
   ExportRowFilters,
   ExportTipoFilter,
   filterAfiliadosForExport,
@@ -38,6 +40,7 @@ export interface ExportAfiliadosInitialFilters {
   tipo?: ExportTipoFilter
   estatus?: ExportEstatusFilter
   activo?: ExportActivoFilter
+  foto?: ExportFotoFilter
   search?: string
 }
 
@@ -60,6 +63,7 @@ export default function ExportAfiliadosModal({
     tipo: initialFilters?.tipo ?? 'Todos',
     estatus: initialFilters?.estatus ?? 'Todos',
     activo: initialFilters?.activo ?? 'todos',
+    foto: initialFilters?.foto ?? 'todos',
     search: initialFilters?.search ?? '',
     searchField: 'todos',
     desdeCodigo: '',
@@ -80,6 +84,7 @@ export default function ExportAfiliadosModal({
         tipo: initialFilters?.tipo ?? 'Todos',
         estatus: initialFilters?.estatus ?? 'Todos',
         activo: initialFilters?.activo ?? 'todos',
+        foto: initialFilters?.foto ?? 'todos',
         search: initialFilters?.search ?? '',
         desdeCodigo: '',
         fechaDesde: '',
@@ -172,6 +177,7 @@ export default function ExportAfiliadosModal({
       tipo: 'Todos',
       estatus: 'Todos',
       activo: 'todos',
+      foto: 'todos',
       search: '',
       desdeCodigo: '',
       fechaDesde: '',
@@ -460,7 +466,7 @@ export default function ExportAfiliadosModal({
                 </div>
               </div>
 
-              {/* Grid 2 Columnas para Filtro Activo y Desde Código */}
+              {/* Grid 2 Columnas para Filtro Activo y Fotografía */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Activo / Inactivo */}
                 <div className="space-y-1.5">
@@ -483,19 +489,40 @@ export default function ExportAfiliadosModal({
                   </select>
                 </div>
 
-                {/* Desde Código determinado */}
+                {/* Fotografía */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
-                    <Hash size={12} className="text-emerald-600" /> Desde Código Numérico
+                    <Camera size={12} className="text-emerald-600" /> Fotografía
                   </label>
-                  <input
-                    type="number"
-                    placeholder="Ej: 100 (opcional)"
-                    value={filters.desdeCodigo}
-                    onChange={(e) => setFilters((f) => ({ ...f, desdeCodigo: e.target.value }))}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
-                  />
+                  <select
+                    value={filters.foto}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        foto: e.target.value as ExportFotoFilter,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer"
+                  >
+                    <option value="todos">Todos (Con y sin foto)</option>
+                    <option value="con_foto">Con foto</option>
+                    <option value="sin_foto">Sin foto</option>
+                  </select>
                 </div>
+              </div>
+
+              {/* Desde Código determinado */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <Hash size={12} className="text-emerald-600" /> Desde Código Numérico
+                </label>
+                <input
+                  type="number"
+                  placeholder="Ej: 100 (opcional)"
+                  value={filters.desdeCodigo}
+                  onChange={(e) => setFilters((f) => ({ ...f, desdeCodigo: e.target.value }))}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
+                />
               </div>
 
               {/* Rango de Fechas de Registro */}

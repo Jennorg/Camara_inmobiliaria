@@ -2792,6 +2792,7 @@ export default function MiembrosPanel() {
           tipo: filterTipo as ExportTipoFilter,
           search,
           estatus: 'Afiliado',
+          foto: filterFoto,
         }}
       />
 

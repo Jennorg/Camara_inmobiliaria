@@ -1,12 +1,15 @@
 import { AfiliadoDTO, EstatusAfiliado } from '@/types/afiliados'
-import { formatRif } from '@/utils/formatters'
+import { formatCedula, formatRif } from '@/utils/formatters'
 
 export type ExportColumnId =
   | 'conteo'
   | 'codigo'
   | 'nombre_completo'
+  | 'nombres'
+  | 'apellidos'
   | 'tipo_afiliado'
   | 'cedula'
+  | 'rif'
   | 'estatus'
   | 'email'
   | 'telefono'
@@ -47,11 +50,18 @@ export function formatEstatusLabel(estatus: EstatusAfiliado | string): string {
   return map[estatus] ?? estatus.replace(/_/g, ' ')
 }
 
-function getIdentificacion(a: AfiliadoDTO): string {
-  if (a.tipo_afiliado === 'Corporativo' && a.empresa_rif_numero) {
-    return formatRif(a.empresa_rif_tipo, a.empresa_rif_numero)
+/** Obtiene exclusivamente la cédula de identidad personal formateada (ej: V-12.345.678) */
+function getCedulaPersonal(a: AfiliadoDTO): string {
+  const raw = a.cedula || a.cedula_personal
+  return formatCedula(raw)
+}
+
+/** Obtiene el RIF de la empresa en afiliados corporativos */
+function getRifEmpresa(a: AfiliadoDTO): string {
+  if (a.empresa_rif_numero) {
+    return formatRif(a.empresa_rif_tipo || 'J', a.empresa_rif_numero)
   }
-  return a.cedula || '—'
+  return '—'
 }
 
 export const AFILIADOS_EXPORT_COLUMNS: ExportColumnDef[] = [
@@ -71,7 +81,38 @@ export const AFILIADOS_EXPORT_COLUMNS: ExportColumnDef[] = [
     id: 'nombre_completo',
     label: 'Nombre completo',
     defaultSelected: true,
-    getValue: (a) => a.nombre_completo || `${a.nombres} ${a.apellidos}`.trim() || '—',
+    getValue: (a) => {
+      if (a.tipo_afiliado === 'Corporativo') {
+        return a.empresa_razon_social || a.nombre_completo || `${a.nombres || ''} ${a.apellidos || ''}`.trim() || '—'
+      }
+      return a.nombre_completo || `${a.nombres || ''} ${a.apellidos || ''}`.trim() || '—'
+    },
+  },
+  {
+    id: 'nombres',
+    label: 'Nombre',
+    defaultSelected: false,
+    getValue: (a) => {
+      if (a.nombres && a.nombres.trim()) return a.nombres.trim()
+      if (a.tipo_afiliado === 'Corporativo' && a.representante_nombre) {
+        const parts = a.representante_nombre.trim().split(' ')
+        return parts[0] || '—'
+      }
+      return '—'
+    },
+  },
+  {
+    id: 'apellidos',
+    label: 'Apellido',
+    defaultSelected: false,
+    getValue: (a) => {
+      if (a.apellidos && a.apellidos.trim()) return a.apellidos.trim()
+      if (a.tipo_afiliado === 'Corporativo' && a.representante_nombre) {
+        const parts = a.representante_nombre.trim().split(' ')
+        return parts.slice(1).join(' ') || '—'
+      }
+      return '—'
+    },
   },
   {
     id: 'tipo_afiliado',
@@ -81,9 +122,15 @@ export const AFILIADOS_EXPORT_COLUMNS: ExportColumnDef[] = [
   },
   {
     id: 'cedula',
-    label: 'Cédula / RIF',
+    label: 'C.I.',
     defaultSelected: true,
-    getValue: getIdentificacion,
+    getValue: getCedulaPersonal,
+  },
+  {
+    id: 'rif',
+    label: 'RIF / Empresa RIF',
+    defaultSelected: false,
+    getValue: getRifEmpresa,
   },
   {
     id: 'estatus',
