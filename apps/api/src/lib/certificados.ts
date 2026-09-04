@@ -171,11 +171,13 @@ export async function emitirComprobanteSiCompleto(
 export async function ensureCibirCertificate(idAfiliado: number): Promise<void> {
   try {
     const afiRes = await db.execute({
-      sql: `SELECT id_afiliado, cibir_acreditado FROM afiliados WHERE id_afiliado = ?`,
+      sql: `SELECT id_afiliado, cibir_acreditado, estatus FROM afiliados WHERE id_afiliado = ?`,
       args: [idAfiliado]
     })
     if (afiRes.rows.length === 0) return
     const afi = afiRes.rows[0] as any
+    const esAfiliadoAprobado = ['6_INSCRIPCION', 'Afiliado'].includes(String(afi.estatus || '').trim())
+    if (!esAfiliadoAprobado) return
     const isExonerado = Number(afi.cibir_acreditado) === 1
     await syncCibirCertificateState(idAfiliado, isExonerado)
   } catch (err) {
@@ -193,11 +195,17 @@ export async function ensureCibirCertificate(idAfiliado: number): Promise<void> 
 export async function syncCibirCertificateState(idAfiliado: number, cibirAcreditado: boolean): Promise<void> {
   try {
     const afiRes = await db.execute({
-      sql: `SELECT id_afiliado, id_persona, id_empresa FROM afiliados WHERE id_afiliado = ?`,
+      sql: `SELECT id_afiliado, id_persona, id_empresa, estatus FROM afiliados WHERE id_afiliado = ?`,
       args: [idAfiliado]
     })
     if (afiRes.rows.length === 0) return
     const afi = afiRes.rows[0] as any
+
+    // Solo generar certificados si el afiliado ha alcanzado la etapa de Inscripción (6) o es Afiliado oficial
+    const esAfiliadoAprobado = ['6_INSCRIPCION', 'Afiliado'].includes(String(afi.estatus || '').trim())
+    if (!esAfiliadoAprobado) {
+      return
+    }
 
     const extractId = (res: any, key: string): number => {
       const val = res.rows?.[0]?.[key] ?? res.lastInsertRowid ?? res.insertId

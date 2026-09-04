@@ -373,7 +373,8 @@ export default function WidgetCarnetAfiliado({
     );
   }
 
-  const hasCredential = afiliado && afiliado.id_afiliado && afiliado.codigo;
+  const esAprobado = afiliado?.estatus ? ['6_INSCRIPCION', 'Afiliado'].includes(String(afiliado.estatus).trim()) : false;
+  const hasCredential = afiliado && afiliado.id_afiliado && afiliado.codigo && esAprobado;
 
   if (!hasCredential) {
     return (

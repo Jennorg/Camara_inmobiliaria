@@ -96,8 +96,8 @@ const WidgetMisCertificados: React.FC = () => {
     }
   }
 
-  const isAfiliadoActivo = !!user?.id_afiliado || user?.roles?.includes('afiliado') || afiliadoData?.estatus === 'Afiliado';
-  const esCibirAprobado = afiliadoData?.cibir_convalidado === 1;
+  const isAfiliadoActivo = afiliadoData?.estatus ? ['6_INSCRIPCION', 'Afiliado'].includes(String(afiliadoData.estatus).trim()) : false;
+  const esCibirAprobado = afiliadoData?.cibir_convalidado === 1 || afiliadoData?.cibir_acreditado === 1;
   const mostrarWidget = isAfiliadoActivo || esCibirAprobado;
   
   console.log('DEBUG: isAfiliadoActivo:', isAfiliadoActivo, 'esCibirAprobado:', esCibirAprobado, 'mostrarWidget:', mostrarWidget);

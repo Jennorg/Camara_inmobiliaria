@@ -32,6 +32,7 @@ import {
   enviarCorreoRechazo
 } from '../lib/email.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
+import { toTitleCase } from '../lib/formatters.js';
 import { crearVerificacionPreinscripcionPrograma, upsertEstudianteByEmail } from './academia.controller.js';
 import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
@@ -56,16 +57,22 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
     }
 
     if (idAfiliado != null) {
-      await ensureCibirCertificate(Number(idAfiliado))
+      const afiCheck = await db.execute({
+        sql: `SELECT estatus FROM afiliados WHERE id_afiliado = ?`,
+        args: [idAfiliado]
+      })
+      if (afiCheck.rows.length > 0 && ['6_INSCRIPCION', 'Afiliado'].includes(String(afiCheck.rows[0].estatus || '').trim())) {
+        await ensureCibirCertificate(Number(idAfiliado))
+      }
     } else if (userEmail) {
       const afiRes = await db.execute({
-        sql: `SELECT a.id_afiliado FROM afiliados a
+        sql: `SELECT a.id_afiliado, a.estatus FROM afiliados a
               LEFT JOIN personas p ON a.id_persona = p.id
               LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
               WHERE LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ?`,
         args: [userEmail, userEmail]
       })
-      if (afiRes.rows.length > 0) {
+      if (afiRes.rows.length > 0 && ['6_INSCRIPCION', 'Afiliado'].includes(String(afiRes.rows[0].estatus || '').trim())) {
         const idAfi = (afiRes.rows[0] as any).id_afiliado
         await ensureCibirCertificate(Number(idAfi))
       }
@@ -716,7 +723,7 @@ export const verificarEmail = async (req: Request, res: Response) => {
                 cedula, 
                 telefono
               ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || fullName, apellidos, registro.email, cedulaTipo, cedulaNumero, data.telefono]
+        args: [toTitleCase(nombres || fullName), toTitleCase(apellidos), registro.email, cedulaTipo, cedulaNumero, data.telefono]
       });
 
       const idPersona = insertPersona.rows[0].id;
@@ -1766,6 +1773,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: `El campo '${key}' es obligatorio.` });
           }
           val = String(val).trim();
+          if (key === 'nombres' || key === 'apellidos') {
+            val = toTitleCase(val);
+          }
         } else {
           if (typeof val === 'string' && val.trim() === '') {
             val = null;
@@ -2796,7 +2806,7 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
     const resultP = await db.execute({
       sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, direccion, nivel_academico, foto_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [nombres || '', apellidos || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null, foto_url || null]
+      args: [toTitleCase(nombres) || '', toTitleCase(apellidos) || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null, foto_url || null]
     });
     const idPersona = resultP.rows[0].id;
 
