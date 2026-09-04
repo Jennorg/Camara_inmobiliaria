@@ -10,6 +10,7 @@
 
 import { db } from '../lib/db.js'
 import bcrypt from 'bcryptjs'
+import { toTitleCase } from '../lib/formatters.js'
 
 const statements = [
   `PRAGMA foreign_keys = ON`,
@@ -537,7 +538,22 @@ async function run() {
     } catch (e) {
       // Ignorar si la columna ya existe
     }
-    console.log('  · OK: Data cleaned.')
+    // personas: normalizar nombres y apellidos a Title Case
+    const personasRows = await db.execute(`SELECT id, nombres, apellidos FROM personas`)
+    for (const p of personasRows.rows) {
+      const oldN = String(p.nombres || '')
+      const oldA = String(p.apellidos || '')
+      const newN = toTitleCase(oldN)
+      const newA = toTitleCase(oldA)
+      if (oldN !== newN || oldA !== newA) {
+        await db.execute({
+          sql: `UPDATE personas SET nombres = ?, apellidos = ? WHERE id = ?`,
+          args: [newN, newA, p.id]
+        })
+      }
+    }
+
+    console.log('  · OK: Data cleaned and persona names formatted to Title Case.')
   } catch (e: any) {
     console.warn(`  · WARNING: Data cleaning failed: ${e.message}`)
   }

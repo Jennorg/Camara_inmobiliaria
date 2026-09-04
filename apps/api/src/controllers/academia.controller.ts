@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'crypto'
 import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
+import { toTitleCase } from '../lib/formatters.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 const generateSlug = (str: string) => {
@@ -171,7 +172,7 @@ export async function upsertEstudianteByEmail(params: {
       const finalCedulaNumero = cedulaNumero || `TEMP-V-${Date.now()}`;
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [nombres || params.nombreCompleto || '', apellidos || '', cedulaTipo, finalCedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
+        args: [toTitleCase(nombres || params.nombreCompleto) || '', toTitleCase(apellidos) || '', cedulaTipo, finalCedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
       })
       idPersona = insP.rows[0].id as number
       if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
@@ -851,8 +852,8 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
           const insP = await db.execute({
             sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
             args: [
-              registro.representante_legal_nombres || '',
-              registro.representante_legal_apellidos || '',
+              toTitleCase(registro.representante_legal_nombres) || '',
+              toTitleCase(registro.representante_legal_apellidos) || '',
               cedulaRepTipo,
               cedulaRepNumero,
               registro.representante_legal_email || null,
