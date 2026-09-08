@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
+import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { Edit, Upload, CheckCircle, Trash2, Globe, ArrowLeft, Loader2, Handshake } from 'lucide-react'
 import { sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
 
@@ -52,7 +52,7 @@ export const ConveniosPanel = () => {
     setUploadError(null)
     setUploading(true)
     try {
-      const publicUrl = await uploadFileSupabase(file, 'convenios')
+      const publicUrl = await uploadFileStorage(file, 'convenios')
       setForm((p) => ({ ...p, logo_url: publicUrl }))
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : 'Error al subir logo')

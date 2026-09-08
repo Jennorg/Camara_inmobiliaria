@@ -46,15 +46,7 @@ const envSchema = z.object({
   BUCKET_NAME: z.string().default('files-supa'),
   B2_ENDPOINT: z.string().default('https://s3.us-east-005.backblazeb2.com'),
   B2_REGION: z.string().default('us-east-005'),
-  B2_PUBLIC_URL_BASE: z.string().default('https://f005.backblazeb2.com/file/files-supa/'),
-
-  // ── Supabase Storage ───────────────────────────────────────────────────────
-  SUPABASE_URL: z.string().url().optional(),
-  // Compatibilidad con nombre antiguo en .env
-  SUPABASE_BASE_URL: z.string().url().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  /** Bucket público para documentos del CMS (ej: public-docs). */
-  SUPABASE_STORAGE_PUBLIC_BUCKET: z.string().optional(),
+  B2_PUBLIC_URL_BASE: z.string().default('https://files-supa.s3.us-east-005.backblazeb2.com/'),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -75,6 +67,5 @@ const corsList = corsFromEnv.includes(appOrigin)
 
 export const env = {
   ...parsed,
-  SUPABASE_URL: parsed.SUPABASE_URL ?? parsed.SUPABASE_BASE_URL,
   CORS_ORIGINS: corsList,
 }

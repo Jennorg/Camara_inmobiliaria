@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
 
-import { uploadFileSupabase, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared';
+import { uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared';
 import { apiFetch } from '@/lib/apiClient';
 
 function loadLogoDataUrl(src: string): Promise<string> {
@@ -167,7 +167,7 @@ const CursosAdminPanel = () => {
   const uploadImage = async (file: File) => {
     setUploading(true);
     try {
-      const publicUrl = await uploadFileSupabase(file, 'cursos_admin');
+      const publicUrl = await uploadFileStorage(file, 'cursos_admin');
       setFormData((p) => ({ ...p, imagen_url: publicUrl }));
     } catch (e) {
       Swal.fire('Error', e instanceof Error ? e.message : 'Error al subir archivo', 'error');
@@ -1384,7 +1384,7 @@ const CursosAdminPanel = () => {
                                     const file = e.target.files?.[0];
                                     if (file) {
                                       try {
-                                        const url = await uploadFileSupabase(file, 'firmas_cursos');
+                                        const url = await uploadFileStorage(file, 'firmas_cursos');
                                         const updated = [...(formData.firmantes || [])];
                                         updated[index].firma_url = url;
                                         setFormData({ ...formData, firmantes: updated });

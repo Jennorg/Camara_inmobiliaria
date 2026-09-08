@@ -4,8 +4,8 @@ import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 
 const router = Router()
 
-// Solo admin/super_admin pueden generar URLs firmadas.
-router.post('/presign', requireAuth, requireRole('admin', 'super_admin'), presignUpload)
+// Permitir a usuarios autenticados generar URLs firmadas de subida.
+router.post('/presign', requireAuth, presignUpload)
 
 export { router as uploadsRoutes }
 

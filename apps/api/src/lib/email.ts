@@ -49,7 +49,7 @@ async function sendResendEmailBatch(emails: any[]) {
   return await resend.batch.send(emails)
 }
 
-const logoUrl = (env.B2_PUBLIC_URL_BASE || 'https://f005.backblazeb2.com/file/files-supa/').replace(/\/$/, '') + '/public-docs/Logo.png';
+const logoUrl = (env.B2_PUBLIC_URL_BASE || 'https://files-supa.s3.us-east-005.backblazeb2.com/').replace(/\/$/, '') + '/public-docs/Logo.png';
 
 /** Template base profesional */
 const renderEmailTemplate = (content: string, title?: string) => `

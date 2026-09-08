@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, uploadFileSupabase, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
+import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { 
   Upload, CheckCircle, Trash2, ArrowLeft, Calendar, Clock, MapPin, 
@@ -395,7 +395,7 @@ export const NoticiasPanel = () => {
     setUploadError(null)
     setUploading(true)
     try {
-      const publicUrl = await uploadFileSupabase(file, 'noticias')
+      const publicUrl = await uploadFileStorage(file, 'noticias')
       setForm((p) => ({ ...p, imagen_url: publicUrl }))
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : 'Error al subir archivo')

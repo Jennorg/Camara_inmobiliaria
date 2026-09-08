@@ -9,6 +9,7 @@
  */
 
 import { db } from '../lib/db.js'
+import { env } from './env.js'
 import bcrypt from 'bcryptjs'
 import { toTitleCase } from '../lib/formatters.js'
 

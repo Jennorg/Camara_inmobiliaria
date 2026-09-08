@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useReducer } from 'react'
-import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
+import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import { 
   Users, 
   Plus, 
@@ -471,7 +471,7 @@ export const DirectivaPanel = () => {
       if (croppedImageBlob) {
         const webpName = cropFile.name.replace(/\.[^/.]+$/, '') + '.webp'
         const croppedFile = new File([croppedImageBlob], webpName, { type: 'image/webp' })
-        const publicUrl = await uploadFileSupabase(croppedFile, 'directiva', true)
+        const publicUrl = await uploadFileStorage(croppedFile, 'directiva', true)
         setForm((p: any) => ({ ...p, foto_junta_url: publicUrl }))
         toast.success('Foto de junta directiva recortada y subida con éxito.')
       }
@@ -1608,7 +1608,7 @@ export const DirectivaPanel = () => {
                             const file = e.target.files?.[0];
                             if (file) {
                               try {
-                                const url = await uploadFileSupabase(file, 'firmas_directiva');
+                                const url = await uploadFileStorage(file, 'firmas_directiva');
                                 setForm(p => ({ ...p, firma_url: url }));
                                 toast.success('Firma subida con éxito');
                               } catch (err: any) {

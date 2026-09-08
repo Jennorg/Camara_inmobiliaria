@@ -6,7 +6,7 @@
  * para que cada usuario tenga su propio espacio de almacenamiento.
  *
  * NOTA: No se guardan archivos (Blob/File) porque el componente FileUpload
- * los sube a Supabase Storage en el momento de la selección y devuelve
+ * los sube a B2 Storage en el momento de la selección y devuelve
  * una URL pública permanente. Lo que persiste son esas URLs y los metadatos.
  */
 

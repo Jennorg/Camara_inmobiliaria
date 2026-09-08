@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
-import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileSupabase, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
+import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 
 interface NormativaItem {
   id: string | number
@@ -390,7 +390,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     setUploading(true)
     try {
       setUploadedFileName(file.name)
-      const publicUrl = await uploadFileSupabase(file, 'normativas')
+      const publicUrl = await uploadFileStorage(file, 'normativas')
       setForm((p) => ({ ...p, url_archivo: publicUrl }))
     } catch (e) {
       setUploadedFileName(null)

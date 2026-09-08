@@ -79,7 +79,7 @@ export const presignUpload = async (req: Request, res: Response) => {
     })
 
     const signedUploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
-    const baseUrl = (env.B2_PUBLIC_URL_BASE || 'https://f005.backblazeb2.com/file/files-supa/').replace(/\/$/, '')
+    const baseUrl = (env.B2_PUBLIC_URL_BASE || 'https://files-supa.s3.us-east-005.backblazeb2.com/').replace(/\/$/, '')
     const publicUrl = `${baseUrl}/${path}`
 
     return res.json({

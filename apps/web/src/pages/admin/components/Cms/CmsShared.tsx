@@ -160,7 +160,7 @@ export const api = {
 }
 
 
-export const uploadFileSupabase = async (file: File, folder: string, skipCompress = false): Promise<string> => {
+export const uploadFileStorage = async (file: File, folder: string, skipCompress = false): Promise<string> => {
   // Compress image client-side if it is an image
   let fileToUpload = file;
   if (file.type.startsWith('image/') && !skipCompress) {
@@ -171,7 +171,7 @@ export const uploadFileSupabase = async (file: File, folder: string, skipCompres
     }
   }
 
-  const presignRes = await fetch(`${API_URL}/api/cms/uploads/presign`, {
+  const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -187,20 +187,20 @@ export const uploadFileSupabase = async (file: File, folder: string, skipCompres
 
   const { signedUploadUrl, publicUrl } = presignJson.data as { signedUploadUrl: string; publicUrl: string }
   
-  // Para subir directamente a Supabase NO usamos el interceptor, así que usamos el fetch original
-  // o confiamos en que el interceptor no toque urls que no sean de la API_URL. (El interceptor verifica isApiCall)
   const putRes = await fetch(signedUploadUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': fileToUpload.type || 'application/octet-stream',
-      'x-upsert': 'false',
     },
     body: fileToUpload,
   })
-  if (!putRes.ok) throw new Error('No se pudo subir el archivo a Supabase Storage')
+  if (!putRes.ok) throw new Error('No se pudo subir el archivo a Storage')
 
   return publicUrl
 }
+
+// Alias para retrocompatibilidad
+export const uploadFileSupabase = uploadFileStorage
 
 export const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1">
