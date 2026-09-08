@@ -209,7 +209,7 @@ const WidgetMisCursos = () => {
                 <div className="mt-auto pt-4 border-t border-emerald-50">
                   <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
                     <Award size={13} className="shrink-0" />
-                    <p className="text-[11px] font-semibold">Curso aprobado · Ve a <strong>Mis Certificados</strong> para ver tu comprobante</p>
+                    <p className="text-[11px] font-semibold">Curso aprobado · Ve a <strong>Mis Certificados</strong> para ver tu certificado</p>
                   </div>
                 </div>
               )}

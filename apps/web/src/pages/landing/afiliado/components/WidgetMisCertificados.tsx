@@ -230,7 +230,7 @@ const WidgetMisCertificados: React.FC = () => {
                       className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-emerald-700 cursor-pointer"
                     >
                       <ExternalLink size={14} />
-                      Abrir comprobante
+                      Abrir certificado
                     </button>
                     <button
                       type="button"
