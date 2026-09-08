@@ -121,6 +121,7 @@ export default function FileUpload({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filename: fileToUpload.name,
+          contentType: fileToUpload.type || 'application/octet-stream',
           folder,
         }),
       });
@@ -264,9 +265,7 @@ export default function FileUpload({
     isImage || 
     (uploadedUrl && (
       uploadedUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)/i) || 
-      uploadedUrl.includes('backblazeb2.com') ||
-      uploadedUrl.includes('supabase.co/storage/v1/object/public/logos/') ||
-      uploadedUrl.includes('supabase.co/storage/v1/object/public/')
+      uploadedUrl.includes('backblazeb2.com')
     )) ||
     (restoredFileName && restoredFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)/i))
   );

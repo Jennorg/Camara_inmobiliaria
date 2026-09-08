@@ -195,6 +195,7 @@ const DashboardHeader = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           filename: fileToUpload.name,
+          contentType: fileToUpload.type || 'application/octet-stream',
           folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
         }),
       });
@@ -235,6 +236,7 @@ const DashboardHeader = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               filename: rawFileName,
+              contentType: compressedRaw.type || 'application/octet-stream',
               folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
             }),
           });

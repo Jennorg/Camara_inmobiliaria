@@ -3,7 +3,7 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif, getInitials } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
-import { uploadFileSupabase } from '@/pages/admin/components/Cms/CmsShared'
+import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import { apiFetch } from '@/lib/apiClient'
 
 import {
@@ -777,7 +777,7 @@ export default function MiembrosPanel() {
         if (croppedImageBlob) {
           const webpName = imageFile.name.replace(/\.[^/.]+$/, '') + '.webp'
           const croppedFile = new File([croppedImageBlob], webpName, { type: 'image/webp' })
-          finalUrl = await uploadFileSupabase(
+          finalUrl = await uploadFileStorage(
             croppedFile,
             isLogo
               ? (selected.tipo_afiliado === 'Corporativo' ? 'logos/empresas' : 'logos/marcas')
@@ -786,7 +786,7 @@ export default function MiembrosPanel() {
           )
         }
       } else if (imageFile) {
-        finalUrl = await uploadFileSupabase(
+        finalUrl = await uploadFileStorage(
           imageFile,
           isLogo
             ? (selected.tipo_afiliado === 'Corporativo' ? 'logos/empresas' : 'logos/marcas')
@@ -822,7 +822,8 @@ export default function MiembrosPanel() {
         setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
         closeImageEditor()
       } else {
-        setImageError('Error al guardar en el servidor')
+        const errJson = await res.json().catch(() => null)
+        setImageError(errJson?.message || 'Error al guardar en el servidor')
       }
     } catch (err: any) {
       console.error('handleSaveImage error:', err)
@@ -857,7 +858,8 @@ export default function MiembrosPanel() {
         setItems(items.map(item => item.id_afiliado === selected.id_afiliado ? updated : item))
         closeImageEditor()
       } else {
-        setImageError('Error al eliminar en el servidor')
+        const errJson = await res.json().catch(() => null)
+        setImageError(errJson?.message || 'Error al eliminar en el servidor')
       }
     } catch (err: any) {
       console.error('handleDeleteImage error:', err)
@@ -929,11 +931,22 @@ export default function MiembrosPanel() {
         matchTipo = item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo'
       }
 
+      let redes: any = item.redes_sociales;
+      if (typeof redes === 'string') {
+        try { redes = JSON.parse(redes); } catch { redes = {}; }
+      }
+      const photoFromRedes = redes?.foto_original_url || redes?.foto_carnet_url;
+      const url = item.foto_url ? item.foto_url.trim().toLowerCase() : '';
+      const hasRealPhoto = Boolean(
+        (photoFromRedes && String(photoFromRedes).trim() !== '') ||
+        (url && !url.includes('ui-avatars.com') && !url.includes('pendiente'))
+      );
+
       let matchFoto = true
       if (filterFoto === 'con_foto') {
-        matchFoto = Boolean(item.foto_url || item.empresa_logo_url)
+        matchFoto = hasRealPhoto
       } else if (filterFoto === 'sin_foto') {
-        matchFoto = !item.foto_url && !item.empresa_logo_url
+        matchFoto = !hasRealPhoto
       }
 
       return matchSearch && matchTipo && matchFoto

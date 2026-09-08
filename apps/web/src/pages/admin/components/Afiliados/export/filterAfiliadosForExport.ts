@@ -43,13 +43,23 @@ export function filterAfiliadosForExport(
     if (filters.activo === 'activos' && !item.activo) return false
     if (filters.activo === 'inactivos' && item.activo) return false
 
+    // Helper para verificar foto real de persona (los logos NO cuentan como foto)
+    let redes: any = item.redes_sociales;
+    if (typeof redes === 'string') {
+      try { redes = JSON.parse(redes); } catch { redes = {}; }
+    }
+    const photoFromRedes = redes?.foto_original_url || redes?.foto_carnet_url;
+    const url = item.foto_url ? item.foto_url.trim().toLowerCase() : '';
+    const hasRealPhoto = Boolean(
+      (photoFromRedes && String(photoFromRedes).trim() !== '') ||
+      (url && !url.includes('ui-avatars.com') && !url.includes('pendiente'))
+    );
+
     // Filtro por Fotografía
     if (filters.foto === 'con_foto') {
-      const hasPhoto = Boolean((item.foto_url && item.foto_url.trim()) || (item.empresa_logo_url && item.empresa_logo_url.trim()))
-      if (!hasPhoto) return false
+      if (!hasRealPhoto) return false
     } else if (filters.foto === 'sin_foto') {
-      const hasPhoto = Boolean((item.foto_url && item.foto_url.trim()) || (item.empresa_logo_url && item.empresa_logo_url.trim()))
-      if (hasPhoto) return false
+      if (hasRealPhoto) return false
     }
 
     // Filtro por Código desde

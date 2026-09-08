@@ -1125,8 +1125,10 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
         AND a.eliminado_en IS NULL
         AND p.eliminado_en IS NULL
     `
+    const REAL_PHOTO_SQL = `((p.foto_url IS NOT NULL AND p.foto_url <> '' AND LOWER(p.foto_url) NOT LIKE '%ui-avatars.com%' AND LOWER(p.foto_url) NOT LIKE '%pendiente%') OR (json_valid(a.redes_sociales) = 1 AND (json_extract(a.redes_sociales, '$.foto_original_url') IS NOT NULL OR json_extract(a.redes_sociales, '$.foto_carnet_url') IS NOT NULL)))`
+
     if (conFoto) {
-      whereClauses += ` AND p.foto_url IS NOT NULL AND p.foto_url <> ''`
+      whereClauses += ` AND ${REAL_PHOTO_SQL}`
     }
     const args: any[] = []
 
@@ -1222,7 +1224,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       FROM afiliados a 
       JOIN personas p ON a.id_persona = p.id 
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa 
-      WHERE a.estatus = 'Afiliado' AND a.activo = 1 AND a.eliminado_en IS NULL AND p.eliminado_en IS NULL ${conFoto ? "AND p.foto_url IS NOT NULL AND p.foto_url <> ''" : ""}
+      WHERE a.estatus = 'Afiliado' AND a.activo = 1 AND a.eliminado_en IS NULL AND p.eliminado_en IS NULL ${conFoto ? `AND ${REAL_PHOTO_SQL}` : ""}
     `
     const breakdownRes = await db.execute({ sql: countsSql, args: [] })
     const bRow: any = breakdownRes.rows[0] || {}
@@ -1643,7 +1645,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
                    p.email AS persona_email,
                    p.cedula AS persona_cedula,
                    p.nombres, p.apellidos, p.telefono AS persona_telefono,
-                   e.email AS empresa_email, e.logo_url as empresa_logo_url
+                   e.email AS empresa_email, e.logo_url as empresa_logo_url, e.telefono AS empresa_telefono
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -1664,6 +1666,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       nombres: oldNombres,
       apellidos: oldApellidos,
       persona_telefono: oldPersonaTelefono,
+      empresa_telefono: oldEmpresaTelefono,
       marca_logo_url: oldMarcaLogoUrl,
       empresa_logo_url: oldEmpresaLogoUrl
     } = current.rows[0] as any;
@@ -1740,28 +1743,40 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     }
 
     if (targetTipoAfiliado !== 'Corporativo') {
-      if (fields.empresa_logo_url !== undefined && targetTipoAfiliado === 'Natural') {
+      if (fields.empresa_logo_url !== undefined) {
         aUpdates.push('marca_logo_url = ?');
         aArgs.push(fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null);
       }
       Object.keys(empresaFieldsMap).forEach(k => {
         delete fields[k];
       });
+    } else if (fields.empresa_logo_url !== undefined && !idEmpresa) {
+      // Si es Corporativo pero no tiene id_empresa vinculada, guardar también en marca_logo_url de afiliados
+      aUpdates.push('marca_logo_url = ?');
+      aArgs.push(fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null);
     }
 
     if (targetTipoAfiliado === 'Corporativo') {
-      const pTel = fields.telefono !== undefined ? String(fields.telefono || '').trim() : String(oldPersonaTelefono || '').trim();
-      const eTel = fields.empresa_telefono !== undefined ? String(fields.empresa_telefono || '').trim() : '';
-      if (!pTel && !eTel) {
-        return res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un teléfono (el de la empresa o el del representante).' });
+      const isConvertingToCorp = currentTipoAfiliado !== 'Corporativo';
+      const isUpdatingPhone = fields.telefono !== undefined || fields.empresa_telefono !== undefined;
+      const isUpdatingEmail = fields.email !== undefined || fields.empresa_email !== undefined;
+
+      if (isConvertingToCorp || isUpdatingPhone) {
+        const pTel = fields.telefono !== undefined ? String(fields.telefono || '').trim() : String(oldPersonaTelefono || '').trim();
+        const eTel = fields.empresa_telefono !== undefined ? String(fields.empresa_telefono || '').trim() : String(oldEmpresaTelefono || '').trim();
+        if (!pTel && !eTel) {
+          return res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un teléfono (el de la empresa o el del representante).' });
+        }
       }
 
-      const pMailRaw = fields.email !== undefined ? String(fields.email || '').trim() : String(oldPersonaEmail || '').trim();
-      const eMailRaw = fields.empresa_email !== undefined ? String(fields.empresa_email || '').trim() : String(oldEmpresaEmail || '').trim();
-      const pMail = isCleanEmail(pMailRaw) ? pMailRaw : '';
-      const eMail = isCleanEmail(eMailRaw) ? eMailRaw : '';
-      if (!pMail && !eMail) {
-        return res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un correo electrónico (el de la empresa o el del representante).' });
+      if (isConvertingToCorp || isUpdatingEmail) {
+        const pMailRaw = fields.email !== undefined ? String(fields.email || '').trim() : String(oldPersonaEmail || '').trim();
+        const eMailRaw = fields.empresa_email !== undefined ? String(fields.empresa_email || '').trim() : String(oldEmpresaEmail || '').trim();
+        const pMail = isCleanEmail(pMailRaw) ? pMailRaw : '';
+        const eMail = isCleanEmail(eMailRaw) ? eMailRaw : '';
+        if (!pMail && !eMail) {
+          return res.status(400).json({ success: false, message: 'Para un afiliado corporativo es obligatorio incluir al menos un correo electrónico (el de la empresa o el del representante).' });
+        }
       }
     }
 
@@ -2213,7 +2228,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     // Obtener los datos completos actualizados del afiliado para responder a la solicitud
     const updatedFull = await db.execute({
       sql: `SELECT a.*, p.nombres, p.apellidos, p.cedula, p.email, p.telefono, p.direccion, p.profesion, p.nivel_academico, p.fecha_nacimiento, p.foto_url,
-                   e.razon_social as empresa_razon_social, e.rif_tipo as empresa_rif_tipo, e.rif_numero as empresa_rif_numero, e.email as empresa_email, e.telefono as empresa_telefono, e.website as empresa_website, e.logo_url as empresa_logo_url
+                   e.razon_social as empresa_razon_social, e.rif_tipo as empresa_rif_tipo, e.rif_numero as empresa_rif_numero, e.email as empresa_email, e.telefono as empresa_telefono, e.website as empresa_website,
+                   COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
