@@ -115,40 +115,73 @@ export default function FileUpload({
         }
       }
 
+      let publicUrl = '';
+
       // 1. Get presigned URL
-      const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: fileToUpload.name,
-          contentType: fileToUpload.type || 'application/octet-stream',
-          folder,
-        }),
-      });
+      try {
+        const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: fileToUpload.name,
+            contentType: fileToUpload.type || 'application/octet-stream',
+            folder,
+          }),
+        });
 
-      const presignData = await presignRes.json();
-      if (!presignRes.ok || !presignData.success) {
-        throw new Error(presignData.message || 'Error al obtener URL de subida');
+        if (presignRes.ok) {
+          const presignData = await presignRes.json();
+          if (presignData.success && presignData.data?.signedUploadUrl) {
+            const { signedUploadUrl, token, publicUrl: pUrl } = presignData.data;
+
+            const uploadHeaders: Record<string, string> = {
+              'Content-Type': fileToUpload.type || 'application/octet-stream',
+            };
+            if (token) {
+              uploadHeaders['Authorization'] = `Bearer ${token}`;
+            }
+
+            const uploadRes = await fetch(signedUploadUrl, {
+              method: 'PUT',
+              headers: uploadHeaders,
+              body: fileToUpload,
+            });
+
+            if (uploadRes.ok) {
+              publicUrl = pUrl;
+            }
+          }
+        }
+      } catch (presignErr) {
+        console.warn('FileUpload presigned upload error, falling back to direct upload:', presignErr);
       }
 
-      const { signedUploadUrl, token, publicUrl } = presignData.data;
+      // 2. Direct upload fallback
+      if (!publicUrl) {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(fileToUpload);
+        });
 
-      // 2. Upload to Storage via PUT
-      const uploadHeaders: Record<string, string> = {
-        'Content-Type': fileToUpload.type,
-      };
-      if (token) {
-        uploadHeaders['Authorization'] = `Bearer ${token}`;
-      }
+        const directRes = await fetch(`${API_URL}/api/public/uploads/direct`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: fileToUpload.name,
+            contentType: fileToUpload.type || 'application/octet-stream',
+            folder,
+            fileData: base64,
+          }),
+        });
 
-      const uploadRes = await fetch(signedUploadUrl, {
-        method: 'PUT',
-        headers: uploadHeaders,
-        body: fileToUpload,
-      });
+        const directData = await directRes.json();
+        if (!directRes.ok || !directData.success) {
+          throw new Error(directData.message || 'Error al subir el archivo a storage');
+        }
 
-      if (!uploadRes.ok) {
-        throw new Error('Error al subir el archivo a storage');
+        publicUrl = directData.data.publicUrl;
       }
 
       // 3. Success

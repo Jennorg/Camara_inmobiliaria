@@ -11,6 +11,7 @@ import { API_URL } from '@/config/env';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
 import { compressImage } from '@/utils/imageCompressor';
+import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared';
 import QRCode from 'qrcode';
 
 interface CarnetAfiliadoModalProps {
@@ -365,41 +366,10 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
       const rawFile = new File([croppedImageBlob], fileName, { type: fileType });
       const fileToUpload = await compressImage(rawFile, 800, 0.85);
 
-      // 1. Presign upload URL
-      const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: fileToUpload.name,
-          folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
-        }),
-      });
+      // 1. Upload photo to Storage (presign + direct fallback)
+      const publicUrl = await uploadFileStorage(fileToUpload, useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados', true);
 
-      const presignData = await presignRes.json();
-      if (!presignRes.ok || !presignData.success) {
-        throw new Error(presignData.message || 'Error al obtener URL de subida');
-      }
-
-      const { signedUploadUrl, token: uploadToken, publicUrl } = presignData.data;
-
-      // 2. Upload to Storage via PUT
-      const uploadHeaders: Record<string, string> = {
-        'Content-Type': fileToUpload.type,
-      };
-      if (uploadToken) {
-        uploadHeaders['Authorization'] = `Bearer ${uploadToken}`;
-      }
-      const uploadRes = await fetch(signedUploadUrl, {
-        method: 'PUT',
-        headers: uploadHeaders,
-        body: fileToUpload,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('Error al subir la imagen al storage');
-      }
-
-      // 3. Update affiliate via PATCH /api/afiliados/:id
+      // 2. Update affiliate via PATCH /api/afiliados/:id
       const currentRedes = parseRedes(afiliado.redes_sociales);
       const cropData = { x: cropperState.crop.x, y: cropperState.crop.y, zoom: cropperState.cropperZoom };
 
@@ -408,32 +378,8 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
         try {
           const rawFileName = `foto_original_${afiliado.codigo || afiliado.id_afiliado}_${Date.now()}.${cropperState.imageFile.name.split('.').pop() || 'jpg'}`;
           const compressedRaw = await compressImage(cropperState.imageFile, 1200, 0.9);
-          const presignRaw = await fetch(`${API_URL}/api/public/uploads/presign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              filename: rawFileName,
-              folder: useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados',
-            }),
-          });
-          const presignRawData = await presignRaw.json();
-          if (presignRaw.ok && presignRawData.success) {
-            const { signedUploadUrl: sUrl, token: uTok, publicUrl: origPubUrl } = presignRawData.data;
-            const uploadHeadersRaw: Record<string, string> = {
-              'Content-Type': compressedRaw.type,
-            };
-            if (uTok) {
-              uploadHeadersRaw['Authorization'] = `Bearer ${uTok}`;
-            }
-            const uRes = await fetch(sUrl, {
-              method: 'PUT',
-              headers: uploadHeadersRaw,
-              body: compressedRaw,
-            });
-            if (uRes.ok) {
-              originalUrl = origPubUrl;
-            }
-          }
+          const rawFileWithCleanName = new File([compressedRaw], rawFileName, { type: compressedRaw.type });
+          originalUrl = await uploadFileStorage(rawFileWithCleanName, useJuntaPhoto ? 'fotos/junta' : 'fotos/afiliados', true);
         } catch (e) {
           console.warn('Could not save raw original photo:', e);
         }
