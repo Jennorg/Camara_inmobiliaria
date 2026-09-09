@@ -174,7 +174,7 @@ export const enviarCorreoConfirmacionPreinscripcionPrograma = async (params: {
   const enlace = `${env.APP_URL.replace(/\/$/, '')}/cursos/verificar?token=${token}`
 
   const esAfiliacion = programaCodigo === 'AFILIACION'
-  const accion = esAfiliacion ? 'solicitar tu afiliación a la' : `preinscribirte al programa <strong>${programaCodigo}</strong> de la`
+  const accion = esAfiliacion ? 'tu afiliación a la' : `preinscribirte al programa <strong>${programaCodigo}</strong> de la`
   const subject = esAfiliacion ? 'Confirma tu solicitud de afiliación' : `Confirma tu preinscripción — ${programaCodigo}`
 
   const { data, error } = await sendResendEmail({
