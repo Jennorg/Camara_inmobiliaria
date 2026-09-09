@@ -11,6 +11,7 @@ import logoUrl from '@/assets/Logo2.webp';
 
 import { uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared';
 import { apiFetch } from '@/lib/apiClient';
+import ExportInscritosCursoModal from './ExportInscritosCursoModal';
 
 function loadLogoDataUrl(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -42,7 +43,7 @@ export interface FirmanteItem {
   mostrar_firma: boolean;
 }
 
-interface CursoDB {
+export interface CursoDB {
   id_curso: number;
   id_instructor: number;
   nombre: string;
@@ -1586,34 +1587,68 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState<'todos' | 'nombre' | 'cedula' | 'email' | 'telefono'>('todos');
+  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'email' | 'telefono'>('nombre');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Sorting State
+  type SortField = 'nombre' | 'cedula' | 'email' | 'telefono' | 'fecha' | 'estatus';
+  const [sortField, setSortField] = useState<SortField>('nombre');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   const filteredRows = React.useMemo(() => {
-    if (!searchQuery.trim()) return rows;
-    const q = searchQuery.toLowerCase().trim();
-    return rows.filter(r => {
-      const nombre = (r.estudiante_nombre || '').toLowerCase();
-      const cedula = (r.estudiante_cedula || '').toLowerCase();
-      const email = (r.estudiante_email || '').toLowerCase();
-      const telefono = (r.estudiante_telefono || '').toLowerCase();
-      const estatus = (r.estatus || '').toLowerCase();
-      const completadoText = r.completado === 1 ? 'completado graduado' : '';
+    let list = rows;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(r => {
+        const nombre = (r.estudiante_nombre || '').toLowerCase();
+        const cedula = (r.estudiante_cedula || '').toLowerCase();
+        const email = (r.estudiante_email || '').toLowerCase();
+        const telefono = (r.estudiante_telefono || '').toLowerCase();
 
-      if (searchField === 'nombre') return nombre.includes(q);
-      if (searchField === 'cedula') return cedula.includes(q);
-      if (searchField === 'email') return email.includes(q);
-      if (searchField === 'telefono') return telefono.includes(q);
+        if (searchField === 'cedula') return cedula.includes(q);
+        if (searchField === 'email') return email.includes(q);
+        if (searchField === 'telefono') return telefono.includes(q);
+        return nombre.includes(q);
+      });
+    }
 
-      return (
-        nombre.includes(q) ||
-        cedula.includes(q) ||
-        email.includes(q) ||
-        telefono.includes(q) ||
-        estatus.includes(q) ||
-        completadoText.includes(q)
-      );
+    return [...list].sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      if (sortField === 'nombre') {
+        valA = a.estudiante_nombre || '';
+        valB = b.estudiante_nombre || '';
+      } else if (sortField === 'cedula') {
+        valA = a.estudiante_cedula || '';
+        valB = b.estudiante_cedula || '';
+      } else if (sortField === 'email') {
+        valA = a.estudiante_email || '';
+        valB = b.estudiante_email || '';
+      } else if (sortField === 'telefono') {
+        valA = a.estudiante_telefono || '';
+        valB = b.estudiante_telefono || '';
+      } else if (sortField === 'fecha') {
+        valA = a.creado_en || '';
+        valB = b.creado_en || '';
+      } else if (sortField === 'estatus') {
+        valA = a.completado === 1 ? 'Graduado' : (a.estatus || '');
+        valB = b.completado === 1 ? 'Graduado' : (b.estatus || '');
+      }
+
+      const cmp = valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' });
+      return sortOrder === 'asc' ? cmp : -cmp;
     });
-  }, [rows, searchQuery, searchField]);
+  }, [rows, searchQuery, searchField, sortField, sortOrder]);
 
   // Modal Inscribir State
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
@@ -2207,7 +2242,6 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               className="bg-slate-50 text-[11px] font-bold text-slate-700 px-3 py-2 border-r border-gray-200 outline-none cursor-pointer hover:bg-slate-100 transition-colors"
               title="Filtrar búsqueda por campo"
             >
-              <option value="todos">Todos los campos</option>
               <option value="nombre">Nombre</option>
               <option value="cedula">Cédula</option>
               <option value="email">Correo</option>
@@ -2243,9 +2277,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
 
           <button
-            onClick={exportPDF}
+            onClick={() => setIsExportModalOpen(true)}
             className="flex items-center gap-2 bg-[#E9FAF4] hover:bg-[#D3F5E7] text-[#00B870] text-xs font-bold py-2.5 px-4 rounded-xl border border-[#00D084]/20 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer"
-            title="Exportar listado completo en PDF"
+            title="Exportar reporte PDF con filtros y columnas personalizadas"
           >
             <FileDown className="w-4 h-4" />
             <span>Exportar PDF</span>
@@ -2387,12 +2421,39 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       title="Seleccionar todos"
                     />
                   </th>
-                  <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Participante</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Cédula</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Correo</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Teléfono</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Fecha Registro</th>
-                  <th className="px-4 py-4 text-left text-[10px] font-black text-slate-400 tracking-widest uppercase">Estatus</th>
+                  {[
+                    { id: 'nombre', label: 'Participante', pad: 'px-5' },
+                    { id: 'cedula', label: 'Cédula', pad: 'px-4' },
+                    { id: 'email', label: 'Correo', pad: 'px-4' },
+                    { id: 'telefono', label: 'Teléfono', pad: 'px-4' },
+                    { id: 'fecha', label: 'Fecha Registro', pad: 'px-4' },
+                    { id: 'estatus', label: 'Estatus', pad: 'px-4' },
+                  ].map(col => {
+                    const isActive = sortField === col.id;
+                    return (
+                      <th
+                        key={col.id}
+                        onClick={() => handleSort(col.id as any)}
+                        className={`${col.pad} py-4 text-left text-[10px] font-black tracking-widest uppercase cursor-pointer select-none transition-colors hover:text-[#00D084] ${
+                          isActive ? 'text-[#00B870]' : 'text-slate-400'
+                        }`}
+                        title={`Ordenar por ${col.label}`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>{col.label}</span>
+                          {isActive ? (
+                            sortOrder === 'asc' ? (
+                              <ArrowUp className="w-3 h-3 text-[#00B870] shrink-0" />
+                            ) : (
+                              <ArrowDown className="w-3 h-3 text-[#00B870] shrink-0" />
+                            )
+                          ) : (
+                            <ArrowUp className="w-3 h-3 opacity-0 group-hover/th:opacity-40 shrink-0 transition-opacity" />
+                          )}
+                        </div>
+                      </th>
+                    );
+                  })}
                   <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 tracking-widest uppercase">Acciones</th>
                 </tr>
               </thead>
@@ -2590,7 +2651,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                               <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                                 {[
                                   { key: 'nombre', label: 'Nombre' },
-                                  { key: 'cedula', label: 'Cédula / RIF' },
+                                  { key: 'cedula', label: 'Cédula' },
                                   { key: 'email', label: 'Correo' },
                                 ].map(option => (
                                   <button
@@ -2624,7 +2685,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                               afiliadoSearchField === 'nombre'
                                 ? 'Buscar por nombre completo...'
                                 : afiliadoSearchField === 'cedula'
-                                  ? 'Buscar por cédula o RIF...'
+                                  ? 'Buscar por cédula...'
                                   : 'Buscar por correo electrónico...'
                             }
                             className="w-full h-full pl-2 pr-6 bg-transparent text-slate-800 font-semibold placeholder-slate-400 outline-none text-xs"
@@ -2719,7 +2780,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Tipo y Cédula / RIF
+                        Tipo y Cédula
                       </label>
                       <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
                         <select
@@ -2864,7 +2925,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Tipo y Cédula / RIF
+                    Tipo y Cédula
                   </label>
                   <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
                     <select
@@ -2929,6 +2990,14 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
         </div>
       )}
+
+      {/* ── MODAL EXPORTAR REPORTE PDF CON FILTROS Y COLUMNAS ── */}
+      <ExportInscritosCursoModal
+        open={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        curso={curso}
+        rows={rows}
+      />
     </div>
   );
 };
