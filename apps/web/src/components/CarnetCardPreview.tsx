@@ -87,6 +87,12 @@ export function CarnetCardPreview({
               src={activePhoto}
               alt="Foto Afiliado"
               crossOrigin="anonymous"
+              onError={(e) => {
+                if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                  e.currentTarget.removeAttribute('crossOrigin');
+                  e.currentTarget.src = activePhoto;
+                }
+              }}
               className="w-full h-full object-cover"
               style={isCropped ? { objectPosition: 'center center' } : { transform: 'scale(2)', transformOrigin: 'center top' }}
             />
@@ -150,7 +156,18 @@ export function CarnetCardPreview({
               <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
               <div className="flex-1 flex flex-col items-center justify-center gap-1">
                 <div className="w-full max-w-[105px] xs:max-w-[125px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 px-1">
-                  <img src={afiliado.empresa_logo_url} alt="Logo Empresa" crossOrigin="anonymous" className="max-h-full max-w-full object-contain" />
+                  <img
+                    src={afiliado.empresa_logo_url}
+                    alt="Logo Empresa"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                        e.currentTarget.removeAttribute('crossOrigin');
+                        e.currentTarget.src = afiliado.empresa_logo_url!;
+                      }
+                    }}
+                    className="max-h-full max-w-full object-contain"
+                  />
                 </div>
               </div>
             </>

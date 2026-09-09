@@ -96,3 +96,61 @@ export const presignUpload = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: error?.message || 'Error al generar URL firmada de Backblaze B2' })
   }
 }
+
+/**
+ * POST /api/cms/uploads/direct (o /api/public/uploads/direct)
+ * Body: { filename: string, contentType?: string, folder?: string, fileData: string (base64) }
+ * Returns: { success: true, data: { path, bucket, publicUrl } }
+ */
+export const directUpload = async (req: Request, res: Response) => {
+  try {
+    const s3 = getS3Client()
+    if (!s3) {
+      return res.status(500).json({
+        success: false,
+        message: 'Faltan credenciales de Backblaze B2 (KEY_ID, APPLICATION_KEY)',
+      })
+    }
+
+    const { filename, folder, contentType, fileData } = req.body as Record<string, unknown>
+    const file = typeof filename === 'string' ? filename.trim() : ''
+    const base64Content = typeof fileData === 'string' ? fileData : ''
+
+    if (!file || !base64Content) {
+      return res.status(400).json({ success: false, message: 'filename y fileData son requeridos' })
+    }
+
+    const baseFolder = typeof folder === 'string' && folder.trim() ? folder.trim() : 'uploads'
+    const bucketName = env.BUCKET_NAME || 'files-supa'
+    const mimeType = typeof contentType === 'string' && contentType.trim() ? contentType.trim() : 'application/octet-stream'
+
+    const path = buildKey(baseFolder, file)
+
+    const cleanBase64 = base64Content.replace(/^data:[^;]+;base64,/, '')
+    const buffer = Buffer.from(cleanBase64, 'base64')
+
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: path,
+      Body: buffer,
+      ContentType: mimeType,
+    })
+
+    await s3.send(command)
+
+    const baseUrl = (env.B2_PUBLIC_URL_BASE || 'https://files-supa.s3.us-east-005.backblazeb2.com/').replace(/\/$/, '')
+    const publicUrl = `${baseUrl}/${path}`
+
+    return res.json({
+      success: true,
+      data: {
+        path,
+        bucket: bucketName,
+        publicUrl,
+      },
+    })
+  } catch (error: any) {
+    console.error('directUpload error:', error)
+    return res.status(500).json({ success: false, message: error?.message || 'Error al subir archivo directamente a Storage' })
+  }
+}

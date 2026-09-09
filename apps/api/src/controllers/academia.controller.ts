@@ -1546,7 +1546,7 @@ export const adminListCursos = async (req: Request, res: Response): Promise<void
   try {
     const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : undefined
     const programaCodigo = typeof req.query?.programaCodigo === 'string' ? req.query.programaCodigo.toUpperCase() : undefined
-    const allowedEstatus = new Set(['Abierto', 'Cerrado', 'En curso'])
+    const allowedEstatus = new Set(['Abierto', 'Cerrado', 'En curso', 'Solo Informativo'])
 
     const whereParts: string[] = []
     const args: any[] = []
@@ -2202,7 +2202,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     // validar curso abierto y cupos
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, cupos_totales, estatus,
+      sql: `SELECT id_curso, cupos_totales, estatus, solo_informativo,
                    (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus IN ('Inscrito', 'Pagado')) as inscritos
             FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso, idCurso],
@@ -2212,18 +2212,89 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
       res.status(404).json({ success: false, message: 'Curso no encontrado' })
       return
     }
-    if (curso.estatus !== 'Abierto') {
-      res.status(400).json({ success: false, message: 'El curso no está abierto' })
+    const isSoloInfo = curso.estatus === 'Solo Informativo' || Number(curso.solo_informativo) === 1
+    if (curso.estatus !== 'Abierto' && !isSoloInfo) {
+      res.status(400).json({ success: false, message: 'El curso no está abierto para inscripciones' })
       return
     }
-    const cuposDisponibles = (curso.cupos_totales || 0) - (curso.inscritos || 0)
-    if (cuposDisponibles <= 0) {
-      res.status(400).json({ success: false, message: 'No hay cupos disponibles' })
-      return
+    const cuposTotales = Number(curso.cupos_totales) || 0
+    if (!isSoloInfo && cuposTotales > 0 && cuposTotales < 999999) {
+      const cuposDisponibles = cuposTotales - (curso.inscritos || 0)
+      if (cuposDisponibles <= 0) {
+        res.status(400).json({ success: false, message: 'No hay cupos disponibles' })
+        return
+      }
     }
 
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
     const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
+    const cleanEmail = email ? email.toLowerCase().trim() : '';
+
+    // Validar si ya existe persona/empresa por separado para dar mensajes descriptivos
+    if (cleanEmail) {
+      const resPE = await db.execute({
+        sql: `SELECT id, nombres, apellidos, cedula, email FROM personas WHERE LOWER(email) = ? LIMIT 1`,
+        args: [cleanEmail]
+      });
+      if (resPE.rows.length > 0) {
+        const p = resPE.rows[0] as any;
+        if (cleanCed && p.cedula && p.cedula !== cleanCed) {
+          res.status(409).json({
+            success: false,
+            message: `Ya existe un afiliado/registrado con el correo "${cleanEmail}" a nombre de otra persona (Cédula: ${p.cedula}). Por favor verifique los datos.`
+          });
+          return;
+        }
+      }
+
+      const resEE = await db.execute({
+        sql: `SELECT id_empresa, razon_social, rif_numero, email FROM empresas WHERE LOWER(email) = ? LIMIT 1`,
+        args: [cleanEmail]
+      });
+      if (resEE.rows.length > 0) {
+        const e = resEE.rows[0] as any;
+        if (cleanCed && e.rif_numero && e.rif_numero !== cleanCed) {
+          res.status(409).json({
+            success: false,
+            message: `Ya existe una empresa registrada con el correo "${cleanEmail}" (RIF: ${e.rif_numero}). Por favor verifique los datos.`
+          });
+          return;
+        }
+      }
+    }
+
+    if (cleanCed) {
+      const resPC = await db.execute({
+        sql: `SELECT id, nombres, apellidos, cedula, email FROM personas WHERE cedula = ? LIMIT 1`,
+        args: [cleanCed]
+      });
+      if (resPC.rows.length > 0) {
+        const p = resPC.rows[0] as any;
+        if (cleanEmail && p.email && p.email.toLowerCase() !== cleanEmail) {
+          res.status(409).json({
+            success: false,
+            message: `Ya existe un afiliado/registrado con la cédula "${cleanCed}" asociado al correo "${p.email}". Por favor verifique los datos.`
+          });
+          return;
+        }
+      }
+
+      const resEC = await db.execute({
+        sql: `SELECT id_empresa, razon_social, rif_numero, email FROM empresas WHERE rif_numero = ? LIMIT 1`,
+        args: [cleanCed]
+      });
+      if (resEC.rows.length > 0) {
+        const e = resEC.rows[0] as any;
+        if (cleanEmail && e.email && e.email.toLowerCase() !== cleanEmail) {
+          res.status(409).json({
+            success: false,
+            message: `Ya existe una empresa registrada con el RIF "${cleanCed}" asociada al correo "${e.email}".`
+          });
+          return;
+        }
+      }
+    }
+
     const existing = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico 
             FROM inscripciones_cursos ic
@@ -2291,9 +2362,18 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     }
 
     res.status(201).json({ success: true, message: 'Estudiante asignado e inscrito en el curso.' })
-  } catch (error) {
+  } catch (error: any) {
     console.error('adminAsignarEstudianteACurso:', error)
-    res.status(500).json({ success: false, message: 'Error al asignar estudiante' })
+    const errMsg = String(error?.message || '')
+    if (errMsg.includes('UNIQUE constraint failed: personas.email') || errMsg.includes('UNIQUE constraint failed: empresas.email')) {
+      res.status(409).json({ success: false, message: 'Ya existe un afiliado/registrado con este correo electrónico.' })
+      return
+    }
+    if (errMsg.includes('UNIQUE constraint failed: personas.cedula') || errMsg.includes('UNIQUE constraint failed: empresas.rif_numero')) {
+      res.status(409).json({ success: false, message: 'Ya existe un afiliado/registrado con esta cédula / RIF.' })
+      return
+    }
+    res.status(500).json({ success: false, message: error?.message || 'Error al asignar estudiante' })
   }
 }
 
@@ -3307,10 +3387,15 @@ export const adminCompletarCursoEstudiante = async (req: Request, res: Response)
 export const adminListEstudiantes = async (req: Request, res: Response): Promise<void> => {
   try {
     const query = typeof req.query?.query === 'string' ? req.query.query.trim().toLowerCase() : ''
+    const includeAll = req.query?.includeAll === 'true' || req.query?.tipo === 'todos' || !!query
 
     const where = query
-      ? `WHERE (tipo NOT IN ('Juridico', 'Afiliado', 'Corporativo')) AND (lower(nombre_completo) LIKE ? OR lower(email) LIKE ? OR lower(COALESCE(cedula,'')) LIKE ?)`
-      : `WHERE tipo NOT IN ('Juridico', 'Afiliado', 'Corporativo')`
+      ? (includeAll
+          ? `WHERE (lower(nombre_completo) LIKE ? OR lower(email) LIKE ? OR lower(COALESCE(cedula,'')) LIKE ?)`
+          : `WHERE (tipo NOT IN ('Juridico', 'Afiliado', 'Corporativo')) AND (lower(nombre_completo) LIKE ? OR lower(email) LIKE ? OR lower(COALESCE(cedula,'')) LIKE ?)`)
+      : (includeAll
+          ? ``
+          : `WHERE tipo NOT IN ('Juridico', 'Afiliado', 'Corporativo')`)
     const args = query ? [`%${query}%`, `%${query}%`, `%${query}%`] : []
 
     const result = await db.execute({

@@ -689,3 +689,8 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
 .animate-shake {
   animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both;
 }
+
+/* ── SweetAlert Text Justification ── */
+.swal2-html-container {
+  text-align: justify !important;
+}

@@ -579,22 +579,38 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     // Sanitizar cedulaRif (solo números para evitar errores con puntos o guiones)
     const cleanedCedulaRif = (cedulaRif || '').replace(/\D/g, '');
 
-    // Verificar si ya existe en personas o empresas
-    const existePersona = await db.execute({
-      sql: `SELECT id FROM personas WHERE email = ? OR cedula = ?`,
-      args: [email, cleanedCedulaRif]
+    // Verificar si ya existe en personas o empresas por correo
+    const existeEmailPersona = await db.execute({
+      sql: `SELECT id FROM personas WHERE LOWER(email) = ?`,
+      args: [email.toLowerCase()]
     });
-
-    const existeEmpresa = await db.execute({
-      sql: `SELECT id_empresa FROM empresas WHERE email = ? OR rif_numero = ?`,
-      args: [email, cleanedCedulaRif]
+    const existeEmailEmpresa = await db.execute({
+      sql: `SELECT id_empresa FROM empresas WHERE LOWER(email) = ?`,
+      args: [email.toLowerCase()]
     });
-
-    if (existePersona.rows.length > 0 || existeEmpresa.rows.length > 0) {
+    if (existeEmailPersona.rows.length > 0 || existeEmailEmpresa.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        message: 'El email o la cédula/RIF ya se encuentran registrados en el sistema.'
+        message: 'Ya existe un afiliado registrado con este correo electrónico.'
       });
+    }
+
+    // Verificar si ya existe en personas o empresas por cédula/RIF
+    if (cleanedCedulaRif) {
+      const existeCedulaPersona = await db.execute({
+        sql: `SELECT id FROM personas WHERE cedula = ?`,
+        args: [cleanedCedulaRif]
+      });
+      const existeRifEmpresa = await db.execute({
+        sql: `SELECT id_empresa FROM empresas WHERE rif_numero = ?`,
+        args: [cleanedCedulaRif]
+      });
+      if (existeCedulaPersona.rows.length > 0 || existeRifEmpresa.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Ya existe un afiliado registrado con esta cédula / RIF.'
+        });
+      }
     }
 
     // Verificar si ya tiene una verificación pendiente y eliminarla para usar una nueva
@@ -1201,7 +1217,7 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
       }
       return {
         ...row,
-        foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
+        foto_url: (row.foto_url as string) || (origRedes?.foto_original_url as string) || (origRedes?.foto_carnet_url as string) || null,
         redes_sociales: {
           ...origRedes,
           instagram: row.instagram || origRedes.instagram || '',
@@ -1342,7 +1358,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
 
     const mappedData: any = {
       ...row,
-      foto_url: (row.foto_url as string) || avatarFallback(row.nombre_completo as string),
+      foto_url: (row.foto_url as string) || (origRedes?.foto_original_url as string) || (origRedes?.foto_carnet_url as string) || null,
       redes_sociales: {
         ...origRedes,
         instagram: row.instagram || origRedes.instagram || '',
@@ -1365,7 +1381,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
       });
       mappedData.afiliados_asociados = assocResult.rows.map((r: any) => ({
         ...r,
-        foto_url: (r.foto_url as string) || avatarFallback(r.nombre_completo)
+        foto_url: (r.foto_url as string) || null
       }));
 
       const corpItem = assocResult.rows.find((r: any) => r.tipo_afiliado === 'Corporativo');
@@ -2802,20 +2818,50 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    // Verificar duplicados en personas
+    // Verificar duplicados en personas y empresas
     const cedulaInput = String(cedula || '').trim();
     const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
     const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
     const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
 
-    const existing = await db.execute({
-      sql: 'SELECT id FROM personas WHERE email = ? OR cedula = ?',
-      args: [email, cedulaNumero]
-    });
+    if (finalEmail) {
+      const existingEmailP = await db.execute({
+        sql: 'SELECT id, cedula FROM personas WHERE LOWER(email) = ?',
+        args: [finalEmail]
+      });
+      if (existingEmailP.rows.length > 0) {
+        res.status(400).json({ success: false, message: `Ya existe un afiliado registrado con el correo "${finalEmail}".` });
+        return;
+      }
 
-    if (existing.rows.length > 0) {
-      res.status(400).json({ success: false, message: 'Ya existe un registro con ese email o Cédula.' });
-      return;
+      const existingEmailE = await db.execute({
+        sql: 'SELECT id_empresa, rif_numero FROM empresas WHERE LOWER(email) = ?',
+        args: [finalEmail]
+      });
+      if (existingEmailE.rows.length > 0) {
+        res.status(400).json({ success: false, message: `Ya existe una empresa registrada con el correo "${finalEmail}".` });
+        return;
+      }
+    }
+
+    if (cedulaNumero) {
+      const existingCedP = await db.execute({
+        sql: 'SELECT id, email FROM personas WHERE cedula = ?',
+        args: [cedulaNumero]
+      });
+      if (existingCedP.rows.length > 0) {
+        res.status(400).json({ success: false, message: `Ya existe un afiliado registrado con la cédula "${cedulaNumero}".` });
+        return;
+      }
+
+      const existingRifE = await db.execute({
+        sql: 'SELECT id_empresa, email FROM empresas WHERE rif_numero = ?',
+        args: [cedulaNumero]
+      });
+      if (existingRifE.rows.length > 0) {
+        res.status(400).json({ success: false, message: `Ya existe una empresa registrada con el RIF "${cedulaNumero}".` });
+        return;
+      }
     }
 
     // 1. Insertar Persona
@@ -2953,9 +2999,18 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
       message: 'Afiliado creado correctamente',
       data: newAfiliado
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error en createAfiliado:', error);
-    res.status(500).json({ success: false, message: 'Error interno al crear afiliado' });
+    const errMsg = String(error?.message || '');
+    if (errMsg.includes('UNIQUE constraint failed: personas.email') || errMsg.includes('UNIQUE constraint failed: empresas.email')) {
+      res.status(409).json({ success: false, message: 'Ya existe un afiliado registrado con este correo electrónico.' });
+      return;
+    }
+    if (errMsg.includes('UNIQUE constraint failed: personas.cedula') || errMsg.includes('UNIQUE constraint failed: empresas.rif_numero')) {
+      res.status(409).json({ success: false, message: 'Ya existe un afiliado registrado con esta cédula / RIF.' });
+      return;
+    }
+    res.status(500).json({ success: false, message: error?.message || 'Error interno al crear afiliado' });
   }
 };
 

@@ -15,7 +15,7 @@ import {
 } from '../controllers/academia.controller.js';
 import { getPaginaBySlug, publicListNormativas } from '../controllers/cms.controller.js';
 import { publicGetComprobanteByCodigo } from '../controllers/certificados.controller.js';
-import { presignUpload } from '../controllers/uploads.controller.js';
+import { presignUpload, directUpload } from '../controllers/uploads.controller.js';
 
 const router = Router();
 
@@ -33,6 +33,7 @@ router.post('/preinscripciones', publicPreinscribirProgramaPrincipal);
 
 // POST /api/public/uploads/presign (Public access for registration documents)
 router.post('/uploads/presign', presignUpload);
+router.post('/uploads/direct', directUpload);
 
 // POST /api/public/preinscripciones/confirmar
 router.post('/preinscripciones/confirmar', publicConfirmarPreinscripcionPrograma);

@@ -1585,6 +1585,29 @@ const CursosAdminPanel = () => {
 const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack: () => void, token: string | null }) => {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRows = React.useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    const q = searchQuery.toLowerCase().trim();
+    return rows.filter(r => {
+      const nombre = (r.estudiante_nombre || '').toLowerCase();
+      const cedula = (r.estudiante_cedula || '').toLowerCase();
+      const email = (r.estudiante_email || '').toLowerCase();
+      const telefono = (r.estudiante_telefono || '').toLowerCase();
+      const estatus = (r.estatus || '').toLowerCase();
+      const completadoText = r.completado === 1 ? 'completado graduado' : '';
+
+      return (
+        nombre.includes(q) ||
+        cedula.includes(q) ||
+        email.includes(q) ||
+        telefono.includes(q) ||
+        estatus.includes(q) ||
+        completadoText.includes(q)
+      );
+    });
+  }, [rows, searchQuery]);
 
   // Modal Inscribir State
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
@@ -2008,10 +2031,10 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === rows.length) {
+    if (selectedIds.length === filteredRows.length && filteredRows.length > 0) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(rows.map(r => r.id_inscripcion));
+      setSelectedIds(filteredRows.map(r => r.id_inscripcion));
     }
   };
 
@@ -2170,7 +2193,28 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] sm:min-w-[260px]">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nombre, cédula, correo..."
+              className="w-full pl-9 pr-8 py-2 bg-white text-xs text-slate-800 placeholder-slate-400 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] transition-all shadow-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                title="Limpiar búsqueda"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <button
             onClick={exportPDF}
             className="flex items-center gap-2 bg-[#E9FAF4] hover:bg-[#D3F5E7] text-[#00B870] text-xs font-bold py-2.5 px-4 rounded-xl border border-[#00D084]/20 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer"
@@ -2285,6 +2329,23 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <h4 className="text-lg font-bold text-slate-800 mb-2">Sin participantes registrados</h4>
             <p className="text-sm text-slate-400 max-w-xs mx-auto font-medium">Aún no se han recibido solicitudes de preinscripción para este programa académico.</p>
           </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center p-12 text-center">
+            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 text-slate-300">
+              <Search className="w-8 h-8" />
+            </div>
+            <h4 className="text-base font-bold text-slate-800 mb-1">Sin resultados de búsqueda</h4>
+            <p className="text-xs text-slate-400 max-w-xs mx-auto font-medium mb-4">
+              No se encontraron participantes que coincidan con &quot;<span className="font-semibold text-slate-600">{searchQuery}</span>&quot;.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            >
+              Limpiar búsqueda
+            </button>
+          </div>
         ) : (
           <div className="h-full overflow-auto">
             <table className="w-full text-sm">
@@ -2293,7 +2354,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   <th className="px-4 py-4 text-center w-12">
                     <input
                       type="checkbox"
-                      checked={rows.length > 0 && selectedIds.length === rows.length}
+                      checked={filteredRows.length > 0 && selectedIds.length === filteredRows.length}
                       onChange={toggleSelectAll}
                       className="w-4 h-4 rounded border-slate-300 text-[#00D084] focus:ring-[#00D084] cursor-pointer accent-[#00D084]"
                       title="Seleccionar todos"
@@ -2309,7 +2370,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {rows.map(r => {
+                {filteredRows.map(r => {
                   const isSelected = selectedIds.includes(r.id_inscripcion);
                   return (
                     <tr

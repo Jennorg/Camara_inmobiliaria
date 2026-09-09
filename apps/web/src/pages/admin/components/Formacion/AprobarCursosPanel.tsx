@@ -159,7 +159,7 @@ export default function AprobarCursosPanel() {
       if (jsonCursos.success && Array.isArray(jsonCursos.data)) {
         setCursosDisponibles(jsonCursos.data);
         if (jsonCursos.data.length > 0) {
-          const primerAbierto = jsonCursos.data.find((c: any) => c.estatus === 'Abierto') || jsonCursos.data[0];
+          const primerAbierto = jsonCursos.data.find((c: any) => c.estatus === 'Abierto' || c.estatus === 'Solo Informativo' || c.solo_informativo === 1) || jsonCursos.data[0];
           setSelectedCursoId(String(primerAbierto.id_curso));
         }
       }

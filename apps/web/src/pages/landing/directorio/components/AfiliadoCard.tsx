@@ -58,21 +58,29 @@ function getTipoAfiliadoMeta(tipo?: string) {
   };
 }
 
+const isValidImage = (url?: string | null) =>
+  !!url &&
+  url.trim() !== '' &&
+  !url.includes('ui-avatars.com') &&
+  !url.toLowerCase().includes('pendiente') &&
+  !url.includes('test.jpg') &&
+  !url.includes('test.png');
+
 function getCardImage(afiliado: AfiliadoData, isCorpView: boolean) {
   let redes = afiliado.redes_sociales;
   if (typeof redes === 'string') {
     try { redes = JSON.parse(redes); } catch { redes = {}; }
   }
-  // La foto pública en /miembros es SIEMPRE la foto original del afiliado.
-  // Nunca se debe usar foto_junta_url, foto_carnet_url ni foto_junta_carnet_url aquí;
-  // esas fotos son exclusivas del carnet y del icono interno del header.
-  const publicFotoUrl = redes?.foto_original_url || afiliado.foto_url || null;
+  const rawFoto = redes?.foto_original_url || afiliado.foto_url || null;
+  const realFoto = isValidImage(rawFoto) ? rawFoto : null;
+  const realLogo = isValidImage(afiliado.empresa_logo_url) ? afiliado.empresa_logo_url : null;
 
   if (isCorpView) {
-    const url = publicFotoUrl || afiliado.empresa_logo_url || null;
-    return { url };
+    const url = realFoto || realLogo || null;
+    return { url, isLogo: !realFoto && !!realLogo };
   }
-  return { url: publicFotoUrl || null };
+  const url = realFoto || realLogo || null;
+  return { url, isLogo: !realFoto && !!realLogo };
 }
 
 /** Skeleton pulse placeholder shown while an image is loading */
@@ -91,14 +99,16 @@ function CardImage({
   isCorpView: boolean;
   size?: 'default' | 'mini';
 }) {
-  const { url } = getCardImage(afiliado, isCorpView);
-  const isLogo = !afiliado.foto_url && !!afiliado.empresa_logo_url;
+  const { url, isLogo } = getCardImage(afiliado, isCorpView);
   const initials = getInitials(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos);
   const alt = isCorpView
     ? (isLogo ? `Logo de ${afiliado.empresa_razon_social || afiliado.nombre_completo}` : `Foto del representante de ${afiliado.empresa_razon_social || afiliado.nombre_completo}`)
     : `Foto de ${afiliado.nombre_completo}`;
 
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  const showImage = !!url && !error;
 
   if (size === 'mini') {
     return (
@@ -106,17 +116,18 @@ function CardImage({
         className={`relative w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 border-white dark:border-[#04432f] shadow-sm flex items-center justify-center ${isLogo ? 'bg-white p-1.5' : 'bg-[#022c22]'
           }`}
       >
-        {url ? (
+        {showImage ? (
           <div className="relative w-full h-full">
             <div className={`absolute inset-0 transition-opacity duration-500 ${loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
               <ImageSkeleton />
             </div>
             <img
-              src={url}
+              src={url!}
               alt={alt}
               loading="lazy"
               decoding="async"
               onLoad={() => setLoaded(true)}
+              onError={() => { setLoaded(true); setError(true); }}
               className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover'} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </div>
@@ -132,17 +143,18 @@ function CardImage({
       <div
         className={`relative w-full h-full flex items-center justify-center ${isLogo ? 'bg-white p-8' : 'bg-[#022c22]'}`}
       >
-        {url ? (
+        {showImage ? (
           <div className="relative w-full h-full">
             <div className={`absolute inset-0 transition-opacity duration-500 ${loaded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
               <ImageSkeleton />
             </div>
             <img
-              src={url}
+              src={url!}
               alt={alt}
               loading="lazy"
               decoding="async"
               onLoad={() => setLoaded(true)}
+              onError={() => { setLoaded(true); setError(true); }}
               className={`w-full h-full ${isLogo ? 'object-contain' : 'object-cover object-top'} group-hover:scale-105 transition-transform duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </div>

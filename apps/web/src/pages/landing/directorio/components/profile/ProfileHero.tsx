@@ -44,19 +44,21 @@ export const ProfileHero = ({
 
   const yearsExp = afiliado.anos_servicio || (afiliado.ano_inicio_servicio ? (new Date().getFullYear() - afiliado.ano_inicio_servicio) : null) || 0;
 
+  const isValidImg = (u?: string | null) =>
+    !!u &&
+    u.trim() !== '' &&
+    !u.includes('ui-avatars.com') &&
+    !u.toLowerCase().includes('pendiente') &&
+    !u.includes('test.jpg') &&
+    !u.includes('test.png');
+
   const activePhoto = (() => {
     let redes = afiliado.redes_sociales;
     if (typeof redes === 'string') {
       try { redes = JSON.parse(redes); } catch { redes = {}; }
     }
-    // La foto pública del perfil es SIEMPRE la foto original.
-    // foto_junta_url, foto_carnet_url y foto_junta_carnet_url son exclusivas
-    // del carnet y del icono interno — nunca se muestran en el perfil público.
-    return (
-      redes?.foto_original_url ||
-      afiliado.foto_url ||
-      null
-    );
+    const raw = redes?.foto_original_url || afiliado.foto_url || null;
+    return isValidImg(raw) ? raw : null;
   })();
 
   const phoneForWa = isCorporativo ? afiliado.empresa_telefono || afiliado.telefono : afiliado.telefono;
@@ -65,7 +67,8 @@ export const ProfileHero = ({
   const isAgent = afiliado.tipo_afiliado === 'Agente' || afiliado.tipo_afiliado === 'Agente Corporativo';
   const isIndependent = afiliado.tipo_afiliado === 'Natural' || (!isCorporativo && !isAgent);
 
-  const actualCompanyLogo = companyLogo || afiliado.empresa_logo_url || null;
+  const rawLogo = companyLogo || afiliado.empresa_logo_url || null;
+  const actualCompanyLogo = isValidImg(rawLogo) ? rawLogo : null;
   const logoToShow = actualCompanyLogo;
 
   const handleShare = async () => {

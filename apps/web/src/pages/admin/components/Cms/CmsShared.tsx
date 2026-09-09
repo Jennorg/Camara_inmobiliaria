@@ -171,7 +171,46 @@ export const uploadFileStorage = async (file: File, folder: string, skipCompress
     }
   }
 
-  const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
+  // 1. Intentar subir mediante presigned URL
+  try {
+    const presignRes = await fetch(`${API_URL}/api/public/uploads/presign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename: fileToUpload.name,
+        contentType: fileToUpload.type || 'application/octet-stream',
+        folder,
+      }),
+    });
+    const presignJson = await presignRes.json();
+    if (presignRes.ok && presignJson?.success && presignJson?.data?.signedUploadUrl) {
+      const { signedUploadUrl, publicUrl } = presignJson.data as { signedUploadUrl: string; publicUrl: string };
+      const putRes = await fetch(signedUploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': fileToUpload.type || 'application/octet-stream',
+        },
+        body: fileToUpload,
+      });
+      if (putRes.ok) {
+        return publicUrl;
+      }
+    }
+  } catch (err) {
+    console.warn('Presigned upload falló o fue bloqueado por CORS, intentando subida directa al servidor:', err);
+  }
+
+  // 2. Fallback: Subida directa al servidor (base64)
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(fileToUpload);
+  });
+
+  const directRes = await fetch(`${API_URL}/api/public/uploads/direct`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -180,23 +219,16 @@ export const uploadFileStorage = async (file: File, folder: string, skipCompress
       filename: fileToUpload.name,
       contentType: fileToUpload.type || 'application/octet-stream',
       folder,
+      fileData: base64,
     }),
-  })
-  const presignJson = await presignRes.json()
-  if (!presignRes.ok || !presignJson?.success) throw new Error(presignJson?.message || 'No se pudo generar URL de subida')
+  });
 
-  const { signedUploadUrl, publicUrl } = presignJson.data as { signedUploadUrl: string; publicUrl: string }
-  
-  const putRes = await fetch(signedUploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': fileToUpload.type || 'application/octet-stream',
-    },
-    body: fileToUpload,
-  })
-  if (!putRes.ok) throw new Error('No se pudo subir el archivo a Storage')
+  const directJson = await directRes.json();
+  if (!directRes.ok || !directJson?.success) {
+    throw new Error(directJson?.message || 'No se pudo subir el archivo a Storage');
+  }
 
-  return publicUrl
+  return directJson.data.publicUrl;
 }
 
 // Alias para retrocompatibilidad
