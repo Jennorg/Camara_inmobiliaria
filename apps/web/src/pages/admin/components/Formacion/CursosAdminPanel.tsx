@@ -1586,6 +1586,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState<'todos' | 'nombre' | 'cedula' | 'email' | 'telefono'>('todos');
 
   const filteredRows = React.useMemo(() => {
     if (!searchQuery.trim()) return rows;
@@ -1598,6 +1599,11 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       const estatus = (r.estatus || '').toLowerCase();
       const completadoText = r.completado === 1 ? 'completado graduado' : '';
 
+      if (searchField === 'nombre') return nombre.includes(q);
+      if (searchField === 'cedula') return cedula.includes(q);
+      if (searchField === 'email') return email.includes(q);
+      if (searchField === 'telefono') return telefono.includes(q);
+
       return (
         nombre.includes(q) ||
         cedula.includes(q) ||
@@ -1607,7 +1613,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         completadoText.includes(q)
       );
     });
-  }, [rows, searchQuery]);
+  }, [rows, searchQuery, searchField]);
 
   // Modal Inscribir State
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
@@ -2194,25 +2200,46 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[200px] sm:min-w-[260px]">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nombre, cédula, correo..."
-              className="w-full pl-9 pr-8 py-2 bg-white text-xs text-slate-800 placeholder-slate-400 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] transition-all shadow-xs"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
-                title="Limpiar búsqueda"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-all">
+            <select
+              value={searchField}
+              onChange={e => setSearchField(e.target.value as any)}
+              className="bg-slate-50 text-[11px] font-bold text-slate-700 px-3 py-2 border-r border-gray-200 outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+              title="Filtrar búsqueda por campo"
+            >
+              <option value="todos">Todos los campos</option>
+              <option value="nombre">Nombre</option>
+              <option value="cedula">Cédula</option>
+              <option value="email">Correo</option>
+              <option value="telefono">Teléfono</option>
+            </select>
+
+            <div className="relative flex-1 min-w-[170px] sm:min-w-[220px]">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={
+                  searchField === 'nombre' ? 'Buscar por nombre...' :
+                  searchField === 'cedula' ? 'Buscar por cédula...' :
+                  searchField === 'email' ? 'Buscar por correo...' :
+                  searchField === 'telefono' ? 'Buscar por teléfono...' :
+                  'Buscar participante...'
+                }
+                className="w-full pl-8 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 outline-none bg-transparent"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           <button
