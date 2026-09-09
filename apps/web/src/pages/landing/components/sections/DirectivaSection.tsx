@@ -17,6 +17,8 @@ import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.webp'
 import imgRina from '@/assets/Junta_directiva/Rina.webp'
 import imgPedroC from '@/assets/Junta_directiva/Pedro_C.webp'
 
+import PatrocinantesCarrusel from '@/pages/landing/components/PatrocinantesCarrusel'
+
 const s = STATIC.directiva
 
 interface MiembroDirectiva {
@@ -103,6 +105,8 @@ export default function DirectivaSection() {
   return (
     <section id='directiva' className='bg-white px-6 lg:px-20 pt-20 lg:pt-24 pb-24 scroll-mt-24 overflow-hidden relative'>
       <div className='max-w-7xl mx-auto space-y-16 relative'>
+        <PatrocinantesCarrusel />
+
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
             <p className='text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs'>

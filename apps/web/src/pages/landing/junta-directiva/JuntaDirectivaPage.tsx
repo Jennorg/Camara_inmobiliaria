@@ -6,6 +6,7 @@ import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
 import { apiUrl } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
+import PatrocinantesCarrusel from '@/pages/landing/components/PatrocinantesCarrusel'
 
 // Import directiva images from the repo
 import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
@@ -169,6 +170,8 @@ export default function EquipoDirectivo() {
       </header>
       <main className='bg-[#f1f5f9] text-slate-900 rounded-t-[2.5rem] sm:rounded-t-[4rem] -mt-8 sm:-mt-12 relative z-10 px-4 sm:px-6 lg:px-20 py-12 sm:py-20 lg:py-24'>
         <div className='max-w-7xl mx-auto'>
+          <PatrocinantesCarrusel />
+
           <div className='text-center mb-10 sm:mb-16'>
             <h2 className='text-2xl sm:text-3xl lg:text-4xl font-black text-[#022c22] tracking-tight mb-3 sm:mb-4'>Conoce a Nuestra Junta Directiva</h2>
             <p className='text-slate-600 text-sm sm:text-lg max-w-2xl mx-auto leading-relaxed'>Profesionales comprometidos con el desarrollo y fortalecimiento del sector inmobiliario en el estado Bolívar.</p>
