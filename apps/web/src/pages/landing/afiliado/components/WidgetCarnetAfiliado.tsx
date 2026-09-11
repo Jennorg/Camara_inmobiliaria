@@ -11,6 +11,7 @@ import getCroppedImg from '@/utils/cropImage';
 import { compressImage } from '@/utils/imageCompressor';
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
+import { formatNombreCard } from '@/utils/formatters';
 
 import QRCode from 'qrcode';
 
@@ -498,7 +499,7 @@ export default function WidgetCarnetAfiliado({
               {/* Bloque Nombre, Apellido y Código */}
               <div className="text-center leading-none my-0.5 xs:my-1">
                 <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-                  {afiliado.nombres} {afiliado.apellidos}
+                  {formatNombreCard(afiliado.nombres || (afiliado as any).representante_nombre || (afiliado as any).nombre_completo, afiliado.apellidos)}
                 </div>
                 <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
                   <span className="font-extrabold">AFILIADO - CÓDIGO:</span>{' '}

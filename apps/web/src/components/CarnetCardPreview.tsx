@@ -2,6 +2,7 @@ import React from 'react';
 import { Pencil, RefreshCw } from 'lucide-react';
 import { AfiliadoDTO } from '@/types/afiliados';
 import LogoBgImg from '@/assets/Logo4.webp';
+import { formatNombreCard } from '@/utils/formatters';
 
 interface CarnetCardPreviewProps {
   cardRef?: React.RefObject<HTMLDivElement | null>;
@@ -47,8 +48,10 @@ export function CarnetCardPreview({
   };
   const label = afiliado.tipo_afiliado ? (tipoLabelMap[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado) : null;
 
-  const nombreMostrar = afiliado.nombres || (afiliado as any).representante_nombre || (afiliado as any).nombre_completo || '';
-  const apellidoMostrar = afiliado.apellidos || '';
+  const nombreCarnet = formatNombreCard(
+    afiliado.nombres || (afiliado as any).representante_nombre || (afiliado as any).nombre_completo,
+    afiliado.apellidos
+  );
 
   return (
     <div
@@ -98,7 +101,7 @@ export function CarnetCardPreview({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
-              {nombreMostrar ? nombreMostrar.charAt(0) : 'A'}
+              {nombreCarnet ? nombreCarnet.charAt(0) : 'A'}
             </div>
           )}
 
@@ -127,7 +130,7 @@ export function CarnetCardPreview({
 
         <div className="text-center leading-none my-0.5 xs:my-1">
           <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-            {nombreMostrar} {apellidoMostrar}
+            {nombreCarnet}
           </div>
           <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
             <span className="font-extrabold">AFILIADO - CÓDIGO:</span> {afiliado.codigo}

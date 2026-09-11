@@ -11,6 +11,7 @@ import getCroppedImg from '@/utils/cropImage';
 import { compressImage } from '@/utils/imageCompressor';
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared';
 import NotificationCenter from '@/components/NotificationCenter';
+import { formatNombreCard } from '@/utils/formatters';
 import QRCode from 'qrcode';
 
 interface DashboardHeaderProps {
@@ -589,7 +590,7 @@ const DashboardHeader = ({
                         {/* Detalles */}
                         <div className="text-center leading-none my-0.5 xs:my-1">
                           <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
-                            {afiliado?.nombres} {afiliado?.apellidos}
+                            {formatNombreCard(afiliado?.nombres || (afiliado as any)?.representante_nombre || (afiliado as any)?.nombre_completo, afiliado?.apellidos)}
                           </div>
                           <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
                             <span className="font-extrabold">AFILIADO - CÓDIGO:</span>{' '}
@@ -665,24 +666,7 @@ const DashboardHeader = ({
                     </div>
                   </div>
 
-                  {/* Botón Descargar */}
-                  <button
-                    onClick={handleDownload}
-                    disabled={exporting}
-                    className="w-full max-w-[310px] h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs tracking-wider uppercase shadow-md flex items-center justify-center gap-2 disabled:opacity-75 cursor-pointer"
-                  >
-                    {exporting ? (
-                      <>
-                        <Loader2 className="animate-spin" size={14} />
-                        Generando...
-                      </>
-                    ) : (
-                      <>
-                        <Download size={14} />
-                        Descargar PNG
-                      </>
-                    )}
-                  </button>
+
                 </>
               ) : (
                 <div className="py-4 text-center space-y-3 flex flex-col items-center">

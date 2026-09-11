@@ -145,7 +145,9 @@ END:VCARD`;
           <div>
             <div className="flex flex-col sm:flex-row sm:items-start md:items-center justify-between gap-4 mt-1">
               <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight uppercase leading-tight">
-                {formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
+                {isCorporativo
+                  ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
+                  : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
               </h1>
               <span className="shrink-0 inline-flex items-center text-[9px] font-black tracking-widest text-emerald-700 bg-emerald-100/60 px-3 py-1.5 rounded-md uppercase">
                 {isCorporativo ? 'MIEMBRO CORPORATIVO' : isAgent ? 'AGENTE CORPORATIVO' : 'ASESOR INMOBILIARIO'}

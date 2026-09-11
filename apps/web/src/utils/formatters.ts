@@ -18,39 +18,28 @@ export const formatNombreCard = (
     return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
   };
 
-  // CASO A: Se pasan nombres y apellidos por separado (Recomendado)
-  if (arg2 !== undefined) {
-    const primerNombre = (arg1 || '').trim().split(/\s+/)[0];
-    const primerApellido = (arg2 || '').trim().split(/\s+/)[0];
-    
-    if (!primerNombre && !primerApellido) return '';
+  const clean1 = (arg1 || '').trim();
+  const clean2 = (arg2 || '').trim();
+
+  // CASO A: Se pasan columna nombres y columna apellidos por separado
+  // Toma la primera palabra de la columna nombres y la primera palabra de la columna apellidos
+  if (clean1 && clean2) {
+    const primerNombre = clean1.split(/\s+/)[0];
+    const primerApellido = clean2.split(/\s+/)[0];
     return `${capitalize(primerNombre)} ${capitalize(primerApellido)}`.trim();
   }
 
-  // CASO B: Se pasa un solo string con el nombre completo
-  if (!arg1) return '';
-  const parts = arg1.trim().split(/\s+/);
-  
-  if (parts.length === 0) return '';
+  // CASO B: Solo se dispone de un único string (ej. nombre_completo)
+  const text = clean1 || clean2;
+  if (!text) return '';
+
+  const parts = text.split(/\s+/);
   if (parts.length === 1) return capitalize(parts[0]);
+  if (parts.length === 2) return `${capitalize(parts[0])} ${capitalize(parts[1])}`;
 
   const firstName = capitalize(parts[0]);
-
-  /**
-   * Heurística para el primer apellido en un string completo:
-   * - 2 partes: [Nombre] [Apellido1] -> parts[1]
-   * - 3 partes: [Nombre] [Apellido1] [Apellido2] O [Nombre1] [Nombre2] [Apellido1]
-   *   Asumimos [Nombre] [Apellido1] [Apellido2] como lo más común para 3 partes. -> parts[1]
-   * - 4 partes: [Nombre1] [Nombre2] [Apellido1] [Apellido2] -> parts[2]
-   */
-  let firstSurname = '';
-  if (parts.length >= 4) {
-    firstSurname = capitalize(parts[2]);
-  } else {
-    firstSurname = capitalize(parts[1]);
-  }
-
-  return `${firstName} ${firstSurname}`;
+  const firstSurname = parts.length >= 4 ? capitalize(parts[2]) : capitalize(parts[parts.length - 1]);
+  return `${firstName} ${firstSurname}`.trim();
 };
 
 /**
