@@ -68,7 +68,7 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
     const userId = user.id
 
     // 1. Intentar buscar en afiliados
-    const resultAfiliado = await db.execute({
+    let resultAfiliado = await db.execute({
       sql: `SELECT a.id_afiliado, a.id_persona, a.id_empresa, a.codigo, a.tipo_afiliado,
                    COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
                    p.cedula, p.telefono,
@@ -76,9 +76,37 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-            WHERE a.id_user = ?`,
+            WHERE a.id_user = ? AND a.eliminado_en IS NULL`,
       args: [userId]
     })
+
+    // Fallback por correo si id_user no estaba explícitamente vinculado
+    if (resultAfiliado.rows.length === 0 && user.email) {
+      const cleanEmail = user.email.trim().toLowerCase()
+      resultAfiliado = await db.execute({
+        sql: `SELECT a.id_afiliado, a.id_persona, a.id_empresa, a.codigo, a.tipo_afiliado,
+                     COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
+                     p.cedula, p.telefono,
+                     COALESCE(e.razon_social, e_by_email.razon_social) as empresa_nombre
+              FROM afiliados a
+              LEFT JOIN personas p ON a.id_persona = p.id
+              LEFT JOIN personas p_by_email ON LOWER(TRIM(p_by_email.email)) = ?
+              LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+              LEFT JOIN empresas e_by_email ON LOWER(TRIM(e_by_email.email)) = ?
+              WHERE a.eliminado_en IS NULL
+                AND (a.id_persona = p_by_email.id OR a.id_empresa = e_by_email.id_empresa)
+              LIMIT 1`,
+        args: [cleanEmail, cleanEmail]
+      })
+
+      if (resultAfiliado.rows.length > 0) {
+        const afiId = resultAfiliado.rows[0].id_afiliado
+        await db.execute({
+          sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ? AND id_user IS NULL`,
+          args: [userId, afiId]
+        }).catch(err => console.warn('Error auto-vinculando id_user en afiliados:', err))
+      }
+    }
 
     if (resultAfiliado.rows.length > 0) {
       const afi = resultAfiliado.rows[0]

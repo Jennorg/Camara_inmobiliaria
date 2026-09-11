@@ -6,6 +6,7 @@ import { resetCredenciales } from '../lib/credentials.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { isSuperAdmin, isAdmin, isAsistente, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
+import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 
@@ -177,6 +178,7 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     // Sincronizar/crear cuentas de usuario en `users` para afiliados que carecen de ellas
     try {
+      // 1. Crear usuarios para personas de afiliados individuales que no tienen usuario
       await db.execute({
         sql: `INSERT INTO users (email, password_hash, roles, activo)
               SELECT LOWER(TRIM(p.email)), '$2a$10$dummyHashToPreventEmptyLogin', '["afiliado"]', 1
@@ -188,17 +190,94 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
         args: []
       });
 
+      // 2. Crear usuarios para empresas de afiliados corporativos que no tienen usuario
+      await db.execute({
+        sql: `INSERT INTO users (email, password_hash, roles, activo)
+              SELECT LOWER(TRIM(e.email)), '$2a$10$dummyHashToPreventEmptyLogin', '["afiliado"]', 1
+              FROM afiliados a
+              JOIN empresas e ON a.id_empresa = e.id_empresa
+              WHERE (a.id_user IS NULL OR a.id_user NOT IN (SELECT id FROM users))
+                AND e.email IS NOT NULL AND TRIM(e.email) != ''
+                AND LOWER(TRIM(e.email)) NOT IN (SELECT LOWER(TRIM(email)) FROM users)`,
+        args: []
+      });
+
+      // 3. Vincular id_user en afiliados (por id_persona email)
       await db.execute({
         sql: `UPDATE afiliados
               SET id_user = (
                 SELECT u.id FROM users u 
-                WHERE LOWER(TRIM(u.email)) = LOWER(TRIM((SELECT p.email FROM personas p WHERE p.id = afiliados.id_persona)))
+                JOIN personas p ON LOWER(TRIM(p.email)) = LOWER(TRIM(u.email))
+                WHERE p.id = afiliados.id_persona
+                  AND u.id NOT IN (SELECT id_user FROM afiliados WHERE id_user IS NOT NULL)
                 LIMIT 1
               )
-              WHERE id_user IS NULL OR id_user NOT IN (SELECT id FROM users)`,
+              WHERE id_persona IS NOT NULL
+                AND (id_user IS NULL OR id_user NOT IN (SELECT id FROM users))
+                AND EXISTS (
+                  SELECT 1 FROM users u 
+                  JOIN personas p ON LOWER(TRIM(p.email)) = LOWER(TRIM(u.email))
+                  WHERE p.id = afiliados.id_persona
+                    AND u.id NOT IN (SELECT id_user FROM afiliados WHERE id_user IS NOT NULL)
+                )`,
         args: []
       });
-      // Limpiar usuarios ficticios huérfanos sin vincular para no duplicar filas en Control de Acceso
+
+      // 4. Vincular id_user en empresas (por empresa email)
+      await db.execute({
+        sql: `UPDATE empresas
+              SET id_user = (
+                SELECT u.id FROM users u 
+                WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(empresas.email))
+                  AND u.id NOT IN (SELECT id_user FROM empresas WHERE id_user IS NOT NULL)
+                LIMIT 1
+              )
+              WHERE email IS NOT NULL AND TRIM(email) != ''
+                AND (id_user IS NULL OR id_user NOT IN (SELECT id FROM users))
+                AND EXISTS (
+                  SELECT 1 FROM users u 
+                  WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(empresas.email))
+                    AND u.id NOT IN (SELECT id_user FROM empresas WHERE id_user IS NOT NULL)
+                )`,
+        args: []
+      });
+
+      // 5. Vincular id_user en afiliados (por id_empresa) si la empresa tiene id_user
+      await db.execute({
+        sql: `UPDATE afiliados
+              SET id_user = (
+                SELECT e.id_user FROM empresas e
+                WHERE e.id_empresa = afiliados.id_empresa
+                  AND e.id_user IS NOT NULL
+                  AND e.id_user NOT IN (SELECT id_user FROM afiliados WHERE id_user IS NOT NULL)
+                LIMIT 1
+              )
+              WHERE id_empresa IS NOT NULL
+                AND (id_user IS NULL OR id_user NOT IN (SELECT id FROM users))
+                AND EXISTS (
+                  SELECT 1 FROM empresas e
+                  WHERE e.id_empresa = afiliados.id_empresa
+                    AND e.id_user IS NOT NULL
+                    AND e.id_user NOT IN (SELECT id_user FROM afiliados WHERE id_user IS NOT NULL)
+                )`,
+        args: []
+      });
+
+      // 6. Asignar código a afiliados aprobados ('Afiliado') que tengan código nulo o vacío
+      const afisSinCodigo = await db.execute({
+        sql: `SELECT id_afiliado FROM afiliados 
+              WHERE estatus = 'Afiliado' AND (codigo IS NULL OR TRIM(codigo) = '') AND eliminado_en IS NULL`,
+        args: []
+      });
+      for (const row of afisSinCodigo.rows) {
+        const nextCode = await obtenerSiguienteCodigoAfiliado();
+        await db.execute({
+          sql: `UPDATE afiliados SET codigo = ? WHERE id_afiliado = ?`,
+          args: [nextCode, row.id_afiliado]
+        });
+      }
+
+      // 7. Limpiar usuarios ficticios huérfanos sin vincular para no duplicar filas en Control de Acceso
       await db.execute({
         sql: `DELETE FROM users
               WHERE password_hash = '$2a$10$dummyHashToPreventEmptyLogin'
@@ -212,16 +291,18 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
     }
 
     const result = await db.execute({
-      sql: `SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
-                   COALESCE(a.id_afiliado, a_emp.id_afiliado) AS id_afiliado,
-                   COALESCE(a.tipo_afiliado, a_emp.tipo_afiliado) AS tipo_afiliado,
-                   COALESCE(p.email, p_by_email.email, p_est.email) AS persona_email,
+      sql: `            SELECT u.id, u.email, u.roles, u.activo, u.creado_en,
+                   COALESCE(a.id_afiliado, a_emp.id_afiliado, a_p_email.id_afiliado, a_e_email.id_afiliado, a_rep.id_afiliado) AS id_afiliado,
+                   COALESCE(a.tipo_afiliado, a_emp.tipo_afiliado, a_p_email.tipo_afiliado, a_e_email.tipo_afiliado, a_rep.tipo_afiliado) AS tipo_afiliado,
+                   COALESCE(p.email, p_a_emp.email, p_rep.email, p_by_email.email, p_est.email) AS persona_email,
                    COALESCE(e.email, e_emp.email, e_by_email.email) AS empresa_email,
                    COALESCE(
                      NULLIF(TRIM(e.razon_social), ''),
                      NULLIF(TRIM(e_emp.razon_social), ''),
                      NULLIF(TRIM(e_by_email.razon_social), ''),
                      NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''),
+                     NULLIF(TRIM(COALESCE(p_a_emp.nombres, '') || ' ' || COALESCE(p_a_emp.apellidos, '')), ''),
+                     NULLIF(TRIM(COALESCE(p_rep.nombres, '') || ' ' || COALESCE(p_rep.apellidos, '')), ''),
                      NULLIF(TRIM(COALESCE(p_by_email.nombres, '') || ' ' || COALESCE(p_by_email.apellidos, '')), ''),
                      NULLIF(TRIM(COALESCE(p_est.nombres, '') || ' ' || COALESCE(p_est.apellidos, '')), ''),
                      CASE 
@@ -229,25 +310,30 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
                        ELSE 'Sin registro de persona'
                      END
                    ) as nombre_completo,
-                   COALESCE(p.nombres, p_by_email.nombres, p_est.nombres) as nombres,
-                   COALESCE(p.apellidos, p_by_email.apellidos, p_est.apellidos) as apellidos,
+                   COALESCE(p.nombres, p_a_emp.nombres, p_rep.nombres, p_by_email.nombres, p_est.nombres) as nombres,
+                   COALESCE(p.apellidos, p_a_emp.apellidos, p_rep.apellidos, p_by_email.apellidos, p_est.apellidos) as apellidos,
                    COALESCE(e.razon_social, e_emp.razon_social, e_by_email.razon_social) as razon_social,
-                   COALESCE(a.codigo, a_emp.codigo) as codigo,
-                   COALESCE(a.estatus, a_emp.estatus) as estatus_afiliado,
-                   COALESCE(p.cedula_tipo, p_by_email.cedula_tipo, p_est.cedula_tipo) as cedula_tipo,
-                   COALESCE(p.cedula, p_by_email.cedula, p_est.cedula) as cedula,
+                   COALESCE(a.codigo, a_emp.codigo, a_p_email.codigo, a_e_email.codigo, a_rep.codigo) as codigo,
+                   COALESCE(a.estatus, a_emp.estatus, a_p_email.estatus, a_e_email.estatus, a_rep.estatus) as estatus_afiliado,
+                   COALESCE(p.cedula_tipo, p_a_emp.cedula_tipo, p_rep.cedula_tipo, p_by_email.cedula_tipo, p_est.cedula_tipo) as cedula_tipo,
+                   COALESCE(p.cedula, p_a_emp.cedula, p_rep.cedula, p_by_email.cedula, p_est.cedula) as cedula,
                    COALESCE(e.rif_tipo, e_emp.rif_tipo, e_by_email.rif_tipo) as rif_tipo,
                    COALESCE(e.rif_numero, e_emp.rif_numero, e_by_email.rif_numero) as rif_numero
             FROM users u
-            LEFT JOIN afiliados a ON u.id = a.id_user
-            LEFT JOIN empresas e_emp ON u.id = e_emp.id_user
-            LEFT JOIN afiliados a_emp ON e_emp.id_empresa = a_emp.id_empresa
+            LEFT JOIN afiliados a ON u.id = a.id_user AND a.eliminado_en IS NULL
+            LEFT JOIN empresas e_emp ON u.id = e_emp.id_user AND e_emp.eliminado_en IS NULL
+            LEFT JOIN afiliados a_emp ON e_emp.id_empresa = a_emp.id_empresa AND a_emp.eliminado_en IS NULL
             LEFT JOIN personas p ON a.id_persona = p.id
+            LEFT JOIN personas p_a_emp ON a_emp.id_persona = p_a_emp.id
             LEFT JOIN personas p_by_email ON LOWER(TRIM(p_by_email.email)) = LOWER(TRIM(u.email))
+            LEFT JOIN afiliados a_p_email ON p_by_email.id = a_p_email.id_persona AND a_p_email.eliminado_en IS NULL
             LEFT JOIN estudiantes est ON u.id = est.id_user
             LEFT JOIN personas p_est ON est.id_persona = p_est.id
-            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-            LEFT JOIN empresas e_by_email ON LOWER(TRIM(e_by_email.email)) = LOWER(TRIM(u.email))
+            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa AND e.eliminado_en IS NULL
+            LEFT JOIN empresas e_by_email ON LOWER(TRIM(e_by_email.email)) = LOWER(TRIM(u.email)) AND e_by_email.eliminado_en IS NULL
+            LEFT JOIN afiliados a_e_email ON e_by_email.id_empresa = a_e_email.id_empresa AND a_e_email.eliminado_en IS NULL
+            LEFT JOIN afiliados a_rep ON e_by_email.id_representante_legal = a_rep.id_afiliado AND a_rep.eliminado_en IS NULL
+            LEFT JOIN personas p_rep ON a_rep.id_persona = p_rep.id
             GROUP BY u.id
             ORDER BY u.creado_en DESC`,
       args: [],

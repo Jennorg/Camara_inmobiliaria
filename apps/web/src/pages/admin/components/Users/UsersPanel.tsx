@@ -4,6 +4,7 @@ import {
   ShieldCheck,
   UserCircle2,
   LayoutGrid,
+  Table as TableIcon,
   CheckCircle2,
   XCircle,
   KeyRound,
@@ -14,8 +15,70 @@ import {
   Eye,
   EyeOff,
   Mail,
-  LogIn
+  LogIn,
+  Building2,
+  Briefcase,
+  User,
+  BookUser
 } from 'lucide-react'
+
+function getTipoAfiliadoMeta(tipo?: string | null, rol?: string) {
+  const norm = String(tipo || '').trim()
+  if (['Corporativo', 'Juridico'].includes(norm)) {
+    return {
+      label: 'Corporativo',
+      icon: Building2,
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      iconClass: 'text-emerald-600'
+    }
+  }
+  if (['Agente Corporativo', 'Agente'].includes(norm)) {
+    return {
+      label: 'Agente Corp.',
+      icon: BookUser,
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      iconClass: 'text-emerald-600'
+    }
+  }
+  if (norm === 'Natural') {
+    return {
+      label: 'Agente Indep.',
+      icon: User,
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      iconClass: 'text-emerald-600'
+    }
+  }
+  if (rol === 'super_admin') {
+    return {
+      label: 'Super Admin',
+      icon: ShieldCheck,
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      iconClass: 'text-emerald-600'
+    }
+  }
+  if (rol === 'admin') {
+    return {
+      label: 'Admin',
+      icon: ShieldCheck,
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      iconClass: 'text-emerald-600'
+    }
+  }
+  if (rol === 'asistente' || rol === 'administrativo') {
+    return {
+      label: 'Personal Admin',
+      icon: ShieldCheck,
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+      iconClass: 'text-emerald-600'
+    }
+  }
+  return {
+    label: 'Agente Indep.',
+    icon: User,
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+    iconClass: 'text-emerald-600'
+  }
+}
 
 
 const ic = 'shrink-0 opacity-95'
@@ -42,6 +105,7 @@ interface SystemUser {
   cedula: string | null
   rif_tipo: string | null
   rif_numero: string | null
+  estatus_afiliado?: string | null
 }
 
 type FiltroRol    = 'todos' | 'admin' | 'afiliado' | 'super_admin' | 'asistente'
@@ -78,6 +142,7 @@ export default function UsersPanel() {
   const [searchField, setSearchField]   = useState<'nombre' | 'codigo' | 'email' | 'cedula' | 'rif'>('nombre')
   const [filtroRol, setFiltroRol]       = useState<FiltroRol>('todos')
   const [filtroActivo, setFiltroActivo] = useState<FiltroActivo>('todos')
+  const [viewMode, setViewMode]         = useState<'cards' | 'table'>('cards')
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -561,8 +626,36 @@ export default function UsersPanel() {
           </select>
         </div>
 
+        {/* Switcher Vista Tarjetas / Tabla */}
+        <div className='flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60 shrink-0'>
+          <button
+            type='button'
+            onClick={() => setViewMode('cards')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'cards'
+                ? 'bg-white text-emerald-800 shadow-2xs border border-slate-200/80'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <LayoutGrid size={13} />
+            <span>Tarjetas</span>
+          </button>
+          <button
+            type='button'
+            onClick={() => setViewMode('table')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'table'
+                ? 'bg-white text-emerald-800 shadow-2xs border border-slate-200/80'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <TableIcon size={13} />
+            <span>Tabla</span>
+          </button>
+        </div>
+
         {/* Contador */}
-        <span className='ml-auto text-[11px] text-slate-400 font-medium whitespace-nowrap'>
+        <span className='ml-auto text-[11px] text-slate-400 font-semibold whitespace-nowrap'>
           {filtered.length} de {users.length} usuario{users.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -578,386 +671,540 @@ export default function UsersPanel() {
         </div>
       ) : (
         <>
-          {/* Desktop Table View */}
-          <div className='hidden md:block bg-white border border-slate-100 rounded-2xl shadow-sm overflow-x-auto'>
-            <table className='w-full text-sm'>
-              <thead className='bg-slate-50 border-b border-slate-100'>
-                <tr>
-                  {['Usuario', 'Rol', 'Estado', 'Acciones'].map(h => (
-                    <th key={h} className={`px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider ${h === 'Acciones' ? 'text-right' : 'text-left'}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className='divide-y divide-slate-50'>
-                {visibleUsers.map(u => (
-                  <tr key={u.id} className='hover:bg-slate-50 transition'>
-                    <td className='px-5 py-4'>
-                      {u.tipo_afiliado === 'Corporativo' ? (
-                        <div className='relative inline-flex items-center group/select-email'>
-                          <select
-                            value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
-                            onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
-                            disabled={updatingEmailId === u.id}
-                            className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
+          {viewMode === 'table' ? (
+            /* Desktop / Table View */
+            <div className='bg-white border border-slate-100 rounded-2xl shadow-sm overflow-x-auto'>
+              <table className='w-full text-sm'>
+                <thead className='bg-slate-50 border-b border-slate-100'>
+                  <tr>
+                    <th className='w-14 px-3 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-center'>Tipo</th>
+                    {['Usuario', 'Rol', 'Estado', 'Acciones'].map(h => (
+                      <th key={h} className={`px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider ${h === 'Acciones' ? 'text-right' : 'text-left'}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-slate-50'>
+                  {visibleUsers.map(u => {
+                    const tipoMeta = getTipoAfiliadoMeta(u.tipo_afiliado, u.rol)
+                    const TipoIcon = tipoMeta.icon
+                    const personaNombre = [u.nombres, u.apellidos].filter(Boolean).join(' ').trim()
+                    const empresaNombre = (u.razon_social || '').trim()
+                    const isCorp = ['Corporativo', 'Juridico'].includes(String(u.tipo_afiliado || '').trim())
+                    const isAgent = ['Agente Corporativo', 'Agente'].includes(String(u.tipo_afiliado || '').trim())
+
+                    return (
+                      <tr key={u.id} className='hover:bg-slate-50 transition'>
+                        <td className='pl-4 pr-1 py-4 align-middle text-center w-14'>
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center border mx-auto shadow-2xs ${tipoMeta.badgeClass}`}
+                            title={tipoMeta.label}
                           >
-                            <option value='personal' className='bg-white text-slate-800 font-semibold'>
-                              {u.persona_email || 'No definido'}
-                            </option>
-                            {u.empresa_email && (
-                              <option value='empresa' className='bg-white text-slate-800 font-semibold'>
-                                {u.empresa_email}
-                              </option>
-                            )}
-                          </select>
-                          <div className='absolute right-1 pointer-events-none text-slate-400 group-hover/select-email:text-slate-600 transition-colors'>
-                            <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
-                              <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
-                            </svg>
+                            <TipoIcon size={20} strokeWidth={2} className={tipoMeta.iconClass} />
                           </div>
-                          {updatingEmailId === u.id && (
-                            <Loader2 size={12} className='animate-spin text-emerald-500 ml-1 shrink-0' />
+                        </td>
+                        <td className='px-5 py-4'>
+                          {u.tipo_afiliado === 'Corporativo' ? (
+                            <div className='relative inline-flex items-center group/select-email'>
+                              <select
+                                value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
+                                onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
+                                disabled={updatingEmailId === u.id}
+                                className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
+                              >
+                                <option value='personal' className='bg-white text-slate-800 font-semibold'>
+                                  {u.persona_email || 'No definido'}
+                                </option>
+                                {u.empresa_email && (
+                                  <option value='empresa' className='bg-white text-slate-800 font-semibold'>
+                                    {u.empresa_email}
+                                  </option>
+                                )}
+                              </select>
+                              <div className='absolute right-1 pointer-events-none text-slate-400 group-hover/select-email:text-slate-600 transition-colors'>
+                                <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
+                                  <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
+                                </svg>
+                              </div>
+                              {updatingEmailId === u.id && (
+                                <Loader2 size={12} className='animate-spin text-emerald-500 ml-1 shrink-0' />
+                              )}
+                            </div>
+                          ) : (
+                            <p className='font-semibold text-slate-700'>{u.email}</p>
                           )}
-                        </div>
-                      ) : (
-                        <p className='font-semibold text-slate-700'>{u.email}</p>
-                      )}
-                      <div className='flex items-center gap-1.5 mt-0.5'>
-                        {u.nombre_completo && u.nombre_completo !== 'Sin registro de persona' && u.nombre_completo !== 'Nombre no definido' ? (
-                          <p className='text-xs font-medium text-slate-600 truncate max-w-[200px]'>
-                            {u.nombre_completo}
+
+                          {isCorp ? (
+                            /* Corporativo: Empresa principal + Nombre de la persona / Afiliado */
+                            <div className='mt-1 space-y-0.5'>
+                              <div className='flex items-center gap-1.5 flex-wrap'>
+                                <span className='text-xs font-bold text-slate-800 truncate max-w-[280px]' title={empresaNombre || u.nombre_completo || ''}>
+                                  {empresaNombre || u.nombre_completo || 'Empresa sin definir'}
+                                </span>
+                                {u.codigo && (
+                                  <>
+                                    <span className='text-slate-300'>·</span>
+                                    <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                                      {u.codigo}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              {personaNombre && (
+                                <p className='text-[11px] text-slate-600 font-medium flex items-center gap-1 truncate max-w-[300px]' title={personaNombre}>
+                                  <span className='text-slate-400 text-[10px] font-bold uppercase tracking-wider'>Afiliado:</span>
+                                  <span className='font-semibold text-slate-700 truncate'>{personaNombre}</span>
+                                </p>
+                              )}
+                            </div>
+                          ) : isAgent ? (
+                            /* Agente Corporativo: Nombre del Afiliado principal + Empresa vinculada */
+                            <div className='mt-1 space-y-0.5'>
+                              <div className='flex items-center gap-1.5 flex-wrap'>
+                                <span className='text-xs font-bold text-slate-800 truncate max-w-[280px]' title={personaNombre || u.nombre_completo || ''}>
+                                  {personaNombre || u.nombre_completo || 'Afiliado sin definir'}
+                                </span>
+                                {u.codigo && (
+                                  <>
+                                    <span className='text-slate-300'>·</span>
+                                    <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                                      {u.codigo}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              {empresaNombre && (
+                                <p className='text-[11px] text-slate-600 font-medium flex items-center gap-1 truncate max-w-[300px]' title={empresaNombre}>
+                                  <Building2 size={11} className='text-slate-400 shrink-0' />
+                                  <span className='text-slate-400 text-[10px] font-bold uppercase tracking-wider'>Empresa:</span>
+                                  <span className='font-semibold text-slate-700 truncate'>{empresaNombre}</span>
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            /* Natural / Agente Independiente u otros */
+                            <div className='mt-1 space-y-0.5'>
+                              <div className='flex items-center gap-1.5 flex-wrap'>
+                                {personaNombre || (u.nombre_completo && u.nombre_completo !== 'Sin registro de persona' && u.nombre_completo !== 'Nombre no definido') ? (
+                                  <p className='text-xs font-bold text-slate-800 truncate max-w-[280px]' title={personaNombre || u.nombre_completo || ''}>
+                                    {personaNombre || u.nombre_completo}
+                                  </p>
+                                ) : (
+                                  <span className='text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md tracking-tight'>
+                                    {u.email ? u.email.split('@')[0] : 'Cuenta sin vincular'}
+                                  </span>
+                                )}
+                                {u.codigo && (
+                                  <>
+                                    <span className='text-slate-300'>·</span>
+                                    <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                                      {u.codigo}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <p className='text-[10px] text-slate-400 mt-0.5'>
+                            {new Date(u.creado_en).toLocaleDateString('es-VE')}
+                            {u.id_afiliado ? ` · Afiliado #${u.id_afiliado}` : ''}
                           </p>
+                        </td>
+                      <td className='px-5 py-4'>
+                        {isSuperAdmin && u.id !== user?.id ? (
+                          <div className='relative inline-flex items-center group/select'>
+                            <select
+                              value={u.rol}
+                              onChange={e => handleRoleChange(u, e.target.value as any)}
+                              disabled={saving}
+                              className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
+                                u.rol === 'super_admin'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200/80 focus:ring-amber-500/10 focus:border-amber-400'
+                                  : u.rol === 'admin'
+                                  ? 'bg-violet-50 text-violet-800 border-violet-200/80 focus:ring-violet-500/10 focus:border-violet-400'
+                                  : u.rol === 'asistente' || u.rol === 'administrativo'
+                                  ? 'bg-blue-50 text-blue-800 border-blue-200/80 focus:ring-blue-500/10 focus:border-blue-400'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200/80 focus:ring-emerald-500/10 focus:border-emerald-400'
+                              }`}
+                            >
+                              <option value='afiliado'>Afiliado</option>
+                              <option value='asistente'>Personal Admin</option>
+                              <option value='admin'>Admin</option>
+                              <option value='super_admin'>Super Admin</option>
+                            </select>
+                            <div className={`absolute right-2.5 pointer-events-none transition-colors ${
+                              u.rol === 'super_admin' ? 'text-amber-600' : u.rol === 'admin' ? 'text-violet-600' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'text-blue-600' : 'text-emerald-600'
+                            }`}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
                         ) : (
-                          <span className='text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md tracking-tight'>
-                            {u.email ? u.email.split('@')[0] : 'Cuenta sin vincular'}
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                            u.rol === 'super_admin'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200/80 shadow-sm shadow-amber-500/10'
+                              : u.rol === 'admin'
+                              ? 'bg-violet-50 text-violet-800 border-violet-200/80'
+                              : u.rol === 'asistente' || u.rol === 'administrativo'
+                              ? 'bg-blue-50 text-blue-800 border-blue-200/80'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
+                          }`}>
+                            {u.rol === 'super_admin' ? (
+                              <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-amber-600' />
+                            ) : u.rol === 'admin' ? (
+                              <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-violet-600' />
+                            ) : u.rol === 'asistente' || u.rol === 'administrativo' ? (
+                              <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-blue-600' />
+                            ) : (
+                              <UserCircle2 size={14} strokeWidth={2} className='shrink-0 text-emerald-600' />
+                            )}
+                            {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
                           </span>
                         )}
-                        {u.codigo && (
-                          <>
-                            <span className='text-slate-300'>·</span>
-                            <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                      </td>
+                      <td className='px-5 py-4'>
+                        <button
+                          type='button'
+                          onClick={() => toggleActive(u)}
+                          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:bg-slate-50 ${
+                            u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
+                          }`}
+                        >
+                          {u.activo ? (
+                            <CheckCircle2 size={18} strokeWidth={2} className='shrink-0 text-emerald-600' />
+                          ) : (
+                            <XCircle size={18} strokeWidth={2} className='shrink-0 text-slate-400' />
+                          )}
+                          <span className={`text-xs font-semibold ${u.activo ? 'text-emerald-800' : 'text-slate-500'}`}>
+                            {u.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </button>
+                      </td>
+                      <td className='px-5 py-4 text-right'>
+                        <div className='flex justify-end gap-2'>
+                          <button
+                            type='button'
+                            disabled={sendingInvite[u.id]}
+                            onClick={() => setUserToInvite(u)}
+                            className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 disabled:opacity-50 transition shadow-sm'
+                            title='Enviar correo de invitación'
+                          >
+                            {sendingInvite[u.id] ? (
+                              <Loader2 size={14} className='animate-spin shrink-0 text-emerald-500' />
+                            ) : (
+                              <Mail size={14} className='shrink-0 text-slate-500' />
+                            )}
+                            <span>Invitar</span>
+                          </button>
+                          <button
+                            type='button'
+                            onClick={() => handleResetClick(u)}
+                            className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 transition shadow-sm'
+                          >
+                            <KeyRound size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
+                            Contraseña
+                          </button>
+                          {(isAdmin || isSuperAdmin) && (
+                            <>
+                              <button
+                                type='button'
+                                disabled={impersonatingId === u.id || u.id === user?.id}
+                                onClick={() => handleImpersonateClick(u)}
+                                className='inline-flex items-center gap-1.5 px-3 py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm cursor-pointer disabled:opacity-50'
+                                title='Ingresar como este usuario (Suplantación)'
+                              >
+                                {impersonatingId === u.id ? (
+                                  <Loader2 size={14} className='animate-spin shrink-0 text-emerald-600' />
+                                ) : (
+                                  <LogIn size={14} className='shrink-0 text-emerald-600' />
+                                )}
+                                <span>Ingresar</span>
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() => setUserToDelete(u)}
+                                className='inline-flex items-center gap-1.5 px-3 py-2 border border-rose-100 text-rose-600 rounded-xl text-xs font-semibold hover:bg-rose-50 hover:border-rose-200 transition shadow-sm'
+                                title='Eliminar usuario'
+                              >
+                                <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* Cards View (Grilla de 3 tarjetas por fila) */
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5'>
+              {visibleUsers.map(u => {
+                const tipoMeta = getTipoAfiliadoMeta(u.tipo_afiliado, u.rol)
+                const TipoIcon = tipoMeta.icon
+                const personaNombre = [u.nombres, u.apellidos].filter(Boolean).join(' ').trim()
+                const empresaNombre = (u.razon_social || '').trim()
+                const isCorp = ['Corporativo', 'Juridico'].includes(String(u.tipo_afiliado || '').trim())
+                const isAgent = ['Agente Corporativo', 'Agente'].includes(String(u.tipo_afiliado || '').trim())
+
+                const displayName = isCorp
+                  ? (empresaNombre || u.nombre_completo || (u.email ? u.email.split('@')[0] : 'Cuenta sin vincular'))
+                  : isAgent
+                  ? (personaNombre || u.nombre_completo || (u.email ? u.email.split('@')[0] : 'Cuenta sin vincular'))
+                  : (personaNombre || (u.nombre_completo && u.nombre_completo !== 'Sin registro de persona' && u.nombre_completo !== 'Nombre no definido' ? u.nombre_completo : (u.email ? u.email.split('@')[0] : 'Cuenta sin vincular')))
+
+                return (
+                  <div
+                    key={u.id}
+                    className='bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all relative overflow-hidden flex flex-col justify-between group gap-3'
+                  >
+                    {/* Visual Accent Line */}
+                    <div
+                      className={`absolute top-0 left-0 right-0 h-1.5 ${
+                        u.rol === 'super_admin'
+                          ? 'bg-amber-500'
+                          : u.rol === 'admin'
+                          ? 'bg-violet-500'
+                          : u.rol === 'asistente' || u.rol === 'administrativo'
+                          ? 'bg-blue-500'
+                          : 'bg-emerald-500'
+                      }`}
+                    />
+
+                    <div className='space-y-2.5 pt-0.5'>
+                      {/* Header de la Tarjeta */}
+                      <div className='flex items-start justify-between gap-2.5'>
+                        {/* Avatar e Identidad */}
+                        <div className='flex items-center gap-2.5 min-w-0 flex-1'>
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-2xs ${tipoMeta.badgeClass}`}
+                            title={tipoMeta.label}
+                          >
+                            <TipoIcon size={18} strokeWidth={2} className={tipoMeta.iconClass} />
+                          </div>
+                          <div className='min-w-0 flex-1'>
+                            <h4
+                              className='font-bold text-slate-900 text-[13px] truncate leading-tight'
+                              title={displayName}
+                            >
+                              {displayName}
+                            </h4>
+                            {isCorp && personaNombre && (
+                              <p className='text-[11px] text-slate-500 font-medium truncate mt-0.5 flex items-center gap-1' title={personaNombre}>
+                                <span className='text-slate-400 text-[9px] font-bold uppercase'>Afil:</span>
+                                <span className='text-slate-700 truncate font-semibold'>{personaNombre}</span>
+                              </p>
+                            )}
+                            {isAgent && empresaNombre && (
+                              <p className='text-[11px] text-slate-500 font-medium truncate mt-0.5 flex items-center gap-1' title={empresaNombre}>
+                                <Building2 size={11} className='text-slate-400 shrink-0' />
+                                <span className='text-slate-700 truncate font-semibold'>{empresaNombre}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Código de Afiliado destacado */}
+                        <div className='flex flex-col items-end shrink-0'>
+                          <span className='text-[8.5px] font-black text-slate-400 uppercase tracking-wider block'>CÓDIGO</span>
+                          {u.codigo ? (
+                            <span className='font-black text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md text-[11px] tracking-tight border border-emerald-300/50 shadow-2xs'>
                               {u.codigo}
                             </span>
-                          </>
-                        )}
+                          ) : (
+                            <span className='text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md'>
+                              S/C
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <p className='text-[10px] text-slate-400 mt-0.5'>
-                        {new Date(u.creado_en).toLocaleDateString('es-VE')}
-                        {u.id_afiliado ? ` · Afiliado #${u.id_afiliado}` : ''}
-                      </p>
-                    </td>
-                    <td className='px-5 py-4'>
-                      {isSuperAdmin && u.id !== user?.id ? (
-                        <div className='relative inline-flex items-center group/select'>
-                          <select
-                            value={u.rol}
-                            onChange={e => handleRoleChange(u, e.target.value as any)}
-                            disabled={saving}
-                            className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
-                              u.rol === 'super_admin'
-                                ? 'bg-amber-50 text-amber-800 border-amber-200/80 focus:ring-amber-500/10 focus:border-amber-400'
-                                : u.rol === 'admin'
-                                ? 'bg-violet-50 text-violet-800 border-violet-200/80 focus:ring-violet-500/10 focus:border-violet-400'
-                                : u.rol === 'asistente' || u.rol === 'administrativo'
-                                ? 'bg-blue-50 text-blue-800 border-blue-200/80 focus:ring-blue-500/10 focus:border-blue-400'
-                                : 'bg-emerald-50 text-emerald-800 border-emerald-200/80 focus:ring-emerald-500/10 focus:border-emerald-400'
-                            }`}
-                          >
-                            <option value='afiliado'>Afiliado</option>
-                            <option value='asistente'>Personal Admin</option>
-                            <option value='admin'>Admin</option>
-                            <option value='super_admin'>Super Admin</option>
-                          </select>
-                          <div className={`absolute right-2.5 pointer-events-none transition-colors ${
-                            u.rol === 'super_admin' ? 'text-amber-600' : u.rol === 'admin' ? 'text-violet-600' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'text-blue-600' : 'text-emerald-600'
-                          }`}>
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
+
+                      {/* Bloque de Detalles (Etiquetas + Valores) */}
+                      <div className='bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/60 space-y-2 text-xs'>
+                        {/* Correo de Acceso */}
+                        <div className='flex flex-col min-w-0'>
+                          <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>CORREO DE ACCESO:</span>
+                          {u.tipo_afiliado === 'Corporativo' ? (
+                            <div className='relative inline-flex items-center group/select-email max-w-full mt-0.5'>
+                              <select
+                                value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
+                                onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
+                                disabled={updatingEmailId === u.id}
+                                className='appearance-none text-[11.5px] font-bold text-slate-800 bg-white border border-slate-200 rounded-lg py-1 pl-2 pr-6 cursor-pointer max-w-full truncate hover:border-emerald-400 transition-colors shadow-2xs'
+                              >
+                                <option value='personal' className='bg-white text-slate-800 font-semibold'>
+                                  Pers: {u.persona_email || 'No def.'}
+                                </option>
+                                {u.empresa_email && (
+                                  <option value='empresa' className='bg-white text-slate-800 font-semibold'>
+                                    Emp: {u.empresa_email}
+                                  </option>
+                                )}
+                              </select>
+                              <div className='absolute right-1.5 pointer-events-none text-slate-400'>
+                                <svg className='w-3 h-3' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
+                                  <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
+                                </svg>
+                              </div>
+                              {updatingEmailId === u.id && <Loader2 size={12} className='animate-spin text-emerald-500 ml-1 shrink-0' />}
+                            </div>
+                          ) : (
+                            <p className='font-bold text-slate-800 truncate text-[12.5px] mt-0.5' title={u.email}>{u.email}</p>
+                          )}
+                        </div>
+
+                        {/* Grid de 2 columnas para Cédula/RIF y Registro/ID */}
+                        <div className='grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/50'>
+                          {/* Cédula / RIF */}
+                          <div className='space-y-0.5 min-w-0'>
+                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>CÉDULA / RIF:</span>
+                            <p className='font-bold text-slate-800 truncate text-[12px]'>
+                              {u.cedula
+                                ? `${u.cedula_tipo || 'V'}-${u.cedula}`
+                                : u.rif_numero
+                                ? `${u.rif_tipo || 'J'}-${u.rif_numero}`
+                                : 'No registrada'}
+                            </p>
+                          </div>
+
+                          {/* ID & Fecha Registro */}
+                          <div className='space-y-0.5 min-w-0'>
+                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>REGISTRO / ID:</span>
+                            <p className='font-semibold text-slate-700 truncate text-[11.5px]'>
+                              {new Date(u.creado_en).toLocaleDateString('es-VE')} {u.id_afiliado ? `(#${u.id_afiliado})` : ''}
+                            </p>
                           </div>
                         </div>
-                      ) : (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
-                          u.rol === 'super_admin'
-                            ? 'bg-amber-50 text-amber-800 border-amber-200/80 shadow-sm shadow-amber-500/10'
-                            : u.rol === 'admin'
-                            ? 'bg-violet-50 text-violet-800 border-violet-200/80'
-                            : u.rol === 'asistente' || u.rol === 'administrativo'
-                            ? 'bg-blue-50 text-blue-800 border-blue-200/80'
-                            : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
-                        }`}>
-                          {u.rol === 'super_admin' ? (
-                            <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-amber-600' />
-                          ) : u.rol === 'admin' ? (
-                            <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-violet-600' />
-                          ) : u.rol === 'asistente' || u.rol === 'administrativo' ? (
-                            <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-blue-600' />
-                          ) : (
-                            <UserCircle2 size={14} strokeWidth={2} className='shrink-0 text-emerald-600' />
-                          )}
-                          {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
-                        </span>
-                      )}
-                    </td>
-                    <td className='px-5 py-4'>
+
+                        {/* Control Rol + Estado + Estatus */}
+                        <div className='grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/50 items-center'>
+                          {/* Rol */}
+                          <div className='space-y-0.5 min-w-0'>
+                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>ROL:</span>
+                            {isSuperAdmin && u.id !== user?.id ? (
+                              <div className='relative inline-flex items-center group/select max-w-full'>
+                                <select
+                                  value={u.rol}
+                                  onChange={e => handleRoleChange(u, e.target.value as any)}
+                                  disabled={saving}
+                                  className={`appearance-none pl-2 pr-5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer focus:outline-none transition-colors max-w-full truncate ${
+                                    u.rol === 'super_admin'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : u.rol === 'admin'
+                                      ? 'bg-violet-50 text-violet-800 border-violet-200'
+                                      : u.rol === 'asistente' || u.rol === 'administrativo'
+                                      ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  }`}
+                                >
+                                  <option value='afiliado'>Afiliado</option>
+                                  <option value='asistente'>Personal Admin</option>
+                                  <option value='admin'>Admin</option>
+                                  <option value='super_admin'>Super Admin</option>
+                                </select>
+                                <div className='absolute right-1 pointer-events-none text-slate-400'>
+                                  <svg className='w-2.5 h-2.5' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
+                                    <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
+                                  </svg>
+                                </div>
+                              </div>
+                            ) : (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-lg text-[11px] font-bold border truncate max-w-full ${
+                                  u.rol === 'super_admin'
+                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                    : u.rol === 'admin'
+                                    ? 'bg-violet-50 text-violet-800 border-violet-200'
+                                    : u.rol === 'asistente' || u.rol === 'administrativo'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                }`}
+                              >
+                                {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Estado Activo / Estatus */}
+                          <div className='space-y-0.5 min-w-0 flex flex-col items-start'>
+                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>ESTADO:</span>
+                            <div className='flex items-center gap-1.5 flex-wrap'>
+                              <button
+                                type='button'
+                                onClick={() => toggleActive(u)}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                  u.activo ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-200 text-slate-500'
+                                }`}
+                              >
+                                {u.activo ? <CheckCircle2 size={12} className='text-emerald-600' /> : <XCircle size={12} className='text-slate-400' />}
+                                {u.activo ? 'Activo' : 'Inactivo'}
+                              </button>
+                              {u.estatus_afiliado && (
+                                <span className='bg-slate-200/80 text-slate-700 px-1.5 py-0.5 rounded-md text-[9.5px] font-bold uppercase'>
+                                  {u.estatus_afiliado}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Acciones de la Tarjeta */}
+                    <div className='flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100'>
                       <button
                         type='button'
-                        onClick={() => toggleActive(u)}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:bg-slate-50 ${
-                          u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
-                        }`}
+                        disabled={sendingInvite[u.id]}
+                        onClick={() => setUserToInvite(u)}
+                        className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-[11.5px] font-semibold hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer shadow-2xs flex-1'
+                        title='Enviar correo de invitación'
                       >
-                        {u.activo ? (
-                          <CheckCircle2 size={18} strokeWidth={2} className='shrink-0 text-emerald-600' />
-                        ) : (
-                          <XCircle size={18} strokeWidth={2} className='shrink-0 text-slate-400' />
-                        )}
-                        <span className={`text-xs font-semibold ${u.activo ? 'text-emerald-800' : 'text-slate-500'}`}>
-                          {u.activo ? 'Activo' : 'Inactivo'}
-                        </span>
+                        {sendingInvite[u.id] ? <Loader2 size={13} className='animate-spin text-emerald-500' /> : <Mail size={13} className='text-slate-500' />}
+                        <span>Invitar</span>
                       </button>
-                    </td>
-                    <td className='px-5 py-4 text-right'>
-                      <div className='flex justify-end gap-2'>
-                        <button
-                          type='button'
-                          disabled={sendingInvite[u.id]}
-                          onClick={() => setUserToInvite(u)}
-                          className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 disabled:opacity-50 transition shadow-sm'
-                          title='Enviar correo de invitación'
-                        >
-                          {sendingInvite[u.id] ? (
-                            <Loader2 size={14} className='animate-spin shrink-0 text-emerald-500' />
-                          ) : (
-                            <Mail size={14} className='shrink-0 text-slate-500' />
-                          )}
-                          <span>Invitar</span>
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => handleResetClick(u)}
-                          className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 transition shadow-sm'
-                        >
-                          <KeyRound size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
-                          Contraseña
-                        </button>
-                        {(isAdmin || isSuperAdmin) && (
-                          <>
-                            <button
-                              type='button'
-                              disabled={impersonatingId === u.id || u.id === user?.id}
-                              onClick={() => handleImpersonateClick(u)}
-                              className='inline-flex items-center gap-1.5 px-3 py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-100 transition shadow-sm cursor-pointer disabled:opacity-50'
-                              title='Ingresar como este usuario (Suplantación)'
-                            >
-                              {impersonatingId === u.id ? (
-                                <Loader2 size={14} className='animate-spin shrink-0 text-emerald-600' />
-                              ) : (
-                                <LogIn size={14} className='shrink-0 text-emerald-600' />
-                              )}
-                              <span>Ingresar</span>
-                            </button>
-                            <button
-                              type='button'
-                              onClick={() => setUserToDelete(u)}
-                              className='inline-flex items-center gap-1.5 px-3 py-2 border border-rose-100 text-rose-600 rounded-xl text-xs font-semibold hover:bg-rose-50 hover:border-rose-200 transition shadow-sm'
-                              title='Eliminar usuario'
-                            >
-                              <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
 
-          {/* Mobile Cards View */}
-          <div className='block md:hidden space-y-4'>
-            {visibleUsers.map(u => (
-              <div key={u.id} className='bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4 relative overflow-hidden'>
-                {/* Visual Accent */}
-                <div className={`absolute top-0 left-0 w-1 h-full ${
-                  u.rol === 'super_admin' ? 'bg-amber-400' : u.rol === 'admin' ? 'bg-violet-400' : 'bg-emerald-400'
-                }`} />
+                      <button
+                        type='button'
+                        onClick={() => handleResetClick(u)}
+                        className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-[11.5px] font-semibold hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer shadow-2xs flex-1'
+                        title='Restablecer Contraseña'
+                      >
+                        <KeyRound size={13} className='text-slate-500' />
+                        <span>Clave</span>
+                      </button>
 
-                <div className='flex items-start justify-between gap-3'>
-                  <div className='space-y-1 min-w-0 pl-1'>
-                     {u.tipo_afiliado === 'Corporativo' ? (
-                      <div className='relative inline-flex items-center group/select-email mb-1.5'>
-                        <select
-                          value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
-                          onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
-                          disabled={updatingEmailId === u.id}
-                          className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[200px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
-                        >
-                          <option value='personal' className='bg-white text-slate-800 font-semibold'>
-                            {u.persona_email || 'No definido'}
-                          </option>
-                          {u.empresa_email && (
-                            <option value='empresa' className='bg-white text-slate-800 font-semibold'>
-                              {u.empresa_email}
-                            </option>
-                          )}
-                        </select>
-                        <div className='absolute right-1 pointer-events-none text-slate-400 group-hover/select-email:text-slate-600 transition-colors'>
-                          <svg className='w-3.5 h-3.5' fill='none' stroke='currentColor' strokeWidth='2.5' viewBox='0 0 24 24'>
-                            <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
-                          </svg>
-                        </div>
-                        {updatingEmailId === u.id && (
-                          <Loader2 size={12} className='animate-spin text-emerald-500 ml-1 shrink-0' />
-                        )}
-                      </div>
-                    ) : (
-                      <p className='font-bold text-slate-700 text-sm truncate'>{u.email}</p>
-                    )}
-                    {u.nombre_completo ? (
-                      <p className='text-xs text-slate-500 font-semibold truncate'>{u.nombre_completo}</p>
-                    ) : (
-                      <p className='text-[10px] font-bold text-slate-300 uppercase tracking-wider'>Sin nombre</p>
-                    )}
-                    <div className='flex items-center gap-1.5 flex-wrap text-[10px] text-slate-400 pt-0.5'>
-                      <span>{new Date(u.creado_en).toLocaleDateString('es-VE')}</span>
-                      {u.codigo && (
+                      {(isAdmin || isSuperAdmin) && (
                         <>
-                          <span>·</span>
-                          <span className='font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
-                            {u.codigo}
-                          </span>
-                        </>
-                      )}
-                      {u.id_afiliado && (
-                        <>
-                          <span>·</span>
-                          <span>Afiliado #{u.id_afiliado}</span>
+                          <button
+                            type='button'
+                            disabled={impersonatingId === u.id || u.id === user?.id}
+                            onClick={() => handleImpersonateClick(u)}
+                            className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-emerald-300/80 bg-emerald-50 text-emerald-800 rounded-xl text-[11.5px] font-bold hover:bg-emerald-100 transition cursor-pointer disabled:opacity-50 shadow-2xs flex-1'
+                            title='Ingresar como este usuario'
+                          >
+                            {impersonatingId === u.id ? <Loader2 size={13} className='animate-spin text-emerald-600' /> : <LogIn size={13} className='text-emerald-600' />}
+                            <span>Ingresar</span>
+                          </button>
+
+                          <button
+                            type='button'
+                            onClick={() => setUserToDelete(u)}
+                            className='inline-flex items-center justify-center p-1.5 border border-rose-200 bg-rose-50/50 text-rose-600 rounded-xl hover:bg-rose-100 transition cursor-pointer shadow-2xs shrink-0'
+                            title='Eliminar usuario'
+                          >
+                            <Trash2 size={13} className='text-rose-500' />
+                          </button>
                         </>
                       )}
                     </div>
                   </div>
-
-                  {/* Role badge or dropdown & Status toggle directly below */}
-                  <div className='flex flex-col items-end gap-2 shrink-0'>
-                    {isSuperAdmin && u.id !== user?.id ? (
-                      <div className='relative inline-flex items-center group/select'>
-                        <select
-                          value={u.rol}
-                          onChange={e => handleRoleChange(u, e.target.value as any)}
-                          disabled={saving}
-                          className={`appearance-none inline-flex items-center gap-1.5 pl-2.5 pr-7 py-1 rounded-xl text-[11px] font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
-                            u.rol === 'super_admin'
-                              ? 'bg-amber-50 text-amber-800 border-amber-200/80'
-                              : u.rol === 'admin'
-                              ? 'bg-violet-50 text-violet-800 border-violet-200/80'
-                              : u.rol === 'asistente'
-                              ? 'bg-blue-50 text-blue-800 border-blue-200/80'
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
-                          }`}
-                        >
-                          <option value='afiliado'>Afiliado</option>
-                          <option value='asistente'>Personal Admin</option>
-                          <option value='admin'>Admin</option>
-                          <option value='super_admin'>Super Admin</option>
-                        </select>
-                        <div className={`absolute right-2 pointer-events-none ${
-                          u.rol === 'super_admin' ? 'text-amber-600' : u.rol === 'admin' ? 'text-violet-600' : u.rol === 'asistente' ? 'text-blue-600' : 'text-emerald-600'
-                        }`}>
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                        u.rol === 'super_admin'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200/80'
-                          : u.rol === 'admin'
-                          ? 'bg-violet-50 text-violet-800 border-violet-200/80'
-                          : u.rol === 'asistente'
-                          ? 'bg-blue-50 text-blue-800 border-blue-200/80'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200/80'
-                      }`}>
-                        {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' ? 'Personal Admin' : 'Afiliado'}
-                      </span>
-                    )}
-
-                    <button
-                      type='button'
-                      onClick={() => toggleActive(u)}
-                      className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 transition hover:bg-slate-50 ${
-                        u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
-                      }`}
-                    >
-                      {u.activo ? (
-                        <CheckCircle2 size={13} strokeWidth={2} className='shrink-0 text-emerald-600' />
-                      ) : (
-                        <XCircle size={13} strokeWidth={2} className='shrink-0 text-slate-400' />
-                      )}
-                      <span className={`text-[11px] font-semibold ${u.activo ? 'text-emerald-800' : 'text-slate-500'}`}>
-                        {u.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Actions Row */}
-                <div className='flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-50 pl-1'>
-                  <button
-                      type='button'
-                      disabled={sendingInvite[u.id]}
-                      onClick={() => setUserToInvite(u)}
-                      className='inline-flex items-center justify-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold hover:bg-slate-100 transition shadow-sm'
-                      title='Enviar correo de invitación'
-                    >
-                      {sendingInvite[u.id] ? (
-                        <Loader2 size={13} className='animate-spin shrink-0 text-emerald-500' />
-                      ) : (
-                        <Mail size={13} className='shrink-0 text-slate-500' />
-                      )}
-                      <span>Invitar</span>
-                    </button>
-                    
-                    <button
-                      type='button'
-                      onClick={() => handleResetClick(u)}
-                      className='inline-flex items-center justify-center gap-1 px-3 py-1.5 border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold hover:bg-slate-100 transition shadow-sm'
-                    >
-                      <KeyRound size={13} strokeWidth={2} className='shrink-0 text-slate-500' />
-                      <span>Clave</span>
-                    </button>
-
-                    {(isAdmin || isSuperAdmin) && (
-                      <>
-                        <button
-                          type='button'
-                          disabled={impersonatingId === u.id || u.id === user?.id}
-                          onClick={() => handleImpersonateClick(u)}
-                          className='inline-flex items-center justify-center gap-1 px-3 py-1.5 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-xl text-[11px] font-bold hover:bg-emerald-100 transition shadow-sm cursor-pointer disabled:opacity-50'
-                          title='Ingresar como este usuario'
-                        >
-                          {impersonatingId === u.id ? (
-                            <Loader2 size={13} className='animate-spin shrink-0 text-emerald-600' />
-                          ) : (
-                            <LogIn size={13} className='shrink-0 text-emerald-600' />
-                          )}
-                          <span>Ingresar</span>
-                        </button>
-                        <button
-                          type='button'
-                          onClick={() => setUserToDelete(u)}
-                          className='inline-flex items-center justify-center p-2 border border-rose-100 text-rose-600 rounded-xl hover:bg-rose-50 transition shadow-sm'
-                          title='Eliminar usuario'
-                        >
-                          <Trash2 size={14} strokeWidth={2} className='shrink-0 text-rose-500' />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-          </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Infinite Scroll Sentinel / Indicator */}
           {visibleLimit < filtered.length && (
