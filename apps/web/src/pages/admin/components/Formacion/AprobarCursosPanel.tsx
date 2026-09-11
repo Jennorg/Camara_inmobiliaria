@@ -54,6 +54,7 @@ export default function AprobarCursosPanel() {
 
   const [enrollFormData, setEnrollFormData] = useState({
     nombreCompleto: '',
+    razonSocial: '',
     email: '',
     cedulaPrefix: 'V',
     cedulaRif: '',
@@ -90,7 +91,8 @@ export default function AprobarCursosPanel() {
       })
       const json = await res.json()
       if (res.ok && json.success) {
-        setModulos(json.data.modulos)
+        const raw = json.data?.modulos || json.data
+        setModulos(Array.isArray(raw) ? raw : [])
       }
     } catch (e) {
       console.error(e)
@@ -99,8 +101,11 @@ export default function AprobarCursosPanel() {
     }
   }, [authHeaders])
 
-  const fetchData = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true)
+  const selectedRef = useRef<Row | null>(null)
+  selectedRef.current = selected
+
+  const fetchData = useCallback(async (isSilent = false, signal?: AbortSignal) => {
+    if (!isSilent) setLoading(true)
     setError('')
     try {
       // Traer estudiantes ya INSCRITOS en cursos (no preinscripciones)
@@ -115,25 +120,23 @@ export default function AprobarCursosPanel() {
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando inscripciones')
 
-      setRows(json.data as Row[])
+      const data = json.data as Row[]
+      setRows(data)
 
-      if (selected) {
-        const found = (json.data as Row[]).find((r: Row) => r.id_inscripcion === selected.id_inscripcion)
+      const activeSelected = selectedRef.current
+      if (activeSelected) {
+        const found = data.find((r: Row) => r.id_inscripcion === activeSelected.id_inscripcion)
         if (found) {
           setSelected(found)
           fetchModulos(found.id_inscripcion)
-        } else {
-          setSelected(null)
-          setDocumentos([])
-          setModulos([])
         }
       }
     } catch (e: any) {
-      setError(e.message || 'Error inesperado')
+      if (e.name !== 'AbortError') setError(e.message || 'Error inesperado')
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
-  }, [authHeaders, selected, fetchModulos])
+  }, [authHeaders, fetchModulos])
 
   const handleOpenEnrollModal = async () => {
     setIsEnrollModalOpen(true);
@@ -141,6 +144,7 @@ export default function AprobarCursosPanel() {
     setSelectedAfiliadoId('');
     setEnrollFormData({
       nombreCompleto: '',
+      razonSocial: '',
       email: '',
       cedulaPrefix: 'V',
       cedulaRif: '',
@@ -179,17 +183,21 @@ export default function AprobarCursosPanel() {
 
   const handleSelectAfiliado = (af: any) => {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
-    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || '';
+    
+    // Quien se inscribe es el representante legal (persona)
+    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.nombre || '';
     const rawCed = String(af.cedula || af.rif || '');
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
     const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed;
-    const rawTel = String(af.telefono || af.telefono_movil || '');
+    const rawTel = String(af.telefono || af.telefono_movil || af.empresa_telefono || '');
     const codeTel = rawTel.startsWith('+') ? (rawTel.match(/^(\+\d{1,4})/)?.[1] || '+58') : '+58';
     const numTel = rawTel.replace(/^(\+\d{1,4}\s?)/, '');
+    const finalEmail = af.email || af.empresa_email || '';
 
     setEnrollFormData({
       nombreCompleto: nombre,
-      email: af.email || '',
+      razonSocial: '',
+      email: finalEmail,
       cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
       cedulaRif: numCed,
       codigoPais: codeTel,
@@ -212,6 +220,7 @@ export default function AprobarCursosPanel() {
 
     const payload = {
       ...enrollFormData,
+      razonSocial: enrollFormData.razonSocial || undefined,
       cedulaRif: enrollFormData.cedulaRif ? `${enrollFormData.cedulaPrefix || 'V'}-${enrollFormData.cedulaRif.replace(/^[VEJGP]-?/i, '')}` : '',
       telefono: enrollFormData.telefono ? `${enrollFormData.codigoPais || '+58'} ${enrollFormData.telefono.replace(/^(\+\d{1,4}\s?)/, '')}` : ''
     };
@@ -256,7 +265,7 @@ export default function AprobarCursosPanel() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchData(controller.signal)
+    fetchData(false, controller.signal)
     return () => controller.abort()
   }, [fetchData])
 
@@ -287,7 +296,7 @@ export default function AprobarCursosPanel() {
       })
 
       // Actualizar datos
-      await fetchData()
+      await fetchData(true)
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
       }
@@ -342,7 +351,7 @@ export default function AprobarCursosPanel() {
         showConfirmButton: false
       })
 
-      await fetchData()
+      await fetchData(true)
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
       }
@@ -394,7 +403,7 @@ export default function AprobarCursosPanel() {
         timer: 2500,
         showConfirmButton: false
       })
-      await fetchData()
+      await fetchData(true)
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
       }
@@ -712,7 +721,7 @@ export default function AprobarCursosPanel() {
                   <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cargando módulos...</span>
                 </div>
-              ) : modulos.length === 0 ? (
+              ) : !Array.isArray(modulos) || modulos.length === 0 ? (
                 <p className="text-xs text-slate-400 italic">No hay módulos configurados para este curso.</p>
               ) : (
                 <div className="space-y-3">
@@ -721,20 +730,20 @@ export default function AprobarCursosPanel() {
                     <div className="flex justify-between items-center text-xs font-bold text-slate-600">
                       <span>Progreso del Estudiante</span>
                       <span>
-                        {modulos.filter(m => m.estatus === 'Aprobado').length} / {modulos.length} Módulos
+                        {(Array.isArray(modulos) ? modulos : []).filter(m => m.estatus === 'Aprobado').length} / {(Array.isArray(modulos) ? modulos : []).length} Módulos
                       </span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                       <div
                         className="bg-[#00D084] h-full transition-colors duration-500"
-                        style={{ width: `${(modulos.filter(m => m.estatus === 'Aprobado').length / modulos.length) * 100}%` }}
+                        style={{ width: `${(((Array.isArray(modulos) ? modulos : []).filter(m => m.estatus === 'Aprobado').length / ((Array.isArray(modulos) ? modulos : []).length || 1))) * 100}%` }}
                       />
                     </div>
                   </div>
 
                   {/* Listado de módulos individuales */}
                   <div className="divide-y divide-slate-100">
-                    {modulos.map((mod) => {
+                    {(Array.isArray(modulos) ? modulos : []).map((mod) => {
                       const isAprobado = mod.estatus === 'Aprobado';
                       const isRechazado = mod.estatus === 'Rechazado';
 

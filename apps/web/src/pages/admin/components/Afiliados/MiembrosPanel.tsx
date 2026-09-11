@@ -1453,7 +1453,7 @@ export default function MiembrosPanel() {
                     <p className="font-bold text-slate-800 text-sm truncate">
                       {item.tipo_afiliado === 'Corporativo' && item.empresa_razon_social
                         ? item.empresa_razon_social
-                        : formatNombreCard(item.nombre_completo)}
+                        : formatNombreCard(item.nombres || item.nombre_completo, item.apellidos)}
                     </p>
                   </div>
 
@@ -1640,7 +1640,7 @@ export default function MiembrosPanel() {
                       {/* nombre_completo es columna VIRTUAL GENERATED — se muestra, no se edita */}
                       {selected.tipo_afiliado === 'Corporativo' && selected.empresa_razon_social
                         ? (isEditing ? editForm.empresa_razon_social : selected.empresa_razon_social)
-                        : (isEditing ? `${editForm.nombres || ''} ${editForm.apellidos || ''}` : formatNombreCard(selected.nombre_completo))}
+                        : (isEditing ? `${editForm.nombres || ''} ${editForm.apellidos || ''}` : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos))}
                     </h2>
                     {selected.tipo_afiliado === 'Corporativo' && (
                       <p className="text-sm font-bold text-slate-500">
@@ -2547,8 +2547,8 @@ export default function MiembrosPanel() {
                 </p>
                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                   {imageEditKind === 'logo'
-                    ? (selected.tipo_afiliado === 'Corporativo' ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo)) : formatNombreCard(selected.nombre_completo))
-                    : formatNombreCard(selected.nombre_completo)}
+                    ? (selected.tipo_afiliado === 'Corporativo' ? (selected.empresa_razon_social || formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos)) : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos))
+                    : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos)}
                 </p>
               </div>
               <button
@@ -2819,7 +2819,7 @@ export default function MiembrosPanel() {
                   Cambiar Tipo de Membresía
                 </h3>
                 <p className="text-[10px] font-bold text-gray-400 mt-1">
-                  Mover a {selected ? formatNombreCard(selected.nombre_completo) : ''} a la membresía: {pendingNewType}
+                  Mover a {selected ? formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos) : ''} a la membresía: {pendingNewType}
                 </p>
               </div>
               <button
@@ -3066,7 +3066,7 @@ export default function MiembrosPanel() {
             </div>
             <h3 className='text-base font-black text-slate-800 mb-1.5'>¿Cambiar a Agente Independiente?</h3>
             <p className='text-xs text-slate-500 mb-4 leading-relaxed'>
-              ¿Estás seguro de convertir a <span className='font-bold text-slate-700'>{formatNombreCard(naturalTransitionTarget.nombre_completo)}</span> en Agente Independiente (Natural)? Se romperá cualquier vínculo con su empresa actual.
+              ¿Estás seguro de convertir a <span className='font-bold text-slate-700'>{formatNombreCard(naturalTransitionTarget.nombres || naturalTransitionTarget.nombre_completo, naturalTransitionTarget.apellidos)}</span> en Agente Independiente (Natural)? Se romperá cualquier vínculo con su empresa actual.
             </p>
             
             <div className='flex flex-col gap-2'>

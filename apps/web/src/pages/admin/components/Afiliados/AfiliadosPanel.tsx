@@ -698,8 +698,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   </div>
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
                     {selected.tipo_afiliado === 'Corporativo'
-                      ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo))
-                      : formatNombreCard(selected.nombre_completo)
+                      ? (selected.empresa_razon_social || formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos))
+                      : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos)
                     }
                   </h3>
 
@@ -759,8 +759,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 ]
 
                 const displayName = selected.tipo_afiliado === 'Corporativo'
-                  ? (selected.empresa_razon_social || formatNombreCard(selected.nombre_completo))
-                  : formatNombreCard(selected.nombre_completo)
+                  ? (selected.empresa_razon_social || formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos))
+                  : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos)
 
                 // Detect skipping or returning
                 let warningHtml = ''

@@ -118,8 +118,11 @@ export default function PreinscripcionesPrincipalesPanel({
     finally { setLoadingDocs(false) }
   }, [authHeaders])
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  const selectedRef = useRef<Row | null>(null)
+  selectedRef.current = selected
+
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true)
     setError('')
     try {
       const qs = new URLSearchParams()
@@ -137,27 +140,24 @@ export default function PreinscripcionesPrincipalesPanel({
 
       const urlParams = new URLSearchParams(window.location.search)
       const idFromUrl = urlParams.get('id')
-      const targetId = idFromUrl ? Number(idFromUrl) : (selected ? selected.id_inscripcion : null)
+      const activeSelected = selectedRef.current
+      const targetId = idFromUrl ? Number(idFromUrl) : (activeSelected ? activeSelected.id_inscripcion : null)
       if (targetId) {
         const found = data.find(r => r.id_inscripcion === targetId)
         if (found) {
           setSelected(found)
           fetchDocumentos(found.id_estudiante)
-        } else {
-          setSelected(null)
-          setDocumentos([])
         }
-      } else {
-        setSelected(null)
-        setDocumentos([])
+        // Si no está en la lista (ej: ya es Afiliado y fue excluido del filtro),
+        // mantenemos el selected previo intacto para no perder el panel del usuario.
       }
     } catch (e: unknown) {
       const err = e as Error
       setError(err.message || 'Error inesperado')
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
-  }, [programa, authHeaders, selected, fetchDocumentos])
+  }, [programa, authHeaders, fetchDocumentos])
 
   const fetchModulos = useCallback(async (idInscripcion: number) => {
     setLoadingModulos(true)
@@ -168,7 +168,8 @@ export default function PreinscripcionesPrincipalesPanel({
       })
       const json = await res.json()
       if (res.ok && json.success) {
-        setModulos(json.data.modulos)
+        const raw = json.data?.modulos || json.data
+        setModulos(Array.isArray(raw) ? raw : [])
       }
     } catch (e) {
       console.error(e)
@@ -203,7 +204,7 @@ export default function PreinscripcionesPrincipalesPanel({
         showConfirmButton: false
       })
       
-      await fetchData()
+      await fetchData(true)
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
       }
@@ -258,7 +259,7 @@ export default function PreinscripcionesPrincipalesPanel({
         showConfirmButton: false
       })
       
-      await fetchData()
+      await fetchData(true)
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
       }
@@ -310,7 +311,7 @@ export default function PreinscripcionesPrincipalesPanel({
         timer: 2500,
         showConfirmButton: false
       })
-      await fetchData()
+      await fetchData(true)
       if (selected) {
         await fetchModulos(selected.id_inscripcion)
       }
@@ -327,12 +328,12 @@ export default function PreinscripcionesPrincipalesPanel({
 
     const result = await Swal.fire({
       title: '¿Aprobar CIBIR y Afiliar?',
-      text: `Esto aprobará todos los módulos del Programa CIBIR y moverá a ${selected.estudiante_nombre} a la etapa de Afiliado.`,
+      text: `Esto aprobará todos los módulos del Programa CIBIR de ${selected.estudiante_nombre} y lo moverá a la etapa final de Miembro Afiliado Oficial.`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#00D084',
       cancelButtonColor: '#cbd5e1',
-      confirmButtonText: 'Sí, aprobar',
+      confirmButtonText: 'Sí, aprobar y afiliar',
       cancelButtonText: 'Cancelar'
     })
 
@@ -341,12 +342,12 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       Swal.fire({
         title: 'Procesando...',
-        text: 'Aprobando todos los módulos y cambiando etapa...',
+        text: 'Aprobando módulos del CIBIR y otorgando afiliación oficial...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading()
       })
 
-      // 1. Aprobar todos los módulos
+      // 1. Aprobar todos los módulos del CIBIR (promueve a etapa 7: 'Afiliado' y asigna credenciales)
       const resModulos = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos/aprobar-todos`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders }
@@ -354,24 +355,19 @@ export default function PreinscripcionesPrincipalesPanel({
       const jsonModulos = await resModulos.json()
       if (!resModulos.ok || !jsonModulos.success) throw new Error(jsonModulos.message || 'No se pudieron aprobar los módulos')
 
-      // 2. Cambiar a etapa de Afiliación (6)
-      const resEtapa = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/cambiar-etapa`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ etapa: 6 }),
-      })
-      const jsonEtapa = await resEtapa.json()
-      if (!resEtapa.ok || !jsonEtapa.success) throw new Error(jsonEtapa.message || 'No se pudo cambiar la etapa')
+      // La persona pasa a 'Afiliado' y sale del filtro de preinscripciones.
+      // fetchData(true) refresca la lista silenciosamente; si el selected ya no está
+      // en la nueva lista, fetchData lo conserva intacto (no lo borra).
+      await fetchData(true)
+      await fetchModulos(selected.id_inscripcion)
 
       Swal.fire({
-        title: '¡CIBIR Aprobado!',
-        text: 'Todos los módulos han sido aprobados y el aspirante ha sido afiliado.',
+        title: '¡Afiliación Completada!',
+        html: `<b>${selected.estudiante_nombre}</b> ha sido acreditado en el CIBIR y ahora es <b>Miembro Afiliado Oficial</b> de la Cámara.`,
         icon: 'success',
-        timer: 2500,
-        showConfirmButton: false
+        confirmButtonColor: '#00D084',
+        confirmButtonText: 'Entendido'
       })
-
-      await fetchData()
     } catch (e: any) {
       Swal.fire('Error', e.message || 'No se pudo completar la aprobación de CIBIR', 'error')
     }
@@ -380,12 +376,15 @@ export default function PreinscripcionesPrincipalesPanel({
   useEffect(() => {
     let active = true
     if (selected) {
-      const isCibir = selected.programa_codigo === 'CIBIR' || (selected.programa_codigo === 'AFILIACION' && selected.afiliado_estatus === '5_CIBIR')
+      const isCibir = selected.programa_codigo === 'CIBIR' || selected.cibir_acreditado === 1 || (selected.programa_codigo === 'AFILIACION' && ['5_CIBIR', '6_INSCRIPCION', 'Afiliado'].includes(selected.afiliado_estatus || ''))
       if (isCibir) {
         setLoadingModulos(true)
         apiFetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/modulos`, { headers: { ...authHeaders } })
           .then(json => {
-            if (active && json.success) setModulos(json.data)
+            if (active && json.success) {
+              const raw = json.data?.modulos || json.data
+              setModulos(Array.isArray(raw) ? raw : [])
+            }
           })
           .catch(() => {})
           .finally(() => {
@@ -401,32 +400,8 @@ export default function PreinscripcionesPrincipalesPanel({
   }, [selected, authHeaders])
 
   useEffect(() => {
-    let active = true
-    const load = async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const qs = new URLSearchParams()
-        if (uiEstatus !== 'Todos') qs.set('uiEstatus', uiEstatus)
-        if (programa !== 'Todos') qs.set('programa', programa)
-
-        const json = await apiFetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
-          headers: { ...authHeaders },
-        })
-        if (!active) return
-        if (!json.success) throw new Error(json.message || 'Error cargando inscripciones')
-
-        setRows(json.data as Row[])
-      } catch (e: any) {
-        if (!active) return
-        setError(e.message || 'Error inesperado')
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    load()
-    return () => { active = false }
-  }, [uiEstatus, programa, authHeaders])
+    fetchData()
+  }, [fetchData])
 
   const busyAgendarRef = useRef(false)
   const agendarEntrevista = async () => {
@@ -445,9 +420,16 @@ export default function PreinscripcionesPrincipalesPanel({
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo agendar')
       setShowModalAgendar(false)
-      await fetchData()
+      Swal.fire({
+        title: '¡Cita Agendada!',
+        text: 'La entrevista ha sido programada con éxito y el aspirante pasa a la etapa de Entrevista.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+      await fetchData(true)
     } catch (e: any) {
-      setError(e.message)
+      Swal.fire('Error', e.message || 'No se pudo agendar la entrevista', 'error')
     } finally {
       busyAgendarRef.current = false
     }
@@ -470,7 +452,7 @@ export default function PreinscripcionesPrincipalesPanel({
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo finalizar')
       setShowModalFinalizar(false)
-      await fetchData()
+      await fetchData(true)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -556,7 +538,7 @@ export default function PreinscripcionesPrincipalesPanel({
         showConfirmButton: false
       })
 
-      await fetchData()
+      await fetchData(true)
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al aprobar', icon: 'error' })
     }
@@ -585,7 +567,7 @@ export default function PreinscripcionesPrincipalesPanel({
         showConfirmButton: false
       })
 
-      await fetchData()
+      await fetchData(true)
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al remitir', icon: 'error' })
     }
@@ -625,7 +607,7 @@ export default function PreinscripcionesPrincipalesPanel({
         showConfirmButton: false
       })
 
-      await fetchData()
+      await fetchData(true)
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message, icon: 'error' })
     }
@@ -640,7 +622,7 @@ export default function PreinscripcionesPrincipalesPanel({
       })
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo rechazar')
-      await fetchData()
+      await fetchData(true)
     } catch (e: any) { setError(e.message) }
   }
 
@@ -662,7 +644,7 @@ export default function PreinscripcionesPrincipalesPanel({
         const json = await res.json()
         if (!res.ok || !json.success) throw new Error(json.message || 'Error al eliminar')
         setSelected(null)
-        await fetchData()
+        await fetchData(true)
       } catch (e: any) { Swal.fire({ title: 'Error', text: e.message, icon: 'error' }) }
     }
   }
@@ -722,7 +704,7 @@ export default function PreinscripcionesPrincipalesPanel({
     const pendiente = base.filter(r => r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0).length
     const sinExpediente = base.filter(r => r.estatus === 'Preinscrito' && (!r.num_documentos || r.num_documentos === 0)).length
     const entrevista = base.filter(r => r.estatus === 'Entrevista').length
-    const inscripcion = base.filter(r => r.estatus === 'Inscrito' && r.afiliado_estatus !== 'Afiliado').length
+    const inscripcion = base.filter(r => r.estatus === 'Inscrito').length
     const rechazado = base.filter(r => r.estatus === 'Rechazado').length
 
     return {
@@ -751,8 +733,8 @@ export default function PreinscripcionesPrincipalesPanel({
     } else if (uiEstatus === 'Entrevista') {
       result = result.filter(r => r.estatus === 'Entrevista')
     } else if (uiEstatus === 'Inscripción') {
-      // Para la pestaña 'Inscripción', mostrar solo quienes están pendientes de finalizar inscripción/pago y NO son ya Afiliados
-      result = result.filter(r => r.estatus === 'Inscrito' && r.afiliado_estatus !== 'Afiliado')
+      // Para la pestaña 'Inscripción' (Admitidos/Inscritos), mostrar todo el historial de aprobados
+      result = result.filter(r => r.estatus === 'Inscrito')
     } else if (uiEstatus === 'Rechazado') {
       result = result.filter(r => r.estatus === 'Rechazado')
     }
@@ -766,6 +748,31 @@ export default function PreinscripcionesPrincipalesPanel({
   }, [rows, search, filtroAcreditacion, uiEstatus])
 
   const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1) => {
+    // Si es un trámite de afiliación o tiene estatus en la tabla de afiliados, mostrar su etapa real
+    if (afiliadoEstatus) {
+      switch (afiliadoEstatus) {
+        case '1_PREINSCRIPCION':
+          return numDocumentos === 0
+            ? { label: 'Sin Expediente', styles: 'bg-rose-50 text-rose-600 border-rose-200' }
+            : { label: 'Preinscrito', styles: 'bg-amber-50 text-amber-700 border-amber-200' }
+        case '2_EXPEDIENTE':
+          return { label: 'Expediente', styles: 'bg-slate-100 text-slate-700 border-slate-200' }
+        case '3_ENTREVISTA':
+          return { label: 'Entrevista', styles: 'bg-purple-50 text-purple-700 border-purple-200' }
+        case '4_VERIFICACION':
+          return { label: 'Verificación', styles: 'bg-amber-50 text-amber-700 border-amber-200' }
+        case '5_CIBIR':
+          return { label: 'En CIBIR', styles: 'bg-indigo-50 text-indigo-700 border-indigo-200' }
+        case '6_INSCRIPCION':
+          return { label: 'Inscripción', styles: 'bg-sky-50 text-sky-700 border-sky-200' }
+        case 'Afiliado':
+          return { label: 'Afiliado Oficial', styles: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+        case 'Rechazado':
+          return { label: 'Rechazado', styles: 'bg-red-50 text-red-600 border-red-200' }
+        default:
+          break
+      }
+    }
     if (estatus === 'Preinscrito') {
       if (numDocumentos === 0) {
         return { label: 'Sin Expediente', styles: 'bg-rose-50 text-rose-600 border-rose-200' }
@@ -1011,9 +1018,6 @@ export default function PreinscripcionesPrincipalesPanel({
             {/* Stepper de Progreso */}
             {(selected.programa_codigo === 'AFILIACION' || selected.afiliado_estatus === '5_CIBIR') && (() => {
               const getActiveIndex = (est: string, aEst?: string) => {
-                if (aEst === 'Afiliado') return 6; // Etapa 7: Afiliación (Final)
-                if (est === 'Inscrito' || aEst === '6_INSCRIPCION') return 5; // Etapa 6: Inscripción (Pago/Cobro)
-
                 if (aEst) {
                   switch (aEst) {
                     case '1_PREINSCRIPCION': return 0;
@@ -1227,7 +1231,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cargando módulos...</span>
                   </div>
-                ) : modulos.length === 0 ? (
+                ) : !Array.isArray(modulos) || modulos.length === 0 ? (
                   <p className="text-xs text-slate-400 italic">No hay módulos configurados para este curso.</p>
                 ) : (
                   <div className="space-y-3">
@@ -1236,20 +1240,20 @@ export default function PreinscripcionesPrincipalesPanel({
                       <div className="flex justify-between items-center text-xs font-bold text-slate-600">
                         <span>Progreso del Estudiante</span>
                         <span>
-                          {modulos.filter(m => m.estatus === 'Aprobado').length} / {modulos.length} Módulos
+                          {(Array.isArray(modulos) ? modulos : []).filter(m => m.estatus === 'Aprobado').length} / {(Array.isArray(modulos) ? modulos : []).length} Módulos
                         </span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                         <div 
                           className="bg-[#00D084] h-full transition-colors duration-500" 
-                          style={{ width: `${(modulos.filter(m => m.estatus === 'Aprobado').length / modulos.length) * 100}%` }}
+                          style={{ width: `${(((Array.isArray(modulos) ? modulos : []).filter(m => m.estatus === 'Aprobado').length / ((Array.isArray(modulos) ? modulos : []).length || 1))) * 100}%` }}
                         />
                       </div>
                     </div>
 
                     {/* Listado de módulos individuales */}
                     <div className="divide-y divide-slate-100">
-                      {modulos.map((mod) => {
+                      {(Array.isArray(modulos) ? modulos : []).map((mod) => {
                         const isAprobado = mod.estatus === 'Aprobado';
                         const isRechazado = mod.estatus === 'Rechazado';
                         
@@ -1432,17 +1436,6 @@ export default function PreinscripcionesPrincipalesPanel({
                   </div>
                 )}
 
-                {/* Botón principal de Afiliación Oficial (Siempre visible si no es Afiliado aun) */}
-                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aprobación Final</span>
-                  <button
-                    onClick={() => cambiarEtapa(selected.id_inscripcion, 6, 'Afiliación')}
-                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
-                  >
-                    <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                    Finalizar y Convertir en Miembro Afiliado Oficial
-                  </button>
-                </div>
               </div>
             )}
 

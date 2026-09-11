@@ -579,37 +579,35 @@ export const registerAfiliado = async (req: Request, res: Response) => {
     // Sanitizar cedulaRif (solo números para evitar errores con puntos o guiones)
     const cleanedCedulaRif = (cedulaRif || '').replace(/\D/g, '');
 
-    // Verificar si ya existe en personas o empresas por correo
+    // Verificar si ya existe en personas por correo (excluyendo eliminados)
     const existeEmailPersona = await db.execute({
-      sql: `SELECT id FROM personas WHERE LOWER(email) = ?`,
+      sql: `SELECT id, cedula FROM personas WHERE LOWER(email) = ? AND eliminado_en IS NULL`,
       args: [email.toLowerCase()]
     });
-    const existeEmailEmpresa = await db.execute({
-      sql: `SELECT id_empresa FROM empresas WHERE LOWER(email) = ?`,
-      args: [email.toLowerCase()]
-    });
-    if (existeEmailPersona.rows.length > 0 || existeEmailEmpresa.rows.length > 0) {
-      return res.status(409).json({
-        success: false,
-        message: 'Ya existe un afiliado registrado con este correo electrónico.'
-      });
-    }
-
-    // Verificar si ya existe en personas o empresas por cédula/RIF
-    if (cleanedCedulaRif) {
-      const existeCedulaPersona = await db.execute({
-        sql: `SELECT id FROM personas WHERE cedula = ?`,
-        args: [cleanedCedulaRif]
-      });
-      const existeRifEmpresa = await db.execute({
-        sql: `SELECT id_empresa FROM empresas WHERE rif_numero = ?`,
-        args: [cleanedCedulaRif]
-      });
-      if (existeCedulaPersona.rows.length > 0 || existeRifEmpresa.rows.length > 0) {
+    if (existeEmailPersona.rows.length > 0) {
+      const p = existeEmailPersona.rows[0] as any;
+      if (cleanedCedulaRif && p.cedula && p.cedula !== cleanedCedulaRif) {
         return res.status(409).json({
           success: false,
-          message: 'Ya existe un afiliado registrado con esta cédula / RIF.'
+          message: 'Ya existe un afiliado registrado con este correo electrónico.'
         });
+      }
+    }
+
+    // Verificar si ya existe en personas por cédula/RIF (excluyendo eliminados)
+    if (cleanedCedulaRif) {
+      const existeCedulaPersona = await db.execute({
+        sql: `SELECT id, email FROM personas WHERE cedula = ? AND eliminado_en IS NULL`,
+        args: [cleanedCedulaRif]
+      });
+      if (existeCedulaPersona.rows.length > 0) {
+        const p = existeCedulaPersona.rows[0] as any;
+        if (email && p.email && p.email.toLowerCase() !== email.toLowerCase()) {
+          return res.status(409).json({
+            success: false,
+            message: 'Ya existe un afiliado registrado con esta cédula.'
+          });
+        }
       }
     }
 
@@ -2826,56 +2824,110 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
 
     if (finalEmail) {
       const existingEmailP = await db.execute({
-        sql: 'SELECT id, cedula FROM personas WHERE LOWER(email) = ?',
+        sql: 'SELECT id, cedula FROM personas WHERE LOWER(email) = ? AND eliminado_en IS NULL',
         args: [finalEmail]
       });
       if (existingEmailP.rows.length > 0) {
-        res.status(400).json({ success: false, message: `Ya existe un afiliado registrado con el correo "${finalEmail}".` });
-        return;
+        const p = existingEmailP.rows[0] as any;
+        if (cedulaNumero && p.cedula && p.cedula !== cedulaNumero) {
+          res.status(400).json({ success: false, message: `Ya existe un afiliado activo registrado con el correo "${finalEmail}".` });
+          return;
+        }
       }
 
-      const existingEmailE = await db.execute({
-        sql: 'SELECT id_empresa, rif_numero FROM empresas WHERE LOWER(email) = ?',
-        args: [finalEmail]
-      });
-      if (existingEmailE.rows.length > 0) {
-        res.status(400).json({ success: false, message: `Ya existe una empresa registrada con el correo "${finalEmail}".` });
-        return;
+      if (tipoFinal === 'Corporativo' && !id_empresa) {
+        const existingEmailE = await db.execute({
+          sql: 'SELECT id_empresa, rif_numero FROM empresas WHERE LOWER(email) = ? AND eliminado_en IS NULL',
+          args: [finalEmail]
+        });
+        if (existingEmailE.rows.length > 0) {
+          const e = existingEmailE.rows[0] as any;
+          if (cedulaNumero && e.rif_numero && e.rif_numero !== cedulaNumero) {
+            res.status(400).json({ success: false, message: `Ya existe una empresa activa registrada con el correo "${finalEmail}".` });
+            return;
+          }
+        }
       }
     }
 
     if (cedulaNumero) {
       const existingCedP = await db.execute({
-        sql: 'SELECT id, email FROM personas WHERE cedula = ?',
+        sql: 'SELECT id, email FROM personas WHERE cedula = ? AND eliminado_en IS NULL',
         args: [cedulaNumero]
       });
       if (existingCedP.rows.length > 0) {
-        res.status(400).json({ success: false, message: `Ya existe un afiliado registrado con la cédula "${cedulaNumero}".` });
-        return;
+        const p = existingCedP.rows[0] as any;
+        const pEmail = (p.email || '').toLowerCase();
+        if (finalEmail && pEmail && pEmail !== finalEmail.toLowerCase()) {
+          res.status(400).json({ success: false, message: `Ya existe un afiliado activo registrado con la cédula "${cedulaNumero}".` });
+          return;
+        }
       }
 
-      const existingRifE = await db.execute({
-        sql: 'SELECT id_empresa, email FROM empresas WHERE rif_numero = ?',
-        args: [cedulaNumero]
-      });
-      if (existingRifE.rows.length > 0) {
-        res.status(400).json({ success: false, message: `Ya existe una empresa registrada con el RIF "${cedulaNumero}".` });
-        return;
+      if (tipoFinal === 'Corporativo' && !id_empresa) {
+        const existingRifE = await db.execute({
+          sql: 'SELECT id_empresa, email FROM empresas WHERE rif_numero = ? AND eliminado_en IS NULL',
+          args: [cedulaNumero]
+        });
+        if (existingRifE.rows.length > 0) {
+          const e = existingRifE.rows[0] as any;
+          const eEmail = (e.email || '').toLowerCase();
+          if (finalEmail && eEmail && eEmail !== finalEmail.toLowerCase()) {
+            res.status(400).json({ success: false, message: `Ya existe una empresa activa registrada con el RIF "${cedulaNumero}".` });
+            return;
+          }
+        }
       }
     }
 
-    // 1. Insertar Persona
-    const resultP = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, direccion, nivel_academico, foto_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [toTitleCase(nombres) || '', toTitleCase(apellidos) || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null, foto_url || null]
+    // 1. Insertar o Reactivar Persona
+    let idPersona: number;
+    const existingP = await db.execute({
+      sql: `SELECT id FROM personas WHERE LOWER(email) = ? OR (cedula = ? AND ? != '') LIMIT 1`,
+      args: [(email || '').toLowerCase(), cedulaNumero, cedulaNumero]
     });
-    const idPersona = resultP.rows[0].id;
+
+    if (existingP.rows.length > 0) {
+      idPersona = existingP.rows[0].id as number;
+      await db.execute({
+        sql: `UPDATE personas SET
+                nombres = COALESCE(NULLIF(TRIM(?), ''), nombres),
+                apellidos = COALESCE(NULLIF(TRIM(?), ''), apellidos),
+                cedula_tipo = CASE WHEN ? != '' THEN ? ELSE cedula_tipo END,
+                cedula = CASE WHEN ? != '' THEN ? ELSE cedula END,
+                email = COALESCE(NULLIF(TRIM(?), ''), email),
+                telefono = COALESCE(NULLIF(TRIM(?), ''), telefono),
+                direccion = COALESCE(NULLIF(TRIM(?), ''), direccion),
+                nivel_academico = COALESCE(?, nivel_academico),
+                foto_url = COALESCE(?, foto_url),
+                eliminado_en = NULL
+              WHERE id = ?`,
+        args: [
+          toTitleCase(nombres) || null,
+          toTitleCase(apellidos) || null,
+          cedulaTipo, cedulaTipo,
+          cedulaNumero, cedulaNumero,
+          email || null,
+          telefono || null,
+          direccion || null,
+          nivel_academico || null,
+          foto_url || null,
+          idPersona
+        ]
+      });
+    } else {
+      const resultP = await db.execute({
+        sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, direccion, nivel_academico, foto_url)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [toTitleCase(nombres) || '', toTitleCase(apellidos) || '', cedulaTipo, cedulaNumero, email, telefono || null, direccion || null, nivel_academico || null, foto_url || null]
+      });
+      idPersona = resultP.rows[0].id as number;
+    }
 
     // 2. Manejar Empresa
     let finalIdEmpresa: number | null = id_empresa || null;
 
-    // Si es corporativo y NO se pasó un id_empresa, creamos la empresa
+    // Si es corporativo y NO se pasó un id_empresa, creamos o reactivamos la empresa
     if (tipoFinal === 'Corporativo' && !finalIdEmpresa) {
       const empresa_redes = JSON.stringify({
         instagram: empresa_instagram,
@@ -2885,22 +2937,58 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
         tiktok: empresa_tiktok,
         website: empresa_website
       });
-      const resultE = await db.execute({
-        sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, direccion, website, redes_sociales, logo_url)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
-        args: [
-          empresa_razon_social || '',
-          empresa_rif_tipo || 'J',
-          cedulaNumero,
-          empresa_email || email,
-          empresa_telefono || telefono || null,
-          empresa_direccion || direccion || null,
-          empresa_website || website || null,
-          empresa_redes,
-          empresa_logo_url || null
-        ]
+
+      const existingE = await db.execute({
+        sql: `SELECT id_empresa FROM empresas WHERE LOWER(email) = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
+        args: [(empresa_email || email || '').toLowerCase(), cedulaNumero, cedulaNumero]
       });
-      finalIdEmpresa = resultE.rows[0].id_empresa as number;
+
+      if (existingE.rows.length > 0) {
+        finalIdEmpresa = existingE.rows[0].id_empresa as number;
+        await db.execute({
+          sql: `UPDATE empresas SET
+                  razon_social = COALESCE(NULLIF(TRIM(?), ''), razon_social),
+                  rif_tipo = COALESCE(?, rif_tipo),
+                  rif_numero = CASE WHEN ? != '' THEN ? ELSE rif_numero END,
+                  email = COALESCE(NULLIF(TRIM(?), ''), email),
+                  telefono = COALESCE(NULLIF(TRIM(?), ''), telefono),
+                  direccion = COALESCE(NULLIF(TRIM(?), ''), direccion),
+                  website = COALESCE(NULLIF(TRIM(?), ''), website),
+                  redes_sociales = COALESCE(?, redes_sociales),
+                  logo_url = COALESCE(?, logo_url),
+                  eliminado_en = NULL
+                WHERE id_empresa = ?`,
+          args: [
+            empresa_razon_social || null,
+            empresa_rif_tipo || 'J',
+            cedulaNumero, cedulaNumero,
+            empresa_email || email || null,
+            empresa_telefono || telefono || null,
+            empresa_direccion || direccion || null,
+            empresa_website || website || null,
+            empresa_redes,
+            empresa_logo_url || null,
+            finalIdEmpresa
+          ]
+        });
+      } else {
+        const resultE = await db.execute({
+          sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono, direccion, website, redes_sociales, logo_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id_empresa`,
+          args: [
+            empresa_razon_social || '',
+            empresa_rif_tipo || 'J',
+            cedulaNumero,
+            empresa_email || email,
+            empresa_telefono || telefono || null,
+            empresa_direccion || direccion || null,
+            empresa_website || website || null,
+            empresa_redes,
+            empresa_logo_url || null
+          ]
+        });
+        finalIdEmpresa = resultE.rows[0].id_empresa as number;
+      }
     }
 
     // 3. Generar Código si es necesario
@@ -2910,19 +2998,56 @@ export const createAfiliado = async (req: Request, res: Response): Promise<void>
       finalCodigo = await obtenerSiguienteCodigoAfiliado();
     }
 
-    // 4. Insertar Afiliado
+    // 4. Insertar o Reactivar Afiliado
     const redes_sociales = JSON.stringify({ instagram, facebook, linkedin, twitter, tiktok, website });
     const marcaLogoUrl = (tipoFinal === 'Natural' && empresa_logo_url) ? empresa_logo_url : null;
     const cibirAcreditadoVal = req.body.cibir_acreditado ? 1 : 0;
-    const resultA = await db.execute({
-      sql: `INSERT INTO afiliados (
-        id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, marca_logo_url, activo, cibir_acreditado
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?) RETURNING *`,
-      args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales, marcaLogoUrl, cibirAcreditadoVal]
+
+    const existingA = await db.execute({
+      sql: `SELECT id_afiliado FROM afiliados WHERE id_persona = ? LIMIT 1`,
+      args: [idPersona]
     });
 
-    const newAfiliado = resultA.rows[0];
-    const idAfiliado = newAfiliado.id_afiliado;
+    let newAfiliado: any;
+    let idAfiliado: number;
+
+    if (existingA.rows.length > 0) {
+      idAfiliado = existingA.rows[0].id_afiliado as number;
+      const updateA = await db.execute({
+        sql: `UPDATE afiliados SET
+                id_empresa = ?,
+                tipo_afiliado = ?,
+                estatus = ?,
+                codigo = COALESCE(?, codigo),
+                redes_sociales = ?,
+                marca_logo_url = ?,
+                activo = 1,
+                cibir_acreditado = ?,
+                eliminado_en = NULL,
+                actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+              WHERE id_afiliado = ? RETURNING *`,
+        args: [
+          finalIdEmpresa,
+          tipoFinal,
+          estatusFinal,
+          finalCodigo,
+          redes_sociales,
+          marcaLogoUrl,
+          cibirAcreditadoVal,
+          idAfiliado
+        ]
+      });
+      newAfiliado = updateA.rows[0];
+    } else {
+      const resultA = await db.execute({
+        sql: `INSERT INTO afiliados (
+          id_persona, id_empresa, tipo_afiliado, estatus, codigo, redes_sociales, marca_logo_url, activo, cibir_acreditado
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?) RETURNING *`,
+        args: [idPersona, finalIdEmpresa, tipoFinal, estatusFinal, finalCodigo, redes_sociales, marcaLogoUrl, cibirAcreditadoVal]
+      });
+      newAfiliado = resultA.rows[0];
+      idAfiliado = newAfiliado.id_afiliado;
+    }
 
     await syncCibirCertificateState(Number(idAfiliado), cibirAcreditadoVal === 1);
 

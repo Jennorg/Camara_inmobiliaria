@@ -93,8 +93,10 @@ export async function upsertEstudianteByEmail(params: {
   let idPersona: number | null = null
   let idEmpresa: number | null = null
 
-  if (razonSocial) {
-    const cleanedRif = (cedulaRif || '').replace(/\D/g, '');
+  const cleanedRif = (cedulaRif || '').replace(/\D/g, '');
+  const isCorporateInput = Boolean(razonSocial) || Boolean(cedulaRif && /^[JG]-?/i.test(cedulaRif.trim()));
+
+  if (isCorporateInput) {
     const resE = await db.execute({
       sql: `SELECT id_empresa FROM empresas WHERE email = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
       args: [email, cleanedRif, cleanedRif]
@@ -106,7 +108,8 @@ export async function upsertEstudianteByEmail(params: {
                 razon_social = COALESCE(NULLIF(TRIM(?), ''), razon_social),
                 telefono = COALESCE(NULLIF(TRIM(?), ''), telefono),
                 email = COALESCE(NULLIF(TRIM(?), ''), email),
-                rif_numero = CASE WHEN ? != '' THEN ? ELSE rif_numero END
+                rif_numero = CASE WHEN ? != '' THEN ? ELSE rif_numero END,
+                eliminado_en = NULL
               WHERE id_empresa = ?`,
         args: [
           razonSocial || null,
@@ -120,7 +123,7 @@ export async function upsertEstudianteByEmail(params: {
       const finalRif = cleanedRif || `TEMP-J-${Date.now()}`;
       const insE = await db.execute({
         sql: `INSERT INTO empresas (razon_social, rif_numero, email, telefono) VALUES (?, ?, ?, ?) RETURNING id_empresa`,
-        args: [razonSocial, finalRif, email, telefono || null]
+        args: [razonSocial || params.nombreCompleto, finalRif, email, telefono || null]
       })
       idEmpresa = insE.rows[0].id_empresa as number
     }
@@ -148,7 +151,8 @@ export async function upsertEstudianteByEmail(params: {
                 cedula_tipo = CASE WHEN ? != '' THEN ? ELSE cedula_tipo END,
                 email = COALESCE(NULLIF(TRIM(?), ''), email),
                 nivel_academico = COALESCE(?, nivel_academico),
-                profesion = COALESCE(?, profesion)
+                profesion = COALESCE(?, profesion),
+                eliminado_en = NULL
               WHERE id = ?`,
         args: [
           parsedNombres,
@@ -196,7 +200,8 @@ export async function upsertEstudianteByEmail(params: {
       sql: `UPDATE estudiantes
             SET es_corredor_inmobiliario = COALESCE(?, es_corredor_inmobiliario),
                 tipo = ?,
-                actualizado_en = ?
+                actualizado_en = ?,
+                eliminado_en = NULL
             WHERE id_estudiante = ?`,
       args: [
         esCorredorInmobiliario == null ? null : Number(esCorredorInmobiliario),
@@ -2060,18 +2065,20 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const baseWhere: string[] = []
     const countArgs: any[] = []
 
-    // Excluir preinscripciones de afiliación/CIBIR de personas/empresas que ya tienen un estatus final en afiliados (Afiliado, Rechazado, etc.)
-    baseWhere.push("NOT (COALESCE(ic.programa_codigo, '') IN ('AFILIACION', 'CIBIR') AND COALESCE(af.estatus, '') IN ('Afiliado', 'Rechazado', 'Moroso', 'Suspendido'))")
-
     if (onlyCursos) {
       // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR
-      baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND (ic.programa_codigo <> 'AFILIACION' OR af.estatus = '5_CIBIR')))")
+      baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND (ic.programa_codigo <> 'AFILIACION' OR af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') OR af.cibir_acreditado = 1)))")
     } else if (cursoId) {
       baseWhere.push('ic.id_curso = ?')
       countArgs.push(cursoId)
     } else if (programaCodigo && programaCodigo !== 'Todos') {
-      baseWhere.push('ic.programa_codigo = ? AND ic.id_curso IS NULL')
-      countArgs.push(programaCodigo)
+      if (programaCodigo === 'CIBIR') {
+        // CIBIR aspirants are stored as AFILIACION in the DB, remapped to CIBIR in JS only if they're at 5_CIBIR/6_INSCRIPCION/Afiliado or cibir_acreditado=1
+        baseWhere.push("(ic.programa_codigo = 'CIBIR' OR (ic.programa_codigo = 'AFILIACION' AND (af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') OR af.cibir_acreditado = 1))) AND ic.id_curso IS NULL")
+      } else {
+        baseWhere.push('ic.programa_codigo = ? AND ic.id_curso IS NULL')
+        countArgs.push(programaCodigo)
+      }
     } else {
       // Si no hay curso ni programa específico, mostrar todos
       baseWhere.push('1=1')
@@ -2114,11 +2121,11 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           ic.*,
           cur.titulo as curso_nombre,
           CASE 
-            WHEN ic.programa_codigo = 'CIBIR' OR af.estatus = '5_CIBIR' THEN 5 
+            WHEN ic.programa_codigo = 'CIBIR' OR af.cibir_acreditado = 1 OR af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') THEN 5 
             ELSE COALESCE((SELECT COUNT(*) FROM modulos_curso mc WHERE mc.id_curso = ic.id_curso), 1)
           END as num_modulos,
           CASE
-            WHEN ic.programa_codigo = 'CIBIR' OR af.estatus = '5_CIBIR' THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
+            WHEN ic.programa_codigo = 'CIBIR' OR af.cibir_acreditado = 1 OR af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
             ELSE (SELECT COUNT(*) FROM modulos_inscripcion mi WHERE mi.id_inscripcion = ic.id_inscripcion AND mi.estatus = 'Aprobado')
           END as modulos_aprobados,
           (SELECT COUNT(*) FROM documentos d_count WHERE d_count.entidad_tipo = 'estudiante' AND d_count.entidad_id = e.id_estudiante AND d_count.eliminado_en IS NULL) as num_documentos,
@@ -2143,7 +2150,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           entr.hora as entrevista_hora,
           entr.lugar as entrevista_lugar,
           entr.estatus as entrevista_estatus,
-          COALESCE(af.optar_acreditacion, 0) as apto_acreditacion
+          COALESCE(af.optar_acreditacion, 0) as apto_acreditacion,
+          COALESCE(af.cibir_acreditado, 0) as cibir_acreditado
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
@@ -2162,7 +2170,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
 
     const mappedRows = result.rows.map((row: any) => {
       const r = { ...row }
-      if (r.programa_codigo === 'AFILIACION' && r.afiliado_estatus === '5_CIBIR') {
+      if (r.programa_codigo === 'AFILIACION' && (['5_CIBIR', '6_INSCRIPCION', 'Afiliado'].includes(r.afiliado_estatus) || r.cibir_acreditado === 1)) {
         r.programa_codigo = 'CIBIR'
         r.curso_nombre = 'Programa CIBIR'
       }
@@ -2189,6 +2197,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     }
 
     const nombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
+    const razonSocial = typeof req.body?.razonSocial === 'string' ? req.body.razonSocial.trim() : null
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
@@ -2229,68 +2238,85 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
     const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
     const cleanEmail = email ? email.toLowerCase().trim() : '';
+    const isCorporateInput = Boolean(razonSocial) || Boolean(cedulaRif && /^[JG]-?/i.test(cedulaRif.trim()));
 
     // Validar si ya existe persona/empresa por separado para dar mensajes descriptivos
     if (cleanEmail) {
-      const resPE = await db.execute({
-        sql: `SELECT id, nombres, apellidos, cedula, email FROM personas WHERE LOWER(email) = ? LIMIT 1`,
-        args: [cleanEmail]
-      });
-      if (resPE.rows.length > 0) {
-        const p = resPE.rows[0] as any;
-        if (cleanCed && p.cedula && p.cedula !== cleanCed) {
-          res.status(409).json({
-            success: false,
-            message: `Ya existe un afiliado/registrado con el correo "${cleanEmail}" a nombre de otra persona (Cédula: ${p.cedula}). Por favor verifique los datos.`
-          });
-          return;
+      if (!isCorporateInput) {
+        // Inscripción de PERSONA: comprobar en tabla personas
+        const resPE = await db.execute({
+          sql: `SELECT p.id, p.nombres, p.apellidos, p.cedula, p.email
+                FROM personas p
+                WHERE LOWER(p.email) = ? AND p.eliminado_en IS NULL LIMIT 1`,
+          args: [cleanEmail]
+        });
+        if (resPE.rows.length > 0) {
+          const p = resPE.rows[0] as any;
+          if (cleanCed && p.cedula && p.cedula !== cleanCed) {
+            res.status(409).json({
+              success: false,
+              message: `Ya existe un afiliado/registrado con el correo "${cleanEmail}" a nombre de otra persona (Cédula: ${p.cedula}). Por favor verifique los datos.`
+            });
+            return;
+          }
         }
-      }
-
-      const resEE = await db.execute({
-        sql: `SELECT id_empresa, razon_social, rif_numero, email FROM empresas WHERE LOWER(email) = ? LIMIT 1`,
-        args: [cleanEmail]
-      });
-      if (resEE.rows.length > 0) {
-        const e = resEE.rows[0] as any;
-        if (cleanCed && e.rif_numero && e.rif_numero !== cleanCed) {
-          res.status(409).json({
-            success: false,
-            message: `Ya existe una empresa registrada con el correo "${cleanEmail}" (RIF: ${e.rif_numero}). Por favor verifique los datos.`
-          });
-          return;
+      } else {
+        // Inscripción de EMPRESA: comprobar en tabla empresas
+        const resEE = await db.execute({
+          sql: `SELECT e.id_empresa, e.razon_social, e.rif_numero, e.email
+                FROM empresas e
+                WHERE LOWER(e.email) = ? AND e.eliminado_en IS NULL LIMIT 1`,
+          args: [cleanEmail]
+        });
+        if (resEE.rows.length > 0) {
+          const e = resEE.rows[0] as any;
+          if (cleanCed && e.rif_numero && e.rif_numero !== cleanCed) {
+            res.status(409).json({
+              success: false,
+              message: `Ya existe una empresa registrada con el correo "${cleanEmail}" (RIF: ${e.rif_numero}). Por favor verifique los datos.`
+            });
+            return;
+          }
         }
       }
     }
 
     if (cleanCed) {
-      const resPC = await db.execute({
-        sql: `SELECT id, nombres, apellidos, cedula, email FROM personas WHERE cedula = ? LIMIT 1`,
-        args: [cleanCed]
-      });
-      if (resPC.rows.length > 0) {
-        const p = resPC.rows[0] as any;
-        if (cleanEmail && p.email && p.email.toLowerCase() !== cleanEmail) {
-          res.status(409).json({
-            success: false,
-            message: `Ya existe un afiliado/registrado con la cédula "${cleanCed}" asociado al correo "${p.email}". Por favor verifique los datos.`
-          });
-          return;
+      if (!isCorporateInput) {
+        const resPC = await db.execute({
+          sql: `SELECT p.id, p.nombres, p.apellidos, p.cedula, p.email
+                FROM personas p
+                WHERE p.cedula = ? AND p.eliminado_en IS NULL LIMIT 1`,
+          args: [cleanCed]
+        });
+        if (resPC.rows.length > 0) {
+          const p = resPC.rows[0] as any;
+          const pEmail = (p.email || '').toLowerCase();
+          if (cleanEmail && pEmail && pEmail !== cleanEmail) {
+            res.status(409).json({
+              success: false,
+              message: `Ya existe un afiliado/registrado con la cédula "${cleanCed}" asociado al correo "${p.email}". Por favor verifique los datos.`
+            });
+            return;
+          }
         }
-      }
-
-      const resEC = await db.execute({
-        sql: `SELECT id_empresa, razon_social, rif_numero, email FROM empresas WHERE rif_numero = ? LIMIT 1`,
-        args: [cleanCed]
-      });
-      if (resEC.rows.length > 0) {
-        const e = resEC.rows[0] as any;
-        if (cleanEmail && e.email && e.email.toLowerCase() !== cleanEmail) {
-          res.status(409).json({
-            success: false,
-            message: `Ya existe una empresa registrada con el RIF "${cleanCed}" asociada al correo "${e.email}".`
-          });
-          return;
+      } else {
+        const resEC = await db.execute({
+          sql: `SELECT e.id_empresa, e.razon_social, e.rif_numero, e.email
+                FROM empresas e
+                WHERE e.rif_numero = ? AND e.eliminado_en IS NULL LIMIT 1`,
+          args: [cleanCed]
+        });
+        if (resEC.rows.length > 0) {
+          const e = resEC.rows[0] as any;
+          const eEmail = (e.email || '').toLowerCase();
+          if (cleanEmail && eEmail && eEmail !== cleanEmail) {
+            res.status(409).json({
+              success: false,
+              message: `Ya existe una empresa registrada con el RIF "${cleanCed}" asociada al correo "${e.email}".`
+            });
+            return;
+          }
         }
       }
     }
@@ -2331,6 +2357,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto,
+      razonSocial,
       cedulaRif,
       email,
       telefono,
@@ -2399,7 +2426,7 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
     const result = await db.execute({
       sql: `UPDATE inscripciones_cursos 
             SET estatus='Entrevista', actualizado_en=?
-            WHERE id_inscripcion=? AND estatus='Preinscrito'
+            WHERE id_inscripcion=? AND estatus IN ('Preinscrito', 'Entrevista')
             RETURNING *`,
       args: [now, id],
     })
@@ -2427,6 +2454,27 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
         sql: `INSERT INTO entrevistas (id_inscripcion, fecha, hora, lugar, estatus, creado_en) VALUES (?, ?, ?, ?, 'Pendiente', ?)`,
         args: [id, entrevistaFecha, entrevistaHora, entrevistaLugar, now]
       })
+    }
+
+    // Actualizar afiliados si aplica (etapa 3_ENTREVISTA)
+    if (row.programa_codigo === 'AFILIACION' || row.programa_codigo === 'CIBIR') {
+      try {
+        await db.execute({
+          sql: `UPDATE afiliados 
+                SET estatus = '3_ENTREVISTA', 
+                    fecha_ultimo_cambio_estatus = ?,
+                    actualizado_en = ?
+                WHERE id_afiliado IN (
+                  SELECT af.id_afiliado 
+                  FROM afiliados af
+                  JOIN estudiantes e ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+                  WHERE e.id_estudiante = ?
+                )`,
+          args: [now, now, row.id_estudiante]
+        })
+      } catch (afErr) {
+        console.error('Error actualizando estatus a 3_ENTREVISTA en afiliados:', afErr)
+      }
     }
 
     try {
@@ -3901,7 +3949,7 @@ export const adminGetModulosInscripcion = async (req: Request, res: Response): P
 
     const insRes = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
-                   c.titulo as curso_nombre, af.estatus as afiliado_estatus
+                   c.titulo as curso_nombre, af.estatus as afiliado_estatus, af.cibir_acreditado
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
@@ -3919,7 +3967,24 @@ export const adminGetModulosInscripcion = async (req: Request, res: Response): P
     let templateModulos: any[] = []
     let progressModulos: any[] = []
 
-    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+    let afiliadoEstatus: string | null = ins.afiliado_estatus
+    let cibirAcreditado: number | null = ins.cibir_acreditado
+    if (afiliadoEstatus == null && ins.programa_codigo === 'AFILIACION') {
+      const fallbackAf = await db.execute({
+        sql: `SELECT af.estatus, af.cibir_acreditado
+              FROM afiliados af
+              JOIN estudiantes e ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+      if (fallbackAf.rows.length > 0) {
+        const fb = fallbackAf.rows[0] as any
+        afiliadoEstatus = fb.estatus
+        cibirAcreditado = fb.cibir_acreditado
+      }
+    }
+
+    const isCibir = ins.programa_codigo === 'CIBIR' || cibirAcreditado === 1 || (ins.programa_codigo === 'AFILIACION' && ['5_CIBIR', '6_INSCRIPCION', 'Afiliado'].includes(afiliadoEstatus ?? ''))
 
     if (isCibir) {
       templateModulos = [
@@ -4025,11 +4090,11 @@ export const adminAprobarModuloInscripcion = async (req: Request, res: Response)
 
     const insRes = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
-                   af.estatus as afiliado_estatus
+                   af.estatus as afiliado_estatus, af.cibir_acreditado
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
-            WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
+            WHERE ic.id_inscripcion = ?`,
       args: [id]
     })
 
@@ -4040,7 +4105,24 @@ export const adminAprobarModuloInscripcion = async (req: Request, res: Response)
 
     const ins = insRes.rows[0] as any
 
-    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+    let afiliadoEstatus: string | null = ins.afiliado_estatus
+    let cibirAcreditado: number | null = ins.cibir_acreditado
+    if (afiliadoEstatus == null && ins.programa_codigo === 'AFILIACION') {
+      const fallbackAf = await db.execute({
+        sql: `SELECT af.estatus, af.cibir_acreditado
+              FROM afiliados af
+              JOIN estudiantes e ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+      if (fallbackAf.rows.length > 0) {
+        const fb = fallbackAf.rows[0] as any
+        afiliadoEstatus = fb.estatus
+        cibirAcreditado = fb.cibir_acreditado
+      }
+    }
+
+    const isCibir = ins.programa_codigo === 'CIBIR' || cibirAcreditado === 1 || (ins.programa_codigo === 'AFILIACION' && ['5_CIBIR', '6_INSCRIPCION', 'Afiliado'].includes(afiliadoEstatus ?? ''))
 
     if (isCibir) {
       const afRes = await db.execute({
@@ -4149,11 +4231,11 @@ export const adminRechazarModuloInscripcion = async (req: Request, res: Response
 
     const insRes = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante,
-                   af.estatus as afiliado_estatus
+                   af.estatus as afiliado_estatus, af.cibir_acreditado
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
-            WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
+            WHERE ic.id_inscripcion = ?`,
       args: [id]
     })
 
@@ -4164,7 +4246,24 @@ export const adminRechazarModuloInscripcion = async (req: Request, res: Response
 
     const ins = insRes.rows[0] as any
 
-    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+    let afiliadoEstatus: string | null = ins.afiliado_estatus
+    let cibirAcreditado: number | null = ins.cibir_acreditado
+    if (afiliadoEstatus == null && ins.programa_codigo === 'AFILIACION') {
+      const fallbackAf = await db.execute({
+        sql: `SELECT af.estatus, af.cibir_acreditado
+              FROM afiliados af
+              JOIN estudiantes e ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+      if (fallbackAf.rows.length > 0) {
+        const fb = fallbackAf.rows[0] as any
+        afiliadoEstatus = fb.estatus
+        cibirAcreditado = fb.cibir_acreditado
+      }
+    }
+
+    const isCibir = ins.programa_codigo === 'CIBIR' || cibirAcreditado === 1 || (ins.programa_codigo === 'AFILIACION' && ['5_CIBIR', '6_INSCRIPCION', 'Afiliado'].includes(afiliadoEstatus ?? ''))
 
     if (isCibir) {
       const afRes = await db.execute({
@@ -4240,13 +4339,18 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
 
     const insRes = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.id_curso, ic.programa_codigo, ic.id_estudiante, ic.completado,
-                   af.estatus as afiliado_estatus
+                   COALESCE(p.email, emp.email) as estudiante_email,
+                   af.estatus as afiliado_estatus, af.cibir_acreditado
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
             LEFT JOIN afiliados af ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
-            WHERE ic.id_inscripcion = ? AND ic.estatus = 'Inscrito'`,
+            WHERE ic.id_inscripcion = ?`,
       args: [id]
     })
+
+    console.log('[adminAprobarTodosModulosInscripcion] id_inscripcion=%d rows=%d', id, insRes.rows.length)
 
     if (insRes.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Inscripción no encontrada o estudiante no está admitido' })
@@ -4254,8 +4358,29 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
     }
 
     const ins = insRes.rows[0] as any
+    console.log('[adminAprobarTodosModulosInscripcion] ins=%j', ins)
 
-    const isCibir = ins.programa_codigo === 'CIBIR' || (ins.programa_codigo === 'AFILIACION' && ins.afiliado_estatus === '5_CIBIR')
+    // If the LEFT JOIN returned no afiliado (null afiliado_estatus), try a direct lookup
+    let afiliadoEstatus: string | null = ins.afiliado_estatus
+    let cibirAcreditado: number | null = ins.cibir_acreditado
+    if (afiliadoEstatus == null && ins.programa_codigo === 'AFILIACION') {
+      const fallbackAf = await db.execute({
+        sql: `SELECT af.estatus, af.cibir_acreditado
+              FROM afiliados af
+              JOIN estudiantes e ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
+              WHERE e.id_estudiante = ? LIMIT 1`,
+        args: [ins.id_estudiante]
+      })
+      if (fallbackAf.rows.length > 0) {
+        const fb = fallbackAf.rows[0] as any
+        afiliadoEstatus = fb.estatus
+        cibirAcreditado = fb.cibir_acreditado
+        console.log('[adminAprobarTodosModulosInscripcion] fallback afiliado: estatus=%s cibir_acreditado=%s', afiliadoEstatus, cibirAcreditado)
+      }
+    }
+
+    const isCibir = ins.programa_codigo === 'CIBIR' || cibirAcreditado === 1 || (ins.programa_codigo === 'AFILIACION' && ['5_CIBIR', '6_INSCRIPCION', 'Afiliado'].includes(afiliadoEstatus ?? ''))
+    console.log('[adminAprobarTodosModulosInscripcion] isCibir=%s programa_codigo=%s afiliado_estatus=%s cibir_acreditado=%s', isCibir, ins.programa_codigo, afiliadoEstatus, cibirAcreditado)
 
     if (isCibir) {
       const afRes = await db.execute({
@@ -4285,8 +4410,17 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
         })
       }
 
+      // Como no hay módulo de finanzas aún, aprobar CIBIR promueve a la etapa 7 y final: 'Afiliado'
+      if (ins.estudiante_email) {
+        try {
+          await promocionarYVincularAfiliado(ins.id_estudiante, ins.estudiante_email, now, 'Afiliado')
+        } catch (err) {
+          console.error('Error al promocionar afiliado tras aprobar CIBIR:', err)
+        }
+      }
+
       await db.execute({
-        sql: `UPDATE afiliados SET cibir_acreditado = 1, estatus = '6_INSCRIPCION', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
+        sql: `UPDATE afiliados SET cibir_acreditado = 1, estatus = 'Afiliado', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
         args: [now, idAfiliado]
       })
     } else {
@@ -4314,7 +4448,7 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
     }
 
     await db.execute({
-      sql: `UPDATE inscripciones_cursos SET completado = 1, actualizado_en = ? WHERE id_inscripcion = ?`,
+      sql: `UPDATE inscripciones_cursos SET estatus = 'Inscrito', completado = 1, actualizado_en = ? WHERE id_inscripcion = ?`,
       args: [now, id]
     })
     const { emitirComprobanteSiCompleto } = await import('../lib/certificados.js')
