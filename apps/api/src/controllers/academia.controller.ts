@@ -93,52 +93,56 @@ export async function upsertEstudianteByEmail(params: {
   let idPersona: number | null = null
   let idEmpresa: number | null = null
 
-  const cleanedRif = (cedulaRif || '').replace(/\D/g, '');
-  const isCorporateInput = Boolean(razonSocial) || Boolean(cedulaRif && /^[JG]-?/i.test(cedulaRif.trim()));
+  const rawDoc = String(cedulaRif || '').trim();
+  const docMatch = rawDoc.match(/^([VEJPG])-?(.+)$/i);
+  const docTipo = docMatch && docMatch[1] ? docMatch[1].toUpperCase() : (rawDoc.startsWith('J') || rawDoc.startsWith('G') ? rawDoc.charAt(0).toUpperCase() : 'V');
+  const docNumero = docMatch ? docMatch[2].replace(/\D/g, '') : rawDoc.replace(/\D/g, '');
+  const cleanEmail = email ? email.trim().toLowerCase() : '';
 
-  if (isCorporateInput) {
+  const isJuridico = ['J', 'G'].includes(docTipo) && !nombres && (!params.nombreCompleto || params.nombreCompleto === razonSocial);
+
+  if (isJuridico) {
+    // Entidad Jurídica (Empresa)
     const resE = await db.execute({
-      sql: `SELECT id_empresa FROM empresas WHERE email = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
-      args: [email, cleanedRif, cleanedRif]
-    })
+      sql: `SELECT id_empresa FROM empresas WHERE LOWER(email) = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
+      args: [cleanEmail, docNumero, docNumero]
+    });
     if (resE.rows.length > 0) {
-      idEmpresa = resE.rows[0].id_empresa as number
+      idEmpresa = resE.rows[0].id_empresa as number;
       await db.execute({
         sql: `UPDATE empresas SET 
                 razon_social = COALESCE(NULLIF(TRIM(?), ''), razon_social),
                 telefono = COALESCE(NULLIF(TRIM(?), ''), telefono),
                 email = COALESCE(NULLIF(TRIM(?), ''), email),
+                rif_tipo = CASE WHEN ? != '' THEN ? ELSE rif_tipo END,
                 rif_numero = CASE WHEN ? != '' THEN ? ELSE rif_numero END,
                 eliminado_en = NULL
               WHERE id_empresa = ?`,
         args: [
-          razonSocial || null,
+          razonSocial || params.nombreCompleto || null,
           telefono || null,
-          email || null,
-          cleanedRif, cleanedRif,
+          cleanEmail || null,
+          docTipo, docTipo,
+          docNumero, docNumero,
           idEmpresa
         ]
-      })
+      });
     } else {
-      const finalRif = cleanedRif || `TEMP-J-${Date.now()}`;
+      const finalRif = docNumero || `TEMP-J-${Date.now()}`;
       const insE = await db.execute({
-        sql: `INSERT INTO empresas (razon_social, rif_numero, email, telefono) VALUES (?, ?, ?, ?) RETURNING id_empresa`,
-        args: [razonSocial || params.nombreCompleto, finalRif, email, telefono || null]
-      })
-      idEmpresa = insE.rows[0].id_empresa as number
+        sql: `INSERT INTO empresas (razon_social, rif_tipo, rif_numero, email, telefono) VALUES (?, ?, ?, ?, ?) RETURNING id_empresa`,
+        args: [razonSocial || params.nombreCompleto, docTipo, finalRif, cleanEmail, telefono || null]
+      });
+      idEmpresa = insE.rows[0].id_empresa as number;
     }
   } else {
-    const cedulaInput = String(cedulaRif || '').trim();
-    const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i);
-    const cedulaTipo = cedulaMatch && cedulaMatch[1] ? cedulaMatch[1].toUpperCase() : 'V';
-    const cedulaNumero = cedulaMatch ? cedulaMatch[2].replace(/\D/g, '') : cedulaInput.replace(/\D/g, '');
-
+    // Persona Natural (puede pertenecer o representar a una empresa)
     const resP = await db.execute({
-      sql: `SELECT id FROM personas WHERE email = ? OR (cedula = ? AND ? != '') LIMIT 1`,
-      args: [email, cedulaNumero, cedulaNumero]
-    })
+      sql: `SELECT id FROM personas WHERE LOWER(email) = ? OR (cedula = ? AND ? != '') LIMIT 1`,
+      args: [cleanEmail, docNumero, docNumero]
+    });
     if (resP.rows.length > 0) {
-      idPersona = resP.rows[0].id as number
+      idPersona = resP.rows[0].id as number;
       const parsedNombres = nombres || (params.nombreCompleto ? (params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(0, -1).join(' ') : params.nombreCompleto.trim()) : null);
       const parsedApellidos = apellidos || (params.nombreCompleto && params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(-1)[0] : null);
 
@@ -158,33 +162,28 @@ export async function upsertEstudianteByEmail(params: {
           parsedNombres,
           parsedApellidos,
           telefono || null,
-          cedulaNumero, cedulaNumero,
-          cedulaTipo, cedulaTipo,
-          email || null,
+          docNumero, docNumero,
+          docTipo, docTipo,
+          cleanEmail || null,
           nivelProfesional || null,
           profesion || null,
           idPersona
         ]
-      })
-      if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
-        await db.execute({
-          sql: `UPDATE afiliados SET ano_inicio_servicio = COALESCE(?, ano_inicio_servicio) WHERE id_persona = ?`,
-          args: [anoInicioServicio, idPersona]
-        })
-      }
+      });
     } else {
-      const finalCedulaNumero = cedulaNumero || `TEMP-V-${Date.now()}`;
+      const finalCedula = docNumero || `TEMP-V-${Date.now()}`;
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [toTitleCase(nombres || params.nombreCompleto) || '', toTitleCase(apellidos) || '', cedulaTipo, finalCedulaNumero, email, telefono || null, nivelProfesional || null, profesion || null]
-      })
-      idPersona = insP.rows[0].id as number
-      if (anoInicioServicio !== undefined && anoInicioServicio !== null) {
-        await db.execute({
-          sql: `UPDATE afiliados SET ano_inicio_servicio = COALESCE(?, ano_inicio_servicio) WHERE id_persona = ?`,
-          args: [anoInicioServicio, idPersona]
-        })
-      }
+        args: [toTitleCase(nombres || params.nombreCompleto) || '', toTitleCase(apellidos) || '', docTipo, finalCedula, cleanEmail, telefono || null, nivelProfesional || null, profesion || null]
+      });
+      idPersona = insP.rows[0].id as number;
+    }
+
+    if (anoInicioServicio !== undefined && anoInicioServicio !== null && idPersona) {
+      await db.execute({
+        sql: `UPDATE afiliados SET ano_inicio_servicio = COALESCE(?, ano_inicio_servicio) WHERE id_persona = ?`,
+        args: [anoInicioServicio, idPersona]
+      }).catch(() => null);
     }
   }
 
@@ -2238,88 +2237,6 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
     const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
     const cleanEmail = email ? email.toLowerCase().trim() : '';
-    const isCorporateInput = Boolean(razonSocial) || Boolean(cedulaRif && /^[JG]-?/i.test(cedulaRif.trim()));
-
-    // Validar si ya existe persona/empresa por separado para dar mensajes descriptivos
-    if (cleanEmail) {
-      if (!isCorporateInput) {
-        // Inscripción de PERSONA: comprobar en tabla personas
-        const resPE = await db.execute({
-          sql: `SELECT p.id, p.nombres, p.apellidos, p.cedula, p.email
-                FROM personas p
-                WHERE LOWER(p.email) = ? AND p.eliminado_en IS NULL LIMIT 1`,
-          args: [cleanEmail]
-        });
-        if (resPE.rows.length > 0) {
-          const p = resPE.rows[0] as any;
-          if (cleanCed && p.cedula && p.cedula !== cleanCed) {
-            res.status(409).json({
-              success: false,
-              message: `Ya existe un afiliado/registrado con el correo "${cleanEmail}" a nombre de otra persona (Cédula: ${p.cedula}). Por favor verifique los datos.`
-            });
-            return;
-          }
-        }
-      } else {
-        // Inscripción de EMPRESA: comprobar en tabla empresas
-        const resEE = await db.execute({
-          sql: `SELECT e.id_empresa, e.razon_social, e.rif_numero, e.email
-                FROM empresas e
-                WHERE LOWER(e.email) = ? AND e.eliminado_en IS NULL LIMIT 1`,
-          args: [cleanEmail]
-        });
-        if (resEE.rows.length > 0) {
-          const e = resEE.rows[0] as any;
-          if (cleanCed && e.rif_numero && e.rif_numero !== cleanCed) {
-            res.status(409).json({
-              success: false,
-              message: `Ya existe una empresa registrada con el correo "${cleanEmail}" (RIF: ${e.rif_numero}). Por favor verifique los datos.`
-            });
-            return;
-          }
-        }
-      }
-    }
-
-    if (cleanCed) {
-      if (!isCorporateInput) {
-        const resPC = await db.execute({
-          sql: `SELECT p.id, p.nombres, p.apellidos, p.cedula, p.email
-                FROM personas p
-                WHERE p.cedula = ? AND p.eliminado_en IS NULL LIMIT 1`,
-          args: [cleanCed]
-        });
-        if (resPC.rows.length > 0) {
-          const p = resPC.rows[0] as any;
-          const pEmail = (p.email || '').toLowerCase();
-          if (cleanEmail && pEmail && pEmail !== cleanEmail) {
-            res.status(409).json({
-              success: false,
-              message: `Ya existe un afiliado/registrado con la cédula "${cleanCed}" asociado al correo "${p.email}". Por favor verifique los datos.`
-            });
-            return;
-          }
-        }
-      } else {
-        const resEC = await db.execute({
-          sql: `SELECT e.id_empresa, e.razon_social, e.rif_numero, e.email
-                FROM empresas e
-                WHERE e.rif_numero = ? AND e.eliminado_en IS NULL LIMIT 1`,
-          args: [cleanCed]
-        });
-        if (resEC.rows.length > 0) {
-          const e = resEC.rows[0] as any;
-          const eEmail = (e.email || '').toLowerCase();
-          if (cleanEmail && eEmail && eEmail !== cleanEmail) {
-            res.status(409).json({
-              success: false,
-              message: `Ya existe una empresa registrada con el RIF "${cleanCed}" asociada al correo "${e.email}".`
-            });
-            return;
-          }
-        }
-      }
-    }
 
     const existing = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico 
@@ -2329,11 +2246,11 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
             LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
             WHERE ic.id_curso = ? 
               AND (
-                p.email = ? OR emp.email = ? 
+                LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ? 
                 OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
               )
             LIMIT 1`,
-      args: [idCurso, email, email, cleanCed, cleanCed, cleanCed],
+      args: [idCurso, cleanEmail, cleanEmail, cleanCed, cleanCed, cleanCed],
     })
 
     if (existing.rows.length > 0) {
