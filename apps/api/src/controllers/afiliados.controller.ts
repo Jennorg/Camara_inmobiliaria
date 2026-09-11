@@ -787,12 +787,20 @@ export const getAfiliados = async (req: Request, res: Response) => {
 
     let sql = `
       SELECT a.*, (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio,
-             p.nombres, p.apellidos, 
-             (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, p.fecha_nacimiento, p.nivel_academico, p.foto_url,
+             COALESCE(p.nombres, p_rep.nombres) as nombres, 
+             COALESCE(p.apellidos, p_rep.apellidos) as apellidos, 
+             COALESCE((p.cedula_tipo || '-' || p.cedula), (p_rep.cedula_tipo || '-' || p_rep.cedula), p.cedula, p_rep.cedula) as cedula, 
+             COALESCE(p.email, e.email, p_rep.email) as email, 
+             COALESCE(p.telefono, e.telefono, p_rep.telefono) as telefono, 
+             COALESCE(p.direccion, e.direccion, p_rep.direccion) as direccion, 
+             p.fecha_nacimiento, p.nivel_academico, 
+             COALESCE(p.foto_url, p_rep.foto_url) as foto_url,
              (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
              e.razon_social as empresa_razon_social, 
+             e.razon_social as razon_social,
              e.rif_tipo as empresa_rif_tipo,
              e.rif_numero as empresa_rif_numero,
+             COALESCE(e.rif_tipo || '-' || e.rif_numero, '') as rif,
              COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url,
              e.website as empresa_website,
              e.email as empresa_email,
@@ -802,12 +810,15 @@ export const getAfiliados = async (req: Request, res: Response) => {
              COALESCE(e_redes.linkedin, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin') ELSE NULL END) as linkedin,
              COALESCE(e_redes.twitter, CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter') ELSE NULL END) as twitter,
              CASE 
-               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''))
-               ELSE NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')
-             END as nombre_completo
+               WHEN a.tipo_afiliado = 'Corporativo' THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, p_rep.nombres, '') || ' ' || COALESCE(p.apellidos, p_rep.apellidos, '')), ''))
+               ELSE NULLIF(TRIM(COALESCE(p.nombres, p_rep.nombres, '') || ' ' || COALESCE(p.apellidos, p_rep.apellidos, '')), '')
+             END as nombre_completo,
+             COALESCE(NULLIF(TRIM(COALESCE(p_rep.nombres, '') || ' ' || COALESCE(p_rep.apellidos, '')), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as representante_nombre
       FROM afiliados a
-      JOIN personas p ON a.id_persona = p.id
+      LEFT JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+      LEFT JOIN afiliados a_rep ON e.id_representante_legal = a_rep.id_afiliado AND a_rep.eliminado_en IS NULL
+      LEFT JOIN personas p_rep ON a_rep.id_persona = p_rep.id AND p_rep.eliminado_en IS NULL
       LEFT JOIN (
         SELECT id_empresa, 
                CASE WHEN json_valid(redes_sociales) = 1 THEN json_extract(redes_sociales, '$.instagram') ELSE NULL END as instagram,
@@ -817,7 +828,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
         FROM empresas
       ) e_redes ON a.id_empresa = e_redes.id_empresa
       WHERE a.eliminado_en IS NULL
-        AND p.eliminado_en IS NULL
+        AND (p.id IS NULL OR p.eliminado_en IS NULL)
         AND (e.id_empresa IS NULL OR e.eliminado_en IS NULL)
     `;
 

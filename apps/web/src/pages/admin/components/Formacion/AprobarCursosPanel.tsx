@@ -184,9 +184,10 @@ export default function AprobarCursosPanel() {
   const handleSelectAfiliado = (af: any) => {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
     
-    // Quien se inscribe es el representante legal (persona)
-    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.nombre || '';
-    const rawCed = String(af.cedula || af.rif || '');
+    // Quien se inscribe es el representante legal (persona) o el afiliado
+    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.nombre || af.empresa_razon_social || af.razon_social || '';
+    const razon = af.empresa_razon_social || af.razon_social || '';
+    const rawCed = String(af.cedula || af.rif || af.empresa_rif_numero || '');
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
     const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed;
     const rawTel = String(af.telefono || af.telefono_movil || af.empresa_telefono || '');
@@ -196,13 +197,13 @@ export default function AprobarCursosPanel() {
 
     setEnrollFormData({
       nombreCompleto: nombre,
-      razonSocial: '',
+      razonSocial: razon,
       email: finalEmail,
       cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
       cedulaRif: numCed,
       codigoPais: codeTel,
       telefono: numTel,
-      nivelProfesional: 'Nivel Profesional',
+      nivelProfesional: af.nivel_academico || 'Nivel Profesional',
       esCorredorInmobiliario: true
     });
   };
@@ -1107,23 +1108,40 @@ export default function AprobarCursosPanel() {
 
                       {/* Lista filtrada de afiliados FLOTANTE / position absolute */}
                       {afiliadoSearch.trim().length > 0 && (
-                        <div className="transition-opacity transition-transform absolute left-0 right-0 top-full mt-1.5 z-50 max-h-48 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl fade-in slide-in-from-top-1 duration-150">
+                        <div className="transition-opacity transition-transform absolute left-0 right-0 top-full mt-1.5 z-50 max-h-56 overflow-y-auto divide-y divide-emerald-100/60 bg-white rounded-2xl border border-emerald-200 shadow-2xl fade-in slide-in-from-top-1 duration-150">
                           {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
                             .filter((af: any) => {
                               if (!af) return false;
-                              const q = afiliadoSearch.toLowerCase();
-                              const nombre = [af.nombres, af.apellidos, af.razon_social, af.nombre].filter(Boolean).join(' ').toLowerCase();
-                              const cedula = String(af.cedula || af.rif || af.cedula_rif || '').toLowerCase();
-                              const email = String(af.email || '').toLowerCase();
+                              const normalize = (str: string = '') =>
+                                String(str)
+                                  .normalize('NFD')
+                                  .replace(/[\u0300-\u036f]/g, '')
+                                  .toLowerCase()
+                                  .trim();
+                              const cleanDigits = (str: string = '') => String(str).replace(/\D/g, '');
 
-                              if (afiliadoSearchField === 'nombre') return nombre.includes(q);
-                              if (afiliadoSearchField === 'cedula') return cedula.includes(q);
-                              if (afiliadoSearchField === 'email') return email.includes(q);
-                              return nombre.includes(q) || email.includes(q) || cedula.includes(q);
+                              const q = normalize(afiliadoSearch);
+                              const qDigits = cleanDigits(afiliadoSearch);
+
+                              const nombre = normalize([af.nombres, af.apellidos, af.empresa_razon_social, af.razon_social, af.nombre_completo, af.representante_nombre, af.nombre].filter(Boolean).join(' '));
+                              const codigo = normalize(af.codigo || '');
+                              const email = normalize(`${af.email || ''} ${af.empresa_email || ''}`);
+                              const rawCed = `${af.cedula || ''} ${af.rif || ''} ${af.empresa_rif_numero || ''}`;
+                              const cedula = normalize(rawCed);
+                              const cedulaDigits = cleanDigits(rawCed);
+
+                              const matchNombre = nombre.includes(q) || codigo.includes(q);
+                              const matchEmail = email.includes(q);
+                              const matchCedula = cedula.includes(q) || (qDigits.length >= 3 && cedulaDigits.includes(qDigits));
+
+                              if (afiliadoSearchField === 'nombre') return matchNombre;
+                              if (afiliadoSearchField === 'cedula') return matchCedula;
+                              if (afiliadoSearchField === 'email') return matchEmail;
+                              return matchNombre || matchEmail || matchCedula;
                             })
-                            .slice(0, 8)
+                            .slice(0, 10)
                             .map((af: any) => {
-                              const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || 'Sin nombre';
+                              const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.empresa_razon_social || af.razon_social || af.nombre || 'Sin nombre';
                               const isSel = String(af.id_afiliado || af.id) === selectedAfiliadoId;
                               return (
                                 <button
@@ -1136,9 +1154,24 @@ export default function AprobarCursosPanel() {
                                   className={`w-full text-left p-3 text-xs flex items-center justify-between transition-colors ${isSel ? 'bg-[#E9FAF4] text-[#00B870] font-bold' : 'hover:bg-slate-50 text-slate-700'
                                     }`}
                                 >
-                                  <div className="min-w-0">
-                                    <p className="font-bold truncate">{nombre}</p>
-                                    <p className="text-[10px] text-slate-400 truncate">{af.email || 'Sin correo'} • C.I: {af.cedula || 'S/N'}</p>
+                                  <div className="min-w-0 flex-1 pr-2">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className="font-bold truncate text-slate-900">{nombre}</p>
+                                      {af.codigo && (
+                                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shrink-0">
+                                          {af.codigo}
+                                        </span>
+                                      )}
+                                      {af.tipo_afiliado && (
+                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                                          {af.tipo_afiliado}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                      {af.email || af.empresa_email || 'Sin correo'} • C.I/RIF: {af.cedula || af.rif || 'S/N'}
+                                      {af.empresa_razon_social && af.tipo_afiliado !== 'Corporativo' ? ` • ${af.empresa_razon_social}` : ''}
+                                    </p>
                                   </div>
                                   {isSel && <CheckCircle2 className="w-4 h-4 text-[#00B870] shrink-0 ml-2" />}
                                 </button>

@@ -1,11 +1,40 @@
-export const createImage = (url: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const image = new Image()
-    image.addEventListener('load', () => resolve(image))
-    image.addEventListener('error', (error) => reject(error))
-    image.setAttribute('crossOrigin', 'anonymous') // needed to avoid cross-origin issues on CodeSandbox
-    image.src = url
-  })
+export const createImage = async (url: string): Promise<HTMLImageElement> => {
+  let finalSrc = url;
+  let isBlobCreated = false;
+
+  // Si es una URL remota http/https, descargarla como Blob para evitar CORS y problemas con la caché del navegador
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const res = await fetch(url, { mode: 'cors', cache: 'no-cache' });
+      if (res.ok) {
+        const blob = await res.blob();
+        finalSrc = URL.createObjectURL(blob);
+        isBlobCreated = true;
+      }
+    } catch {
+      const delimiter = url.includes('?') ? '&' : '?';
+      finalSrc = `${url}${delimiter}t=${Date.now()}`;
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => {
+      if (isBlobCreated) {
+        URL.revokeObjectURL(finalSrc);
+      }
+      resolve(image);
+    });
+    image.addEventListener('error', (error) => {
+      if (isBlobCreated) {
+        URL.revokeObjectURL(finalSrc);
+      }
+      reject(error);
+    });
+    image.setAttribute('crossOrigin', 'anonymous');
+    image.src = finalSrc;
+  });
+};
 
 export function getRadianAngle(degreeValue: number) {
   return (degreeValue * Math.PI) / 180

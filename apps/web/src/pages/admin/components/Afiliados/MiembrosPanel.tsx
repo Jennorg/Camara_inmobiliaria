@@ -765,17 +765,18 @@ export default function MiembrosPanel() {
       const isLogo = imageEditKind === 'logo'
       let finalUrl = imagePreview || (isLogo ? selected.empresa_logo_url : selected.foto_url) || ''
 
-      if (imageFile && imagePreview && croppedAreaPixels) {
-        // Recortar la imagen antes de subirla
+      if (imagePreview && croppedAreaPixels) {
+        // Recortar la imagen antes de subirla (funciona con archivo nuevo o con imagen/logo ya existente)
         const croppedImageBlob = await getCroppedImg(
           imagePreview,
           croppedAreaPixels,
           0,
           { horizontal: false, vertical: false },
-          imageFile.type
+          imageFile?.type || 'image/webp'
         )
         if (croppedImageBlob) {
-          const webpName = imageFile.name.replace(/\.[^/.]+$/, '') + '.webp'
+          const rawName = imageFile?.name || `${isLogo ? 'logo' : 'foto'}_${selected.codigo || selected.id_afiliado}_${Date.now()}.webp`
+          const webpName = rawName.replace(/\.[^/.]+$/, '') + '.webp'
           const croppedFile = new File([croppedImageBlob], webpName, { type: 'image/webp' })
           finalUrl = await uploadFileStorage(
             croppedFile,
