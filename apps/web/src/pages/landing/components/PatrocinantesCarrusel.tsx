@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const globModules = import.meta.glob<string>('@/assets/carrusel/patrocinante*.jpeg', {
+const globModules = import.meta.glob<string>('@/assets/carrusel/patrocinante*.{jpeg,jpg,png,webp,JPEG,JPG,PNG,WEBP}', {
   eager: true,
   import: 'default',
 });
