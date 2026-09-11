@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -12,6 +12,10 @@ import logoUrl from '@/assets/Logo2.webp';
 import { uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared';
 import { apiFetch } from '@/lib/apiClient';
 import ExportInscritosCursoModal from './ExportInscritosCursoModal';
+import CertificadoProgramaView from '@/components/CertificadoProgramaView';
+import CertificadoCursoView from '@/components/CertificadoCursoView';
+import { captureElementToPdfBuffer } from '@/utils/domToPdf';
+import JSZip from 'jszip';
 
 function loadLogoDataUrl(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -66,6 +70,9 @@ export interface CursoDB {
   num_estudiantes?: number;
   inscritos?: number;
   categoria?: string | null;
+  modalidad?: string | null;
+  instructor_cargo?: string | null;
+  modulos_lista?: string | null;
   modulos?: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
 }
 
@@ -1661,6 +1668,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [submittingEnroll, setSubmittingEnroll] = useState(false);
   const [enrollFormData, setEnrollFormData] = useState({
     nombreCompleto: '',
+    razonSocial: '',
     email: '',
     cedulaPrefix: 'V',
     cedulaRif: '',
@@ -1878,6 +1886,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     setSelectedAfiliadoId('');
     setEnrollFormData({
       nombreCompleto: '',
+      razonSocial: '',
       email: '',
       cedulaPrefix: 'V',
       cedulaRif: '',
@@ -1903,17 +1912,21 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
   const handleSelectAfiliado = (af: any) => {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
-    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.razon_social || af.nombre || '';
+    
+    // Quien se inscribe es el representante legal (persona)
+    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.nombre || '';
     const rawCed = String(af.cedula || af.rif || '');
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
     const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed;
-    const rawTel = String(af.telefono || af.telefono_movil || '');
+    const rawTel = String(af.telefono || af.telefono_movil || af.empresa_telefono || '');
     const codeTel = rawTel.startsWith('+') ? (rawTel.match(/^(\+\d{1,4})/)?.[1] || '+58') : '+58';
     const numTel = rawTel.replace(/^(\+\d{1,4}\s?)/, '');
+    const finalEmail = af.email || af.empresa_email || '';
 
     setEnrollFormData({
       nombreCompleto: nombre,
-      email: af.email || '',
+      razonSocial: '',
+      email: finalEmail,
       cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
       cedulaRif: numCed,
       codigoPais: codeTel,
@@ -1932,6 +1945,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
     const payload = {
       ...enrollFormData,
+      razonSocial: enrollFormData.razonSocial || undefined,
       cedulaRif: enrollFormData.cedulaRif ? `${enrollFormData.cedulaPrefix || 'V'}-${enrollFormData.cedulaRif.replace(/^[VEJGP]-?/i, '')}` : '',
       telefono: enrollFormData.telefono ? `${enrollFormData.codigoPais || '+58'} ${enrollFormData.telefono.replace(/^(\+\d{1,4}\s?)/, '')}` : ''
     };
@@ -2070,6 +2084,166 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   // Selecciones múltiples para acciones en lote
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+  const [isGeneratingZip, setIsGeneratingZip] = useState(false);
+  const [renderingCertData, setRenderingCertData] = useState<any | null>(null);
+
+  const handleDownloadZipCertificates = async (selectedOnly = false) => {
+    const targetRows = selectedOnly
+      ? rows.filter(r => selectedIds.includes(r.id_inscripcion))
+      : rows;
+
+    if (targetRows.length === 0) {
+      Swal.fire({
+        title: 'Sin inscritos',
+        text: selectedOnly ? 'No hay participantes seleccionados.' : 'Este curso no tiene participantes inscritos para generar certificados.',
+        icon: 'info'
+      });
+      return;
+    }
+
+    setIsGeneratingZip(true);
+
+    const progressHtml = `
+      <div class="w-full text-left space-y-3 pt-2">
+        <div class="flex justify-between text-xs font-semibold text-slate-600">
+          <span id="swal-zip-status">Iniciando generación de certificados...</span>
+          <span id="swal-zip-count">0 / ${targetRows.length}</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+          <div id="swal-zip-bar" class="bg-[#00D084] h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+        </div>
+        <p id="swal-zip-participant" class="text-[11px] text-slate-400 truncate font-medium"></p>
+      </div>
+    `;
+
+    Swal.fire({
+      title: 'Generando Certificados Oficiales ZIP',
+      html: progressHtml,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false
+    });
+
+    try {
+      const MAIN_PROGRAMS = new Set(['CIBIR', 'PREANI', 'PEGI', 'PADI']);
+      const isMainProg = curso.programa_codigo
+        ? MAIN_PROGRAMS.has(curso.programa_codigo.trim().toUpperCase())
+        : false;
+
+      let parsedFirmantes: FirmanteItem[] | undefined = undefined;
+      if (curso.firmantes) {
+        try {
+          parsedFirmantes = typeof curso.firmantes === 'string' ? JSON.parse(curso.firmantes) : curso.firmantes;
+        } catch {
+          parsedFirmantes = undefined;
+        }
+      }
+
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const zip = new JSZip();
+
+      // Ensure browser fonts are ready
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      const total = targetRows.length;
+      let generatedCount = 0;
+      for (let i = 0; i < total; i++) {
+        const inscrito = targetRows[i];
+        const nombreEstudiante = formatNombreCard(inscrito.estudiante_nombre) || inscrito.nombre || `Inscrito_${i + 1}`;
+        const codigoVal = inscrito.codigo_validacion || `CIV-${String(inscrito.id_inscripcion || (i + 1)).padStart(5, '0')}-${String(curso.id_curso || '0').padStart(3, '0')}`;
+        const urlVerif = `${origin}/comprobante/${encodeURIComponent(codigoVal)}`;
+
+        const percent = Math.round(((i + 1) / total) * 100);
+        const statusEl = document.getElementById('swal-zip-status');
+        const countEl = document.getElementById('swal-zip-count');
+        const barEl = document.getElementById('swal-zip-bar');
+        const partEl = document.getElementById('swal-zip-participant');
+        if (statusEl) statusEl.innerText = `Generando PDF (${percent}%)...`;
+        if (countEl) countEl.innerText = `${i + 1} / ${total}`;
+        if (barEl) barEl.style.width = `${percent}%`;
+        if (partEl) partEl.innerText = nombreEstudiante;
+
+        // Render current participant
+        setRenderingCertData({
+          isMainProgram: isMainProg,
+          codigo: codigoVal,
+          fechaEmisionIso: inscrito.fecha_emision || (curso.fecha_fin ? `${curso.fecha_fin}T12:00:00` : new Date().toISOString()),
+          titularNombre: nombreEstudiante,
+          programaOCurso: curso.titulo || curso.nombre || 'CURSO',
+          programaCodigo: curso.programa_codigo || 'CURSO',
+          modalidad: curso.modalidad || null,
+          categoria: curso.categoria || curso.nivel_academico || null,
+          descripcion: curso.descripcion || null,
+          instructorNombre: curso.instructor_nombre || null,
+          instructorCargo: curso.instructor_cargo || null,
+          urlVerificacion: urlVerif,
+          vigente: Number(inscrito.completado) === 1 || inscrito.estatus === 'Inscrito' || true,
+          cedula: inscrito.estudiante_cedula || inscrito.cedula || null,
+          modulosLista: curso.modulos_lista || null,
+          firmantes: parsedFirmantes
+        });
+
+        // Wait for DOM repaint, QR generation & image loads (500ms gives qrcode lib time to resolve)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const targetEl = document.querySelector('#zip-certificate-export-target #certificate-print-area') as HTMLElement;
+        if (targetEl) {
+          try {
+            const pdfBuffer = await captureElementToPdfBuffer(targetEl);
+            const rawCed = (inscrito.estudiante_cedula || inscrito.cedula || '').replace(/\D/g, '');
+            const safeCed = rawCed ? `_${rawCed}` : '';
+            const safeName = nombreEstudiante.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const filename = `Certificado_${String(i + 1).padStart(3, '0')}${safeCed}_${safeName}.pdf`;
+
+            zip.file(filename, pdfBuffer);
+            generatedCount++;
+          } catch (itemErr) {
+            console.error(`Error generando certificado para ${nombreEstudiante}:`, itemErr);
+          }
+        }
+      }
+
+      setRenderingCertData(null);
+
+      if (generatedCount === 0) {
+        throw new Error('No se pudo generar ningún certificado.');
+      }
+
+      // Generate Zip Blob
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      const safeCursoName = (curso.titulo || curso.nombre || 'Curso').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const zipFilename = `Certificados_${safeCursoName}.zip`;
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = zipFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      Swal.fire({
+        title: '¡ZIP Descargado!',
+        text: `Se generaron y empaquetaron exitosamente ${generatedCount} certificados oficiales en formato ZIP.`,
+        icon: 'success',
+        confirmButtonColor: '#00D084'
+      });
+    } catch (err: any) {
+      console.error('Error generando ZIP:', err);
+      setRenderingCertData(null);
+      Swal.fire('Error', err.message || 'Ocurrió un error al compilar el archivo ZIP.', 'error');
+    } finally {
+      setIsGeneratingZip(false);
+      setRenderingCertData(null);
+    }
+  };
 
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredRows.length && filteredRows.length > 0) {
@@ -2285,6 +2459,18 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <span>Exportar PDF</span>
           </button>
 
+          {/* Botón Descargar ZIP oculto temporalmente
+          <button
+            onClick={() => handleDownloadZipCertificates(false)}
+            disabled={isGeneratingZip || rows.length === 0}
+            className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-emerald-200/60 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Descargar archivo ZIP con los certificados de todos los inscritos independientemente de su estatus"
+          >
+            <Archive className="w-4 h-4 text-emerald-600" />
+            <span>Descargar ZIP Certificados</span>
+          </button>
+          */}
+
           <button
             onClick={handleOpenEnrollModal}
             className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-transform active:scale-95 cursor-pointer"
@@ -2326,6 +2512,19 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Botón Lote ZIP oculto temporalmente
+            <button
+              type="button"
+              onClick={() => handleDownloadZipCertificates(true)}
+              disabled={isProcessingBatch || isGeneratingZip}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-200/60 disabled:opacity-50"
+              title="Descargar ZIP con los certificados de los participantes seleccionados"
+            >
+              <Archive size={14} />
+              <span>Certificados ZIP ({selectedIds.length})</span>
+            </button>
+            */}
+
             <button
               type="button"
               onClick={handleBatchGraduar}
@@ -2990,6 +3189,62 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
         </div>
       )}
+
+      {/* ── CONTENEDOR OFFSCREEN PARA RENDERIZADO DE CERTIFICADOS OFICIALES ZIP ── */}
+      <div
+        id="zip-certificate-export-target"
+        style={{
+          position: 'fixed',
+          left: '0px',
+          top: '0px',
+          width: '1000px',
+          minWidth: '1000px',
+          maxWidth: '1000px',
+          height: '707px',
+          minHeight: '707px',
+          maxHeight: '707px',
+          zIndex: -9999,
+          opacity: 0.01,
+          pointerEvents: 'none',
+          backgroundColor: '#ffffff'
+        }}
+        aria-hidden="true"
+      >
+        {renderingCertData && (
+          <div style={{ width: '1000px', height: '707px', backgroundColor: '#ffffff' }}>
+            {renderingCertData.isMainProgram ? (
+              <CertificadoProgramaView
+                codigo={renderingCertData.codigo}
+                fechaEmisionIso={renderingCertData.fechaEmisionIso}
+                titularNombre={renderingCertData.titularNombre}
+                programaOCurso={renderingCertData.programaOCurso}
+                programaCodigo={renderingCertData.programaCodigo}
+                urlVerificacion={renderingCertData.urlVerificacion}
+                vigente={renderingCertData.vigente}
+                cedula={renderingCertData.cedula}
+                firmantes={renderingCertData.firmantes}
+              />
+            ) : (
+              <CertificadoCursoView
+                codigo={renderingCertData.codigo}
+                fechaEmisionIso={renderingCertData.fechaEmisionIso}
+                titularNombre={renderingCertData.titularNombre}
+                programaOCurso={renderingCertData.programaOCurso}
+                modalidad={renderingCertData.modalidad}
+                categoria={renderingCertData.categoria}
+                descripcion={renderingCertData.descripcion}
+                instructorNombre={renderingCertData.instructorNombre}
+                instructorCargo={renderingCertData.instructorCargo}
+                urlVerificacion={renderingCertData.urlVerificacion}
+                vigente={renderingCertData.vigente}
+                cedula={renderingCertData.cedula}
+                modulosLista={renderingCertData.modulosLista}
+                firmantes={renderingCertData.firmantes}
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── MODAL EXPORTAR REPORTE PDF CON FILTROS Y COLUMNAS ── */}
       <ExportInscritosCursoModal

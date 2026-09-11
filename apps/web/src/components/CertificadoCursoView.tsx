@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import QRCode from 'qrcode'
 import logoImg from '@/assets/Logo4.webp'
 import logoWatermark from '@/assets/Logo2.webp'
 import firmaFranciscoImg from '@/assets/firma-francisco.webp'
@@ -146,7 +147,17 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
   modulosLista,
   firmantes,
 }) => {
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
+  const [localQr, setLocalQr] = useState<string>('')
+
+  useEffect(() => {
+    if (urlVerificacion) {
+      QRCode.toDataURL(urlVerificacion, { margin: 1, width: 250 })
+        .then(setLocalQr)
+        .catch(() => {})
+    }
+  }, [urlVerificacion])
+
+  const qrApiUrl = localQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
   const [width, setWidth] = useState(1000)
   const trackerRef = useRef<HTMLDivElement | null>(null)
@@ -157,7 +168,9 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setWidth(entry.contentRect.width)
+        if (entry.contentRect.width > 50) {
+          setWidth(entry.contentRect.width)
+        }
       }
     })
     observer.observe(node)
@@ -167,7 +180,8 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
     }
   }, [])
 
-  const scale = Math.min(1, width / 1000)
+  const validWidth = width > 50 ? width : 1000
+  const scale = Math.min(1, validWidth / 1000)
   const { prefix, cleanTitle, itemsList } = getPrefijoParticipacion(modalidad, categoria, programaOCurso, descripcion, modulosLista)
 
   // Firma izquierda por defecto si no viene instructor asignado

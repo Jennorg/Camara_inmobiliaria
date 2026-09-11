@@ -1,7 +1,10 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import QRCode from 'qrcode'
 import logoImg from '@/assets/Logo2.webp'
 import firmaFranciscoImg from '@/assets/firma-francisco.webp'
 import firmaGracielaImg from '@/assets/firma-graciela-ledezma.webp'
+
+import cibirBg from '@/assets/Cibir.webp'
 
 export interface Firmante {
   id?: string | number
@@ -58,18 +61,30 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
     title: programaOCurso.toUpperCase(),
   }
 
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
+  const [localQr, setLocalQr] = useState<string>('')
+
+  useEffect(() => {
+    if (urlVerificacion) {
+      QRCode.toDataURL(urlVerificacion, { margin: 1, width: 250 })
+        .then(setLocalQr)
+        .catch(() => {})
+    }
+  }, [urlVerificacion])
+
+  const qrApiUrl = localQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
   const [width, setWidth] = useState(1000)
   const trackerRef = useRef<HTMLDivElement | null>(null)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const node = trackerRef.current
     if (!node) return
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setWidth(entry.contentRect.width)
+        if (entry.contentRect.width > 50) {
+          setWidth(entry.contentRect.width)
+        }
       }
     })
     observer.observe(node)
@@ -79,7 +94,8 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
     }
   }, [])
 
-  const scale = Math.min(1, width / 1000)
+  const validWidth = width > 50 ? width : 1000
+  const scale = Math.min(1, validWidth / 1000)
 
   return (
     <div className="w-full relative">
@@ -92,9 +108,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           id="certificate-print-area"
           className="print-full-page relative bg-white border border-slate-200 w-[1000px] h-[707px] rounded-3xl shadow-2xl overflow-hidden select-none print:!transform-none shrink-0"
           style={{
-            backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1200&auto=format&fit=crop')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundColor: '#ffffff',
             transform: scale < 1 ? `scale(${scale})` : 'none',
             transformOrigin: 'top center',
           }}
@@ -107,8 +121,8 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           <div className="absolute top-[-15px] left-[-15px] z-20 pointer-events-none">
             <div className="relative w-44 h-44 overflow-hidden rounded-full border-[6px] border-[#cf9f2d] shadow-md bg-white">
               <img
-                src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=300&auto=format&fit=crop"
-                alt="Llaves"
+                src={cibirBg}
+                alt="CIBIR"
                 className="w-full h-full object-cover object-center"
               />
             </div>
