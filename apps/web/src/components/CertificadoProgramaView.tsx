@@ -326,7 +326,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                       alt="Código QR de Verificación"
                     />
                   </div>
-                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans">
+                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans whitespace-nowrap">
                     {formatFecha(fechaEmisionIso).toUpperCase()}
                   </span>
                 </div>

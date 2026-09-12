@@ -427,7 +427,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                   </div>
 
                   {/* Fecha de Emisión (Abajo de las firmas) */}
-                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans mt-3">
+                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans mt-3 whitespace-nowrap">
                     {formatFecha(fechaEmisionIso).toUpperCase()}
                   </span>
                 </div>

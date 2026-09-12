@@ -20,6 +20,7 @@ import getCroppedImg from '@/utils/cropImage'
 import CarnetAfiliadoModal from '@/components/CarnetAfiliadoModal'
 import { CarnetCardPreview } from '@/components/CarnetCardPreview'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
+import { useBatchDownload } from '@/context/BatchDownloadContext'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
@@ -402,138 +403,11 @@ export default function MiembrosPanel() {
   const [naturalTransitionTarget, setNaturalTransitionTarget] = useState<any | null>(null)
   const [empresas, setEmpresas] = useState<any[]>([])
   const [selectedEmpresaId, setSelectedEmpresaId] = useState('')
-  const [batchDownloading, setBatchDownloading] = useState(false);
-  const [isCanceling, setIsCanceling] = useState(false);
-  const [batchTotal, setBatchTotal] = useState(0);
-  const [batchCurrent, setBatchCurrent] = useState(0);
-  const [currentMember, setCurrentMember] = useState<any>(null);
-  const [currentMemberQrUrl, setCurrentMemberQrUrl] = useState('');
-  const bulkCardRef = useRef<HTMLDivElement>(null);
-  const cancelRef = useRef(false);
+  const { isDownloading, downloadType, startBatchCarnets } = useBatchDownload();
+  const batchDownloading = isDownloading && downloadType === 'carnets';
 
   const handleBatchDownload = async () => {
-    if (batchDownloading) return;
-    setBatchDownloading(true);
-    setIsCanceling(false);
-    setBatchTotal(0);
-    setBatchCurrent(0);
-    cancelRef.current = false;
-
-    try {
-      const res = await fetch(`${API_URL}/api/public/afiliados/buscar?con_foto=true&limit=1000`);
-      if (!res.ok) {
-        throw new Error(`Error en la solicitud (${res.status})`);
-      }
-      const json = await res.json();
-      if (!json.success || !Array.isArray(json.data)) {
-        throw new Error('No se pudo obtener el listado de afiliados.');
-      }
-
-      const activeMembers = json.data;
-      if (activeMembers.length === 0) {
-        toast.error('No se encontraron afiliados activos con fotografía.');
-        setBatchDownloading(false);
-        return;
-      }
-
-      setBatchTotal(activeMembers.length);
-
-      const zip = new JSZip();
-      let generatedCount = 0;
-
-      const preloadImg = (url?: string | null) => {
-        if (!url) return Promise.resolve();
-        return new Promise<void>((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          img.src = url;
-        });
-      };
-
-      // Procesamiento de a 1 por 1 (chunkSize = 1)
-      for (let i = 0; i < activeMembers.length; i++) {
-        if (cancelRef.current) {
-          break;
-        }
-
-        const member = activeMembers[i];
-        setBatchCurrent(i + 1);
-        setCurrentMember(member);
-
-        const mCode = (member.codigo && String(member.codigo).trim() !== '') ? String(member.codigo).trim() : null;
-        const pUrl = mCode ? `${window.location.origin}/miembros/${mCode}` : `${window.location.origin}/miembros/${member.id_afiliado}?by=id`;
-
-        const rawRedes = member?.redes_sociales;
-        const redes = rawRedes
-          ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
-          : {};
-        const useJuntaPhoto = Boolean(redes?.use_junta_photo);
-        const carnetPhotoUrl = useJuntaPhoto
-          ? (redes?.foto_junta_carnet_url || member.foto_junta_url)
-          : redes?.foto_carnet_url;
-        const activePhoto = carnetPhotoUrl || ((useJuntaPhoto && member.foto_junta_url) ? member.foto_junta_url : member.foto_url);
-
-        const [qrUrl] = await Promise.all([
-          QRCode.toDataURL(pUrl, {
-            margin: 1,
-            width: 240,
-            color: { dark: '#000000', light: '#00000000' },
-            errorCorrectionLevel: 'H'
-          }),
-          preloadImg(activePhoto),
-          preloadImg(member.empresa_logo_url)
-        ]);
-
-        setCurrentMemberQrUrl(qrUrl);
-
-        // Breve espera para actualización de estado del DOM (60ms)
-        await new Promise((resolve) => setTimeout(resolve, 60));
-
-        if (bulkCardRef.current) {
-          try {
-            const dataUrl = await toPng(bulkCardRef.current, {
-              quality: 0.98,
-              pixelRatio: 2,
-              backgroundColor: '#ffffff',
-              style: {
-                transform: 'none',
-                borderRadius: '0px',
-              }
-            });
-
-            const base64Data = dataUrl.split(',')[1];
-            const filename = `carnet-${member.codigo || member.id_afiliado}.png`;
-            zip.file(filename, base64Data, { base64: true });
-            generatedCount++;
-          } catch (cardErr) {
-            console.error(`Error procesando carnet de ${member.codigo}:`, cardErr);
-          }
-        }
-      }
-
-      if (generatedCount > 0) {
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zipBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `carnets-ciebo-${new Date().toISOString().slice(0, 10)}.zip`;
-        link.click();
-        URL.revokeObjectURL(url);
-      } else {
-        toast.error('No se pudo generar ninguna credencial.');
-      }
-    } catch (err: any) {
-      console.error('Error en descarga masiva:', err);
-      toast.error(err.message || 'Ocurrió un error en la descarga masiva.');
-    } finally {
-      setBatchDownloading(false);
-      setIsCanceling(false);
-      setCurrentMember(null);
-      setCurrentMemberQrUrl('');
-      cancelRef.current = false;
-    }
+    await startBatchCarnets();
   };
   const [razonSocial, setRazonSocial] = useState('')
   const [rifTipo, setRifTipo] = useState('J')
@@ -2737,64 +2611,7 @@ export default function MiembrosPanel() {
         </div>
       )}
 
-      {/* Widget de Progreso de Descarga Masiva */}
-      {batchDownloading && (
-        <div className="transition-transform fixed bottom-6 right-6 z-[120] bg-white border border-gray-200 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 min-w-[280px] slide-in-from-bottom-5 duration-300">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-              Descarga Masiva
-            </span>
-            <Loader2 className="animate-spin text-emerald-600" size={16} />
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm font-bold text-slate-800">
-              {isCanceling ? 'Cancelando...' : `Procesando ${batchCurrent} de ${batchTotal}`}
-            </div>
-            {currentMember && (
-              <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate max-w-[250px]">
-                {currentMember.nombres || currentMember.nombre_completo || currentMember.representante_nombre}
-              </div>
-            )}
-          </div>
-          {/* Progress Bar */}
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <div 
-              className="bg-emerald-500 h-full transition-colors duration-300"
-              style={{ width: `${(batchCurrent / batchTotal) * 100}%` }}
-            />
-          </div>
-          <button
-            type="button"
-            disabled={isCanceling}
-            onClick={() => {
-              cancelRef.current = true;
-              setIsCanceling(true);
-            }}
-            className="mt-1 text-center w-full py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
 
-      {/* Contenedor Oculto para Captura de Carnet en Lote */}
-      {currentMember && (
-        <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', pointerEvents: 'none' }}>
-          <CarnetCardPreview
-            cardRef={bulkCardRef}
-            afiliado={currentMember as any}
-            useJuntaPhoto={(() => {
-              const rawRedes = currentMember?.redes_sociales;
-              const redes = rawRedes
-                ? (typeof rawRedes === 'string' ? (() => { try { return JSON.parse(rawRedes); } catch { return {}; } })() : rawRedes)
-                : {};
-              return Boolean(redes?.use_junta_photo);
-            })()}
-            qrCodeUrl={currentMemberQrUrl}
-            hideActionButtons={true}
-          />
-        </div>
-      )}
 
 
 

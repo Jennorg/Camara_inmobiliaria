@@ -63,7 +63,7 @@ export async function exportElementToPdf(elementId: string, filename: string) {
         pixelRatio: 2,
         cacheBust: false,
         backgroundColor: '#ffffff',
-        skipFonts: true,
+        skipFonts: false,
         style: { opacity: '1', transform: 'none' },
       });
     } catch {
@@ -108,7 +108,7 @@ export async function captureElementToPdfBuffer(element: HTMLElement): Promise<A
         pixelRatio: 2,
         cacheBust: false,
         backgroundColor: '#ffffff',
-        skipFonts: true,
+        skipFonts: false,
         // Override any inherited parent opacity (offscreen container is opacity 0.01)
         style: { opacity: '1', transform: 'none' },
         width: 1000,

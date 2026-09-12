@@ -55,6 +55,7 @@ import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
 import SettingsPanel from './components/SettingsPanel';
 import { useSearchParams } from 'react-router-dom';
+import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
 
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
@@ -510,7 +511,8 @@ const PanelPage = () => {
   const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
-    <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>
+    <BatchDownloadProvider>
+      <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>
       <DashboardSidebar
         navItems={navItems}
         activeTab={activeTab}
@@ -595,6 +597,7 @@ const PanelPage = () => {
         </div>
       </main>
     </div>
+    </BatchDownloadProvider>
   );
 };
 
