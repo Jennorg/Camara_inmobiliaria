@@ -57,7 +57,7 @@ export function CarnetCardPreview({
     <div
       ref={cardRef}
       id="carnet-card-capture"
-      className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
+      className="w-[280px] xs:w-[310px] h-[433px] xs:h-[479px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
       style={{
         backgroundImage: 'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)'
       }}
