@@ -5,7 +5,7 @@ import { LogOut, ShieldAlert } from 'lucide-react'
 export default function ImpersonationBanner() {
   const { isImpersonating, user, originalAdmin, stopImpersonation } = useAuth()
 
-  if (!isImpersonating || !user) return null
+  if (!isImpersonating || !user || !originalAdmin || user.id === originalAdmin.id) return null
 
   return (
     <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-white px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 shadow-md z-[9999] text-xs font-semibold tracking-wide border-b border-amber-400 sticky top-0">
