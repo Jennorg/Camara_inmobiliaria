@@ -2130,6 +2130,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           (SELECT COUNT(*) FROM documentos d_count WHERE d_count.entidad_tipo = 'estudiante' AND d_count.entidad_id = e.id_estudiante AND d_count.eliminado_en IS NULL) as num_documentos,
           e.id_estudiante,
           COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as estudiante_nombre,
+          p.nombres as estudiante_nombres,
+          p.apellidos as estudiante_apellidos,
           COALESCE(p.email, emp.email) as estudiante_email,
           COALESCE(p.telefono, emp.telefono) as estudiante_telefono,
           COALESCE(p.cedula_tipo || '-' || p.cedula, 'J-' || REPLACE(emp.rif_numero, 'J-', '')) as estudiante_cedula,
@@ -2195,7 +2197,10 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
       return
     }
 
-    const nombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
+    const rawNombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
+    const nombres = typeof req.body?.nombres === 'string' ? req.body.nombres.trim() : (typeof req.body?.nombre === 'string' ? req.body.nombre.trim() : null)
+    const apellidos = typeof req.body?.apellidos === 'string' ? req.body.apellidos.trim() : (typeof req.body?.apellido === 'string' ? req.body.apellido.trim() : null)
+    const nombreCompleto = rawNombreCompleto || [nombres, apellidos].filter(Boolean).join(' ')
     const razonSocial = typeof req.body?.razonSocial === 'string' ? req.body.razonSocial.trim() : null
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
@@ -2204,7 +2209,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     const esCorredorInmobiliario = normalizeEsCorredorInmobiliario(req.body?.esCorredorInmobiliario) ?? true
 
     if (!nombreCompleto || !email) {
-      res.status(400).json({ success: false, message: 'nombreCompleto y email son requeridos' })
+      res.status(400).json({ success: false, message: 'nombre y email son requeridos' })
       return
     }
 
@@ -2274,6 +2279,8 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
 
     const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto,
+      nombres: nombres || null,
+      apellidos: apellidos || null,
       razonSocial,
       cedulaRif,
       email,
@@ -3242,6 +3249,8 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
     }
 
     const { nombreCompleto, email, cedulaPrefix, cedulaRif, telefono } = req.body
+    const reqNombres = typeof req.body?.nombres === 'string' ? req.body.nombres.trim() : (typeof req.body?.nombre === 'string' ? req.body.nombre.trim() : null)
+    const reqApellidos = typeof req.body?.apellidos === 'string' ? req.body.apellidos.trim() : (typeof req.body?.apellido === 'string' ? req.body.apellido.trim() : null)
 
     const insRes = await db.execute({
       sql: `SELECT ic.*, e.id_persona, e.id_empresa
@@ -3264,9 +3273,13 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
     const cedulaNum = (cedulaRif || '').replace(/\D/g, '')
 
     if (idPersona) {
-      const parts = (nombreCompleto || '').trim().split(/\s+/)
-      const nombres = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || ''
-      const apellidos = parts.length > 1 ? parts.slice(-1)[0] : ''
+      let nombres = reqNombres
+      let apellidos = reqApellidos
+      if (!nombres && !apellidos && nombreCompleto) {
+        const parts = (nombreCompleto || '').trim().split(/\s+/)
+        nombres = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || ''
+        apellidos = parts.length > 1 ? parts.slice(-1)[0] : ''
+      }
 
       await db.execute({
         sql: `UPDATE personas SET
