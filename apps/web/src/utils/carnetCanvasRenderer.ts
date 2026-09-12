@@ -27,21 +27,25 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
 }
 
 /**
- * Genera un carnet impreso en PNG ultra-rápido usando 2D Canvas nativo (GPU-accelerated).
+ * Genera un carnet impreso en JPG ultra-rápido usando 2D Canvas nativo (GPU-accelerated).
  * Tiempo de ejecución: ~1.5 ms por carnet.
  */
 export async function drawCarnetCanvas(
   afiliado: any,
   qrCodeUrl: string
 ): Promise<Blob> {
-  const WIDTH = 620; // 310 * 2
-  const HEIGHT = 980; // 490 * 2
+  const WIDTH = 649.61; // 55mm a 300 DPI
+  const HEIGHT = 1003.94; // 85mm a 300 DPI
 
   const canvas = document.createElement('canvas');
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
+  canvas.width = Math.round(WIDTH);
+  canvas.height = Math.round(HEIGHT);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No 2d context available');
+
+  // 0. Fondo base blanco para todo el canvas (evita esquinas negras al exportar a JPEG)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   // Clip esquinas redondeadas del carnet (radio 36px en resolución 2x)
   ctx.save();
@@ -104,8 +108,8 @@ export async function drawCarnetCanvas(
   ctx.font = '800 28px "Plus Jakarta Sans", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('CÁMARA INMOBILIARIA', 380, 68);
-  ctx.fillText('DE BOLÍVAR', 380, 104);
+  ctx.fillText('CÁMARA INMOBILIARIA', (WIDTH + 150) / 2, 68);
+  ctx.fillText('DE BOLÍVAR', (WIDTH + 150) / 2, 104);
 
   // Línea divisoria del encabezado
   ctx.strokeStyle = 'rgba(5, 150, 105, 0.15)';
@@ -249,26 +253,28 @@ export async function drawCarnetCanvas(
   }
 
   // 5. Pie de Carnet (QR + Logo Empresa)
-  const footerY = 755;
+  const footerY = 770;
   const qrImg = qrCodeUrl ? await loadImage(qrCodeUrl) : null;
   const empresaLogoImg = afiliado.empresa_logo_url ? await loadImage(afiliado.empresa_logo_url) : null;
 
   if (empresaLogoImg) {
+    const leftCenterX = WIDTH * 0.29;
+    const rightCenterX = WIDTH * 0.72;
     if (qrImg) {
-      ctx.drawImage(qrImg, 110, footerY, 150, 150);
+      ctx.drawImage(qrImg, leftCenterX - 75, footerY, 150, 150);
     }
     ctx.fillStyle = '#000000';
     ctx.font = '800 15px "Plus Jakarta Sans", sans-serif';
     ctx.textAlign = 'center';
     ctx.globalAlpha = 0.65;
-    ctx.fillText('VERIFICAR QR', 185, footerY + 158);
+    ctx.fillText('VERIFICAR QR', leftCenterX, footerY + 158);
     ctx.globalAlpha = 1.0;
 
     ctx.strokeStyle = 'rgba(5, 150, 105, 0.15)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(310, footerY + 10);
-    ctx.lineTo(310, footerY + 140);
+    ctx.moveTo(WIDTH / 2, footerY + 10);
+    ctx.lineTo(WIDTH / 2, footerY + 140);
     ctx.stroke();
 
     const maxW = 230;
@@ -283,7 +289,7 @@ export async function drawCarnetCanvas(
       logoH = Math.min(maxH, maxW / aspect);
       logoW = logoH * aspect;
     }
-    const logoX = 465 - logoW / 2;
+    const logoX = rightCenterX - logoW / 2;
     const logoY = footerY + (maxH - logoH) / 2;
     ctx.drawImage(empresaLogoImg, logoX, logoY, logoW, logoH);
   } else {
@@ -304,6 +310,6 @@ export async function drawCarnetCanvas(
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new Error('Error generando Blob de Canvas'));
-    }, 'image/png');
+    }, 'image/jpeg', 0.95);
   });
 }
