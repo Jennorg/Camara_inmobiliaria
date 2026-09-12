@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X, UserPlus, Users, ChevronDown } from 'lucide-react'
+import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X, UserPlus, Users, ChevronDown, Loader2 } from 'lucide-react'
 import Swal from 'sweetalert2'
 
 type Row = {
@@ -53,6 +53,8 @@ export default function AprobarCursosPanel() {
   const [submittingEnroll, setSubmittingEnroll] = useState(false)
 
   const [enrollFormData, setEnrollFormData] = useState({
+    nombre: '',
+    apellido: '',
     nombreCompleto: '',
     razonSocial: '',
     email: '',
@@ -143,6 +145,8 @@ export default function AprobarCursosPanel() {
     setAfiliadoSearch('');
     setSelectedAfiliadoId('');
     setEnrollFormData({
+      nombre: '',
+      apellido: '',
       nombreCompleto: '',
       razonSocial: '',
       email: '',
@@ -185,7 +189,20 @@ export default function AprobarCursosPanel() {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
     
     // Quien se inscribe es el representante legal (persona) o el afiliado
-    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.nombre || af.empresa_razon_social || af.razon_social || '';
+    let nombre = af.nombres || '';
+    let apellido = af.apellidos || '';
+    if (!nombre && !apellido) {
+      const full = (af.representante_nombre || af.nombre_completo || af.nombre || af.empresa_razon_social || af.razon_social || '').trim();
+      const parts = full.split(/\s+/);
+      if (parts.length > 1) {
+        apellido = parts.pop() || '';
+        nombre = parts.join(' ');
+      } else {
+        nombre = full;
+        apellido = '';
+      }
+    }
+
     const razon = af.empresa_razon_social || af.razon_social || '';
     const rawCed = String(af.cedula || af.rif || af.empresa_rif_numero || '');
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
@@ -196,7 +213,9 @@ export default function AprobarCursosPanel() {
     const finalEmail = af.email || af.empresa_email || '';
 
     setEnrollFormData({
-      nombreCompleto: nombre,
+      nombre,
+      apellido,
+      nombreCompleto: [nombre, apellido].filter(Boolean).join(' '),
       razonSocial: razon,
       email: finalEmail,
       cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
@@ -210,17 +229,27 @@ export default function AprobarCursosPanel() {
 
   const handleSubmitEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingEnroll) return;
     if (!selectedCursoId) {
       Swal.fire('Atención', 'Selecciona un curso para inscribir al estudiante', 'warning');
       return;
     }
-    if (!enrollFormData.nombreCompleto.trim() || !enrollFormData.email.trim()) {
-      Swal.fire('Atención', 'Nombre completo y correo electrónico son requeridos', 'warning');
+    const nombre = (enrollFormData.nombre || '').trim();
+    const apellido = (enrollFormData.apellido || '').trim();
+    const nombreCompleto = [nombre, apellido].filter(Boolean).join(' ') || (enrollFormData.nombreCompleto || '').trim();
+
+    if (!nombre || !enrollFormData.email.trim()) {
+      Swal.fire('Atención', 'Nombre(s) y correo electrónico son requeridos', 'warning');
       return;
     }
 
     const payload = {
       ...enrollFormData,
+      nombre,
+      apellido,
+      nombres: nombre,
+      apellidos: apellido,
+      nombreCompleto,
       razonSocial: enrollFormData.razonSocial || undefined,
       cedulaRif: enrollFormData.cedulaRif ? `${enrollFormData.cedulaPrefix || 'V'}-${enrollFormData.cedulaRif.replace(/^[VEJGP]-?/i, '')}` : '',
       telefono: enrollFormData.telefono ? `${enrollFormData.codigoPais || '+58'} ${enrollFormData.telefono.replace(/^(\+\d{1,4}\s?)/, '')}` : ''
@@ -271,7 +300,7 @@ export default function AprobarCursosPanel() {
   }, [fetchData])
 
   const handleAprobarModulo = async (nombreModulo: string) => {
-    if (!selected) return
+    if (!selected || evaluating !== null || completing) return
     setEvaluating(nombreModulo)
     try {
       Swal.fire({
@@ -309,7 +338,7 @@ export default function AprobarCursosPanel() {
   }
 
   const handleRechazarModulo = async (nombreModulo: string) => {
-    if (!selected) return
+    if (!selected || evaluating !== null || completing) return
 
     const { value: notaAdmin } = await Swal.fire({
       title: 'Rechazar Módulo',
@@ -365,7 +394,7 @@ export default function AprobarCursosPanel() {
 
   const busyAprobarTodosRef = useRef(false)
   const handleAprobarTodos = async () => {
-    if (!selected || busyAprobarTodosRef.current) return
+    if (!selected || busyAprobarTodosRef.current || completing || evaluating !== null) return
     busyAprobarTodosRef.current = true
 
     try {
@@ -710,9 +739,17 @@ export default function AprobarCursosPanel() {
                 ) : (
                   <button
                     onClick={handleAprobarTodos}
-                    className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
+                    disabled={completing || evaluating !== null}
+                    className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:pointer-events-none"
                   >
-                    Aprobar Todos
+                    {completing ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Aprobando Todo...</span>
+                      </>
+                    ) : (
+                      <span>Aprobar Todos</span>
+                    )}
                   </button>
                 )}
               </div>
@@ -794,19 +831,33 @@ export default function AprobarCursosPanel() {
                               {!isAprobado && (
                                 <button
                                   onClick={() => handleAprobarModulo(mod.nombre_modulo)}
-                                  disabled={evaluating !== null}
-                                  className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
+                                  disabled={evaluating !== null || completing}
+                                  className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1"
                                 >
-                                  {evaluating === mod.nombre_modulo ? '...' : 'Aprobar'}
+                                  {evaluating === mod.nombre_modulo ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      <span>Aprobando...</span>
+                                    </>
+                                  ) : (
+                                    <span>Aprobar</span>
+                                  )}
                                 </button>
                               )}
                               {!isRechazado && (
                                 <button
                                   onClick={() => handleRechazarModulo(mod.nombre_modulo)}
-                                  disabled={evaluating !== null}
-                                  className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50"
+                                  disabled={evaluating !== null || completing}
+                                  className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1"
                                 >
-                                  {evaluating === mod.nombre_modulo ? '...' : 'Rechazar'}
+                                  {evaluating === mod.nombre_modulo ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      <span>Rechazando...</span>
+                                    </>
+                                  ) : (
+                                    <span>Rechazar</span>
+                                  )}
                                 </button>
                               )}
                             </div>
@@ -1185,18 +1236,47 @@ export default function AprobarCursosPanel() {
 
                 {/* Campos de datos del estudiante */}
                 <div className="space-y-3 pt-1">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                      Nombre Completo del Estudiante *
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Ej. María Pérez"
-                      value={enrollFormData.nombreCompleto}
-                      onChange={(e) => setEnrollFormData({ ...enrollFormData, nombreCompleto: e.target.value })}
-                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Nombre(s) *
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Ej. María"
+                        value={enrollFormData.nombre}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEnrollFormData(prev => ({
+                            ...prev,
+                            nombre: val,
+                            nombreCompleto: [val, prev.apellido].filter(Boolean).join(' ')
+                          }));
+                        }}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Apellido(s) *
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Ej. Pérez"
+                        value={enrollFormData.apellido}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEnrollFormData(prev => ({
+                            ...prev,
+                            apellido: val,
+                            nombreCompleto: [prev.nombre, val].filter(Boolean).join(' ')
+                          }));
+                        }}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1287,11 +1367,11 @@ export default function AprobarCursosPanel() {
                 <button
                   type="submit"
                   disabled={submittingEnroll}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-opacity flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   {submittingEnroll ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>Registrando...</span>
                     </>
                   ) : (

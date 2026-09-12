@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -16,6 +16,7 @@ import CertificadoProgramaView from '@/components/CertificadoProgramaView';
 import CertificadoCursoView from '@/components/CertificadoCursoView';
 import { captureElementToPdfBuffer } from '@/utils/domToPdf';
 import JSZip from 'jszip';
+import { useBatchDownload } from '@/context/BatchDownloadContext';
 
 function loadLogoDataUrl(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -154,6 +155,9 @@ const CursosAdminPanel = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [submittingCourse, setSubmittingCourse] = useState(false);
+  const [submittingProf, setSubmittingProf] = useState(false);
+  const [processingCourseId, setProcessingCourseId] = useState<{ id: number; action: 'toggle' | 'delete' } | null>(null);
 
   // New Professor Modal States
   const [isProfModalOpen, setIsProfModalOpen] = useState(false);
@@ -322,12 +326,12 @@ const CursosAdminPanel = () => {
     if (curso?.firmantes) {
       try {
         parsedFirmantes = typeof curso.firmantes === 'string' ? JSON.parse(curso.firmantes) : curso.firmantes;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if ((!parsedFirmantes || parsedFirmantes.length === 0) && !curso) {
-      const pres = directivaMembers.find((m: any) => 
-        (m.cargo_canonical || '').toLowerCase() === 'presidente' || 
+      const pres = directivaMembers.find((m: any) =>
+        (m.cargo_canonical || '').toLowerCase() === 'presidente' ||
         (m.cargo || '').toLowerCase().includes('presidente')
       );
       if (pres) {
@@ -406,8 +410,9 @@ const CursosAdminPanel = () => {
   const busyCreateProfRef = useRef(false);
   const handleCreateProfesor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (busyCreateProfRef.current) return;
+    if (busyCreateProfRef.current || submittingProf) return;
     busyCreateProfRef.current = true;
+    setSubmittingProf(true);
     try {
       let body: any = {};
       if (profRegisterMode === 'existente') {
@@ -468,10 +473,12 @@ const CursosAdminPanel = () => {
       Swal.fire('Error', 'Fallo de conexión', 'error');
     } finally {
       busyCreateProfRef.current = false;
+      setSubmittingProf(false);
     }
   };
 
   const handleToggleStatus = async (curso: CursoDB) => {
+    if (processingCourseId) return;
     const isCurrentlyClosed = curso.estatus === 'Cerrado';
     const actionText = isCurrentlyClosed ? 'abrir/reabrir' : 'cerrar';
     const nextStatus = isCurrentlyClosed ? 'Abierto' : 'Cerrado';
@@ -489,6 +496,7 @@ const CursosAdminPanel = () => {
     });
 
     if (result.isConfirmed) {
+      setProcessingCourseId({ id: curso.id_curso, action: 'toggle' });
       try {
         const res = await fetch(`${API_URL}/api/academia/cursos/${curso.id_curso}`, {
           method: 'PUT',
@@ -505,12 +513,16 @@ const CursosAdminPanel = () => {
         }
       } catch (error) {
         Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+      } finally {
+        setProcessingCourseId(null);
       }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingCourse || uploading) return;
+    setSubmittingCourse(true);
     try {
       const url = editingId ? `${API_URL}/api/academia/cursos/${editingId}` : `${API_URL}/api/academia/cursos`;
       const method = editingId ? 'PUT' : 'POST';
@@ -540,10 +552,13 @@ const CursosAdminPanel = () => {
       }
     } catch (error) {
       Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+    } finally {
+      setSubmittingCourse(false);
     }
   };
 
   const handleDelete = async (id: number) => {
+    if (processingCourseId) return;
     const result = await Swal.fire({
       title: '¿Eliminar curso?',
       text: 'Esta acción eliminará permanentemente el curso y sus módulos configurados.',
@@ -556,6 +571,7 @@ const CursosAdminPanel = () => {
     });
 
     if (result.isConfirmed) {
+      setProcessingCourseId({ id, action: 'delete' });
       try {
         const res = await fetch(`${API_URL}/api/academia/cursos/${id}`, {
           method: 'DELETE',
@@ -571,6 +587,8 @@ const CursosAdminPanel = () => {
         }
       } catch (error) {
         Swal.fire('Error', 'Problema de conexión al servidor', 'error');
+      } finally {
+        setProcessingCourseId(null);
       }
     }
   };
@@ -728,23 +746,34 @@ const CursosAdminPanel = () => {
                     </button>
                     <button
                       type="button"
+                      disabled={processingCourseId?.id === c.id_curso}
                       onClick={() => handleToggleStatus(c)}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        c.estatus === 'Cerrado'
-                          ? 'text-emerald-600 hover:bg-emerald-50'
-                          : 'text-amber-600 hover:bg-amber-50'
-                      }`}
+                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none ${c.estatus === 'Cerrado'
+                        ? 'text-emerald-600 hover:bg-emerald-50'
+                        : 'text-amber-600 hover:bg-amber-50'
+                        }`}
                       title={c.estatus === 'Cerrado' ? 'Abrir inscripciones' : 'Cerrar inscripciones'}
                     >
-                      {c.estatus === 'Cerrado' ? <Unlock size={14} /> : <Lock size={14} />}
+                      {processingCourseId?.id === c.id_curso && processingCourseId.action === 'toggle' ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : c.estatus === 'Cerrado' ? (
+                        <Unlock size={14} />
+                      ) : (
+                        <Lock size={14} />
+                      )}
                     </button>
                     <button
                       type="button"
+                      disabled={processingCourseId?.id === c.id_curso}
                       onClick={() => handleDelete(c.id_curso)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                       title="Eliminar curso"
                     >
-                      <Trash2 size={14} />
+                      {processingCourseId?.id === c.id_curso && processingCourseId.action === 'delete' ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -830,27 +859,42 @@ const CursosAdminPanel = () => {
                           </button>
                           {c.estatus === 'Cerrado' ? (
                             <button
+                              disabled={processingCourseId?.id === c.id_curso}
                               onClick={() => handleToggleStatus(c)}
-                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                               title="Abrir inscripciones"
                             >
-                              <Unlock size={14} />
+                              {processingCourseId?.id === c.id_curso && processingCourseId.action === 'toggle' ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Unlock size={14} />
+                              )}
                             </button>
                           ) : (
                             <button
+                              disabled={processingCourseId?.id === c.id_curso}
                               onClick={() => handleToggleStatus(c)}
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors"
+                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                               title="Cerrar inscripciones"
                             >
-                              <Lock size={14} />
+                              {processingCourseId?.id === c.id_curso && processingCourseId.action === 'toggle' ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <Lock size={14} />
+                              )}
                             </button>
                           )}
                           <button
+                            disabled={processingCourseId?.id === c.id_curso}
                             onClick={() => handleDelete(c.id_curso)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                             title="Eliminar curso"
                           >
-                            <Trash2 size={14} />
+                            {processingCourseId?.id === c.id_curso && processingCourseId.action === 'delete' ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -1166,16 +1210,15 @@ const CursosAdminPanel = () => {
                                   setFormData({ ...formData, firmantes: [...(formData.firmantes || []), newSigner] });
                                 }
                               }}
-                              className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2.5 ${
-                                isSelected 
-                                  ? 'bg-emerald-50/90 border-emerald-300' 
-                                  : 'bg-white border-slate-200 hover:bg-slate-100/60'
-                              }`}
+                              className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2.5 ${isSelected
+                                ? 'bg-emerald-50/90 border-emerald-300'
+                                : 'bg-white border-slate-200 hover:bg-slate-100/60'
+                                }`}
                             >
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={() => {}}
+                                onChange={() => { }}
                                 className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 pointer-events-none"
                               />
                               <div className="w-7 h-7 rounded-full bg-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
@@ -1255,7 +1298,7 @@ const CursosAdminPanel = () => {
                                     Personalizado
                                   </span>
                                 )}
-                                
+
                                 {/* Selector directo de Posición */}
                                 <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-0.5">
                                   <span className="text-[10px] font-bold text-slate-500">Mover a:</span>
@@ -1419,10 +1462,17 @@ const CursosAdminPanel = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={uploading}
-                  className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors transition-transform shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                  disabled={uploading || submittingCourse}
+                  className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors transition-transform shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
                 >
-                  {uploading ? 'Procesando...' : editingId ? 'Actualizar Programa' : 'Crear Curso'}
+                  {(uploading || submittingCourse) ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>{uploading ? 'Subiendo imagen...' : editingId ? 'Actualizando...' : 'Creando...'}</span>
+                    </>
+                  ) : (
+                    <span>{editingId ? 'Actualizar Programa' : 'Crear Curso'}</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1577,9 +1627,17 @@ const CursosAdminPanel = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors shadow-md shadow-[#00D084]/20"
+                  disabled={submittingProf}
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors shadow-md shadow-[#00D084]/20 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
                 >
-                  Guardar Profesor
+                  {submittingProf ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Guardar Profesor</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1667,6 +1725,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [selectedAfiliadoId, setSelectedAfiliadoId] = useState<string>('');
   const [submittingEnroll, setSubmittingEnroll] = useState(false);
   const [enrollFormData, setEnrollFormData] = useState({
+    nombre: '',
+    apellido: '',
     nombreCompleto: '',
     razonSocial: '',
     email: '',
@@ -1682,6 +1742,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingInscripcionId, setEditingInscripcionId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState({
+    nombre: '',
+    apellido: '',
     nombreCompleto: '',
     email: '',
     cedulaPrefix: 'V',
@@ -1696,8 +1758,13 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
     const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed.replace(/\D/g, '');
 
+    const nombre = r.estudiante_nombres || (r.estudiante_nombre ? (r.estudiante_nombre.trim().split(/\s+/).length > 1 ? r.estudiante_nombre.trim().split(/\s+/).slice(0, -1).join(' ') : r.estudiante_nombre.trim()) : '');
+    const apellido = r.estudiante_apellidos || (r.estudiante_nombre && r.estudiante_nombre.trim().split(/\s+/).length > 1 ? r.estudiante_nombre.trim().split(/\s+/).slice(-1)[0] : '');
+
     setEditFormData({
-      nombreCompleto: r.estudiante_nombre || '',
+      nombre,
+      apellido,
+      nombreCompleto: r.estudiante_nombre || [nombre, apellido].filter(Boolean).join(' '),
       email: r.estudiante_email || '',
       cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
       cedulaRif: numCed,
@@ -1885,6 +1952,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     setAfiliadoSearch('');
     setSelectedAfiliadoId('');
     setEnrollFormData({
+      nombre: '',
+      apellido: '',
       nombreCompleto: '',
       razonSocial: '',
       email: '',
@@ -1912,9 +1981,22 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
   const handleSelectAfiliado = (af: any) => {
     setSelectedAfiliadoId(String(af.id_afiliado || af.id));
-    
+
     // Quien se inscribe es el representante legal (persona) o el afiliado
-    const nombre = [af.nombres, af.apellidos].filter(Boolean).join(' ') || af.representante_nombre || af.nombre_completo || af.nombre || af.empresa_razon_social || af.razon_social || '';
+    let nombre = af.nombres || '';
+    let apellido = af.apellidos || '';
+    if (!nombre && !apellido) {
+      const full = (af.representante_nombre || af.nombre_completo || af.nombre || af.empresa_razon_social || af.razon_social || '').trim();
+      const parts = full.split(/\s+/);
+      if (parts.length > 1) {
+        apellido = parts.pop() || '';
+        nombre = parts.join(' ');
+      } else {
+        nombre = full;
+        apellido = '';
+      }
+    }
+
     const razon = af.empresa_razon_social || af.razon_social || '';
     const rawCed = String(af.cedula || af.rif || af.empresa_rif_numero || '');
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
@@ -1925,7 +2007,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     const finalEmail = af.email || af.empresa_email || '';
 
     setEnrollFormData({
-      nombreCompleto: nombre,
+      nombre,
+      apellido,
+      nombreCompleto: [nombre, apellido].filter(Boolean).join(' '),
       razonSocial: razon,
       email: finalEmail,
       cedulaPrefix: ['V', 'E', 'J', 'G', 'P'].includes(prefix) ? prefix : 'V',
@@ -1939,13 +2023,22 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
   const handleSubmitEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!enrollFormData.nombreCompleto.trim() || !enrollFormData.email.trim()) {
-      Swal.fire('Atención', 'Nombre completo y correo electrónico son requeridos', 'warning');
+    const nombre = (enrollFormData.nombre || '').trim();
+    const apellido = (enrollFormData.apellido || '').trim();
+    const nombreCompleto = [nombre, apellido].filter(Boolean).join(' ') || (enrollFormData.nombreCompleto || '').trim();
+
+    if (!nombre || !enrollFormData.email.trim()) {
+      Swal.fire('Atención', 'Nombre(s) y correo electrónico son requeridos', 'warning');
       return;
     }
 
     const payload = {
       ...enrollFormData,
+      nombre,
+      apellido,
+      nombres: nombre,
+      apellidos: apellido,
+      nombreCompleto,
       razonSocial: enrollFormData.razonSocial || undefined,
       cedulaRif: enrollFormData.cedulaRif ? `${enrollFormData.cedulaPrefix || 'V'}-${enrollFormData.cedulaRif.replace(/^[VEJGP]-?/i, '')}` : '',
       telefono: enrollFormData.telefono ? `${enrollFormData.codigoPais || '+58'} ${enrollFormData.telefono.replace(/^(\+\d{1,4}\s?)/, '')}` : ''
@@ -2018,7 +2111,11 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     return () => { active = false; };
   }, [curso.id_curso, token]);
 
+  const [processingActionId, setProcessingActionId] = useState<{ id: number; action: string } | null>(null);
+
   const procesar = async (id: number, action: 'aprobar' | 'rechazar' | 'completar') => {
+    if (processingActionId) return;
+    setProcessingActionId({ id, action });
     try {
       const endpoint = action === 'aprobar' ? 'aprobar-directo' : action;
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/${endpoint}`, {
@@ -2030,16 +2127,19 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       const json = await res.json();
       if (json.success) {
         Swal.fire({ title: 'Éxito', text: 'Estado actualizado', icon: 'success', timer: 1500, showConfirmButton: false });
-        fetchRows();
+        await fetchRows();
       } else {
         Swal.fire('Error', json.message || 'Error al procesar', 'error');
       }
     } catch (e) {
       Swal.fire('Error', 'Fallo de conexión', 'error');
+    } finally {
+      setProcessingActionId(null);
     }
   };
 
   const handleDeleteInscripcion = async (idInscripcion: number, nombre: string) => {
+    if (processingActionId) return;
     const result = await Swal.fire({
       title: '¿Eliminar inscrito?',
       text: `¿Estás seguro de eliminar a "${nombre}" de este curso? Esta acción removerá el registro de inscripción.`,
@@ -2053,6 +2153,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
     if (!result.isConfirmed) return;
 
+    setProcessingActionId({ id: idInscripcion, action: 'delete' });
     try {
       Swal.fire({
         title: 'Eliminando...',
@@ -2076,174 +2177,26 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         showConfirmButton: false
       });
 
-      fetchRows();
+      await fetchRows();
     } catch (err: any) {
       Swal.fire('Error', err.message || 'No se pudo eliminar el inscrito', 'error');
+    } finally {
+      setProcessingActionId(null);
     }
   };
 
   // Selecciones múltiples para acciones en lote
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
-  const [isGeneratingZip, setIsGeneratingZip] = useState(false);
-  const [renderingCertData, setRenderingCertData] = useState<any | null>(null);
+  const [batchActionType, setBatchActionType] = useState<'graduar' | 'revocar' | 'eliminar' | null>(null);
+  const { isDownloading, downloadType, startBatchCertificados } = useBatchDownload();
+  const isGeneratingZip = isDownloading && downloadType === 'certificados';
 
   const handleDownloadZipCertificates = async (selectedOnly = false) => {
     const targetRows = selectedOnly
       ? rows.filter(r => selectedIds.includes(r.id_inscripcion))
       : rows;
-
-    if (targetRows.length === 0) {
-      Swal.fire({
-        title: 'Sin inscritos',
-        text: selectedOnly ? 'No hay participantes seleccionados.' : 'Este curso no tiene participantes inscritos para generar certificados.',
-        icon: 'info'
-      });
-      return;
-    }
-
-    setIsGeneratingZip(true);
-
-    const progressHtml = `
-      <div class="w-full text-left space-y-3 pt-2">
-        <div class="flex justify-between text-xs font-semibold text-slate-600">
-          <span id="swal-zip-status">Iniciando generación de certificados...</span>
-          <span id="swal-zip-count">0 / ${targetRows.length}</span>
-        </div>
-        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-          <div id="swal-zip-bar" class="bg-[#00D084] h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div>
-        </div>
-        <p id="swal-zip-participant" class="text-[11px] text-slate-400 truncate font-medium"></p>
-      </div>
-    `;
-
-    Swal.fire({
-      title: 'Generando Certificados Oficiales ZIP',
-      html: progressHtml,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false
-    });
-
-    try {
-      const MAIN_PROGRAMS = new Set(['CIBIR', 'PREANI', 'PEGI', 'PADI']);
-      const isMainProg = curso.programa_codigo
-        ? MAIN_PROGRAMS.has(curso.programa_codigo.trim().toUpperCase())
-        : false;
-
-      let parsedFirmantes: FirmanteItem[] | undefined = undefined;
-      if (curso.firmantes) {
-        try {
-          parsedFirmantes = typeof curso.firmantes === 'string' ? JSON.parse(curso.firmantes) : curso.firmantes;
-        } catch {
-          parsedFirmantes = undefined;
-        }
-      }
-
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const zip = new JSZip();
-
-      // Ensure browser fonts are ready
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
-
-      const total = targetRows.length;
-      let generatedCount = 0;
-      for (let i = 0; i < total; i++) {
-        const inscrito = targetRows[i];
-        const nombreEstudiante = formatNombreCard(inscrito.estudiante_nombre) || inscrito.nombre || `Inscrito_${i + 1}`;
-        const codigoVal = inscrito.codigo_validacion || `CIV-${String(inscrito.id_inscripcion || (i + 1)).padStart(5, '0')}-${String(curso.id_curso || '0').padStart(3, '0')}`;
-        const urlVerif = `${origin}/comprobante/${encodeURIComponent(codigoVal)}`;
-
-        const percent = Math.round(((i + 1) / total) * 100);
-        const statusEl = document.getElementById('swal-zip-status');
-        const countEl = document.getElementById('swal-zip-count');
-        const barEl = document.getElementById('swal-zip-bar');
-        const partEl = document.getElementById('swal-zip-participant');
-        if (statusEl) statusEl.innerText = `Generando PDF (${percent}%)...`;
-        if (countEl) countEl.innerText = `${i + 1} / ${total}`;
-        if (barEl) barEl.style.width = `${percent}%`;
-        if (partEl) partEl.innerText = nombreEstudiante;
-
-        // Render current participant
-        setRenderingCertData({
-          isMainProgram: isMainProg,
-          codigo: codigoVal,
-          fechaEmisionIso: inscrito.fecha_emision || (curso.fecha_fin ? `${curso.fecha_fin}T12:00:00` : new Date().toISOString()),
-          titularNombre: nombreEstudiante,
-          programaOCurso: curso.titulo || curso.nombre || 'CURSO',
-          programaCodigo: curso.programa_codigo || 'CURSO',
-          modalidad: curso.modalidad || null,
-          categoria: curso.categoria || curso.nivel_academico || null,
-          descripcion: curso.descripcion || null,
-          instructorNombre: curso.instructor_nombre || null,
-          instructorCargo: curso.instructor_cargo || null,
-          urlVerificacion: urlVerif,
-          vigente: Number(inscrito.completado) === 1 || inscrito.estatus === 'Inscrito' || true,
-          cedula: inscrito.estudiante_cedula || inscrito.cedula || null,
-          modulosLista: curso.modulos_lista || null,
-          firmantes: parsedFirmantes
-        });
-
-        // Wait for DOM repaint, QR generation & image loads (500ms gives qrcode lib time to resolve)
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        const targetEl = document.querySelector('#zip-certificate-export-target #certificate-print-area') as HTMLElement;
-        if (targetEl) {
-          try {
-            const pdfBuffer = await captureElementToPdfBuffer(targetEl);
-            const rawCed = (inscrito.estudiante_cedula || inscrito.cedula || '').replace(/\D/g, '');
-            const safeCed = rawCed ? `_${rawCed}` : '';
-            const safeName = nombreEstudiante.replace(/[^a-zA-Z0-9_-]/g, '_');
-            const filename = `Certificado_${String(i + 1).padStart(3, '0')}${safeCed}_${safeName}.pdf`;
-
-            zip.file(filename, pdfBuffer);
-            generatedCount++;
-          } catch (itemErr) {
-            console.error(`Error generando certificado para ${nombreEstudiante}:`, itemErr);
-          }
-        }
-      }
-
-      setRenderingCertData(null);
-
-      if (generatedCount === 0) {
-        throw new Error('No se pudo generar ningún certificado.');
-      }
-
-      // Generate Zip Blob
-      const zipBlob = await zip.generateAsync({
-        type: 'blob',
-        compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
-      });
-
-      const safeCursoName = (curso.titulo || curso.nombre || 'Curso').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const zipFilename = `Certificados_${safeCursoName}.zip`;
-
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(zipBlob);
-      link.download = zipFilename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-
-      Swal.fire({
-        title: '¡ZIP Descargado!',
-        text: `Se generaron y empaquetaron exitosamente ${generatedCount} certificados oficiales en formato ZIP.`,
-        icon: 'success',
-        confirmButtonColor: '#00D084'
-      });
-    } catch (err: any) {
-      console.error('Error generando ZIP:', err);
-      setRenderingCertData(null);
-      Swal.fire('Error', err.message || 'Ocurrió un error al compilar el archivo ZIP.', 'error');
-    } finally {
-      setIsGeneratingZip(false);
-      setRenderingCertData(null);
-    }
+    await startBatchCertificados({ curso, targetRows, selectedOnly });
   };
 
   const toggleSelectAll = () => {
@@ -2261,7 +2214,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   };
 
   const handleBatchGraduar = async () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || isProcessingBatch) return;
     const confirm = await Swal.fire({
       title: '¿Graduar seleccionados?',
       text: `Se graduará a los ${selectedIds.length} participantes seleccionados en este programa.`,
@@ -2276,6 +2229,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     if (!confirm.isConfirmed) return;
 
     setIsProcessingBatch(true);
+    setBatchActionType('graduar');
     Swal.fire({
       title: 'Procesando graduaciones...',
       text: `Graduando ${selectedIds.length} participantes...`,
@@ -2299,11 +2253,12 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       Swal.fire('Error', err.message || 'Error al graduar participantes', 'error');
     } finally {
       setIsProcessingBatch(false);
+      setBatchActionType(null);
     }
   };
 
   const handleBatchRevocar = async () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || isProcessingBatch) return;
     const confirm = await Swal.fire({
       title: '¿Revocar seleccionados?',
       text: `Se cambiará a estado revocado/rechazado la inscripción de ${selectedIds.length} participantes.`,
@@ -2318,6 +2273,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     if (!confirm.isConfirmed) return;
 
     setIsProcessingBatch(true);
+    setBatchActionType('revocar');
     Swal.fire({
       title: 'Revocando inscripciones...',
       text: `Procesando ${selectedIds.length} participantes...`,
@@ -2342,11 +2298,12 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       Swal.fire('Error', err.message || 'Error al revocar inscripciones', 'error');
     } finally {
       setIsProcessingBatch(false);
+      setBatchActionType(null);
     }
   };
 
   const handleBatchEliminar = async () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || isProcessingBatch) return;
     const confirm = await Swal.fire({
       title: '¿Eliminar inscritos seleccionados?',
       text: `Se eliminarán permanentemente ${selectedIds.length} participantes del curso. Esta acción no se puede deshacer.`,
@@ -2361,6 +2318,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     if (!confirm.isConfirmed) return;
 
     setIsProcessingBatch(true);
+    setBatchActionType('eliminar');
     Swal.fire({
       title: 'Eliminando inscritos...',
       text: `Eliminando ${selectedIds.length} registros...`,
@@ -2384,6 +2342,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       Swal.fire('Error', err.message || 'Error al eliminar inscritos', 'error');
     } finally {
       setIsProcessingBatch(false);
+      setBatchActionType(null);
     }
   };
 
@@ -2431,10 +2390,10 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={
                   searchField === 'nombre' ? 'Buscar por nombre...' :
-                  searchField === 'cedula' ? 'Buscar por cédula...' :
-                  searchField === 'email' ? 'Buscar por correo...' :
-                  searchField === 'telefono' ? 'Buscar por teléfono...' :
-                  'Buscar participante...'
+                    searchField === 'cedula' ? 'Buscar por cédula...' :
+                      searchField === 'email' ? 'Buscar por correo...' :
+                        searchField === 'telefono' ? 'Buscar por teléfono...' :
+                          'Buscar participante...'
                 }
                 className="w-full pl-8 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 outline-none bg-transparent"
               />
@@ -2460,17 +2419,19 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <span>Exportar PDF</span>
           </button>
 
-          {/* Botón Descargar ZIP oculto temporalmente
           <button
             onClick={() => handleDownloadZipCertificates(false)}
             disabled={isGeneratingZip || rows.length === 0}
             className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-emerald-200/60 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Descargar archivo ZIP con los certificados de todos los inscritos independientemente de su estatus"
+            title="Descargar archivo ZIP con los certificados de todos los inscritos"
           >
-            <Archive className="w-4 h-4 text-emerald-600" />
-            <span>Descargar ZIP Certificados</span>
+            {isGeneratingZip ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Archive className="w-4 h-4 text-emerald-600" />
+            )}
+            <span>Certificados</span>
           </button>
-          */}
 
           <button
             onClick={handleOpenEnrollModal}
@@ -2513,47 +2474,61 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Botón Lote ZIP oculto temporalmente
             <button
               type="button"
               onClick={() => handleDownloadZipCertificates(true)}
               disabled={isProcessingBatch || isGeneratingZip}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-200/60 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-200/60 disabled:opacity-50 disabled:pointer-events-none"
               title="Descargar ZIP con los certificados de los participantes seleccionados"
             >
-              <Archive size={14} />
-              <span>Certificados ZIP ({selectedIds.length})</span>
+              {isGeneratingZip ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Archive size={14} />
+              )}
+              <span>Certificados ({selectedIds.length})</span>
             </button>
-            */}
 
             <button
               type="button"
               onClick={handleBatchGraduar}
-              disabled={isProcessingBatch}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E9FAF4] text-[#00B870] hover:bg-[#D3F5E7] active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-[#00D084]/20 disabled:opacity-50"
+              disabled={isProcessingBatch || isGeneratingZip}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E9FAF4] text-[#00B870] hover:bg-[#D3F5E7] active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-[#00D084]/20 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <CheckCircle2 size={14} />
-              <span>Graduar ({selectedIds.length})</span>
+              {batchActionType === 'graduar' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              <span>{batchActionType === 'graduar' ? 'Graduando...' : `Graduar (${selectedIds.length})`}</span>
             </button>
 
             <button
               type="button"
               onClick={handleBatchRevocar}
-              disabled={isProcessingBatch}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-amber-200/60 disabled:opacity-50"
+              disabled={isProcessingBatch || isGeneratingZip}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-amber-200/60 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <XCircle size={14} />
-              <span>Revocar ({selectedIds.length})</span>
+              {batchActionType === 'revocar' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <XCircle size={14} />
+              )}
+              <span>{batchActionType === 'revocar' ? 'Revocando...' : `Revocar (${selectedIds.length})`}</span>
             </button>
 
             <button
               type="button"
               onClick={handleBatchEliminar}
-              disabled={isProcessingBatch}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-rose-200/60 disabled:opacity-50"
+              disabled={isProcessingBatch || isGeneratingZip}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-rose-200/60 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <Trash2 size={14} />
-              <span>Eliminar ({selectedIds.length})</span>
+              {batchActionType === 'eliminar' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Trash2 size={14} />
+              )}
+              <span>{batchActionType === 'eliminar' ? 'Eliminando...' : `Eliminar (${selectedIds.length})`}</span>
             </button>
 
             <div className="w-px h-6 bg-gray-200 mx-1" />
@@ -2634,9 +2609,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <th
                         key={col.id}
                         onClick={() => handleSort(col.id as any)}
-                        className={`${col.pad} py-4 text-left text-[10px] font-black tracking-widest uppercase cursor-pointer select-none transition-colors hover:text-[#00D084] ${
-                          isActive ? 'text-[#00B870]' : 'text-slate-400'
-                        }`}
+                        className={`${col.pad} py-4 text-left text-[10px] font-black tracking-widest uppercase cursor-pointer select-none transition-colors hover:text-[#00D084] ${isActive ? 'text-[#00B870]' : 'text-slate-400'
+                          }`}
                         title={`Ordenar por ${col.label}`}
                       >
                         <div className="flex items-center gap-1.5">
@@ -2693,63 +2667,136 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <td className="px-4 py-4 text-xs font-bold text-slate-500 tabular-nums whitespace-nowrap">
                         {new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
-                    <td className="px-6 py-4">
-                      {r.completado === 1 ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Completado
-                        </span>
-                      ) : (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${r.estatus === 'Preinscrito' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                          r.estatus === 'Inscrito' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            'bg-red-50 text-red-500 border-red-100'
-                          }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${r.estatus === 'Preinscrito' ? 'bg-amber-500' :
-                            r.estatus === 'Inscrito' ? 'bg-emerald-500' :
-                              'bg-red-500'
-                            }`} />
-                          {r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : r.estatus}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-transform transform translate-x-2 group-hover:translate-x-0">
-                        {r.estatus === 'Preinscrito' && (
-                          <>
-                            <button onClick={() => procesar(r.id_inscripcion, 'aprobar')} className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-colors transition-transform">Validar</button>
-                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-colors">Rechazar</button>
-                          </>
+                      <td className="px-6 py-4">
+                        {r.completado === 1 ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Completado
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${r.estatus === 'Preinscrito' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            r.estatus === 'Inscrito' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                              'bg-red-50 text-red-500 border-red-100'
+                            }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${r.estatus === 'Preinscrito' ? 'bg-amber-500' :
+                              r.estatus === 'Inscrito' ? 'bg-emerald-500' :
+                                'bg-red-500'
+                              }`} />
+                            {r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : r.estatus}
+                          </span>
                         )}
-                        {r.estatus === 'Inscrito' && r.completado !== 1 && (
-                          <>
-                            <button onClick={() => procesar(r.id_inscripcion, 'completar')} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-colors flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4" /></svg>
-                              Graduar
-                            </button>
-                            <button onClick={() => procesar(r.id_inscripcion, 'rechazar')} className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-colors">Revocar</button>
-                          </>
-                        )}
-                        {r.completado === 1 && (
-                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
-                        )}
-                        <button
-                          onClick={() => handleOpenEditModal(r)}
-                          className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-slate-200 hover:border-emerald-200 cursor-pointer shrink-0"
-                          title="Editar información del participante"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteInscripcion(r.id_inscripcion, r.estudiante_nombre)}
-                          className="p-2 text-rose-500 hover:text-white hover:bg-rose-600 rounded-lg transition-colors border border-rose-100 hover:border-rose-600 cursor-pointer shrink-0"
-                          title="Eliminar participante del curso"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-transform transform translate-x-2 group-hover:translate-x-0">
+                          {(() => {
+                            const isThisRow = processingActionId?.id === r.id_inscripcion;
+                            const isValidating = isThisRow && processingActionId?.action === 'aprobar';
+                            const isRejecting = isThisRow && processingActionId?.action === 'rechazar';
+                            const isCompleting = isThisRow && processingActionId?.action === 'completar';
+                            const isDeleting = isThisRow && processingActionId?.action === 'delete';
+                            const isRowDisabled = Boolean(processingActionId);
+
+                            return (
+                              <>
+                                {r.estatus === 'Preinscrito' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => procesar(r.id_inscripcion, 'aprobar')}
+                                      disabled={isRowDisabled}
+                                      className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                    >
+                                      {isValidating ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                                          <span>Validando...</span>
+                                        </>
+                                      ) : (
+                                        <span>Validar</span>
+                                      )}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => procesar(r.id_inscripcion, 'rechazar')}
+                                      disabled={isRowDisabled}
+                                      className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                    >
+                                      {isRejecting ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                                          <span>Rechazando...</span>
+                                        </>
+                                      ) : (
+                                        <span>Rechazar</span>
+                                      )}
+                                    </button>
+                                  </>
+                                )}
+                                {r.estatus === 'Inscrito' && r.completado !== 1 && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => procesar(r.id_inscripcion, 'completar')}
+                                      disabled={isRowDisabled}
+                                      className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                    >
+                                      {isCompleting ? (
+                                        <>
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                          <span>Graduando...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4" /></svg>
+                                          <span>Graduar</span>
+                                        </>
+                                      )}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => procesar(r.id_inscripcion, 'rechazar')}
+                                      disabled={isRowDisabled}
+                                      className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                    >
+                                      {isRejecting ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                                          <span>Revocando...</span>
+                                        </>
+                                      ) : (
+                                        <span>Revocar</span>
+                                      )}
+                                    </button>
+                                  </>
+                                )}
+                                {r.completado === 1 && (
+                                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={isRowDisabled}
+                                  onClick={() => handleOpenEditModal(r)}
+                                  className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-slate-200 hover:border-emerald-200 cursor-pointer shrink-0 disabled:opacity-50 disabled:pointer-events-none"
+                                  title="Editar información del participante"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isRowDisabled}
+                                  onClick={() => handleDeleteInscripcion(r.id_inscripcion, r.estudiante_nombre)}
+                                  className="p-2 text-rose-500 hover:text-white hover:bg-rose-600 rounded-lg transition-colors border border-rose-100 hover:border-rose-600 cursor-pointer shrink-0 disabled:opacity-50 disabled:pointer-events-none"
+                                  title="Eliminar participante del curso"
+                                >
+                                  {isDeleting ? <Loader2 size={13} className="animate-spin text-rose-600" /> : <Trash2 size={13} />}
+                                </button>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2981,18 +3028,47 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                 {/* Campos de datos del estudiante */}
                 <div className="space-y-3 pt-1">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                      Nombre Completo del Estudiante *
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Ej. María Pérez"
-                      value={enrollFormData.nombreCompleto}
-                      onChange={(e) => setEnrollFormData({ ...enrollFormData, nombreCompleto: e.target.value })}
-                      className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Nombre(s) *
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Ej. María"
+                        value={enrollFormData.nombre}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEnrollFormData(prev => ({
+                            ...prev,
+                            nombre: val,
+                            nombreCompleto: [val, prev.apellido].filter(Boolean).join(' ')
+                          }));
+                        }}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Apellido(s) *
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Ej. Pérez"
+                        value={enrollFormData.apellido}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEnrollFormData(prev => ({
+                            ...prev,
+                            apellido: val,
+                            nombreCompleto: [prev.nombre, val].filter(Boolean).join(' ')
+                          }));
+                        }}
+                        className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3126,18 +3202,47 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             </div>
 
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                  Nombre Completo del Participante *
-                </label>
-                <input
-                  required
-                  type="text"
-                  placeholder="Ej. María Pérez"
-                  value={editFormData.nombreCompleto}
-                  onChange={(e) => setEditFormData({ ...editFormData, nombreCompleto: e.target.value })}
-                  className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    Nombre(s) *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ej. María"
+                    value={editFormData.nombre}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData(prev => ({
+                        ...prev,
+                        nombre: val,
+                        nombreCompleto: [val, prev.apellido].filter(Boolean).join(' ')
+                      }));
+                    }}
+                    className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    Apellido(s) *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ej. Pérez"
+                    value={editFormData.apellido}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData(prev => ({
+                        ...prev,
+                        apellido: val,
+                        nombreCompleto: [prev.nombre, val].filter(Boolean).join(' ')
+                      }));
+                    }}
+                    className="w-full text-xs font-semibold rounded-xl border border-gray-200 px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084] outline-none"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3223,61 +3328,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         </div>
       )}
 
-      {/* ── CONTENEDOR OFFSCREEN PARA RENDERIZADO DE CERTIFICADOS OFICIALES ZIP ── */}
-      <div
-        id="zip-certificate-export-target"
-        style={{
-          position: 'fixed',
-          left: '0px',
-          top: '0px',
-          width: '1000px',
-          minWidth: '1000px',
-          maxWidth: '1000px',
-          height: '707px',
-          minHeight: '707px',
-          maxHeight: '707px',
-          zIndex: -9999,
-          opacity: 0.01,
-          pointerEvents: 'none',
-          backgroundColor: '#ffffff'
-        }}
-        aria-hidden="true"
-      >
-        {renderingCertData && (
-          <div style={{ width: '1000px', height: '707px', backgroundColor: '#ffffff' }}>
-            {renderingCertData.isMainProgram ? (
-              <CertificadoProgramaView
-                codigo={renderingCertData.codigo}
-                fechaEmisionIso={renderingCertData.fechaEmisionIso}
-                titularNombre={renderingCertData.titularNombre}
-                programaOCurso={renderingCertData.programaOCurso}
-                programaCodigo={renderingCertData.programaCodigo}
-                urlVerificacion={renderingCertData.urlVerificacion}
-                vigente={renderingCertData.vigente}
-                cedula={renderingCertData.cedula}
-                firmantes={renderingCertData.firmantes}
-              />
-            ) : (
-              <CertificadoCursoView
-                codigo={renderingCertData.codigo}
-                fechaEmisionIso={renderingCertData.fechaEmisionIso}
-                titularNombre={renderingCertData.titularNombre}
-                programaOCurso={renderingCertData.programaOCurso}
-                modalidad={renderingCertData.modalidad}
-                categoria={renderingCertData.categoria}
-                descripcion={renderingCertData.descripcion}
-                instructorNombre={renderingCertData.instructorNombre}
-                instructorCargo={renderingCertData.instructorCargo}
-                urlVerificacion={renderingCertData.urlVerificacion}
-                vigente={renderingCertData.vigente}
-                cedula={renderingCertData.cedula}
-                modulosLista={renderingCertData.modulosLista}
-                firmantes={renderingCertData.firmantes}
-              />
-            )}
-          </div>
-        )}
-      </div>
+
 
       {/* ── MODAL EXPORTAR REPORTE PDF CON FILTROS Y COLUMNAS ── */}
       <ExportInscritosCursoModal

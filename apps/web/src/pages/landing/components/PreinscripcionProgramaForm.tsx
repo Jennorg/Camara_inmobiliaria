@@ -112,6 +112,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     setErrorMsg('')
 
     if (isAgenteCorporativo && !empresaSelected) {
@@ -350,7 +351,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           </div>
 
         {/* Botón Submit */}
-        <button type="submit" disabled={loading || (isAgenteCorporativo && !empresaSelected)} className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 transition-colors transition-transform hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white hover:bg-[#022c22] disabled:opacity-50 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs`}>
+        <button type="submit" disabled={loading || (isAgenteCorporativo && !empresaSelected)} className={`w-full ${BOX_H} rounded-xl flex items-center justify-center gap-3 transition-colors transition-transform hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white hover:bg-[#022c22] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none font-black uppercase tracking-widest text-xs`}>
           {loading
             ? <Loader2 size={18} className="animate-spin" />
             : isAgenteCorporativo

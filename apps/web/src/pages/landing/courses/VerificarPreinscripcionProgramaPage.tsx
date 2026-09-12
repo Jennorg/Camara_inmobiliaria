@@ -411,6 +411,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
   const handleConfirmar = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitLoading) return
     if (!verifiedToken) return
 
     // 1. Validar Currículum (CV)
@@ -1815,7 +1816,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               )}
 
               <div className="pt-6 border-t border-slate-100/80">
-                <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-transform hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 uppercase tracking-widest text-sm ${INPUT_H}`}>
+                <button type="submit" disabled={submitLoading} className={`w-full font-black rounded-xl flex items-center justify-center gap-3 transition-transform hover:-translate-y-0.5 shadow-xl bg-emerald-600 text-white disabled:opacity-60 disabled:pointer-events-none uppercase tracking-widest text-sm ${INPUT_H}`}>
                   {submitLoading ? <Loader2 size={20} className="animate-spin" /> : <>Finalizar Registro<ArrowRight size={16} /></>}
                 </button>
               </div>

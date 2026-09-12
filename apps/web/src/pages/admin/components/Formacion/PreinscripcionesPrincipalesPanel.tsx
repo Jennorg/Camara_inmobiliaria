@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Award, Clock, Mail } from 'lucide-react'
+import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Award, Clock, Mail, Loader2 } from 'lucide-react'
 import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
@@ -85,6 +85,11 @@ export default function PreinscripcionesPrincipalesPanel({
   const [loadingModulos, setLoadingModulos] = useState(false)
   const [evaluating, setEvaluating] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
+  const [processingAction, setProcessingAction] = useState<string | null>(null)
+  const [changingEtapaStep, setChangingEtapaStep] = useState<number | null>(null)
+  const [submittingAgendar, setSubmittingAgendar] = useState(false)
+  const [submittingFinalizar, setSubmittingFinalizar] = useState(false)
+  const [validatingRef, setValidatingRef] = useState<string | null>(null)
 
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
@@ -179,7 +184,7 @@ export default function PreinscripcionesPrincipalesPanel({
   }, [authHeaders])
 
   const handleAprobarModulo = async (nombreModulo: string) => {
-    if (!selected) return
+    if (!selected || evaluating !== null || completing || processingAction) return
     setEvaluating(nombreModulo)
     try {
       Swal.fire({
@@ -216,7 +221,7 @@ export default function PreinscripcionesPrincipalesPanel({
   }
 
   const handleRechazarModulo = async (nombreModulo: string) => {
-    if (!selected) return
+    if (!selected || evaluating !== null || completing || processingAction) return
 
     const { value: notaAdmin } = await Swal.fire({
       title: 'Rechazar Módulo',
@@ -272,7 +277,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
   const busyAprobarTodosRef = useRef(false)
   const handleAprobarTodos = async () => {
-    if (!selected || busyAprobarTodosRef.current) return
+    if (!selected || busyAprobarTodosRef.current || completing || evaluating !== null || processingAction) return
     busyAprobarTodosRef.current = true
 
     try {
@@ -324,7 +329,7 @@ export default function PreinscripcionesPrincipalesPanel({
   }
 
   const handleAprobarEtapaCibir = async () => {
-    if (!selected) return
+    if (!selected || processingAction) return
 
     const result = await Swal.fire({
       title: '¿Aprobar CIBIR y Afiliar?',
@@ -339,6 +344,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
     if (!result.isConfirmed) return
 
+    setProcessingAction('aprobarCibir')
     try {
       Swal.fire({
         title: 'Procesando...',
@@ -370,6 +376,8 @@ export default function PreinscripcionesPrincipalesPanel({
       })
     } catch (e: any) {
       Swal.fire('Error', e.message || 'No se pudo completar la aprobación de CIBIR', 'error')
+    } finally {
+      setProcessingAction(null)
     }
   }
 
@@ -405,8 +413,9 @@ export default function PreinscripcionesPrincipalesPanel({
 
   const busyAgendarRef = useRef(false)
   const agendarEntrevista = async () => {
-    if (!selected || busyAgendarRef.current) return
+    if (!selected || busyAgendarRef.current || submittingAgendar) return
     busyAgendarRef.current = true
+    setSubmittingAgendar(true)
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/agendar-entrevista`, {
         method: 'PATCH',
@@ -432,13 +441,15 @@ export default function PreinscripcionesPrincipalesPanel({
       Swal.fire('Error', e.message || 'No se pudo agendar la entrevista', 'error')
     } finally {
       busyAgendarRef.current = false
+      setSubmittingAgendar(false)
     }
   }
 
   const busyFinalizarRef = useRef(false)
   const finalizarEntrevista = async () => {
-    if (!selected || busyFinalizarRef.current) return
+    if (!selected || busyFinalizarRef.current || submittingFinalizar) return
     busyFinalizarRef.current = true
+    setSubmittingFinalizar(true)
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/finalizar-entrevista`, {
         method: 'PATCH',
@@ -457,10 +468,13 @@ export default function PreinscripcionesPrincipalesPanel({
       setError(e.message)
     } finally {
       busyFinalizarRef.current = false
+      setSubmittingFinalizar(false)
     }
   }
 
   const handleVerReferencia = async (nombre: string) => {
+    if (validatingRef) return
+    setValidatingRef(nombre)
     try {
       Swal.fire({
         title: 'Buscando afiliado...',
@@ -512,10 +526,14 @@ export default function PreinscripcionesPrincipalesPanel({
       })
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al buscar referencia', icon: 'error' })
+    } finally {
+      setValidatingRef(null)
     }
   }
 
   const aprobarDirecto = async (id: number) => {
+    if (processingAction) return
+    setProcessingAction('aprobarDirecto')
     try {
       Swal.fire({
         title: 'Procesando...',
@@ -541,10 +559,14 @@ export default function PreinscripcionesPrincipalesPanel({
       await fetchData(true)
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al aprobar', icon: 'error' })
+    } finally {
+      setProcessingAction(null)
     }
   }
 
   const remitirACibir = async (id: number) => {
+    if (processingAction) return
+    setProcessingAction('remitirCibir')
     try {
       Swal.fire({
         title: 'Procesando...',
@@ -570,10 +592,13 @@ export default function PreinscripcionesPrincipalesPanel({
       await fetchData(true)
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al remitir', icon: 'error' })
+    } finally {
+      setProcessingAction(null)
     }
   }
 
   const cambiarEtapa = async (idInscripcion: number, etapa: number, labelEtapa: string) => {
+    if (processingAction || changingEtapaStep !== null) return
     const result = await Swal.fire({
       title: `¿Mover a "${labelEtapa}"?`,
       text: 'El estado del trámite se actualizará manualmente. Esta acción puede enviar notificaciones al aspirante.',
@@ -584,6 +609,8 @@ export default function PreinscripcionesPrincipalesPanel({
       cancelButtonText: 'Cancelar'
     })
     if (!result.isConfirmed) return
+    setChangingEtapaStep(etapa)
+    setProcessingAction('cambiarEtapa')
     try {
       Swal.fire({
         title: 'Procesando...',
@@ -610,10 +637,15 @@ export default function PreinscripcionesPrincipalesPanel({
       await fetchData(true)
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message, icon: 'error' })
+    } finally {
+      setChangingEtapaStep(null)
+      setProcessingAction(null)
     }
   }
 
   const rechazar = async (id: number) => {
+    if (processingAction) return
+    setProcessingAction('rechazar')
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/rechazar`, {
         method: 'PATCH',
@@ -624,9 +656,13 @@ export default function PreinscripcionesPrincipalesPanel({
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo rechazar')
       await fetchData(true)
     } catch (e: any) { setError(e.message) }
+    finally {
+      setProcessingAction(null)
+    }
   }
 
   const eliminarSolicitud = async (id: number) => {
+    if (processingAction) return
     const result = await Swal.fire({
       title: '¿Eliminar solicitud?',
       text: 'Esta acción es irreversible y borrará todos los datos del aspirante.',
@@ -636,6 +672,7 @@ export default function PreinscripcionesPrincipalesPanel({
       confirmButtonText: 'Sí, borrar todo'
     })
     if (result.isConfirmed) {
+      setProcessingAction('eliminar')
       try {
         const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}`, {
           method: 'DELETE',
@@ -646,10 +683,14 @@ export default function PreinscripcionesPrincipalesPanel({
         setSelected(null)
         await fetchData(true)
       } catch (e: any) { Swal.fire({ title: 'Error', text: e.message, icon: 'error' }) }
+      finally {
+        setProcessingAction(null)
+      }
     }
   }
 
   const reenviarEnlaceExpediente = async (id: number) => {
+    if (processingAction) return
     const result = await Swal.fire({
       title: '¿Reenviar correo?',
       text: 'Se enviará un correo al aspirante y se reactivará su token para cargar el expediente.',
@@ -659,6 +700,7 @@ export default function PreinscripcionesPrincipalesPanel({
       confirmButtonText: 'Sí, reenviar correo'
     })
     if (result.isConfirmed) {
+      setProcessingAction('reenviarEnlace')
       Swal.fire({
         title: 'Reenviando...',
         text: 'Por favor espera un momento.',
@@ -688,6 +730,8 @@ export default function PreinscripcionesPrincipalesPanel({
           icon: 'error',
           confirmButtonColor: '#dc2626'
         })
+      } finally {
+        setProcessingAction(null)
       }
     }
   }
@@ -1050,26 +1094,35 @@ export default function PreinscripcionesPrincipalesPanel({
                     {AFILIACION_STEPS_FLOW.map((step, idx) => {
                       const isCompleted = idx < activeIndex;
                       const isCurrent = idx === activeIndex;
-                      const isClickable = !isCurrent;
+                      const isChangingThis = changingEtapaStep === idx;
+                      const isClickable = !isCurrent && changingEtapaStep === null && processingAction === null;
                       const StepIcon = step.icon;
                       return (
                         <div
                           key={step.label}
-                          className={`flex flex-col items-center relative z-10 gap-1.5 group ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                          className={`flex flex-col items-center relative z-10 gap-1.5 group ${isClickable ? 'cursor-pointer' : 'cursor-default'} ${(changingEtapaStep !== null || processingAction !== null) ? 'pointer-events-none' : ''}`}
                           title={isClickable ? `Mover a: ${step.label}` : step.label}
                           onClick={isClickable ? () => cambiarEtapa(selected.id_inscripcion, idx, step.label) : undefined}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors transition-transform
-                            ${isCompleted
-                              ? 'bg-emerald-500 text-white group-hover:bg-emerald-400 group-hover:scale-110'
-                              : isCurrent
-                                ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-110'
-                                : 'bg-white text-slate-300 border-2 border-slate-100 group-hover:border-emerald-300 group-hover:text-emerald-400 group-hover:scale-110'
+                            ${isChangingThis
+                              ? 'bg-emerald-100 ring-4 ring-emerald-200 scale-110'
+                              : isCompleted
+                                ? 'bg-emerald-500 text-white group-hover:bg-emerald-400 group-hover:scale-110'
+                                : isCurrent
+                                  ? 'bg-emerald-600 text-white ring-4 ring-emerald-100 scale-110'
+                                  : 'bg-white text-slate-300 border-2 border-slate-100 group-hover:border-emerald-300 group-hover:text-emerald-400 group-hover:scale-110'
                             }`}>
-                            {isCompleted ? <Check className="w-4 h-4" strokeWidth={3} /> : <StepIcon className="w-4 h-4" />}
+                            {isChangingThis ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                            ) : isCompleted ? (
+                              <Check className="w-4 h-4" strokeWidth={3} />
+                            ) : (
+                              <StepIcon className="w-4 h-4" />
+                            )}
                           </div>
                           <span className={`text-[8px] font-black tracking-tighter uppercase transition-colors
-                            ${isCurrent ? 'text-emerald-600' : isCompleted ? 'text-emerald-400 group-hover:text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
+                            ${isChangingThis ? 'text-emerald-600 font-bold' : isCurrent ? 'text-emerald-600' : isCompleted ? 'text-emerald-400 group-hover:text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
                             {step.labelShort}
                           </span>
                         </div>
@@ -1219,9 +1272,17 @@ export default function PreinscripcionesPrincipalesPanel({
                   ) : (
                     <button
                       onClick={handleAprobarTodos}
-                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0"
+                      disabled={evaluating !== null || processingAction !== null}
+                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:pointer-events-none"
                     >
-                      Aprobar Todos
+                      {processingAction === 'aprobarTodos' ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />
+                          <span>Aprobando...</span>
+                        </>
+                      ) : (
+                        'Aprobar Todos'
+                      )}
                     </button>
                   )}
                 </div>
@@ -1304,19 +1365,29 @@ export default function PreinscripcionesPrincipalesPanel({
                                   {!isAprobado && (
                                     <button
                                       onClick={() => handleAprobarModulo(mod.nombre_modulo)}
-                                      disabled={evaluating !== null}
-                                      className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50"
+                                      disabled={evaluating !== null || processingAction !== null}
+                                      className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1"
                                     >
-                                      {evaluating === mod.nombre_modulo ? '...' : 'Aprobar'}
+                                      {evaluating === mod.nombre_modulo ? (
+                                        <>
+                                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                          <span>...</span>
+                                        </>
+                                      ) : 'Aprobar'}
                                     </button>
                                   )}
                                   {!isRechazado && (
                                     <button
                                       onClick={() => handleRechazarModulo(mod.nombre_modulo)}
-                                      disabled={evaluating !== null}
-                                      className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50"
+                                      disabled={evaluating !== null || processingAction !== null}
+                                      className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1"
                                     >
-                                      {evaluating === mod.nombre_modulo ? '...' : 'Rechazar'}
+                                      {evaluating === mod.nombre_modulo ? (
+                                        <>
+                                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                          <span>...</span>
+                                        </>
+                                      ) : 'Rechazar'}
                                     </button>
                                   )}
                                 </div>
@@ -1346,7 +1417,20 @@ export default function PreinscripcionesPrincipalesPanel({
                         </div>
                       </a>
                       {['referencia_afiliado_1', 'referencia_afiliado_2'].includes(doc.tipo_doc) && doc.nombre_archivo && (
-                        <button onClick={() => handleVerReferencia(doc.nombre_archivo!)} className="ml-2 px-2 py-1 rounded-lg bg-white border border-slate-200 text-[9px] font-black text-slate-500 hover:bg-slate-50 uppercase tracking-tighter">Validar Afiliado</button>
+                        <button 
+                          onClick={() => handleVerReferencia(doc.nombre_archivo!)}
+                          disabled={validatingRef !== null}
+                          className="ml-2 px-2 py-1 rounded-lg bg-white border border-slate-200 text-[9px] font-black text-slate-500 hover:bg-slate-50 uppercase tracking-tighter disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1"
+                        >
+                          {validatingRef === doc.nombre_archivo ? (
+                            <>
+                              <Loader2 className="w-2.5 h-2.5 animate-spin text-slate-500" />
+                              <span>Validando...</span>
+                            </>
+                          ) : (
+                            'Validar Afiliado'
+                          )}
+                        </button>
                       )}
                     </div>
                   ))}
@@ -1374,39 +1458,140 @@ export default function PreinscripcionesPrincipalesPanel({
                             <>
                               {selected.apto_acreditacion ? (
                                 <>
-                                  <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors">Aprobar Acreditación y Afiliar</button>
-                                  <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">Remitir a CIBIR</button>
+                                  <button 
+                                    onClick={() => aprobarDirecto(selected.id_inscripcion)} 
+                                    disabled={processingAction !== null}
+                                    className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                                  >
+                                    {processingAction === 'aprobarDirecto' ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Aprobando...</span>
+                                      </>
+                                    ) : (
+                                      'Aprobar Acreditación y Afiliar'
+                                    )}
+                                  </button>
+                                  <button 
+                                    onClick={() => remitirACibir(selected.id_inscripcion)} 
+                                    disabled={processingAction !== null}
+                                    className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                                  >
+                                    {processingAction === 'remitirCibir' ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Remitiendo...</span>
+                                      </>
+                                    ) : (
+                                      'Remitir a CIBIR'
+                                    )}
+                                  </button>
                                 </>
                               ) : (
-                                <button onClick={() => remitirACibir(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors">Remitir a CIBIR</button>
+                                <button 
+                                  onClick={() => remitirACibir(selected.id_inscripcion)} 
+                                  disabled={processingAction !== null}
+                                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                                >
+                                  {processingAction === 'remitirCibir' ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      <span>Remitiendo...</span>
+                                    </>
+                                  ) : (
+                                    'Remitir a CIBIR'
+                                  )}
+                                </button>
                               )}
-                              <button onClick={() => setShowModalAgendar(true)} className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-colors">Agendar Cita</button>
+                              <button 
+                                onClick={() => setShowModalAgendar(true)} 
+                                disabled={processingAction !== null}
+                                className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                              >
+                                Agendar Cita
+                              </button>
                             </>
-                          ) : <button onClick={() => aprobarDirecto(selected.id_inscripcion)} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors">Aprobar y Afiliar</button>}
-                          <button onClick={() => rechazar(selected.id_inscripcion)} className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors">Rechazar</button>
+                          ) : (
+                            <button 
+                              onClick={() => aprobarDirecto(selected.id_inscripcion)} 
+                              disabled={processingAction !== null}
+                              className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                            >
+                              {processingAction === 'aprobarDirecto' ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Aprobando...</span>
+                                </>
+                              ) : (
+                                'Aprobar y Afiliar'
+                              )}
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => rechazar(selected.id_inscripcion)} 
+                            disabled={processingAction !== null}
+                            className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                          >
+                            {processingAction === 'rechazar' ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" />
+                                <span>Rechazando...</span>
+                              </>
+                            ) : (
+                              'Rechazar'
+                            )}
+                          </button>
                         </div>
                         <button 
                           onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
-                          className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                          disabled={processingAction !== null}
+                          className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
-                          <Mail className="w-3.5 h-3.5" />
-                          Reenviar Enlace de Expediente
+                          {processingAction === 'reenviarEnlace' ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                              <span>Reenviando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="w-3.5 h-3.5" />
+                              Reenviar Enlace de Expediente
+                            </>
+                          )}
                         </button>
                       </>
                     ) : (
                       <div className="flex gap-2 w-full">
                         <button 
                           onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
-                          className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors"
+                          disabled={processingAction !== null}
+                          className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
-                          <Mail className="w-3.5 h-3.5" />
-                          Reenviar Enlace
+                          {processingAction === 'reenviarEnlace' ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                              <span>Reenviando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="w-3.5 h-3.5" />
+                              Reenviar Enlace
+                            </>
+                          )}
                         </button>
                         <button 
                           onClick={() => rechazar(selected.id_inscripcion)} 
-                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-colors"
+                          disabled={processingAction !== null}
+                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                         >
-                          Rechazar
+                          {processingAction === 'rechazar' ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-red-600" />
+                              <span>Rechazando...</span>
+                            </>
+                          ) : (
+                            'Rechazar'
+                          )}
                         </button>
                       </div>
                     )}
@@ -1417,8 +1602,20 @@ export default function PreinscripcionesPrincipalesPanel({
                   <div className="flex flex-col gap-3">
                     <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">Entrevista: {selected.entrevista_fecha} @ {selected.entrevista_hora}</div>
                     <div className="flex gap-2">
-                      <button onClick={() => setShowModalFinalizar(true)} className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[10px] font-black uppercase tracking-widest">Dar Veredicto</button>
-                      <button onClick={() => setShowModalAgendar(true)} className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest">Reprogramar</button>
+                      <button 
+                        onClick={() => setShowModalFinalizar(true)} 
+                        disabled={processingAction !== null}
+                        className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        Dar Veredicto
+                      </button>
+                      <button 
+                        onClick={() => setShowModalAgendar(true)} 
+                        disabled={processingAction !== null}
+                        className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        Reprogramar
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1428,10 +1625,20 @@ export default function PreinscripcionesPrincipalesPanel({
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
                     <button
                       onClick={handleAprobarEtapaCibir}
-                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
+                      disabled={processingAction !== null}
+                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
                     >
-                      <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                      Aprobar CIBIR y Afiliar
+                      {processingAction === 'aprobarCibir' ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Aprobando y Afiliando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          Aprobar CIBIR y Afiliar
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
@@ -1439,7 +1646,20 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
             )}
 
-            <button onClick={() => eliminarSolicitud(selected.id_inscripcion)} className="w-full mt-4 py-3 rounded-xl text-[9px] font-black text-red-300 hover:text-red-500 uppercase tracking-widest transition-colors">Eliminar Solicitud del Sistema</button>
+            <button 
+              onClick={() => eliminarSolicitud(selected.id_inscripcion)} 
+              disabled={processingAction !== null}
+              className="w-full mt-4 py-3 rounded-xl text-[9px] font-black text-red-300 hover:text-red-500 uppercase tracking-widest transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+            >
+              {processingAction === 'eliminar' ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin text-red-400" />
+                  <span>Eliminando...</span>
+                </>
+              ) : (
+                'Eliminar Solicitud del Sistema'
+              )}
+            </button>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-200">
@@ -1458,8 +1678,27 @@ export default function PreinscripcionesPrincipalesPanel({
               <input type="date" value={entrevista.fecha} onChange={e => setEntrevista({ ...entrevista, fecha: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
               <input type="time" value={entrevista.hora} onChange={e => setEntrevista({ ...entrevista, hora: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
               <input type="text" value={entrevista.lugar} onChange={e => setEntrevista({ ...entrevista, lugar: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" placeholder="Lugar..." />
-              <button onClick={agendarEntrevista} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-black uppercase text-xs tracking-widest">Confirmar Cita</button>
-              <button onClick={() => setShowModalAgendar(false)} className="w-full text-slate-400 font-bold uppercase text-[10px]">Cancelar</button>
+              <button 
+                onClick={agendarEntrevista} 
+                disabled={submittingAgendar}
+                className="w-full py-3 rounded-xl bg-emerald-600 text-white font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+              >
+                {submittingAgendar ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Guardando Cita...</span>
+                  </>
+                ) : (
+                  'Confirmar Cita'
+                )}
+              </button>
+              <button 
+                onClick={() => setShowModalAgendar(false)} 
+                disabled={submittingAgendar}
+                className="w-full text-slate-400 font-bold uppercase text-[10px] hover:text-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
@@ -1487,8 +1726,27 @@ export default function PreinscripcionesPrincipalesPanel({
                 </div>
               )}
               <textarea value={finalizarData.nota} onChange={e => setFinalizarData({ ...finalizarData, nota: e.target.value })} className="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 text-sm min-h-[100px]" placeholder="Notas internas..." />
-              <button onClick={finalizarEntrevista} className="w-full py-4 rounded-xl bg-slate-900 text-white font-black uppercase text-xs tracking-widest">Finalizar y Notificar</button>
-              <button onClick={() => setShowModalFinalizar(false)} className="w-full text-slate-400 font-bold uppercase text-[10px]">Cerrar</button>
+              <button 
+                onClick={finalizarEntrevista} 
+                disabled={submittingFinalizar}
+                className="w-full py-4 rounded-xl bg-slate-900 text-white font-black uppercase text-xs tracking-widest hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+              >
+                {submittingFinalizar ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Procesando Veredicto...</span>
+                  </>
+                ) : (
+                  'Finalizar y Notificar'
+                )}
+              </button>
+              <button 
+                onClick={() => setShowModalFinalizar(false)} 
+                disabled={submittingFinalizar}
+                className="w-full text-slate-400 font-bold uppercase text-[10px] hover:text-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>
@@ -1498,9 +1756,6 @@ export default function PreinscripcionesPrincipalesPanel({
 )
 }
 
-function Loader2({ className }: { className?: string }) {
-  return <Search className={['animate-spin', className].join(' ')} />
-}
 
 function ChevronDown({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
