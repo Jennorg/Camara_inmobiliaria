@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useReducer } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Loader2, Award, CheckCircle, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import { toast } from 'sonner';
 import { AfiliadoDTO } from '@/types/afiliados';
 import LogoImg from '@/assets/Logo2.webp';
@@ -430,24 +430,26 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
-      const dataUrl = await toPng(cardRef.current, {
-        quality: 1.0,
-        pixelRatio: 3,
+      const dataUrl = await toJpeg(cardRef.current, {
+        quality: 0.98,
+        canvasWidth: 649.61,
+        canvasHeight: 1003.94,
+        pixelRatio: 1,
         backgroundColor: '#ffffff',
         filter: (node) => !(node instanceof Element && node.classList.contains('hide-on-export')),
         style: {
           width: '310px',
-          height: '490px',
+          height: '479.09px',
           transform: 'none',
           borderRadius: '0px',
         }
       });
 
       const link = document.createElement('a');
-      link.download = `carnet-ciebo-${afiliado.codigo}.png`;
+      link.download = `carnet-ciebo-${afiliado.codigo}.jpg`;
       link.href = dataUrl;
       link.click();
-      toast.success('Credencial descargada con éxito como imagen PNG.');
+      toast.success('Credencial descargada con éxito como imagen JPG.');
     } catch (err) {
       console.error('Error generando carnet:', err);
       toast.error('No se pudo generar la descarga de la credencial.');
@@ -499,7 +501,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
                         className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-colors transition-transform flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-98 disabled:opacity-60 cursor-pointer"
                       >
                         {exporting ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-                        {exporting ? 'Generando...' : 'Descargar Carnet PNG'}
+                        {exporting ? 'Generando...' : 'Descargar Carnet JPG'}
                       </button>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Menu, User, X, Download, Loader2, Award, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import { toast } from 'sonner';
 import { AfiliadoDTO } from '@/types/afiliados';
 import LogoBgImg from '@/assets/Logo4.webp';
@@ -301,9 +301,11 @@ const DashboardHeader = ({
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const dataUrl = await toPng(cardRef.current, {
-        quality: 1.0,
-        pixelRatio: 3,
+      const dataUrl = await toJpeg(cardRef.current, {
+        quality: 0.98,
+        canvasWidth: 649.61,
+        canvasHeight: 1003.94,
+        pixelRatio: 1,
         backgroundColor: '#ffffff',
         filter: (node) =>
           !(
@@ -312,17 +314,17 @@ const DashboardHeader = ({
           ),
         style: {
           width: '310px',
-          height: '490px',
+          height: '479.09px',
           transform: 'none',
           borderRadius: '0px',
         },
       });
 
       const link = document.createElement('a');
-      link.download = `carnet-ciebo-${afiliado.codigo}.png`;
+      link.download = `carnet-ciebo-${afiliado.codigo}.jpg`;
       link.href = dataUrl;
       link.click();
-      toast.success('Credencial descargada con éxito como imagen PNG.');
+      toast.success('Credencial descargada con éxito como imagen JPG.');
     } catch (err) {
       console.error('Error generando carnet:', err);
       toast.error('No se pudo generar la descarga de la credencial.');
@@ -467,7 +469,7 @@ const DashboardHeader = ({
                     <div
                       ref={cardRef}
                       id="carnet-card-capture"
-                      className="w-[280px] xs:w-[310px] h-[440px] xs:h-[490px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
+                      className="w-[280px] xs:w-[310px] h-[433px] xs:h-[479px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
                       style={{
                         backgroundImage:
                           'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)',
