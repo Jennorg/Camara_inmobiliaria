@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
 import QRCode from 'qrcode';
-import { toPng } from 'html-to-image';
+import { toJpeg } from 'html-to-image';
 import { toast } from 'sonner';
 import { Loader2, OctagonXIcon } from 'lucide-react';
 import { API_URL } from '@/config/env';
@@ -202,18 +202,22 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
 
         if (bulkCardRef.current) {
           try {
-            const dataUrl = await toPng(bulkCardRef.current, {
+            const dataUrl = await toJpeg(bulkCardRef.current, {
               quality: 0.98,
-              pixelRatio: 2,
+              canvasWidth: 649.61,
+              canvasHeight: 1003.94,
+              pixelRatio: 1,
               backgroundColor: '#ffffff',
               style: {
+                width: '310px',
+                height: '479.09px',
                 transform: 'none',
                 borderRadius: '0px',
               }
             });
 
             const base64Data = dataUrl.split(',')[1];
-            const filename = `carnet-${member.codigo || member.id_afiliado}.png`;
+            const filename = `carnet-${member.codigo || member.id_afiliado}.jpg`;
             zip.file(filename, base64Data, { base64: true });
             generatedCount++;
           } catch (cardErr) {
