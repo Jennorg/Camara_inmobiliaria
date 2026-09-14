@@ -10,7 +10,8 @@
     "db:backup": "pnpm --filter api db:backup",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:verify": "pnpm --filter api db:verify",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "preinstall": "npx only-allow pnpm"
   },
   "devDependencies": {
     "react-doctor": "^0.9.12",

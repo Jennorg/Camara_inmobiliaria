@@ -64,12 +64,17 @@ apps/api/src/config/verify-emails-are-affiliates.ts
 # Temporary JSON files
 /*.json
 !/package.json
-!/package-lock.json
 !/turbo.json
 !.mcp.json
+
+# Lockfiles for other package managers
+package-lock.json
+yarn.lock
+bun.lockb
 
 # Diagrams and documentation
 apps/web/casos de uso/
 apps/web/dfds/
 
 *.db
+carnets/
