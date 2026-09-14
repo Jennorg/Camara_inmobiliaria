@@ -694,3 +694,17 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
 .swal2-html-container {
   text-align: justify !important;
 }
+
+/* ── Reglas de impresión para carnets e imprenta CMYK ── */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .watermark-container {
+    /* Evita aceleraciones por GPU que generen capas de mapa de bits */
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
