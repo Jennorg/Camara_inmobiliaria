@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import QRCode from 'qrcode'
-import logoImg from '@/assets/Logo4.webp'
-import logoWatermark from '@/assets/Logo2.webp'
+import logoImg from '@/assets/logo_ciebo_green.svg'
 import firmaFranciscoImg from '@/assets/firma-francisco.webp'
+import { formatNombreCard } from '@/utils/formatters'
 
 export interface Firmante {
   id?: string | number
@@ -23,6 +23,7 @@ export interface CertificadoCursoViewProps {
   instructorNombre?: string | null
   instructorCargo?: string | null
   urlVerificacion: string
+  qrDataUrl?: string
   vigente: boolean
   cedula?: string | null
   modulosLista?: string | string[] | null
@@ -42,7 +43,7 @@ function formatFecha(iso: string): string {
 }
 
 /**
- * Normaliza el prefijo de participación según la categoría, modalidad y cantidad de módulos/conferencias.
+ * Normaliza el prefijo de participación y extrae la lista de módulos/conferencias.
  */
 function getPrefijoParticipacion(
   modalidad?: string | null,
@@ -54,20 +55,25 @@ function getPrefijoParticipacion(
   const modLower = (modalidad || '').toLowerCase()
   const catLower = (categoria || '').toLowerCase()
   const titLower = (titulo || '').toLowerCase()
+  const descLower = (descripcion || '').toLowerCase()
 
-  // Extraer lista de módulos o conferencias desde modulosLista o renglones de descripción/título
+  // Extraer lista de módulos o conferencias
   let itemsList: string[] = []
   if (Array.isArray(modulosLista)) {
-    itemsList = modulosLista.filter(Boolean)
+    itemsList = modulosLista.map(s => String(s || '').trim()).filter(Boolean)
   } else if (typeof modulosLista === 'string' && modulosLista.trim()) {
     itemsList = modulosLista.split('|||').map(s => s.trim()).filter(Boolean)
   }
 
-  // Descartar placeholders genéricos como "Módulo General"
-  itemsList = itemsList.filter(s => !/^mó?dulo general$/i.test(s))
+  // Descartar placeholders genéricos como "Módulo General" si hay otros
+  if (itemsList.length === 1 && /^mó?dulo general$/i.test(itemsList[0])) {
+    itemsList = []
+  } else {
+    itemsList = itemsList.filter(s => !/^mó?dulo general$/i.test(s))
+  }
 
-  if (itemsList.length === 0) {
-    const rawText = [descripcion, titulo].filter(Boolean).join('\n')
+  if (itemsList.length === 0 && descripcion) {
+    const rawText = descripcion
     const lines = rawText
       .split(/\r?\n|;|\u2022|\u25cf/)
       .map(s => s.trim().replace(/^[-*•\d+.]\s*/, ''))
@@ -77,56 +83,51 @@ function getPrefijoParticipacion(
     }
   }
 
+  const allText = `${modLower} ${catLower} ${titLower} ${descLower}`
+  const isConferencia = allText.includes('conferencia') || allText.includes('magia y realidad')
+  const isTaller = allText.includes('taller')
+  const isSeminario = allText.includes('seminario')
+  const isMasterclass = allText.includes('masterclass')
+  const isDiplomado = allText.includes('diplomado')
+  const isCharla = allText.includes('charla')
+  const isConversatorio = allText.includes('conversatorio')
+
   const isPlural = itemsList.length > 1
 
-  let baseType = 'CURSO'
-  if (modLower.includes('conferencia') || catLower.includes('conferencia') || titLower.includes('conferencia')) {
-    baseType = 'CONFERENCIA'
-  } else if (modLower.includes('taller') || catLower.includes('taller') || titLower.includes('taller')) {
-    baseType = 'TALLER'
-  } else if (modLower.includes('seminario') || catLower.includes('seminario') || titLower.includes('seminario')) {
-    baseType = 'SEMINARIO'
-  } else if (modLower.includes('masterclass') || catLower.includes('masterclass') || titLower.includes('masterclass')) {
-    baseType = 'MASTERCLASS'
-  } else if (modLower.includes('diplomado') || catLower.includes('diplomado') || titLower.includes('diplomado')) {
-    baseType = 'DIPLOMADO'
-  } else if (modLower.includes('charla') || catLower.includes('charla') || titLower.includes('charla')) {
-    baseType = 'CHARLA'
-  } else if (modLower.includes('conversatorio') || catLower.includes('conversatorio') || titLower.includes('conversatorio')) {
-    baseType = 'CONVERSATORIO'
-  }
-
   let prefix = ''
-  if (isPlural) {
-    if (baseType === 'CONFERENCIA') prefix = 'POR SU PARTICIPACIÓN EN LAS CONFERENCIAS:'
-    else if (baseType === 'TALLER') prefix = 'POR SU PARTICIPACIÓN EN LOS TALLERES:'
-    else if (baseType === 'SEMINARIO') prefix = 'POR SU PARTICIPACIÓN EN LOS SEMINARIOS:'
-    else if (baseType === 'MASTERCLASS') prefix = 'POR SU PARTICIPACIÓN EN LAS MASTERCLASSES:'
-    else if (baseType === 'DIPLOMADO') prefix = 'POR SU PARTICIPACIÓN EN LOS DIPLOMADOS:'
-    else if (baseType === 'CHARLA') prefix = 'POR SU PARTICIPACIÓN EN LAS CHARLAS:'
-    else if (baseType === 'CONVERSATORIO') prefix = 'POR SU PARTICIPACIÓN EN LOS CONVERSATORIOS:'
-    else prefix = 'POR SU PARTICIPACIÓN EN LOS MÓDULOS:'
+  if (isConferencia && (allText.includes('modulo') || allText.includes('módulo'))) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LAS CONFERENCIAS Y MÓDULOS:' : 'POR SU PARTICIPACIÓN EN LA CONFERENCIA Y MÓDULOS:'
+  } else if (isConferencia) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LAS CONFERENCIAS:' : 'POR SU PARTICIPACIÓN EN LA CONFERENCIA:'
+  } else if (isTaller) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LOS TALLERES:' : 'POR SU PARTICIPACIÓN EN EL TALLER:'
+  } else if (isSeminario) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LOS SEMINARIOS:' : 'POR SU PARTICIPACIÓN EN EL SEMINARIO:'
+  } else if (isMasterclass) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LAS MASTERCLASSES:' : 'POR SU PARTICIPACIÓN EN LA MASTERCLASS:'
+  } else if (isDiplomado) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LOS DIPLOMADOS:' : 'POR SU PARTICIPACIÓN EN EL DIPLOMADO:'
+  } else if (isCharla) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LAS CHARLAS:' : 'POR SU PARTICIPACIÓN EN LA CHARLA:'
+  } else if (isConversatorio) {
+    prefix = isPlural ? 'POR SU PARTICIPACIÓN EN LOS CONVERSATORIOS:' : 'POR SU PARTICIPACIÓN EN EL CONVERSATORIO:'
+  } else if (isPlural) {
+    prefix = 'POR SU PARTICIPACIÓN EN LOS MÓDULOS:'
   } else {
-    if (baseType === 'CONFERENCIA') prefix = 'POR SU PARTICIPACIÓN EN LA CONFERENCIA:'
-    else if (baseType === 'TALLER') prefix = 'POR SU PARTICIPACIÓN EN EL TALLER:'
-    else if (baseType === 'SEMINARIO') prefix = 'POR SU PARTICIPACIÓN EN EL SEMINARIO:'
-    else if (baseType === 'MASTERCLASS') prefix = 'POR SU PARTICIPACIÓN EN LA MASTERCLASS:'
-    else if (baseType === 'DIPLOMADO') prefix = 'POR SU PARTICIPACIÓN EN EL DIPLOMADO:'
-    else if (baseType === 'CHARLA') prefix = 'POR SU PARTICIPACIÓN EN LA CHARLA:'
-    else if (baseType === 'CONVERSATORIO') prefix = 'POR SU PARTICIPACIÓN EN EL CONVERSATORIO:'
-    else prefix = 'POR SU PARTICIPACIÓN EN EL CURSO:'
+    prefix = 'POR SU PARTICIPACIÓN EN EL CURSO:'
   }
 
-  let cleanTitle = titulo || 'FORMACIÓN PROFESIONAL'
+  let cleanTitle = (titulo || 'FORMACIÓN PROFESIONAL').trim()
   cleanTitle = cleanTitle
     .replace(/^taller\s*:?\s*/i, '')
-    .replace(/^conferencia\s*:?\s*/i, '')
+    .replace(/^conferencias?\s*:?\s*/i, '')
     .replace(/^seminario\s*:?\s*/i, '')
     .replace(/^masterclass\s*:?\s*/i, '')
     .replace(/^diplomado\s*:?\s*/i, '')
     .replace(/^charla\s*:?\s*/i, '')
     .replace(/^conversatorio\s*:?\s*/i, '')
     .replace(/^curso\s*:?\s*/i, '')
+    .trim()
 
   return { prefix, cleanTitle, itemsList }
 }
@@ -142,22 +143,27 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
   instructorNombre,
   instructorCargo,
   urlVerificacion,
+  qrDataUrl,
   vigente,
   cedula,
   modulosLista,
   firmantes,
 }) => {
-  const [localQr, setLocalQr] = useState<string>('')
+  const [localQr, setLocalQr] = useState<string>(qrDataUrl || '')
 
   useEffect(() => {
+    if (qrDataUrl) {
+      setLocalQr(qrDataUrl)
+      return
+    }
     if (urlVerificacion) {
       QRCode.toDataURL(urlVerificacion, { margin: 1, width: 250 })
         .then(setLocalQr)
         .catch(() => {})
     }
-  }, [urlVerificacion])
+  }, [urlVerificacion, qrDataUrl])
 
-  const qrApiUrl = localQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
+  const qrApiUrl = qrDataUrl || localQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
   const [width, setWidth] = useState(1000)
   const trackerRef = useRef<HTMLDivElement | null>(null)
@@ -184,9 +190,8 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
   const scale = Math.min(1, validWidth / 1000)
   const { prefix, cleanTitle, itemsList } = getPrefijoParticipacion(modalidad, categoria, programaOCurso, descripcion, modulosLista)
 
-  // Firma izquierda por defecto si no viene instructor asignado
-  const nombreFirmaIzq = instructorNombre?.trim() || 'WILMER SABALLO'
-  const cargoFirmaIzq = instructorCargo?.trim() || (instructorNombre ? 'FACILITADOR / INSTRUCTOR' : 'DIRECTOR REGIONAL DE CENTURY 21')
+  // Mostrar únicamente el primer nombre y primer apellido
+  const nombreMostrado = formatNombreCard(titularNombre) || titularNombre
 
   return (
     <div className="w-full relative">
@@ -275,7 +280,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
             <img
               src={logoImg}
               alt=""
-              className="w-[580px] h-auto object-contain opacity-[0.06] grayscale contrast-125 translate-y-8"
+              className="w-[640px] h-auto object-contain opacity-[0.08] grayscale-0 translate-y-6"
             />
           </div>
 
@@ -290,16 +295,17 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                 <img
                   src={logoImg}
                   alt="Cámara Inmobiliaria de Bolívar"
-                  className="h-20 w-auto object-contain drop-shadow-sm"
+                  className="h-28 w-auto object-contain drop-shadow-sm"
                 />
-                <h2 className="text-[#0f5431] font-black uppercase tracking-[0.12em] text-[18px] text-center leading-tight font-sans">
-                  CÁMARA INMOBILIARIA<br />DE BOLÍVAR
+                <h2 className="text-[#0f5431] font-black uppercase tracking-[0.10em] text-[18px] text-center leading-tight font-sans">
+                  <span className="block whitespace-nowrap">CÁMARA INMOBILIARIA</span>
+                  <span className="block whitespace-nowrap">DE BOLÍVAR</span>
                 </h2>
               </div>
 
               {/* Otorgamiento */}
               <p
-                className="text-slate-800 font-extrabold uppercase text-[12.5px] tracking-[0.22em] mt-6 font-sans"
+                className="text-slate-800 font-extrabold uppercase text-[12.5px] tracking-[0.22em] mt-5 font-sans"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
                 La Cámara Inmobiliaria del estado Bolívar<br />otorga el siguiente reconocimiento a:
@@ -308,17 +314,24 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
 
             {/* ── SECCIÓN CENTRAL: NOMBRE DEL DESTINATARIO ── */}
             <div className="w-full flex flex-col items-center my-auto max-w-[820px]">
-              {/* Nombre en Fuente Caligráfica Cursiva */}
+              {/* Nombre en Fuente Caligráfica Cursiva (Primer Nombre y Primer Apellido) */}
               <div className="relative w-full flex items-center justify-center py-2">
                 <div className="absolute left-10 right-10 h-[1px] bg-gradient-to-r from-transparent via-slate-400 to-transparent bottom-0" />
                 <span
-                  className="text-[68px] sm:text-[76px] text-slate-900 text-center leading-tight tracking-wide px-8 select-all"
+                  className="text-slate-900 text-center leading-tight tracking-wide px-8 select-all"
                   style={{
                     fontFamily: "'Great Vibes', 'Alex Brush', cursive",
+                    fontSize: (() => {
+                      const len = (nombreMostrado || '').length;
+                      if (len > 35) return '42px';
+                      if (len > 28) return '50px';
+                      if (len > 20) return '60px';
+                      return '70px';
+                    })(),
                     textShadow: '0 1px 2px rgba(0,0,0,0.08)',
                   }}
                 >
-                  {titularNombre}
+                  {nombreMostrado}
                 </span>
               </div>
 
@@ -371,22 +384,33 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
 
             {/* ── SECCIÓN INFERIOR: FIRMAS CONFIGURADAS Y FECHA ── */}
             {(() => {
-              const activeFirmantes = (firmantes && firmantes.length > 0) ? firmantes : [{
+              let activeFirmantes = (firmantes && firmantes.length > 0) ? [...firmantes] : [{
                 nombre: 'FRANCISCO PIÑANGO',
                 cargo: 'PRESIDENTE DE LA CAMARA INMOBILIARIA DE BOLIVAR',
                 firma_url: null,
                 mostrar_firma: true
               }];
+
+              // Si solo hay 1 firmante por defecto y se especificó instructor/conferencista por separado, incluirlo
+              if (activeFirmantes.length === 1 && instructorNombre && !activeFirmantes.some(f => f.nombre.trim().toLowerCase() === instructorNombre.trim().toLowerCase())) {
+                activeFirmantes.push({
+                  nombre: instructorNombre,
+                  cargo: instructorCargo || 'FACILITADOR / CONFERENCISTA',
+                  firma_url: null,
+                  mostrar_firma: true
+                });
+              }
+
               const count = activeFirmantes.length;
               let gridLayout = 'flex flex-wrap justify-center gap-6';
-              if (count === 1) gridLayout = 'flex justify-center';
-              else if (count === 2) gridLayout = 'grid grid-cols-2 max-w-md mx-auto gap-4';
-              else if (count === 3) gridLayout = 'grid grid-cols-3 max-w-xl mx-auto gap-3';
-              else if (count === 4) gridLayout = 'grid grid-cols-4 max-w-2xl mx-auto gap-2';
-              else gridLayout = 'grid grid-cols-5 gap-1';
+              if (count === 1) gridLayout = 'flex justify-center max-w-sm mx-auto';
+              else if (count === 2) gridLayout = 'grid grid-cols-2 max-w-3xl mx-auto gap-16 justify-items-center';
+              else if (count === 3) gridLayout = 'grid grid-cols-3 max-w-4xl mx-auto gap-8 justify-items-center';
+              else if (count === 4) gridLayout = 'grid grid-cols-4 max-w-5xl mx-auto gap-4 justify-items-center';
+              else gridLayout = 'grid grid-cols-5 gap-2 justify-items-center';
 
               return (
-                <div className="w-full flex flex-col items-center gap-2 px-4 pb-3">
+                <div className="w-full flex flex-col items-center gap-1 px-4 pb-1">
                   <div className={`w-full ${gridLayout} items-start px-2`}>
                     {activeFirmantes.map((f, idx) => {
                       const nombreStr = (f?.nombre || '').toString()
@@ -404,8 +428,8 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
 
                       const imgSource = f?.firma_url || (nombreStr.toUpperCase().includes('FRANCISCO') ? firmaFranciscoImg : null);
                       return (
-                        <div key={`firma-slot-${idx}`} className="flex flex-col items-center justify-start text-center min-w-[120px]">
-                          <div className="relative h-14 w-32 flex items-end justify-center">
+                        <div key={`firma-slot-${idx}`} className="flex flex-col items-center justify-start text-center min-w-[140px] max-w-[280px]">
+                          <div className="relative h-14 w-44 flex items-end justify-center">
                             {f?.mostrar_firma !== false && imgSource ? (
                               <img
                                 src={imgSource}
@@ -414,11 +438,11 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                               />
                             ) : null}
                           </div>
-                          <div className="w-32 h-[1px] bg-slate-800 mb-1 shrink-0" />
-                          <span className="text-[9px] font-black text-slate-800 uppercase tracking-wider font-sans leading-tight">
+                          <div className="w-44 h-[1px] bg-slate-800 mb-1.5 shrink-0" />
+                          <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider font-sans leading-tight whitespace-nowrap">
                             {nombreStr}
                           </span>
-                          <span className="text-[6.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-tight max-w-[130px]">
+                          <span className="text-[7.5px] font-bold text-slate-600 uppercase tracking-wider font-sans mt-1 text-center leading-tight max-w-[240px]">
                             {cargoStr}
                           </span>
                         </div>
@@ -427,7 +451,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                   </div>
 
                   {/* Fecha de Emisión (Abajo de las firmas) */}
-                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans mt-3 whitespace-nowrap">
+                  <span className="text-[11px] font-black text-[#0f2e59] uppercase tracking-wider font-sans mt-2 whitespace-nowrap">
                     {formatFecha(fechaEmisionIso).toUpperCase()}
                   </span>
                 </div>

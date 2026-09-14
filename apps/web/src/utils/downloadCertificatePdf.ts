@@ -373,7 +373,7 @@ export interface BulkCertificadoOptions {
 }
 
 /**
- * Genera el buffer de un certificado individual para ser comprimido en ZIP.
+ * Genera el buffer de un certificado individual para ser comprimido en ZIP sin tocar el DOM.
  */
 export async function generateSingleCertificatePdfBuffer(
   curso: any,
@@ -381,9 +381,10 @@ export async function generateSingleCertificatePdfBuffer(
   logoData: string,
   firmaFranciscoData: string,
   firmaGracielaData: string,
-  origin: string
+  origin: string,
+  customFirmasMap?: Map<string, string>
 ): Promise<ArrayBuffer> {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
   const width = 297;
   const height = 210;
 
@@ -393,18 +394,27 @@ export async function generateSingleCertificatePdfBuffer(
   const rawCodigo = inscrito.codigo_validacion || `CIV-${String(inscrito.id_inscripcion || Math.floor(100000 + Math.random() * 900000)).padStart(6, '0')}`;
   const urlVerificacion = `${origin}/comprobante/${encodeURIComponent(rawCodigo)}`;
 
-  // Generate QR code data URL
+  // Generate QR code data URL (in-memory)
   let qrData = '';
   try {
     qrData = await QRCode.toDataURL(urlVerificacion, {
       margin: 1,
-      width: 250,
+      width: 200,
       color: { dark: '#022c22', light: '#ffffff' }
     });
   } catch {}
 
   const progCode = (curso.programa_codigo || '').trim().toUpperCase();
   const isMainProg = ['CIBIR', 'PADI', 'PEGI', 'PREANI'].includes(progCode);
+
+  let parsedFirmantes: any[] | undefined = undefined;
+  if (curso.firmantes) {
+    try {
+      parsedFirmantes = typeof curso.firmantes === 'string' ? JSON.parse(curso.firmantes) : curso.firmantes;
+    } catch {
+      parsedFirmantes = undefined;
+    }
+  }
 
   if (isMainProg) {
     // ── ESTILO PROGRAMAS PRINCIPALES (CIBIR / PADI / PEGI / PREANI) ──
@@ -468,44 +478,77 @@ export async function generateSingleCertificatePdfBuffer(
     // Signatures & Footer
     const footerY = 144;
 
-    // Firma Izquierda: Francisco Piñango
-    if (firmaFranciscoData) {
-      doc.addImage(firmaFranciscoData, 'PNG', 35, footerY - 4, 45, 20);
-    }
-    doc.setDrawColor(15, 23, 42);
-    doc.setLineWidth(0.3);
-    doc.line(30, footerY + 18, 85, footerY + 18);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text('FRANCISCO PIÑANGO', 57.5, footerY + 22, { align: 'center' });
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('PRESIDENTE DE LA CÁMARA INMOBILIARIA', 57.5, footerY + 25.5, { align: 'center' });
+    if (parsedFirmantes && parsedFirmantes.length > 0) {
+      const count = parsedFirmantes.length;
+      const startX = 25;
+      const slotW = (width - 50) / count;
+      parsedFirmantes.forEach((f, idx) => {
+        const slotCenterX = startX + slotW * idx + slotW / 2;
+        let img = '';
+        if (f.mostrar_firma !== false) {
+          if (f.firma_url && customFirmasMap?.has(f.firma_url)) {
+            img = customFirmasMap.get(f.firma_url) || '';
+          } else if ((f.nombre || '').toUpperCase().includes('FRANCISCO')) {
+            img = firmaFranciscoData;
+          } else if ((f.nombre || '').toUpperCase().includes('GRACIELA')) {
+            img = firmaGracielaData;
+          }
+        }
+        if (img) doc.addImage(img, 'PNG', slotCenterX - 20, footerY - 4, 40, 18);
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(0.3);
+        doc.line(slotCenterX - 24, footerY + 18, slotCenterX + 24, footerY + 18);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text((f.nombre || '').toUpperCase(), slotCenterX, footerY + 22, { align: 'center' });
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text((f.cargo || '').toUpperCase(), slotCenterX, footerY + 25.5, { align: 'center', maxWidth: slotW - 6 });
+      });
 
-    // Center: QR Code
-    if (qrData) {
-      doc.addImage(qrData, 'PNG', (width - 24) / 2, footerY - 2, 24, 24);
-    }
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(rawCodigo, width / 2, footerY + 25.5, { align: 'center' });
+      if (qrData) {
+        doc.addImage(qrData, 'PNG', width - 35, 12, 22, 22);
+      }
+    } else {
+      // Default: Francisco Piñango (Left), QR (Center), Graciela Ledezma (Right)
+      if (firmaFranciscoData) {
+        doc.addImage(firmaFranciscoData, 'PNG', 35, footerY - 4, 45, 20);
+      }
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.3);
+      doc.line(30, footerY + 18, 85, footerY + 18);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text('FRANCISCO PIÑANGO', 57.5, footerY + 22, { align: 'center' });
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('PRESIDENTE DE LA CÁMARA INMOBILIARIA', 57.5, footerY + 25.5, { align: 'center' });
 
-    // Firma Derecha: Graciela Ledezma
-    if (firmaGracielaData) {
-      doc.addImage(firmaGracielaData, 'PNG', width - 80, footerY - 2, 45, 18);
+      if (qrData) {
+        doc.addImage(qrData, 'PNG', (width - 24) / 2, footerY - 2, 24, 24);
+      }
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(rawCodigo, width / 2, footerY + 25.5, { align: 'center' });
+
+      if (firmaGracielaData) {
+        doc.addImage(firmaGracielaData, 'PNG', width - 80, footerY - 2, 45, 18);
+      }
+      doc.line(width - 85, footerY + 18, width - 30, footerY + 18);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text('GRACIELA LEDEZMA', width - 57.5, footerY + 22, { align: 'center' });
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('DIRECTORA DE FORMACIÓN', width - 57.5, footerY + 25.5, { align: 'center' });
     }
-    doc.line(width - 85, footerY + 18, width - 30, footerY + 18);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(15, 23, 42);
-    doc.text('GRACIELA LEDEZMA', width - 57.5, footerY + 22, { align: 'center' });
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('DIRECTORA DE FORMACIÓN', width - 57.5, footerY + 25.5, { align: 'center' });
 
   } else {
     // ── ESTILO CURSOS / CONFERENCIAS / TALLERES / SEMINARIOS ──
@@ -584,44 +627,77 @@ export async function generateSingleCertificatePdfBuffer(
     // Footer Signatures
     const footerY = 144;
 
-    // Firma Izquierda: Instructor / Facilitador
-    if (firmaFranciscoData) {
-      doc.addImage(firmaFranciscoData, 'PNG', 35, footerY - 4, 45, 20);
-    }
-    doc.setDrawColor(15, 23, 42);
-    doc.setLineWidth(0.3);
-    doc.line(30, footerY + 18, 85, footerY + 18);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text((curso.instructor_nombre || 'FRANCISCO PIÑANGO').toUpperCase(), 57.5, footerY + 22, { align: 'center' });
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text(curso.instructor_nombre ? 'FACILITADOR / INSTRUCTOR' : 'PRESIDENTE DE LA CÁMARA', 57.5, footerY + 25.5, { align: 'center' });
+    if (parsedFirmantes && parsedFirmantes.length > 0) {
+      const count = parsedFirmantes.length;
+      const startX = 25;
+      const slotW = (width - 50) / count;
+      parsedFirmantes.forEach((f, idx) => {
+        const slotCenterX = startX + slotW * idx + slotW / 2;
+        let img = '';
+        if (f.mostrar_firma !== false) {
+          if (f.firma_url && customFirmasMap?.has(f.firma_url)) {
+            img = customFirmasMap.get(f.firma_url) || '';
+          } else if ((f.nombre || '').toUpperCase().includes('FRANCISCO')) {
+            img = firmaFranciscoData;
+          } else if ((f.nombre || '').toUpperCase().includes('GRACIELA')) {
+            img = firmaGracielaData;
+          }
+        }
+        if (img) doc.addImage(img, 'PNG', slotCenterX - 20, footerY - 4, 40, 18);
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(0.3);
+        doc.line(slotCenterX - 24, footerY + 18, slotCenterX + 24, footerY + 18);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text((f.nombre || '').toUpperCase(), slotCenterX, footerY + 22, { align: 'center' });
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text((f.cargo || '').toUpperCase(), slotCenterX, footerY + 25.5, { align: 'center', maxWidth: slotW - 6 });
+      });
 
-    // Center: QR Code
-    if (qrData) {
-      doc.addImage(qrData, 'PNG', (width - 24) / 2, footerY - 2, 24, 24);
-    }
-    doc.setFont('courier', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text(rawCodigo, width / 2, footerY + 25.5, { align: 'center' });
+      if (qrData) {
+        doc.addImage(qrData, 'PNG', width - 35, 12, 22, 22);
+      }
+    } else {
+      // Default signatures
+      if (firmaFranciscoData) {
+        doc.addImage(firmaFranciscoData, 'PNG', 35, footerY - 4, 45, 20);
+      }
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.3);
+      doc.line(30, footerY + 18, 85, footerY + 18);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text((curso.instructor_nombre || 'FRANCISCO PIÑANGO').toUpperCase(), 57.5, footerY + 22, { align: 'center' });
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(curso.instructor_nombre ? 'FACILITADOR / INSTRUCTOR' : 'PRESIDENTE DE LA CÁMARA', 57.5, footerY + 25.5, { align: 'center' });
 
-    // Firma Derecha: Graciela Ledezma
-    if (firmaGracielaData) {
-      doc.addImage(firmaGracielaData, 'PNG', width - 80, footerY - 2, 45, 18);
+      if (qrData) {
+        doc.addImage(qrData, 'PNG', (width - 24) / 2, footerY - 2, 24, 24);
+      }
+      doc.setFont('courier', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(rawCodigo, width / 2, footerY + 25.5, { align: 'center' });
+
+      if (firmaGracielaData) {
+        doc.addImage(firmaGracielaData, 'PNG', width - 80, footerY - 2, 45, 18);
+      }
+      doc.line(width - 85, footerY + 18, width - 30, footerY + 18);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text('GRACIELA LEDEZMA', width - 57.5, footerY + 22, { align: 'center' });
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('DIRECTORA DE FORMACIÓN', width - 57.5, footerY + 25.5, { align: 'center' });
     }
-    doc.line(width - 85, footerY + 18, width - 30, footerY + 18);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(15, 23, 42);
-    doc.text('GRACIELA LEDEZMA', width - 57.5, footerY + 22, { align: 'center' });
-    doc.setFontSize(6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 116, 139);
-    doc.text('DIRECTORA DE FORMACIÓN', width - 57.5, footerY + 25.5, { align: 'center' });
   }
 
   return doc.output('arraybuffer');

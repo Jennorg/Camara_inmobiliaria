@@ -13,12 +13,21 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
       return
     }
 
+    // Extraer id_inscripcion si viene en formato CIV-00005-001 o como número directo
+    let idInscripcionParsed: number | null = null
+    const civMatch = codigoRaw.match(/^CIV-(\d+)-/i)
+    if (civMatch) {
+      idInscripcionParsed = parseInt(civMatch[1], 10)
+    } else if (/^\d+$/.test(codigoRaw)) {
+      idInscripcionParsed = parseInt(codigoRaw, 10)
+    }
+
     const result = await db.execute({
       sql: `
         SELECT
-          c.id_certificado,
-          c.codigo_validacion,
-          c.fecha_emision,
+          COALESCE(c.id_certificado, 0) AS id_certificado,
+          COALESCE(c.codigo_validacion, ?) AS codigo_validacion,
+          COALESCE(c.fecha_emision, ic.fecha_inscripcion, datetime('now')) AS fecha_emision,
           c.firmantes_snapshot,
           cu.firmantes AS curso_firmantes,
           COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as titular_nombre,
@@ -43,16 +52,17 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
             WHERE mc.id_curso = cu.id_curso AND mc.id_profesor IS NOT NULL
             LIMIT 1
           ) AS instructor_nombre
-        FROM certificados c
-        JOIN inscripciones_cursos ic ON ic.id_inscripcion = c.id_inscripcion
+        FROM inscripciones_cursos ic
+        LEFT JOIN certificados c ON c.id_inscripcion = ic.id_inscripcion
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
         LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
         LEFT JOIN cursos cu ON cu.id_curso = ic.id_curso
         WHERE UPPER(c.codigo_validacion) = UPPER(?)
+           OR (ic.id_inscripcion = ? AND ? IS NOT NULL)
         LIMIT 1
       `,
-      args: [codigoRaw],
+      args: [codigoRaw, codigoRaw, idInscripcionParsed, idInscripcionParsed],
     })
 
     if (result.rows.length === 0) {

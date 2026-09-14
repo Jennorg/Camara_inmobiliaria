@@ -25,6 +25,8 @@ import { CursoDB } from './CursosAdminPanel';
 
 export type ExportColumnId =
   | 'num'
+  | 'apellidos'
+  | 'nombres'
   | 'nombre'
   | 'apellido_nombre'
   | 'cedula'
@@ -41,6 +43,79 @@ export interface InscritosExportColumn {
   defaultSelected: boolean;
 }
 
+export function getApellidos(r: any): string {
+  if (r.estudiante_apellidos && r.estudiante_apellidos.trim()) {
+    return r.estudiante_apellidos.trim();
+  }
+  if (r.apellidos && r.apellidos.trim()) {
+    return r.apellidos.trim();
+  }
+  if (r.apellido && r.apellido.trim()) {
+    return r.apellido.trim();
+  }
+  const raw = (r.estudiante_nombre || r.nombre || '').trim();
+  if (!raw) return 'S/A';
+  if (raw.includes(',')) {
+    return raw.split(',')[0].trim();
+  }
+  const parts = raw.split(/\s+/);
+  if (parts.length <= 1) return '-';
+  if (parts.length === 2) return parts[1];
+  if (parts.length === 3) return parts.slice(1).join(' ');
+  return parts.slice(2).join(' ');
+}
+
+export function getNombres(r: any): string {
+  let nom = '';
+  if (r.estudiante_nombres && r.estudiante_nombres.trim()) {
+    nom = r.estudiante_nombres.trim();
+  } else if (r.nombres && r.nombres.trim()) {
+    nom = r.nombres.trim();
+  } else if ((r.apellido || r.apellidos || r.estudiante_apellidos) && r.nombre && r.nombre.trim()) {
+    nom = r.nombre.trim();
+  } else {
+    const raw = (r.estudiante_nombre || r.nombre || '').trim();
+    if (!raw) return 'S/N';
+    if (raw.includes(',')) {
+      nom = raw.split(',')[1]?.trim() || 'S/N';
+    } else {
+      const parts = raw.split(/\s+/);
+      if (parts.length <= 1) nom = parts[0] || 'S/N';
+      else if (parts.length === 2) nom = parts[0];
+      else if (parts.length === 3) nom = parts[0];
+      else nom = parts.slice(0, 2).join(' ');
+    }
+  }
+
+  // Eliminar del nombre cualquier palabra que se repita en los apellidos
+  const ape = getApellidos(r);
+  if (ape && ape !== '-' && ape !== 'S/A') {
+    const apeWords = ape
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .split(/\s+/)
+      .map(w => w.replace(/[,.]/g, ''))
+      .filter(Boolean);
+
+    const nomParts = nom.split(/\s+/);
+    const filteredNom = nomParts.filter(w => {
+      const cleanW = w
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[,.]/g, '');
+      return !apeWords.includes(cleanW);
+    });
+
+    if (filteredNom.length > 0) {
+      nom = filteredNom.join(' ').trim();
+    }
+  }
+
+  return nom || 'S/N';
+}
+
 export function getApellidoNombre(r: any): string {
   if (r.estudiante_apellidos && r.estudiante_nombres) {
     return `${r.estudiante_apellidos.trim()}, ${r.estudiante_nombres.trim()}`;
@@ -52,23 +127,20 @@ export function getApellidoNombre(r: any): string {
   if (!raw) return 'S/N';
   if (raw.includes(',')) return raw;
 
-  const parts = raw.split(/\s+/);
-  if (parts.length === 2) {
-    return `${parts[1]}, ${parts[0]}`;
+  const ape = getApellidos(r);
+  const nom = getNombres(r);
+  if (ape && ape !== '-' && ape !== 'S/A') {
+    return `${ape}, ${nom}`;
   }
-  if (parts.length === 3) {
-    return `${parts.slice(1).join(' ')}, ${parts[0]}`;
-  }
-  if (parts.length >= 4) {
-    return `${parts.slice(2).join(' ')}, ${parts.slice(0, 2).join(' ')}`;
-  }
-  return raw;
+  return nom || raw;
 }
 
 export const INSCRITOS_EXPORT_COLUMNS: InscritosExportColumn[] = [
   { id: 'num', label: 'Número (#)', description: 'Índice o posición correlativa en el reporte', defaultSelected: true },
-  { id: 'nombre', label: 'Nombre del Participante', description: 'Nombre completo (Nombre y Apellido)', defaultSelected: true },
-  { id: 'apellido_nombre', label: 'Apellido, Nombre (Primero Apellido)', description: 'Formato de apellido primero (Ej: Pérez, Juan)', defaultSelected: false },
+  { id: 'apellidos', label: 'Apellidos', description: 'Columna individual para los apellidos del participante', defaultSelected: true },
+  { id: 'nombres', label: 'Nombres', description: 'Columna individual para los nombres del participante', defaultSelected: true },
+  { id: 'nombre', label: 'Nombre Completo', description: 'Nombre completo unificado (Nombres y Apellidos)', defaultSelected: false },
+  { id: 'apellido_nombre', label: 'Apellidos y Nombres (Combinado)', description: 'Formato combinado en una sola celda (Ej: Pérez, Juan)', defaultSelected: false },
   { id: 'cedula', label: 'Cédula', description: 'Documento de identidad registrado', defaultSelected: true },
   { id: 'email', label: 'Correo Electrónico', description: 'Email de contacto del participante', defaultSelected: true },
   { id: 'telefono', label: 'Teléfono', description: 'Número telefónico de contacto', defaultSelected: true },
@@ -81,7 +153,7 @@ export const DEFAULT_INSCRITOS_COLUMNS: ExportColumnId[] = INSCRITOS_EXPORT_COLU
   .filter(c => c.defaultSelected)
   .map(c => c.id);
 
-export const ASISTENCIA_INSCRITOS_COLUMNS: ExportColumnId[] = ['num', 'nombre', 'cedula', 'telefono', 'observaciones'];
+export const ASISTENCIA_INSCRITOS_COLUMNS: ExportColumnId[] = ['num', 'apellidos', 'nombres', 'cedula', 'telefono', 'observaciones'];
 
 function loadLogoDataUrl(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -243,8 +315,8 @@ export default function ExportInscritosCursoModal({
   const [fechaHasta, setFechaHasta] = useState('');
   const [orientation, setOrientation] = useState<'auto' | 'landscape' | 'portrait'>('auto');
   const [sortBy, setSortBy] = useState<
-    'nombre' | 'apellido_nombre' | 'cedula' | 'fecha' | 'estatus' | 'email'
-  >('nombre');
+    'apellidos' | 'nombres' | 'nombre' | 'apellido_nombre' | 'cedula' | 'fecha' | 'estatus' | 'email'
+  >('apellidos');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Columnas State
@@ -312,11 +384,13 @@ export default function ExportInscritosCursoModal({
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const nombre = (r.estudiante_nombre || '').toLowerCase();
+        const ape = getApellidos(r).toLowerCase();
+        const nom = getNombres(r).toLowerCase();
         const cedula = (r.estudiante_cedula || '').toLowerCase();
         const email = (r.estudiante_email || '').toLowerCase();
         const telefono = (r.estudiante_telefono || '').toLowerCase();
 
-        if (searchField === 'nombre' && !nombre.includes(q)) return false;
+        if (searchField === 'nombre' && !nombre.includes(q) && !ape.includes(q) && !nom.includes(q)) return false;
         if (searchField === 'cedula' && !cedula.includes(q)) return false;
         if (searchField === 'email' && !email.includes(q)) return false;
         if (searchField === 'telefono' && !telefono.includes(q)) return false;
@@ -338,6 +412,14 @@ export default function ExportInscritosCursoModal({
       let valB = '';
 
       switch (sortBy) {
+        case 'apellidos':
+          valA = getApellidos(a).toLowerCase();
+          valB = getApellidos(b).toLowerCase();
+          break;
+        case 'nombres':
+          valA = getNombres(a).toLowerCase();
+          valB = getNombres(b).toLowerCase();
+          break;
         case 'apellido_nombre':
           valA = getApellidoNombre(a).toLowerCase();
           valB = getApellidoNombre(b).toLowerCase();
@@ -408,7 +490,7 @@ export default function ExportInscritosCursoModal({
     setFechaDesde('');
     setFechaHasta('');
     setOrientation('auto');
-    setSortBy('nombre');
+    setSortBy('apellidos');
     setSortDirection('asc');
     setSelectedColumns(DEFAULT_INSCRITOS_COLUMNS);
     setColumnsOrder(INSCRITOS_EXPORT_COLUMNS.map(c => c.id));
@@ -503,6 +585,8 @@ export default function ExportInscritosCursoModal({
       // Configuración de Cabeceras
       const getColLabel = (cId: string): string => {
         if (cId === 'num') return '#';
+        if (cId === 'apellidos') return 'Apellidos';
+        if (cId === 'nombres') return 'Nombres';
         if (cId === 'nombre') return 'Participante';
         if (cId === 'apellido_nombre') return 'Apellidos y Nombres';
         if (cId === 'cedula') return 'Cédula';
@@ -525,7 +609,9 @@ export default function ExportInscritosCursoModal({
         const rowData: string[] = [];
         finalColumns.forEach(cId => {
           if (cId === 'num') rowData.push(String(idx + 1));
-          else if (cId === 'nombre') rowData.push(r.estudiante_nombre || 'S/N');
+          else if (cId === 'apellidos') rowData.push(getApellidos(r));
+          else if (cId === 'nombres') rowData.push(getNombres(r));
+          else if (cId === 'nombre') rowData.push(r.estudiante_nombre || [getNombres(r), getApellidos(r)].filter(Boolean).join(' ') || 'S/N');
           else if (cId === 'apellido_nombre') rowData.push(getApellidoNombre(r));
           else if (cId === 'cedula') rowData.push(r.estudiante_cedula || 'S/N');
           else if (cId === 'email') rowData.push(r.estudiante_email || 'Sin correo');
@@ -543,6 +629,24 @@ export default function ExportInscritosCursoModal({
         return rowData;
       });
 
+      const colStyles: Record<number, any> = {};
+      finalColumns.forEach((cId, i) => {
+        if (cId === 'num') {
+          colStyles[i] = {
+            cellWidth: 14,
+            halign: 'center',
+            cellPadding: {
+              left: 1,
+              right: 1,
+              top: exportMode === 'asistencia' ? 4 : 2.5,
+              bottom: exportMode === 'asistencia' ? 4 : 2.5,
+            },
+          };
+        } else if (cId.startsWith('firma')) {
+          colStyles[i] = { cellWidth: 32 };
+        }
+      });
+
       const HEADER_COLOR: [number, number, number] = [0, 184, 112];
       const ALT_ROW: [number, number, number] = [248, 250, 252];
 
@@ -551,6 +655,7 @@ export default function ExportInscritosCursoModal({
         head,
         body,
         margin: { left: margin, right: margin },
+        columnStyles: colStyles,
         styles: {
           font: 'helvetica',
           fontSize: exportMode === 'asistencia' ? (finalColumns.length > 7 ? 7.5 : 8.5) : (finalColumns.length > 5 ? 7.5 : 8.5),
@@ -838,7 +943,9 @@ export default function ExportInscritosCursoModal({
                       onChange={e => setSortBy(e.target.value as any)}
                       className="w-full bg-white text-xs font-bold text-slate-700 px-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:border-[#00D084] focus:ring-2 focus:ring-[#00D084]/20 transition-all cursor-pointer shadow-2xs"
                     >
-                      <option value="nombre">Nombre (Nombre y Apellido)</option>
+                      <option value="apellidos">Apellidos (Orden alfabético por apellido)</option>
+                      <option value="nombres">Nombres (Orden alfabético por nombre)</option>
+                      <option value="nombre">Nombre Completo</option>
                       <option value="apellido_nombre">Apellido, Nombre (Primero Apellido)</option>
                       <option value="cedula">Cédula / Identificación</option>
                       <option value="fecha">Fecha de Registro</option>
@@ -979,8 +1086,8 @@ export default function ExportInscritosCursoModal({
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
               <span><span className="text-[#00B870] font-black">{filteredRows.length}</span> / {rows.length} seleccionados</span>
             </span>
-            <span className="hidden sm:inline-flex items-center text-[10px] text-slate-500 font-medium px-2 py-0.5 bg-slate-200/60 rounded-lg truncate" title={`Orden: ${sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} (${sortDirection === 'asc' ? 'A-Z' : 'Z-A'})`}>
-              {sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} ({sortDirection === 'asc' ? 'A-Z' : 'Z-A'})
+            <span className="hidden sm:inline-flex items-center text-[10px] text-slate-500 font-medium px-2 py-0.5 bg-slate-200/60 rounded-lg truncate" title={`Orden: ${sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} (${sortDirection === 'asc' ? 'A-Z' : 'Z-A'})`}>
+              {sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} ({sortDirection === 'asc' ? 'A-Z' : 'Z-A'})
             </span>
           </div>
 

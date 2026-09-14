@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import QRCode from 'qrcode'
-import logoImg from '@/assets/Logo2.webp'
+import logoImg from '@/assets/logo_ciebo_green.svg'
 import firmaFranciscoImg from '@/assets/firma-francisco.webp'
 import firmaGracielaImg from '@/assets/firma-graciela-ledezma.webp'
+import { formatNombreCard } from '@/utils/formatters'
 
 import cibirBg from '@/assets/Cibir.webp'
 
@@ -21,6 +22,7 @@ export interface CertificadoProgramaViewProps {
   programaOCurso: string
   programaCodigo: string // 'CIBIR' | 'PEGI' | 'PREANI' | 'PADI'
   urlVerificacion: string
+  qrDataUrl?: string
   vigente: boolean
   cedula?: string | null
   firmantes?: Firmante[]
@@ -52,6 +54,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
   programaOCurso,
   programaCodigo,
   urlVerificacion,
+  qrDataUrl,
   vigente,
   cedula,
   firmantes,
@@ -61,17 +64,21 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
     title: programaOCurso.toUpperCase(),
   }
 
-  const [localQr, setLocalQr] = useState<string>('')
+  const [localQr, setLocalQr] = useState<string>(qrDataUrl || '')
 
   useEffect(() => {
+    if (qrDataUrl) {
+      setLocalQr(qrDataUrl)
+      return
+    }
     if (urlVerificacion) {
       QRCode.toDataURL(urlVerificacion, { margin: 1, width: 250 })
         .then(setLocalQr)
         .catch(() => {})
     }
-  }, [urlVerificacion])
+  }, [urlVerificacion, qrDataUrl])
 
-  const qrApiUrl = localQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
+  const qrApiUrl = qrDataUrl || localQr || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(urlVerificacion)}`
 
   const [width, setWidth] = useState(1000)
   const trackerRef = useRef<HTMLDivElement | null>(null)
@@ -172,14 +179,24 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
             style={{ bottom: '-4px', left: '-4px', width: 'calc(25% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(0% 100%, 80% 100%, 0% 80%)' }}
           />
 
+          {/* ══════════════════════════════════════════════════════════════════
+              MARCA DE AGUA CENTRAL
+          ══════════════════════════════════════════════════════════════════ */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+            <img
+              src={logoImg}
+              alt=""
+              className="w-[640px] h-auto object-contain opacity-[0.08] grayscale-0 translate-y-6"
+            />
+          </div>
+
           {/* ── SEPARADOR HEADER ── */}
           <div className="absolute top-[155px] left-[161px] right-[24px] border-b border-slate-800/80 pointer-events-none" />
 
           {/* ── CONTENIDO DEL CERTIFICADO ── */}
           {/* Header Left: Logo Cámara */}
-          <div className="absolute top-[25
-          px] left-[190px] w-[280px] h-[140px] flex items-center justify-center z-10">
-            <img src={logoImg} className="h-[128px] w-auto object-contain drop-shadow-sm" alt="Logo CIEBO" />
+          <div className="absolute top-[18px] left-[180px] w-[300px] h-[145px] flex items-center justify-center z-10">
+            <img src={logoImg} className="h-[146px] w-auto object-contain drop-shadow-sm" alt="Logo CIEBO" />
           </div>
 
           {/* Header Right: Info del Programa (CIBIR) */}
@@ -202,10 +219,9 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           {/* Cuerpo Central */}
           {/* Título de la Cámara */}
           <div className="absolute top-[180px] left-[24px] right-[24px] flex flex-col items-center text-center font-sans z-10">
-            <h2 className="text-[#0f5431] font-black tracking-[0.12em] text-[28px] uppercase leading-[1.25]">
-              CAMARA INMOBILIARIA DEL
-              <br />
-              ESTADO BOLIVAR
+            <h2 className="text-[#0f5431] font-black tracking-[0.10em] text-[26px] uppercase leading-tight">
+              <span className="block whitespace-nowrap">CÁMARA INMOBILIARIA</span>
+              <span className="block whitespace-nowrap">DE BOLÍVAR</span>
             </h2>
           </div>
 
@@ -219,12 +235,25 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           {/* Nombre del Alumno con su Línea */}
           <div className="absolute top-[305px] left-[150px] right-[150px] flex flex-col items-center z-10">
             <div className="w-full border-b border-slate-700/80 pb-1 flex flex-col items-center min-h-[55px] justify-end">
-              <span
-                className="text-4xl font-extrabold text-slate-900 px-4 text-center leading-none italic"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              >
-                {titularNombre}
-              </span>
+              {(() => {
+                const nombreMostrado = formatNombreCard(titularNombre) || titularNombre;
+                return (
+                  <span
+                    className="font-extrabold text-slate-900 px-4 text-center leading-none italic"
+                    style={{
+                      fontFamily: "'Playfair Display', Georgia, serif",
+                      fontSize: (() => {
+                        const len = (nombreMostrado || '').length;
+                        if (len > 34) return '1.65rem';
+                        if (len > 26) return '1.9rem';
+                        return '2.25rem';
+                      })(),
+                    }}
+                  >
+                    {nombreMostrado}
+                  </span>
+                );
+              })()}
             </div>
           </div>
 
@@ -309,10 +338,10 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                     ) : null}
                   </div>
                   <div className="w-48 h-[1px] bg-slate-800 mb-1.5 shrink-0" />
-                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans text-center">
+                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans text-center whitespace-nowrap">
                     {leftFirmante.nombre}
                   </span>
-                  <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal max-w-[160px]">
+                  <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-1 text-center leading-normal max-w-[200px]">
                     {formatCargo(leftFirmante.cargo)}
                   </span>
                 </div>
@@ -345,10 +374,10 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                         ) : null}
                       </div>
                       <div className="w-48 h-[1px] bg-slate-800 mb-1.5 shrink-0" />
-                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans text-center">
+                      <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans text-center whitespace-nowrap">
                         {rightFirmante.nombre}
                       </span>
-                      <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5 text-center leading-normal max-w-[160px]">
+                      <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-1 text-center leading-normal max-w-[200px]">
                         {formatCargo(rightFirmante.cargo)}
                       </span>
                     </>

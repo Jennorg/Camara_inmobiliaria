@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FileDown, ArrowLeft, Loader2, Award } from 'lucide-react'
+import { FileDown, ArrowLeft, Loader2, Award, Download } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import { API_URL } from '@/config/env'
 import logoImg from '@/assets/Logo4.webp'
 import firmaImg from '@/assets/firma-francisco.webp'
-import { exportElementToPdf } from '@/utils/domToPdf'
+import { exportElementToPdf, exportElementToPng } from '@/utils/domToPdf'
 import { apiFetch } from '@/lib/apiClient'
 
 interface AfiliadoData {
@@ -79,6 +79,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
   }, [id])
 
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [downloadingPng, setDownloadingPng] = useState(false)
 
   const handleDownloadPdf = async () => {
     if (!data) return
@@ -90,6 +91,19 @@ const CertificadoAfiliacionPage: React.FC = () => {
       console.error('Error al generar el PDF del certificado:', err)
     } finally {
       setDownloadingPdf(false)
+    }
+  }
+
+  const handleDownloadPng = async () => {
+    if (!data) return
+    setDownloadingPng(true)
+    try {
+      const safeName = (data.nombre_completo || 'Afiliado').replace(/[^a-zA-Z0-9_-]/g, '_')
+      await exportElementToPng('certificate-print-area', `Certificado_Afiliacion_${safeName}.png`)
+    } catch (err) {
+      console.error('Error al generar la imagen PNG del certificado:', err)
+    } finally {
+      setDownloadingPng(false)
     }
   }
 
@@ -170,12 +184,13 @@ const CertificadoAfiliacionPage: React.FC = () => {
           <ArrowLeft size={16} />
           Volver
         </button>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleDownloadPdf}
-            disabled={downloadingPdf}
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-colors transition-transform active:scale-95 cursor-pointer"
+            disabled={downloadingPdf || downloadingPng}
+            className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider border border-slate-200/80 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer"
+            title="Descargar en formato PDF"
           >
             {downloadingPdf ? (
               <>
@@ -184,8 +199,27 @@ const CertificadoAfiliacionPage: React.FC = () => {
               </>
             ) : (
               <>
-                <FileDown size={16} />
-                Descargar PDF
+                <FileDown size={16} className="text-slate-600" />
+                PDF
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadPng}
+            disabled={downloadingPdf || downloadingPng}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-colors transition-transform active:scale-95 cursor-pointer"
+            title="Descargar imagen PNG en máxima calidad (300 DPI) para impresión física"
+          >
+            {downloadingPng ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Generando PNG...
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                Descargar PNG (Impresión)
               </>
             )}
           </button>

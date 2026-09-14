@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FileDown, ArrowLeft, Loader2 } from 'lucide-react'
+import { FileDown, ArrowLeft, Loader2, Download } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import CertificadoProgramaView from '@/components/CertificadoProgramaView'
 import CertificadoCursoView from '@/components/CertificadoCursoView'
 import { API_URL } from '@/config/env'
-import { exportElementToPdf } from '@/utils/domToPdf'
+import { exportElementToPdf, exportElementToPng } from '@/utils/domToPdf'
 import { apiFetch } from '@/lib/apiClient'
 
 type ApiData = {
@@ -35,6 +35,7 @@ const ComprobantePublicoPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const [downloadingPng, setDownloadingPng] = useState(false)
 
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   const urlVerificacion = codigo ? `${origin}/comprobante/${encodeURIComponent(codigo)}` : origin
@@ -52,11 +53,11 @@ const ComprobantePublicoPage: React.FC = () => {
         if (j.success && j.data) {
           setData(j.data as ApiData)
         } else {
-          setError(j.message || 'No se pudo cargar el comprobante')
+          setError(j.message || 'No se pudo encontrar el comprobante solicitado.')
         }
       })
-      .catch(() => {
-        if (active) setError('Error de conexión')
+      .catch((err) => {
+        if (active) setError(err?.message || 'Error al consultar el comprobante')
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -79,6 +80,20 @@ const ComprobantePublicoPage: React.FC = () => {
       console.error('Error generando PDF:', err)
     } finally {
       setDownloadingPdf(false)
+    }
+  }
+
+  const handleDownloadPng = async () => {
+    if (!data) return
+    setDownloadingPng(true)
+    try {
+      const targetId = 'certificate-print-area'
+      const safeName = (data.titular_nombre || 'Comprobante').replace(/[^a-zA-Z0-9_-]/g, '_')
+      await exportElementToPng(targetId, `Comprobante_${safeName}.png`)
+    } catch (err) {
+      console.error('Error generando PNG:', err)
+    } finally {
+      setDownloadingPng(false)
     }
   }
 
@@ -136,24 +151,46 @@ const ComprobantePublicoPage: React.FC = () => {
               <h2 className="text-sm font-bold text-slate-800">Comprobante de aprobación digital</h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            disabled={downloadingPdf}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-700 cursor-pointer disabled:opacity-50"
-          >
-            {downloadingPdf ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Descargando PDF...
-              </>
-            ) : (
-              <>
-                <FileDown size={16} />
-                Descargar PDF
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf || downloadingPng}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 text-xs font-bold uppercase tracking-wide border border-slate-200/80 shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+              title="Descargar en formato PDF"
+            >
+              {downloadingPdf ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Descargando PDF...
+                </>
+              ) : (
+                <>
+                  <FileDown size={16} className="text-slate-600" />
+                  PDF
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPng}
+              disabled={downloadingPdf || downloadingPng}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-emerald-700 cursor-pointer disabled:opacity-50 transition-colors"
+              title="Descargar imagen PNG en máxima calidad (300 DPI) para impresión física"
+            >
+              {downloadingPng ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Generando PNG...
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  Descargar PNG (Impresión)
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 

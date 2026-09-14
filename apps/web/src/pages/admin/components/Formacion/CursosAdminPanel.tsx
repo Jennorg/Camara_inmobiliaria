@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -2189,14 +2189,18 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [batchActionType, setBatchActionType] = useState<'graduar' | 'revocar' | 'eliminar' | null>(null);
+  const [showCertFormatMenu, setShowCertFormatMenu] = useState(false);
+  const [showBatchCertFormatMenu, setShowBatchCertFormatMenu] = useState(false);
   const { isDownloading, downloadType, startBatchCertificados } = useBatchDownload();
   const isGeneratingZip = isDownloading && downloadType === 'certificados';
 
-  const handleDownloadZipCertificates = async (selectedOnly = false) => {
+  const handleDownloadZipCertificates = async (selectedOnly = false, format: 'pdf_zip' | 'pdf_single' | 'png' = 'pdf_zip') => {
+    setShowCertFormatMenu(false);
+    setShowBatchCertFormatMenu(false);
     const targetRows = selectedOnly
       ? rows.filter(r => selectedIds.includes(r.id_inscripcion))
       : rows;
-    await startBatchCertificados({ curso, targetRows, selectedOnly });
+    await startBatchCertificados({ curso, targetRows, selectedOnly, format });
   };
 
   const toggleSelectAll = () => {
@@ -2419,19 +2423,83 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <span>Exportar PDF</span>
           </button>
 
-          <button
-            onClick={() => handleDownloadZipCertificates(false)}
-            disabled={isGeneratingZip || rows.length === 0}
-            className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-emerald-200/60 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Descargar archivo ZIP con los certificados de todos los inscritos"
-          >
-            {isGeneratingZip ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Archive className="w-4 h-4 text-emerald-600" />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowCertFormatMenu(prev => !prev)}
+              disabled={isGeneratingZip || rows.length === 0}
+              className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold py-2.5 px-4 rounded-xl border border-emerald-200/60 shadow-xs transition-colors transition-transform active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Descargar archivo ZIP con los certificados de todos los inscritos (PDF o PNG para impresión)"
+            >
+              {isGeneratingZip ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Archive className="w-4 h-4 text-emerald-600" />
+              )}
+              <span>Certificados</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-emerald-600 transition-transform ${showCertFormatMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showCertFormatMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowCertFormatMenu(false)} />
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 z-40 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="px-3 py-2 border-b border-gray-100 mb-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Descargar Certificados (Todos)</p>
+                    <p className="text-xs font-bold text-slate-700">{rows.length} {rows.length === 1 ? 'participante' : 'participantes'}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadZipCertificates(false, 'pdf_zip')}
+                    className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-emerald-50 text-left transition-colors cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                      <FileDown className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>PDFs Separados</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">ZIP</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Un archivo PDF independiente por cada participante</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadZipCertificates(false, 'pdf_single')}
+                    className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-emerald-50 text-left transition-colors cursor-pointer group mt-1"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                      <FileStack className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>PDF Unificado</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold uppercase">1 PDF</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Todos los certificados en un solo documento multipágina</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadZipCertificates(false, 'png')}
+                    className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-emerald-50 text-left transition-colors cursor-pointer group mt-1"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                      <Download className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>Descargar PNG</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold uppercase">300 DPI</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Máxima resolución en imágenes para impresión profesional</p>
+                    </div>
+                  </button>
+                </div>
+              </>
             )}
-            <span>Certificados</span>
-          </button>
+          </div>
 
           <button
             onClick={handleOpenEnrollModal}
@@ -2474,20 +2542,83 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleDownloadZipCertificates(true)}
-              disabled={isProcessingBatch || isGeneratingZip}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-200/60 disabled:opacity-50 disabled:pointer-events-none"
-              title="Descargar ZIP con los certificados de los participantes seleccionados"
-            >
-              {isGeneratingZip ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Archive size={14} />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowBatchCertFormatMenu(prev => !prev)}
+                disabled={isProcessingBatch || isGeneratingZip}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:scale-95 text-xs font-bold transition-all shadow-xs cursor-pointer border border-emerald-200/60 disabled:opacity-50 disabled:pointer-events-none"
+                title="Descargar certificados de los participantes seleccionados (PDFs en ZIP, PDF Unificado o PNG)"
+              >
+                {isGeneratingZip ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Archive size={14} />
+                )}
+                <span>Certificados ({selectedIds.length})</span>
+                <ChevronDown size={13} className={`transition-transform ${showBatchCertFormatMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showBatchCertFormatMenu && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowBatchCertFormatMenu(false)} />
+                  <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <div className="px-3 py-2 border-b border-gray-100 mb-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Certificados Seleccionados</p>
+                      <p className="text-xs font-bold text-slate-700">{selectedIds.length} {selectedIds.length === 1 ? 'participante' : 'participantes'}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadZipCertificates(true, 'pdf_zip')}
+                      className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-emerald-50 text-left transition-colors cursor-pointer group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                        <FileDown className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>PDFs Separados</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">ZIP</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Un archivo PDF independiente por cada participante</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadZipCertificates(true, 'pdf_single')}
+                      className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-emerald-50 text-left transition-colors cursor-pointer group mt-1"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <FileStack className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>PDF Unificado</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold uppercase">1 PDF</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Todos los certificados en un solo documento multipágina</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadZipCertificates(true, 'png')}
+                      className="w-full flex items-start gap-3 p-2.5 rounded-xl hover:bg-emerald-50 text-left transition-colors cursor-pointer group mt-1"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                        <Download className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>Descargar PNG</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold uppercase">300 DPI</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Máxima calidad lista para impresión profesional</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
               )}
-              <span>Certificados ({selectedIds.length})</span>
-            </button>
+            </div>
 
             <button
               type="button"
@@ -2770,6 +2901,17 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                 )}
                                 {r.completado === 1 && (
                                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
+                                )}
+                                {(r.estatus === 'Inscrito' || r.completado === 1) && (
+                                  <a
+                                    href={`/comprobante/${encodeURIComponent(r.codigo_validacion || `CIV-${String(r.id_inscripcion).padStart(5, '0')}-${String(curso.id_curso || '0').padStart(3, '0')}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-emerald-200/60 cursor-pointer shrink-0 inline-flex items-center justify-center"
+                                    title="Ver y descargar certificado digital (PDF o PNG de alta resolución)"
+                                  >
+                                    <Award size={13} />
+                                  </a>
                                 )}
                                 <button
                                   type="button"
