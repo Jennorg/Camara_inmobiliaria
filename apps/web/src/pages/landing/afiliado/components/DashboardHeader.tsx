@@ -3,7 +3,7 @@ import { Menu, User, X, Download, Loader2, Award, RefreshCw, Pencil, Image as Im
 import { toJpeg } from 'html-to-image';
 import { toast } from 'sonner';
 import { AfiliadoDTO } from '@/types/afiliados';
-import LogoBgImg from '@/assets/Logo4.webp';
+import LogoBgImg from '@/assets/logo_ciebo_green.svg';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import Cropper from 'react-easy-crop';
@@ -13,6 +13,7 @@ import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared';
 import NotificationCenter from '@/components/NotificationCenter';
 import { formatNombreCard } from '@/utils/formatters';
 import QRCode from 'qrcode';
+import { drawCarnetCanvas } from '@/utils/carnetCanvasRenderer';
 
 interface DashboardHeaderProps {
   onMenuOpen: () => void;
@@ -295,35 +296,47 @@ const DashboardHeader = ({
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!cardRef.current || !afiliado?.codigo) return;
+    if (!afiliado || !afiliado?.codigo) return;
     setExporting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      let blob: Blob | null = null;
+      try {
+        blob = await drawCarnetCanvas(afiliado, qrCodeUrl);
+      } catch (canvasErr) {
+        console.warn('drawCarnetCanvas failed, falling back to toJpeg:', canvasErr);
+        if (cardRef.current) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          const dataUrl = await toJpeg(cardRef.current, {
+            quality: 0.98,
+            canvasWidth: 649.61,
+            canvasHeight: 1003.94,
+            pixelRatio: 1,
+            backgroundColor: '#ffffff',
+            filter: (node) =>
+              !(
+                node instanceof Element &&
+                node.classList.contains('hide-on-export')
+              ),
+            style: {
+              width: '310px',
+              height: '479.09px',
+              transform: 'none',
+              borderRadius: '0px',
+            },
+          });
+          const resBlob = await fetch(dataUrl);
+          blob = await resBlob.blob();
+        }
+      }
 
-      const dataUrl = await toJpeg(cardRef.current, {
-        quality: 0.98,
-        canvasWidth: 649.61,
-        canvasHeight: 1003.94,
-        pixelRatio: 1,
-        backgroundColor: '#ffffff',
-        filter: (node) =>
-          !(
-            node instanceof Element &&
-            node.classList.contains('hide-on-export')
-          ),
-        style: {
-          width: '310px',
-          height: '479.09px',
-          transform: 'none',
-          borderRadius: '0px',
-        },
-      });
-
+      if (!blob) throw new Error('No se pudo generar la imagen del carnet.');
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `carnet-ciebo-${afiliado.codigo}.jpg`;
-      link.href = dataUrl;
+      link.href = url;
       link.click();
+      URL.revokeObjectURL(url);
       toast.success('Credencial descargada con éxito como imagen JPG.');
     } catch (err) {
       console.error('Error generando carnet:', err);
@@ -469,57 +482,28 @@ const DashboardHeader = ({
                     <div
                       ref={cardRef}
                       id="carnet-card-capture"
-                      className="w-[280px] xs:w-[310px] h-[433px] xs:h-[479px] bg-white text-slate-800 flex flex-col justify-between relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
-                      style={{
-                        backgroundImage:
-                          'radial-gradient(circle at 100% 0%, #e6f4ea 0%, transparent 45%), radial-gradient(circle at 0% 100%, #e6f4ea 0%, transparent 45%)',
-                      }}
+                      className="w-[310px] h-[479px] bg-white text-slate-800 flex flex-col relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
                     >
-                      {/* Fondo de agua con logo */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none z-0">
-                        <img
-                          src={LogoBgImg}
-                          alt="Fondo de agua"
-                          className="h-200 w-auto object-contain opacity-[0.14] filter blur-[1.5px] transform translate-y-5"
-                        />
-                      </div>
-
-                      <div className="absolute -bottom-22 -left-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-                        <img
-                          src={LogoBgImg}
-                          alt="Fondo de agua secundario"
-                          className="w-full h-full object-contain opacity-[0.14]"
-                        />
-                      </div>
-
-                      <div className="absolute -bottom-22 -right-36 pointer-events-none select-none z-10 w-70 h-70 overflow-hidden">
-                        <img
-                          src={LogoBgImg}
-                          alt="Fondo de agua secundario"
-                          className="w-full h-full object-contain opacity-[0.14]"
-                        />
-                      </div>
-
                       {/* Header minimalista */}
-                      <div className="relative z-10 flex items-center justify-center gap-0.5 w-full border-b border-emerald-600/10 py-1.5 xs:py-2.5">
+                      <div className="relative z-10 flex items-center justify-center gap-2 w-full py-1 shrink-0">
                         <img
                           src={LogoBgImg}
                           alt="Logo CIEBO"
-                          className="h-12 xs:h-16 w-auto object-contain"
+                          className="h-14 w-auto object-contain"
                         />
-                        <p className="text-[12px] xs:text-[15px] font-bold text-black leading-tight uppercase text-center">
-                          <span className="block whitespace-nowrap text-emerald-800">
+                        <p className="text-[14px] font-black text-[#0a523d] leading-tight uppercase text-center tracking-tight">
+                          <span className="block whitespace-nowrap text-[#0a523d]">
                             Cámara Inmobiliaria
                           </span>
-                          <span className="block whitespace-nowrap text-emerald-800">
+                          <span className="block whitespace-nowrap text-[#0a523d]">
                             de Bolívar
                           </span>
                         </p>
                       </div>
 
-                      {/* Foto */}
-                      <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-1.5 xs:gap-2 pt-1 pb-1">
-                        <div className="w-[130px] xs:w-[155px] aspect-[155/185] rounded-2xl overflow-hidden border-2 border-emerald-600 bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
+                      {/* Foto y Datos Centrados Verticalmente */}
+                      <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-1.5 py-1">
+                        <div className="w-[155px] aspect-[155/185] rounded-2xl overflow-hidden border-2 border-[#0d6e50] bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
                           {(() => {
                             const redes = parseRedes(afiliado?.redes_sociales);
                             const carnetPhotoUrl = useJuntaPhoto
@@ -551,7 +535,7 @@ const DashboardHeader = ({
                                 }
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center font-black text-5xl xs:text-6xl text-emerald-700 bg-emerald-50">
+                              <div className="w-full h-full flex items-center justify-center font-black text-6xl text-[#0a523d] bg-[#e6f3ed]">
                                 {afiliado?.nombres ? afiliado.nombres.charAt(0) : 'A'}
                               </div>
                             );
@@ -562,7 +546,7 @@ const DashboardHeader = ({
                             <button
                               type="button"
                               onClick={handleEditClick}
-                              className="absolute top-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
+                              className="absolute top-2 right-2 p-1.5 rounded-full bg-[#0d6e50]/90 hover:bg-[#0a523d] active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
                               title="Ajustar encuadre / recortar foto"
                             >
                               <Pencil size={12} />
@@ -574,7 +558,7 @@ const DashboardHeader = ({
                             <button
                               type="button"
                               onClick={handleTogglePhotoPreference}
-                              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-emerald-600/90 hover:bg-emerald-700 active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
+                              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-[#0d6e50]/90 hover:bg-[#0a523d] active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
                               title="Cambiar foto (Perfil / Junta Directiva)"
                             >
                               <RefreshCw
@@ -590,11 +574,11 @@ const DashboardHeader = ({
                         </div>
 
                         {/* Detalles */}
-                        <div className="text-center leading-none my-0.5 xs:my-1">
-                          <div className="text-[10px] xs:text-[11px] font-extrabold text-black uppercase tracking-wider leading-snug">
+                        <div className="text-center leading-none my-0.5">
+                          <div className="text-[17px] font-black text-[#0a523d] uppercase tracking-wide leading-tight">
                             {formatNombreCard(afiliado?.nombres || (afiliado as any)?.representante_nombre || (afiliado as any)?.nombre_completo, afiliado?.apellidos)}
                           </div>
-                          <span className="text-[10px] xs:text-[11px] font-extrabold text-black tracking-wider block mt-0.5">
+                          <span className="text-[8px] font-bold text-[#0d5c46] tracking-wider block mt-1 uppercase">
                             <span className="font-extrabold">AFILIADO - CÓDIGO:</span>{' '}
                             {afiliado?.codigo}
                           </span>
@@ -609,7 +593,7 @@ const DashboardHeader = ({
                               const label =
                                 tipoLabel[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado;
                               return (
-                                <span className="text-[9px] xs:text-[11px] font-extrabold text-black uppercase tracking-[0.14em] block mt-1 leading-none">
+                                <span className="text-[7.5px] font-bold text-[#12644e] uppercase tracking-[0.14em] block mt-0.5 leading-none">
                                   {Array.isArray(label)
                                     ? label.map((line) => (
                                         <span key={line} className="block">
@@ -623,12 +607,12 @@ const DashboardHeader = ({
                         </div>
 
                         {/* QR / Logo */}
-                        <div className="flex flex-row items-center justify-center gap-1.5 xs:gap-2 w-full px-2 pt-2 xs:pt-4 min-h-[82px] xs:min-h-[96px]">
+                        <div className="flex flex-row items-center justify-center gap-2 w-full px-2 pt-2 min-h-[96px]">
                           <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                            <div className="w-[64px] xs:w-[78px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 relative">
+                            <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0 relative">
                               <img src={qrCodeUrl} alt="QR" crossOrigin="anonymous" className="w-full h-full" />
                             </div>
-                            <span className="text-[6.5px] xs:text-[7.5px] text-black font-extrabold tracking-wider uppercase opacity-65 text-center leading-none">
+                            <span className="text-[7.5px] text-[#525b62] font-bold tracking-wider uppercase text-center leading-none">
                               Verificar QR
                             </span>
                           </div>
@@ -640,27 +624,24 @@ const DashboardHeader = ({
                             if (!logo) return null;
 
                             return (
-                              <>
-                                <div className="w-[1px] h-12 xs:h-14 bg-emerald-600/15 shrink-0 self-center mx-1" />
-                                <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                                   <div className="w-full max-w-[105px] xs:max-w-[125px] h-[64px] xs:h-[78px] flex items-center justify-center shrink-0 px-1">
-                                     <img
-                                       src={logo}
-                                       alt="Logo"
-                                       crossOrigin="anonymous"
-                                       className="max-h-full max-w-full object-contain"
-                                       onError={(e) => {
-                                         if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                           e.currentTarget.removeAttribute('crossOrigin');
-                                           e.currentTarget.src = logo;
-                                         } else {
-                                           e.currentTarget.style.display = 'none';
-                                         }
-                                       }}
-                                     />
-                                   </div>
-                                 </div>
-                              </>
+                              <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                                <div className="w-full max-w-[125px] h-[78px] flex items-center justify-center shrink-0 px-1">
+                                  <img
+                                    src={logo}
+                                    alt="Logo"
+                                    crossOrigin="anonymous"
+                                    className="max-h-full max-w-full object-contain"
+                                    onError={(e) => {
+                                      if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
+                                        e.currentTarget.removeAttribute('crossOrigin');
+                                        e.currentTarget.src = logo;
+                                      } else {
+                                        e.currentTarget.style.display = 'none';
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
                             );
                           })()}
                         </div>

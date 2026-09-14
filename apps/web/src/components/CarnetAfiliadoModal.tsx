@@ -4,8 +4,7 @@ import { X, Download, Loader2, Award, CheckCircle, RefreshCw, Pencil, Image as I
 import { toJpeg } from 'html-to-image';
 import { toast } from 'sonner';
 import { AfiliadoDTO } from '@/types/afiliados';
-import LogoImg from '@/assets/Logo2.webp';
-import LogoBgImg from '@/assets/Logo4.webp';
+import LogoBgImg from '@/assets/logo_ciebo_green.svg';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import Cropper from 'react-easy-crop';
@@ -30,6 +29,7 @@ const parseRedes = (redes: any): Record<string, any> => {
 };
 
 import { CarnetCardPreview } from '@/components/CarnetCardPreview';
+import { drawCarnetCanvas } from '@/utils/carnetCanvasRenderer';
 
 /* ── SUB-COMPONENT: CarnetCropperModal ── */
 interface CarnetCropperModalProps {
@@ -425,30 +425,43 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
   const hasCredential = afiliado && afiliado.id_afiliado && afiliado.codigo;
 
   const handleDownload = async () => {
-    if (!cardRef.current || !hasCredential) return;
+    if (!afiliado || !hasCredential) return;
     setExporting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const dataUrl = await toJpeg(cardRef.current, {
-        quality: 0.98,
-        canvasWidth: 649.61,
-        canvasHeight: 1003.94,
-        pixelRatio: 1,
-        backgroundColor: '#ffffff',
-        filter: (node) => !(node instanceof Element && node.classList.contains('hide-on-export')),
-        style: {
-          width: '310px',
-          height: '479.09px',
-          transform: 'none',
-          borderRadius: '0px',
+      let blob: Blob | null = null;
+      try {
+        blob = await drawCarnetCanvas(afiliado, qrCodeUrl);
+      } catch (canvasErr) {
+        console.warn('drawCarnetCanvas failed, falling back to toJpeg:', canvasErr);
+        if (cardRef.current) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          const dataUrl = await toJpeg(cardRef.current, {
+            quality: 0.98,
+            canvasWidth: 649.61,
+            canvasHeight: 1003.94,
+            pixelRatio: 1,
+            backgroundColor: '#ffffff',
+            filter: (node) => !(node instanceof Element && node.classList.contains('hide-on-export')),
+            style: {
+              width: '310px',
+              height: '479.09px',
+              transform: 'none',
+              borderRadius: '0px',
+            }
+          });
+          const resBlob = await fetch(dataUrl);
+          blob = await resBlob.blob();
         }
-      });
+      }
 
+      if (!blob) throw new Error('No se pudo generar la imagen del carnet.');
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `carnet-ciebo-${afiliado.codigo}.jpg`;
-      link.href = dataUrl;
+      link.href = url;
       link.click();
+      URL.revokeObjectURL(url);
       toast.success('Credencial descargada con éxito como imagen JPG.');
     } catch (err) {
       console.error('Error generando carnet:', err);

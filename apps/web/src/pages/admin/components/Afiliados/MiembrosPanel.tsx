@@ -25,7 +25,7 @@ import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
-import LogoBgImg from '@/assets/Logo4.webp'
+import LogoBgImg from '@/assets/logo_ciebo_green.svg'
 import JSZip from 'jszip'
 import QRCode from 'qrcode'
 
@@ -407,7 +407,7 @@ export default function MiembrosPanel() {
   const batchDownloading = isDownloading && downloadType === 'carnets';
 
   const handleBatchDownload = async () => {
-    await startBatchCarnets();
+    await startBatchCarnets(items);
   };
   const [razonSocial, setRazonSocial] = useState('')
   const [rifTipo, setRifTipo] = useState('J')
