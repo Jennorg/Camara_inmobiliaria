@@ -11,9 +11,9 @@ import getCroppedImg from '@/utils/cropImage';
 import { compressImage } from '@/utils/imageCompressor';
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared';
 import NotificationCenter from '@/components/NotificationCenter';
-import { formatNombreCard } from '@/utils/formatters';
 import QRCode from 'qrcode';
 import { drawCarnetCanvas } from '@/utils/carnetCanvasRenderer';
+import { CarnetCardPreview } from '@/components/CarnetCardPreview';
 
 interface DashboardHeaderProps {
   onMenuOpen: () => void;
@@ -479,174 +479,16 @@ const DashboardHeader = ({
 
                   {/* AREA DE CAPTURA DEL CARNET */}
                   <div className="p-1.5 bg-slate-50 dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-inner overflow-hidden select-none flex items-center justify-center shrink-0 max-w-full">
-                    <div
-                      ref={cardRef}
-                      id="carnet-card-capture"
-                      className="w-[310px] h-[479px] bg-white text-slate-800 flex flex-col relative shadow-lg rounded-2xl overflow-hidden border border-slate-200 py-3.5 px-5"
-                    >
-                      {/* Header minimalista */}
-                      <div className="relative z-10 flex items-center justify-center gap-2 w-full py-1 shrink-0">
-                        <img
-                          src={LogoBgImg}
-                          alt="Logo CIEBO"
-                          className="h-14 w-auto object-contain"
-                        />
-                        <p className="text-[14px] font-black text-[#0a523d] leading-tight uppercase text-center tracking-tight">
-                          <span className="block whitespace-nowrap text-[#0a523d]">
-                            Cámara Inmobiliaria
-                          </span>
-                          <span className="block whitespace-nowrap text-[#0a523d]">
-                            de Bolívar
-                          </span>
-                        </p>
-                      </div>
-
-                      {/* Foto y Datos Centrados Verticalmente */}
-                      <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-1.5 py-1">
-                        <div className="w-[155px] aspect-[155/185] rounded-2xl overflow-hidden border-2 border-[#0d6e50] bg-slate-100 shadow-md flex items-center justify-center relative shrink-0">
-                          {(() => {
-                            const redes = parseRedes(afiliado?.redes_sociales);
-                            const carnetPhotoUrl = useJuntaPhoto
-                              ? redes?.foto_junta_carnet_url
-                              : redes?.foto_carnet_url;
-
-                            const activePhoto =
-                              carnetPhotoUrl ||
-                              (useJuntaPhoto && afiliado?.foto_junta_url
-                                ? afiliado.foto_junta_url
-                                : afiliado?.foto_url);
-                            const isCropped = !!carnetPhotoUrl;
-
-                            return activePhoto ? (
-                              <img
-                                src={activePhoto}
-                                alt="Foto Afiliado"
-                                crossOrigin="anonymous"
-                                className="w-full h-full object-cover"
-                                style={
-                                  isCropped
-                                    ? {
-                                        objectPosition: 'center center',
-                                      }
-                                    : {
-                                        transform: 'scale(2)',
-                                        transformOrigin: 'center top',
-                                      }
-                                }
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center font-black text-6xl text-[#0a523d] bg-[#e6f3ed]">
-                                {afiliado?.nombres ? afiliado.nombres.charAt(0) : 'A'}
-                              </div>
-                            );
-                          })()}
-
-                          {/* Lápiz flotante - Solo para admins */}
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={handleEditClick}
-                              className="absolute top-2 right-2 p-1.5 rounded-full bg-[#0d6e50]/90 hover:bg-[#0a523d] active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
-                              title="Ajustar encuadre / recortar foto"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                          )}
-
-                          {/* Alternar foto */}
-                          {typeof afiliado?.foto_junta_url === 'string' && (
-                            <button
-                              type="button"
-                              onClick={handleTogglePhotoPreference}
-                              className="absolute bottom-2 right-2 p-1.5 rounded-full bg-[#0d6e50]/90 hover:bg-[#0a523d] active:scale-90 text-white transition-colors transition-transform shadow-md z-30 flex items-center justify-center border border-white/20 hover:scale-105 hide-on-export cursor-pointer"
-                              title="Cambiar foto (Perfil / Junta Directiva)"
-                            >
-                              <RefreshCw
-                                size={12}
-                                className={
-                                  useJuntaPhoto
-                                    ? 'rotate-180 transition-transform duration-500'
-                                    : 'transition-transform duration-500'
-                                }
-                              />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Detalles */}
-                        <div className="text-center leading-none my-0.5">
-                          <div className="text-[17px] font-black text-[#0a523d] uppercase tracking-wide leading-tight">
-                            {formatNombreCard(afiliado?.nombres || (afiliado as any)?.representante_nombre || (afiliado as any)?.nombre_completo, afiliado?.apellidos)}
-                          </div>
-                          <span className="text-[8px] font-bold text-[#0d5c46] tracking-wider block mt-1 uppercase">
-                            <span className="font-extrabold">AFILIADO - CÓDIGO:</span>{' '}
-                            {afiliado?.codigo}
-                          </span>
-                          {afiliado?.tipo_afiliado &&
-                            (() => {
-                              const tipoLabel: Record<string, string | string[]> = {
-                                Natural: 'Agente Independiente',
-                                Agente: 'Agente Independiente',
-                                'Agente Corporativo': 'Agente Corporativo',
-                                Corporativo: ['Corporativo', 'Repr. Legal'],
-                              };
-                              const label =
-                                tipoLabel[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado;
-                              return (
-                                <span className="text-[7.5px] font-bold text-[#12644e] uppercase tracking-[0.14em] block mt-0.5 leading-none">
-                                  {Array.isArray(label)
-                                    ? label.map((line) => (
-                                        <span key={line} className="block">
-                                          {line}
-                                        </span>
-                                      ))
-                                    : label}
-                                </span>
-                              );
-                            })()}
-                        </div>
-
-                        {/* QR / Logo */}
-                        <div className="flex flex-row items-center justify-center gap-2 w-full px-2 pt-2 min-h-[96px]">
-                          <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                            <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0 relative">
-                              <img src={qrCodeUrl} alt="QR" crossOrigin="anonymous" className="w-full h-full" />
-                            </div>
-                            <span className="text-[7.5px] text-[#525b62] font-bold tracking-wider uppercase text-center leading-none">
-                              Verificar QR
-                            </span>
-                          </div>
-
-                          {(() => {
-                            const logo = afiliado?.empresa_logo_url;
-
-                            // Sin logo → solo se muestra el QR, sin columna extra
-                            if (!logo) return null;
-
-                            return (
-                              <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                                <div className="w-full max-w-[125px] h-[78px] flex items-center justify-center shrink-0 px-1">
-                                  <img
-                                    src={logo}
-                                    alt="Logo"
-                                    crossOrigin="anonymous"
-                                    className="max-h-full max-w-full object-contain"
-                                    onError={(e) => {
-                                      if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
-                                        e.currentTarget.removeAttribute('crossOrigin');
-                                        e.currentTarget.src = logo;
-                                      } else {
-                                        e.currentTarget.style.display = 'none';
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
+                    {afiliado && (
+                      <CarnetCardPreview
+                        cardRef={cardRef}
+                        afiliado={afiliado}
+                        useJuntaPhoto={useJuntaPhoto}
+                        qrCodeUrl={qrCodeUrl}
+                        onEditClick={isAdmin ? handleEditClick : undefined}
+                        onToggleJuntaPhoto={afiliado.foto_junta_url ? handleTogglePhotoPreference : undefined}
+                      />
+                    )}
                   </div>
 
 

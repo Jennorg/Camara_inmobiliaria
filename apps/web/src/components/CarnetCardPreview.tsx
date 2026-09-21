@@ -118,24 +118,24 @@ export function CarnetCardPreview({
           <div className="text-[17px] font-black text-[#0a523d] uppercase tracking-wide leading-tight">
             {nombreCarnet}
           </div>
-          <span className="text-[8px] font-bold text-[#0d5c46] tracking-wider block mt-1 uppercase">
+          <span className="text-[11px] font-bold text-[#0d5c46] tracking-wider block mt-1.5 uppercase">
             <span className="font-extrabold">AFILIADO - CÓDIGO:</span> {afiliado.codigo}
           </span>
           {label && (
-            <span className="text-[7.5px] font-bold text-[#12644e] uppercase tracking-[0.14em] block mt-0.5 leading-none">
+            <span className="text-[10px] font-bold text-[#12644e] uppercase tracking-[0.12em] block mt-1 leading-tight">
               {Array.isArray(label) ? label.map((line) => <span key={line} className="block">{line}</span>) : label}
             </span>
           )}
         </div>
 
-        <div className="flex flex-row items-center justify-center gap-2 w-full px-2 pt-2 min-h-[96px]">
+        <div className="flex flex-row items-center justify-center gap-2 w-full px-2 pt-1.5 min-h-[96px]">
           <div className="flex-1 flex flex-col items-center justify-center gap-1">
             <div className="w-[78px] h-[78px] flex items-center justify-center shrink-0 relative">
               {qrCodeUrl && (
                 <img src={qrCodeUrl} alt="Código QR Perfil" crossOrigin="anonymous" className="w-full h-full" />
               )}
             </div>
-            <span className="text-[7.5px] text-[#525b62] font-bold tracking-wider uppercase text-center leading-none">
+            <span className="text-[9.5px] text-[#525b62] font-bold tracking-wider uppercase text-center leading-none">
               Verificar QR
             </span>
           </div>

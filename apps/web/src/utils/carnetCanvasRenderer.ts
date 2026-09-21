@@ -251,7 +251,7 @@ export async function drawCarnetCanvas(
     afiliado.apellidos
   ).toUpperCase();
 
-  let textY = 626;
+  let textY = 624;
   ctx.fillStyle = '#0a523d';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -261,12 +261,12 @@ export async function drawCarnetCanvas(
 
   textY += 40;
 
-  ctx.font = '800 17px "Plus Jakarta Sans", system-ui, sans-serif';
+  ctx.font = '800 22px "Plus Jakarta Sans", system-ui, sans-serif';
   ctx.fillStyle = '#0d5c46';
   const codigoText = `AFILIADO - CÓDIGO: ${afiliado.codigo || ''}`;
   ctx.fillText(codigoText, WIDTH / 2, textY);
 
-  textY += 22;
+  textY += 28;
 
   const tipoLabelMap: Record<string, string | string[]> = {
     'Natural': 'AGENTE INDEPENDIENTE',
@@ -277,16 +277,16 @@ export async function drawCarnetCanvas(
   const label = afiliado.tipo_afiliado ? (tipoLabelMap[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado.toUpperCase()) : null;
 
   if (label) {
-    ctx.font = '700 16px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.font = '800 19px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.fillStyle = '#12644e';
     if (Array.isArray(label)) {
       for (const line of label) {
         ctx.fillText(line, WIDTH / 2, textY);
-        textY += 20;
+        textY += 23;
       }
     } else {
       ctx.fillText(label, WIDTH / 2, textY);
-      textY += 20;
+      textY += 23;
     }
   }
 
@@ -319,7 +319,7 @@ export async function drawCarnetCanvas(
       ctx.drawImage(qrImg, leftCenterX - 80, footerY, 160, 160);
     }
     ctx.fillStyle = '#525b62';
-    ctx.font = '700 15px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.font = '700 17px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('VERIFICAR QR', leftCenterX, footerY + 168);
 
@@ -343,7 +343,7 @@ export async function drawCarnetCanvas(
       ctx.drawImage(qrImg, (WIDTH - 160) / 2, footerY, 160, 160);
     }
     ctx.fillStyle = '#525b62';
-    ctx.font = '700 15px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.font = '700 17px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('VERIFICAR QR', WIDTH / 2, footerY + 168);
   }
