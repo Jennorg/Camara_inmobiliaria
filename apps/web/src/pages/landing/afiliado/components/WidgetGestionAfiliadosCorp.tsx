@@ -21,7 +21,8 @@ import {
   Search,
   UserCheck,
   Phone,
-  ClipboardList
+  ClipboardList,
+  Trash2
 } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
@@ -47,6 +48,9 @@ interface AfiliadoMiembro {
   cedula: string;
   email: string;
   telefono: string;
+  codigo?: string | null;
+  foto_url?: string | null;
+  foto_carnet_url?: string | null;
   estatus: string;
   fecha_registro: string;
   fase: 'Solicitud' | 'Aprobado' | 'En Proceso' | 'Rechazado';
@@ -62,11 +66,12 @@ interface AfiliadoIndependiente {
   telefono: string | null;
   codigo: string | null;
   foto_url: string | null;
+  foto_carnet_url?: string | null;
 }
 
 const BOX_H = 'h-[58px]';
 
-type ActiveTab = 'agentes' | 'links' | 'vincular' | 'solicitudes';
+export type ActiveTabCorp = 'agentes' | 'pendientes' | 'links' | 'vincular' | 'solicitudes';
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -75,16 +80,84 @@ const NIVELES = [
   { value: 'Postgrado', label: 'Postgrado', icon: Award },
 ];
 
-export default function WidgetGestionAfiliadosCorp() {
+function AgentAvatar({
+  fotoUrl,
+  nombre,
+  apellidos,
+  className = "w-11 sm:w-12",
+  bgFallback = "bg-emerald-50 text-emerald-600",
+}: {
+  fotoUrl?: string | null;
+  nombre?: string | null;
+  apellidos?: string | null;
+  className?: string;
+  bgFallback?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
+
+  const isCropped = Boolean(fotoUrl && (fotoUrl.includes('foto_carnet_') || fotoUrl.includes('carnet')));
+
+  if (fotoUrl && !imgError) {
+    return (
+      <div
+        className={`${className} rounded-2xl border-2 border-emerald-600/40 shadow-sm overflow-hidden shrink-0 flex items-center justify-center bg-slate-100 transition-colors`}
+        style={{ aspectRatio: '155 / 185' }}
+      >
+        <img
+          src={fotoUrl}
+          alt={nombre || 'Agente'}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setImgAspect(img.naturalWidth / img.naturalHeight);
+            }
+          }}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover"
+          style={
+            isCropped
+              ? (imgAspect && imgAspect > (155 / 185) * 1.08
+                  ? { objectPosition: 'center 35%', transform: `scale(${imgAspect / (155 / 185)})`, transformOrigin: 'center center' }
+                  : { objectPosition: 'center center' })
+              : { transform: 'scale(2.1)', transformOrigin: 'center top' }
+          }
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${className} rounded-2xl border-2 border-emerald-600/20 shadow-sm ${bgFallback} flex items-center justify-center font-black text-xs shrink-0`}
+      style={{ aspectRatio: '155 / 185' }}
+    >
+      {getInitials(nombre || '', apellidos || '')}
+    </div>
+  );
+}
+
+interface WidgetGestionAfiliadosCorpProps {
+  defaultTab?: ActiveTabCorp;
+}
+
+export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: WidgetGestionAfiliadosCorpProps) {
   const { user, token } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('agentes');
+  const [activeTab, setActiveTab] = useState<ActiveTabCorp>(defaultTab);
+
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab]);
   const [invitaciones, setInvitaciones] = useState<Invitacion[]>([]);
   const [miembros, setMiembros] = useState<AfiliadoMiembro[]>([]);
   const [solicitudesCambio, setSolicitudesCambio] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [deletingLinkId, setDeletingLinkId] = useState<number | null>(null);
 
   // Vincular independiente
   const [busquedaInd, setBusquedaInd] = useState('');
@@ -316,6 +389,31 @@ export default function WidgetGestionAfiliadosCorp() {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
+  const handleEliminarLink = async (idInvitacion: number) => {
+    const companyId = await getCompanyId();
+    if (!companyId || !token) return;
+
+    setDeletingLinkId(idInvitacion);
+    try {
+      const res = await fetch(`${API_URL}/api/afiliados/${companyId}/invitaciones/${idInvitacion}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        setInvitaciones(prev => prev.filter(inv => inv.id_invitacion !== idInvitacion));
+        toastSuccess('Link eliminado', 'El link de invitación fue eliminado correctamente.');
+      } else {
+        toastError('Error al eliminar', data.message || 'No se pudo eliminar el link.');
+      }
+    } catch {
+      toastError('Error de conexión', 'Verifica tu conexión e intenta nuevamente.');
+    } finally {
+      setDeletingLinkId(null);
+    }
+  };
+
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let companyId = user?.id_empresa;
@@ -471,17 +569,18 @@ export default function WidgetGestionAfiliadosCorp() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 p-1 bg-gray-100/70 rounded-2xl w-full sm:w-fit">
+      <div className="flex gap-1 p-1 bg-gray-100/70 rounded-2xl w-full sm:w-fit overflow-x-auto">
         {([
           { key: 'agentes', label: 'Mis Agentes', icon: Users, count: miembrosVinculados.length },
-          { key: 'links', label: 'Links', icon: LinkIcon, count: invitaciones.filter(i => i.activo).length },
-          { key: 'vincular', label: 'Vincular Afiliado', icon: UserCheck },
+          { key: 'pendientes', label: 'Solicitudes Pendientes', icon: UserPlus, count: solicitudesPendientes.length },
           { key: 'solicitudes', label: 'Solicitudes de Ingreso', icon: ClipboardList, count: solicitudesCambio.length },
+          { key: 'vincular', label: 'Vincular Afiliado', icon: UserCheck },
+          { key: 'links', label: 'Links', icon: LinkIcon, count: invitaciones.filter(i => i.activo).length },
         ] as const).map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shrink-0 ${
               activeTab === tab.key
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -498,10 +597,8 @@ export default function WidgetGestionAfiliadosCorp() {
         ))}
       </div>
 
-
-
-      {/* ── Solicitudes Pendientes (siempre visible si hay alguna) ─────── */}
-      {solicitudesPendientes.length > 0 && (
+      {/* ── TAB: Solicitudes Pendientes ─────────────────────────────────── */}
+      {activeTab === 'pendientes' && (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
           <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-emerald-50/10">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#022c22] flex items-center gap-2">
@@ -509,56 +606,69 @@ export default function WidgetGestionAfiliadosCorp() {
               Solicitudes Pendientes de Aprobación
             </h3>
             <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
-              {solicitudesPendientes.length} por Revisar
+              {solicitudesPendientes.length} {solicitudesPendientes.length === 1 ? 'por Revisar' : 'por Revisar'}
             </span>
           </div>
 
           <div className="divide-y divide-gray-50">
-            {solicitudesPendientes.map((m) => (
-              <div key={m.id_afiliado || m.email} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs">
-                    {getInitials(m.nombres || m.nombre_completo, m.apellidos)}
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
-                      {formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}
-                    </p>
-                    <p className="text-[10px] font-medium text-gray-500">{m.email} • {m.telefono}</p>
-                    <p className="text-[10px] text-gray-400 font-bold">
-                      C.I. / RIF: {m.cedula || '—'} • Envío: {new Date(m.fecha_registro).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  {m.id_afiliado !== null ? (
-                    <>
-                      <button
-                        onClick={() => handleAprobarSolicitud(m.id_afiliado!)}
-                        disabled={actionLoading}
-                        className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
-                      >
-                        <Check size={12} strokeWidth={3} />
-                        Aprobar
-                      </button>
-                      <button
-                        onClick={() => handleRechazarSolicitud(m.id_afiliado!)}
-                        disabled={actionLoading}
-                        className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
-                      >
-                        <X size={12} strokeWidth={3} />
-                        Rechazar
-                      </button>
-                    </>
-                  ) : (
-                    <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-200">
-                      Pendiente por cargar expediente
-                    </span>
-                  )}
-                </div>
+            {solicitudesPendientes.length === 0 ? (
+              <div className="p-12 text-center text-gray-400 space-y-2">
+                <Users size={32} className="mx-auto opacity-30 text-emerald-600" />
+                <p className="text-xs font-bold uppercase tracking-widest">No hay solicitudes pendientes</p>
+                <p className="text-[10px] font-medium leading-relaxed">
+                  Los colaboradores que se registren a través de tus enlaces de invitación y requieran aprobación aparecerán aquí.
+                </p>
               </div>
-            ))}
+            ) : (
+              solicitudesPendientes.map((m) => (
+                <div key={m.id_afiliado || m.email} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <AgentAvatar
+                      fotoUrl={m.foto_carnet_url || m.foto_url}
+                      nombre={m.nombres || m.nombre_completo}
+                      apellidos={m.apellidos}
+                      bgFallback="bg-emerald-50 text-emerald-600"
+                    />
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
+                        {formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}
+                      </p>
+                      <p className="text-[10px] font-medium text-gray-500">{m.email} • {m.telefono}</p>
+                      <p className="text-[10px] text-gray-400 font-bold">
+                        C.I. / RIF: {m.cedula || '—'} • Envío: {new Date(m.fecha_registro).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {m.id_afiliado !== null ? (
+                      <>
+                        <button
+                          onClick={() => handleAprobarSolicitud(m.id_afiliado!)}
+                          disabled={actionLoading}
+                          className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                        >
+                          <Check size={12} strokeWidth={3} />
+                          Aprobar
+                        </button>
+                        <button
+                          onClick={() => handleRechazarSolicitud(m.id_afiliado!)}
+                          disabled={actionLoading}
+                          className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                        >
+                          <X size={12} strokeWidth={3} />
+                          Rechazar
+                        </button>
+                      </>
+                    ) : (
+                      <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-200">
+                        Pendiente por cargar expediente
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -586,9 +696,12 @@ export default function WidgetGestionAfiliadosCorp() {
               miembrosVinculados.map((m) => (
                 <div key={m.id_afiliado} className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 font-black text-xs">
-                      {getInitials(m.nombres || m.nombre_completo, m.apellidos)}
-                    </div>
+                    <AgentAvatar
+                      fotoUrl={m.foto_carnet_url || m.foto_url}
+                      nombre={m.nombres || m.nombre_completo}
+                      apellidos={m.apellidos}
+                      bgFallback="bg-gray-100 text-gray-400"
+                    />
                     <div className="space-y-0.5">
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}</p>
                       <p className="text-[10px] font-medium text-gray-500">{m.email}</p>
@@ -671,6 +784,18 @@ export default function WidgetGestionAfiliadosCorp() {
                     >
                       <ExternalLink size={16} />
                     </a>
+                    <button
+                      onClick={() => handleEliminarLink(inv.id_invitacion)}
+                      disabled={deletingLinkId === inv.id_invitacion}
+                      className="w-10 h-10 rounded-xl bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-600 flex items-center justify-center transition-colors disabled:opacity-50"
+                      title="Eliminar Link"
+                    >
+                      {deletingLinkId === inv.id_invitacion ? (
+                        <Loader2 size={16} className="animate-spin text-red-600" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
                   </div>
                 </div>
               ))
@@ -785,9 +910,12 @@ export default function WidgetGestionAfiliadosCorp() {
                 independientes.map(a => (
                   <div key={a.id_afiliado} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-gray-50/60 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-black text-xs shrink-0">
-                        {getInitials(a.nombres || a.nombre_completo, a.apellidos)}
-                      </div>
+                      <AgentAvatar
+                        fotoUrl={a.foto_carnet_url || a.foto_url}
+                        nombre={a.nombres || a.nombre_completo}
+                        apellidos={a.apellidos}
+                        bgFallback="bg-emerald-50 text-emerald-700"
+                      />
                       <div className="space-y-0.5">
                         <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
                           {formatNombreCard(a.nombres || a.nombre_completo, a.apellidos)}
@@ -850,9 +978,11 @@ export default function WidgetGestionAfiliadosCorp() {
               solicitudesCambio.map((sol) => (
                 <div key={sol.id_solicitud} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs shrink-0">
-                      {getInitials(sol.afiliado_nombre || '', '')}
-                    </div>
+                    <AgentAvatar
+                      fotoUrl={sol.afiliado_foto_carnet_url || sol.afiliado_foto_url}
+                      nombre={sol.afiliado_nombre}
+                      bgFallback="bg-emerald-50 text-emerald-600"
+                    />
                     <div className="space-y-0.5">
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
                         {sol.afiliado_nombre}
@@ -905,9 +1035,12 @@ export default function WidgetGestionAfiliadosCorp() {
 
               <div className="mt-6 rounded-2xl border border-gray-100 overflow-hidden">
                 <div className="flex items-center gap-4 p-4 bg-gray-50 border-b border-gray-100">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-sm shrink-0">
-                    {getInitials(confirmVincular.nombres || confirmVincular.nombre_completo, confirmVincular.apellidos)}
-                  </div>
+                  <AgentAvatar
+                    fotoUrl={confirmVincular.foto_carnet_url || confirmVincular.foto_url}
+                    nombre={confirmVincular.nombres || confirmVincular.nombre_completo}
+                    apellidos={confirmVincular.apellidos}
+                    bgFallback="bg-emerald-100 text-emerald-700 font-black text-sm"
+                  />
                   <div>
                     <p className="font-black text-gray-900 text-sm uppercase tracking-tight">
                       {formatNombreCard(confirmVincular.nombres || confirmVincular.nombre_completo, confirmVincular.apellidos)}

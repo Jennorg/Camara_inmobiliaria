@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import FileUpload from '@/components/common/FileUpload';
+import { formatSocialUrl } from '@/utils/formatters';
 
 type SettingsTab = 'personal' | 'social' | 'empresa' | 'documentos';
 
@@ -61,6 +62,11 @@ const SettingsPanel = () => {
   const [formData, setFormData] = useState<ProfileFormData>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [documentos, setDocumentos] = useState<{ tipo_doc: string; url: string; nombre_archivo?: string }[]>([]);
+  const [afiliadoData, setAfiliadoData] = useState<any>(null);
+
+  const effectiveTipo = afiliadoData?.tipo_afiliado || user?.tipo_afiliado;
+  const isAgente = effectiveTipo === 'Agente Corporativo' || effectiveTipo === 'Agente' || (Boolean(afiliadoData?.id_empresa) && effectiveTipo !== 'Corporativo');
+  const isCorp = effectiveTipo === 'Corporativo';
 
   const getDocUrl = (tipo: string) => {
     const found = documentos.find(d => d.tipo_doc === tipo)?.url;
@@ -69,17 +75,6 @@ const SettingsPanel = () => {
     const isCorporativo = isCorp || user?.tipo_afiliado === 'Corporativo';
     if (isCorporativo && tipo === 'rif_empresa') {
       return documentos.find(d => d.tipo_doc === 'titulo')?.url || '';
-    }
-    return '';
-  };
-
-  const getDocName = (tipo: string) => {
-    const found = documentos.find(d => d.tipo_doc === tipo)?.nombre_archivo;
-    if (found) return found;
-    // Fallback para preinscripciones corporativas previas
-    const isCorporativo = isCorp || user?.tipo_afiliado === 'Corporativo';
-    if (isCorporativo && tipo === 'rif_empresa') {
-      return documentos.find(d => d.tipo_doc === 'titulo')?.nombre_archivo || '';
     }
     return '';
   };
@@ -98,8 +93,85 @@ const SettingsPanel = () => {
     });
   };
 
-  const isAgente = user?.tipo_afiliado === 'Agente Corporativo' || user?.tipo_afiliado === 'Agente';
-  const isCorp = user?.tipo_afiliado === 'Corporativo';
+  const formatCedulaInput = (val: string | null | undefined): string => {
+    if (!val) return '';
+    const digits = String(val).replace(/\D/g, '').slice(0, 9);
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const formatRifInput = (val: string | null | undefined): string => {
+    if (!val) return '';
+    let clean = String(val).toUpperCase().trim();
+    // Quitar prefijo tipo letra inicial si vino incluido (ej: J-, J, G-, etc.)
+    clean = clean.replace(/^[JGVEP]-?/i, '');
+
+    const digits = clean.replace(/\D/g, '').slice(0, 9);
+    if (!digits) return '';
+
+    if (digits.length === 9) {
+      const base = digits.slice(0, 8).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      const verifier = digits.slice(8);
+      return `${base}-${verifier}`;
+    }
+
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const formatPhoneInput = (val: string | null | undefined): string => {
+    if (!val) return '';
+    let clean = String(val).trim();
+    // Quitar prefijo +58 si viene con él
+    clean = clean.replace(/^\+58\s*/, '');
+    let digits = clean.replace(/\D/g, '');
+    if (!digits) return '';
+
+    // Si empieza por 4xx o 2xx sin el cero inicial (ej: 414...), anteponer 0
+    if (/^[42]\d{2}/.test(digits) && !digits.startsWith('0')) {
+      digits = '0' + digits;
+    }
+
+    // Limitar a máximo 11 dígitos (4 de código + 7 de número)
+    digits = digits.slice(0, 11);
+
+    if (digits.length <= 4) {
+      return digits;
+    }
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  };
+
+  const formatPhoneParts = (rawPhone: string | null | undefined): { countryCode: string; number: string; hasPhone: boolean } => {
+    if (!rawPhone) return { countryCode: '+58', number: '', hasPhone: false };
+    let clean = rawPhone.trim();
+    if (!clean || ['sin telefono', 'sin teléfono', 'n/a', 'ninguno', 'none'].includes(clean.toLowerCase())) {
+      return { countryCode: '+58', number: '', hasPhone: false };
+    }
+
+    const knownCodes = ['+58', '+507', '+503', '+502', '+504', '+505', '+506', '+593', '+591', '+595', '+598', '+57', '+54', '+55', '+56', '+52', '+51', '+34', '+1'];
+
+    let countryCode = '+58';
+    let number = clean;
+
+    if (clean.startsWith('+')) {
+      const matchedKnown = knownCodes.find(code => clean.startsWith(code));
+      if (matchedKnown) {
+        countryCode = matchedKnown;
+        number = clean.slice(matchedKnown.length).trim().replace(/^[\s.-]+/, '');
+      } else {
+        const match = clean.match(/^(\+\d{1,3})[\s.-]*(.*)$/);
+        if (match) {
+          countryCode = match[1];
+          number = match[2].trim();
+        }
+      }
+    }
+
+    return {
+      countryCode,
+      number,
+      hasPhone: !!number
+    };
+  };
 
   // 'personal' | 'empresa' — tipo del correo de acceso actual
   const [accesoTipo, setAccesoTipo] = useState<'personal' | 'empresa'>('personal');
@@ -185,15 +257,16 @@ const SettingsPanel = () => {
       });
       if (data.success) {
         const af = data.data;
+        setAfiliadoData(af);
         const cedulaStr = af.cedula || '';
         const match = cedulaStr.match(/^([VEP])?-?(.+)$/i);
         const cedulaTipo = match && match[1] ? match[1].toUpperCase() : 'V';
-        const cedulaNum = match ? match[2] : cedulaStr;
+        const rawCedulaNum = match ? match[2] : cedulaStr;
+        const cedulaNum = formatCedulaInput(rawCedulaNum);
 
-        const telStr = af.telefono || '';
-        const telMatch = telStr.match(/^(\+\d+)?\s*(.+)$/);
-        const telPrefix = telMatch && telMatch[1] ? telMatch[1] : '+58';
-        const telNum = telMatch ? telMatch[2] : telStr;
+        const phoneParts = formatPhoneParts(af.telefono);
+        const telPrefix = phoneParts.countryCode || '+58';
+        const telNum = formatPhoneInput(af.telefono || '');
 
         const birthDateStr = af.fecha_nacimiento || '';
         let birthFormatted = '';
@@ -203,6 +276,32 @@ const SettingsPanel = () => {
             birthFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`; // DD/MM/YYYY
           }
         }
+
+        const isCorporativo = isCorp || af.tipo_afiliado === 'Corporativo' || user?.tipo_afiliado === 'Corporativo';
+
+        let parsedRedes: any = {};
+        if (typeof af.redes_sociales === 'string') {
+          try {
+            parsedRedes = JSON.parse(af.redes_sociales);
+          } catch(e) { parsedRedes = {}; }
+        } else if (typeof af.redes_sociales === 'object' && af.redes_sociales !== null) {
+          parsedRedes = af.redes_sociales;
+        }
+
+        let parsedEmpresaRedes: any = {};
+        if (typeof af.empresa_redes_sociales === 'string') {
+          try {
+            parsedEmpresaRedes = JSON.parse(af.empresa_redes_sociales);
+          } catch(e) { parsedEmpresaRedes = {}; }
+        } else if (typeof af.empresa_redes_sociales === 'object' && af.empresa_redes_sociales !== null) {
+          parsedEmpresaRedes = af.empresa_redes_sociales;
+        }
+
+        const rawRif = af.empresa_rif_numero || '';
+        const rifMatch = rawRif.match(/^([JGVEP])-?(.+)$/i);
+        const rifTipo = (af.empresa_rif_tipo || (rifMatch ? rifMatch[1] : 'J')).toUpperCase();
+        const rawRifNum = rifMatch ? rifMatch[2] : rawRif;
+        const rifNum = formatRifInput(rawRifNum);
 
         setFormData({
           nombres: af.nombres || '',
@@ -219,24 +318,24 @@ const SettingsPanel = () => {
           descripcion: af.descripcion || af.notas || '',
           ano_inicio_servicio: af.ano_inicio_servicio || '',
           es_corredor_inmobiliario: af.es_corredor_inmobiliario === 1 || af.es_corredor_inmobiliario === true,
-          instagram: af.instagram || '',
-          facebook: af.facebook || '',
-          linkedin: af.linkedin || '',
-          twitter: af.twitter || '',
-          tiktok: af.tiktok || '',
-          website: af.website || '',
+          instagram: af.instagram || parsedRedes.instagram || (isCorporativo ? (af.empresa_instagram || parsedEmpresaRedes.instagram) : '') || '',
+          facebook: af.facebook || parsedRedes.facebook || (isCorporativo ? (af.empresa_facebook || parsedEmpresaRedes.facebook) : '') || '',
+          linkedin: af.linkedin || parsedRedes.linkedin || (isCorporativo ? (af.empresa_linkedin || parsedEmpresaRedes.linkedin) : '') || '',
+          twitter: af.twitter || parsedRedes.twitter || (isCorporativo ? (af.empresa_twitter || parsedEmpresaRedes.twitter) : '') || '',
+          tiktok: af.tiktok || parsedRedes.tiktok || (isCorporativo ? (af.empresa_tiktok || parsedEmpresaRedes.tiktok) : '') || '',
+          website: af.website || parsedRedes.website || (isCorporativo ? af.empresa_website : '') || '',
           // Empresa fields
           empresa_razon_social: af.empresa_razon_social || '',
-          empresa_rif_tipo: af.empresa_rif_tipo || '',
-          empresa_rif_numero: af.empresa_rif_numero || '',
+          empresa_rif_tipo: rifTipo,
+          empresa_rif_numero: rifNum,
           empresa_email: af.empresa_email || '',
-          empresa_telefono: af.empresa_telefono || '',
+          empresa_telefono: formatPhoneInput(af.empresa_telefono || ''),
           empresa_website: af.empresa_website || '',
-          empresa_instagram: af.empresa_instagram || '',
-          empresa_facebook: af.empresa_facebook || '',
-          empresa_linkedin: af.empresa_linkedin || '',
-          empresa_twitter: af.empresa_twitter || '',
-          empresa_tiktok: af.empresa_tiktok || '',
+          empresa_instagram: af.empresa_instagram || parsedEmpresaRedes.instagram || '',
+          empresa_facebook: af.empresa_facebook || parsedEmpresaRedes.facebook || '',
+          empresa_linkedin: af.empresa_linkedin || parsedEmpresaRedes.linkedin || '',
+          empresa_twitter: af.empresa_twitter || parsedEmpresaRedes.twitter || '',
+          empresa_tiktok: af.empresa_tiktok || parsedEmpresaRedes.tiktok || '',
           foto_url: af.foto_url || '',
           empresa_logo_url: af.empresa_logo_url || '',
         });
@@ -256,6 +355,37 @@ const SettingsPanel = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCedulaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCedulaInput(e.target.value);
+    setFormData(prev => ({ ...prev, cedula_num: formatted }));
+  };
+
+  const handleRifChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let inputVal = e.target.value;
+    const matchType = inputVal.match(/^([JGVEP])-?(.*)$/i);
+    let newType = formData.empresa_rif_tipo;
+    if (matchType) {
+      newType = matchType[1].toUpperCase();
+      inputVal = matchType[2];
+    }
+    const formatted = formatRifInput(inputVal);
+    setFormData(prev => ({
+      ...prev,
+      empresa_rif_tipo: newType || prev.empresa_rif_tipo || 'J',
+      empresa_rif_numero: formatted,
+    }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneInput(e.target.value);
+    setFormData(prev => ({ ...prev, telefono_num: formatted }));
+  };
+
+  const handleEmpresaPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneInput(e.target.value);
+    setFormData(prev => ({ ...prev, empresa_telefono: formatted }));
   };
 
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -283,16 +413,51 @@ const SettingsPanel = () => {
     try {
       const payload: any = { ...formData, documentos };
       if (formData.cedula_tipo || formData.cedula_num) {
-        payload.cedula = `${formData.cedula_tipo || 'V'}-${formData.cedula_num || ''}`;
+        const rawNum = (formData.cedula_num || '').replace(/\./g, '').trim();
+        payload.cedula = rawNum ? `${formData.cedula_tipo || 'V'}-${rawNum}` : '';
       }
       delete payload.cedula_tipo;
       delete payload.cedula_num;
 
-      if (formData.telefono_prefix || formData.telefono_num) {
-        payload.telefono = `${formData.telefono_prefix || '+58'}${formData.telefono_num || ''}`;
+      if (formData.telefono_num !== undefined) {
+        const numClean = (formData.telefono_num || '').trim();
+        payload.telefono = numClean ? numClean : null;
       }
       delete payload.telefono_prefix;
       delete payload.telefono_num;
+
+      if (formData.empresa_rif_numero !== undefined) {
+        payload.empresa_rif_numero = (formData.empresa_rif_numero || '').replace(/\D/g, '');
+      }
+      if (formData.empresa_rif_tipo !== undefined) {
+        payload.empresa_rif_tipo = (formData.empresa_rif_tipo || 'J').toUpperCase();
+      }
+
+      const redesObj = {
+        instagram: formData.instagram ? formatSocialUrl('instagram', formData.instagram) : '',
+        facebook: formData.facebook ? formatSocialUrl('facebook', formData.facebook) : '',
+        linkedin: formData.linkedin ? formatSocialUrl('linkedin', formData.linkedin) : '',
+        twitter: formData.twitter ? formatSocialUrl('twitter', formData.twitter) : '',
+        tiktok: formData.tiktok ? formatSocialUrl('tiktok', formData.tiktok) : '',
+        website: formData.website ? formatSocialUrl('website', formData.website) : '',
+      };
+      payload.redes_sociales = JSON.stringify(redesObj);
+      payload.website = redesObj.website;
+      payload.instagram = redesObj.instagram;
+      payload.facebook = redesObj.facebook;
+      payload.linkedin = redesObj.linkedin;
+      payload.twitter = redesObj.twitter;
+      payload.tiktok = redesObj.tiktok;
+
+      const isCorporativo = isCorp || user?.tipo_afiliado === 'Corporativo' || afiliadoData?.tipo_afiliado === 'Corporativo';
+      if (isCorporativo) {
+        payload.empresa_website = redesObj.website;
+        payload.empresa_instagram = redesObj.instagram;
+        payload.empresa_facebook = redesObj.facebook;
+        payload.empresa_linkedin = redesObj.linkedin;
+        payload.empresa_twitter = redesObj.twitter;
+        payload.empresa_tiktok = redesObj.tiktok;
+      }
 
       let birthYearValue: number | null = null;
       if (formData.birth_formatted) {
@@ -417,22 +582,22 @@ const SettingsPanel = () => {
   ];
 
   return (
-    <div className="transition-opacity transition-transform col-span-3 h-full lg:p-8 flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8 fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+    <div className="transition-opacity transition-transform w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8 fade-in slide-in-from-bottom-4 duration-500">
       {/* Sidebar / Mobile Tabs */}
-      <aside className="lg:col-span-1 flex flex-col shrink-0">
+      <aside className="lg:col-span-1 flex flex-col shrink-0 lg:sticky lg:top-8 self-start">
         <div className="hidden lg:block mb-6 px-4">
           <h2 className="text-xl font-black tracking-tight text-gray-900">Ajustes</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Gestiona tu presencia en la Cámara</p>
         </div>
 
         {/* Desktop Menu */}
-        <div className="hidden lg:flex flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="hidden lg:flex flex-col gap-2 pr-2">
           {tabs.filter(t => !t.hide).map(tab => (
             <button
               type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors duration-200 text-left group ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors duration-200 text-left group cursor-pointer ${
                 activeTab === tab.id 
                   ? 'bg-white shadow-sm border border-gray-100 text-emerald-600 font-bold' 
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -446,13 +611,13 @@ const SettingsPanel = () => {
         </div>
 
         {/* Mobile Horizontal Menu */}
-        <div className="lg:hidden flex items-center gap-2 overflow-x-auto p-4 bg-white border-b border-gray-100 scrollbar-hide">
+        <div className="lg:hidden flex items-center gap-2 overflow-x-auto p-2 bg-white rounded-2xl border border-gray-100 scrollbar-hide">
           {tabs.filter(t => !t.hide).map(tab => (
             <button
               type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors text-xs font-black uppercase tracking-widest ${
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors text-xs font-black uppercase tracking-widest cursor-pointer ${
                 activeTab === tab.id 
                   ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' 
                   : 'bg-gray-50 text-gray-400 border border-gray-100'
@@ -469,17 +634,17 @@ const SettingsPanel = () => {
       </aside>
 
       {/* Area de Formulario */}
-      <div className="lg:col-span-3 bg-white lg:rounded-3xl border-t lg:border border-gray-100 shadow-sm overflow-y-auto flex flex-col custom-scrollbar">
+      <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col">
         <form onSubmit={handleSave} className="p-6 lg:p-8 flex-grow">
           
           {activeTab === 'personal' && (
             <div className="space-y-6">
               <HeaderSection title="Información Personal" subtitle="Datos básicos que te identifican como miembro." />
               
-              <div className="flex flex-col md:flex-row items-center justify-center gap-6 py-4 w-full max-w-full overflow-hidden">
+              <div className="flex flex-col sm:flex-row items-start justify-center gap-6 py-4 w-full max-w-full">
                 {formData.foto_url && (
                   isAdmin ? (
-                    <div className="w-full max-w-xs sm:max-w-sm">
+                    <div className="w-32 shrink-0">
                       <FileUpload
                         label="Foto de Perfil"
                         accept="image/*"
@@ -494,8 +659,8 @@ const SettingsPanel = () => {
                       />
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center gap-3 shrink-0">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <div className="flex flex-col items-center gap-2 shrink-0 w-32">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center truncate shrink-0">
                         Foto de Perfil
                       </span>
                       <div className="w-32 h-40 rounded-2xl overflow-hidden border-2 border-slate-100 dark:border-emerald-500/20 shadow-md bg-slate-50 flex items-center justify-center relative">
@@ -505,22 +670,22 @@ const SettingsPanel = () => {
                   )
                 )}
 
-                {!(isCorp || user?.tipo_afiliado === 'Corporativo') && (
-                  <div className="w-full max-w-xs sm:max-w-sm">
-                    <FileUpload
-                      label="Logo Comercial / Marca Personal"
-                      accept="image/*"
-                      folder="logos"
-                      initialUrl={formData.empresa_logo_url}
-                      enableCrop
-                      cropAspect={1}
-                      cropShape="rect"
-                      lockAspect={true}
-                      onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
-                      onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
-                    />
-                  </div>
-                )}
+                <div className="flex flex-col items-center shrink-0 w-32">
+                  <FileUpload
+                    label={isCorp || user?.tipo_afiliado === 'Corporativo' ? "Logo de la Empresa" : "Logo"}
+                    accept="image/*"
+                    folder="logos"
+                    initialUrl={formData.empresa_logo_url}
+                    disabled={isAgente}
+                    enableCrop={!isAgente}
+                    cropAspect={1}
+                    cropShape="rect"
+                    lockAspect={true}
+                    previewVariant="logo"
+                    onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
+                    onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -544,17 +709,15 @@ const SettingsPanel = () => {
                         <ChevronDown size={16} />
                       </div>
                     </div>
-                    <div className="relative flex-1 group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">
-                        <Hash size={16} />
-                      </div>
+                    <div className="relative flex-1">
                       <input
                         type="text"
                         name="cedula_num"
                         value={formData.cedula_num || ''}
-                        onChange={handleInputChange}
-                        placeholder="Número de cédula"
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
+                        onChange={handleCedulaChange}
+                        placeholder="Ej: 12.345.678"
+                        maxLength={12}
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
                       />
                     </div>
                   </div>
@@ -562,37 +725,19 @@ const SettingsPanel = () => {
                 <Input label="Email de Contacto" name="email" value={formData.email} onChange={handleInputChange} icon={Mail} />
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Teléfono</label>
-                  <div className="flex gap-2">
-                    <div className="relative w-28">
-                      <select
-                        name="telefono_prefix"
-                        value={formData.telefono_prefix || '+58'}
-                        onChange={handleInputChange}
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors appearance-none cursor-pointer"
-                      >
-                        <option value="+58">🇻🇪 +58</option>
-                        <option value="+1">🇺🇸 +1</option>
-                        <option value="+34">🇪🇸 +34</option>
-                        <option value="+57">🇨🇴 +57</option>
-                        <option value="+507">🇵🇦 +507</option>
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                        <ChevronDown size={16} />
-                      </div>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">
+                      <Phone size={16} />
                     </div>
-                    <div className="relative flex-1 group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">
-                        <Phone size={16} />
-                      </div>
-                      <input
-                        type="text"
-                        name="telefono_num"
-                        value={formData.telefono_num || ''}
-                        onChange={handleInputChange}
-                        placeholder="Número de teléfono"
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      name="telefono_num"
+                      value={formData.telefono_num || ''}
+                      onChange={handlePhoneChange}
+                      placeholder="Ej: 0414-1234567"
+                      maxLength={12}
+                      className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl pl-11 pr-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
+                    />
                   </div>
                 </div>
                 <Input
@@ -654,14 +799,59 @@ const SettingsPanel = () => {
 
           {activeTab === 'social' && (
             <div className="space-y-6">
-              <HeaderSection title="Redes Sociales y Web" subtitle="Enlaces a tus perfiles para el directorio público." />
+              <HeaderSection 
+                title={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "Redes Sociales y Web del Corporativo" : "Redes Sociales y Web"} 
+                subtitle={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "Enlaces oficiales de tu empresa u organización para el directorio público." : "Enlaces a tus perfiles para el directorio público."} 
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="URL de Instagram" name="instagram" value={formData.instagram} onChange={handleInputChange} icon={Instagram} placeholder="https://www.instagram.com/tuusuario" />
-                <Input label="URL de Facebook" name="facebook" value={formData.facebook} onChange={handleInputChange} icon={Facebook} placeholder="https://www.facebook.com/tuperfil" />
-                <Input label="URL de LinkedIn" name="linkedin" value={formData.linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="https://www.linkedin.com/in/tuperfil" />
-                <Input label="URL de X (Twitter)" name="twitter" value={formData.twitter} onChange={handleInputChange} icon={XIcon} placeholder="https://x.com/tuusuario" />
-                <Input label="URL de TikTok" name="tiktok" value={formData.tiktok} onChange={handleInputChange} icon={TikTokIcon} placeholder="https://www.tiktok.com/@tuusuario" />
-                <Input label="Sitio Web Personal" name="website" value={formData.website} onChange={handleInputChange} icon={Globe} placeholder="https://www.tuweb.com" />
+                <Input 
+                  label={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "Instagram de la Empresa" : "URL de Instagram"} 
+                  name="instagram" 
+                  value={formData.instagram} 
+                  onChange={handleInputChange} 
+                  icon={Instagram} 
+                  placeholder="https://www.instagram.com/tuusuario" 
+                />
+                <Input 
+                  label={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "Facebook de la Empresa" : "URL de Facebook"} 
+                  name="facebook" 
+                  value={formData.facebook} 
+                  onChange={handleInputChange} 
+                  icon={Facebook} 
+                  placeholder="https://www.facebook.com/tuperfil" 
+                />
+                <Input 
+                  label={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "LinkedIn de la Empresa" : "URL de LinkedIn"} 
+                  name="linkedin" 
+                  value={formData.linkedin} 
+                  onChange={handleInputChange} 
+                  icon={Linkedin} 
+                  placeholder="https://www.linkedin.com/in/tuperfil" 
+                />
+                <Input 
+                  label={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "X (Twitter) de la Empresa" : "URL de X (Twitter)"} 
+                  name="twitter" 
+                  value={formData.twitter} 
+                  onChange={handleInputChange} 
+                  icon={XIcon} 
+                  placeholder="https://x.com/tuusuario" 
+                />
+                <Input 
+                  label={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "TikTok de la Empresa" : "URL de TikTok"} 
+                  name="tiktok" 
+                  value={formData.tiktok} 
+                  onChange={handleInputChange} 
+                  icon={TikTokIcon} 
+                  placeholder="https://www.tiktok.com/@tuusuario" 
+                />
+                <Input 
+                  label={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "Sitio Web de la Empresa" : "Sitio Web Personal"} 
+                  name="website" 
+                  value={formData.website} 
+                  onChange={handleInputChange} 
+                  icon={Globe} 
+                  placeholder={(isCorp || user?.tipo_afiliado === 'Corporativo') ? "https://www.tuempresa.com" : "https://www.tuweb.com"} 
+                />
               </div>
             </div>
           )}
@@ -674,18 +864,22 @@ const SettingsPanel = () => {
               />
               
               <div className="flex justify-center py-4">
-                <FileUpload
-                  label={user?.tipo_afiliado === 'Corporativo' ? "Logo de la Empresa" : "Logo Comercial / Marca"}
-                  accept="image/*"
-                  folder="logos"
-                  initialUrl={formData.empresa_logo_url}
-                  enableCrop
-                  cropAspect={1}
-                  cropShape="rect"
-                  lockAspect={true}
-                  onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
-                  onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
-                />
+                <div className="flex flex-col items-center shrink-0 w-32">
+                  <FileUpload
+                    label={user?.tipo_afiliado === 'Corporativo' ? "Logo de la Empresa" : "Logo"}
+                    accept="image/*"
+                    folder="logos"
+                    initialUrl={formData.empresa_logo_url}
+                    disabled={isAgente}
+                    enableCrop={!isAgente}
+                    cropAspect={1}
+                    cropShape="rect"
+                    lockAspect={true}
+                    previewVariant="logo"
+                    onUploadSuccess={(url) => setFormData(prev => ({ ...prev, empresa_logo_url: url }))}
+                    onClear={() => setFormData(prev => ({ ...prev, empresa_logo_url: '' }))}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -699,29 +893,40 @@ const SettingsPanel = () => {
                     disabled={isAgente} 
                   />
                 </div>
-                <div className="flex gap-2">
-                  <div className="w-24">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Tipo RIF</label>
-                    <select
-                      name="empresa_rif_tipo"
-                      value={formData.empresa_rif_tipo}
-                      onChange={handleInputChange}
-                      disabled={isAgente}
-                      className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold disabled:opacity-50"
-                    >
-                      <option value="J">J</option>
-                      <option value="G">G</option>
-                      <option value="V">V</option>
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <Input 
-                      label={user?.tipo_afiliado === 'Corporativo' ? "Número RIF" : "RIF Personal / Comercial"} 
-                      name="empresa_rif_numero" 
-                      value={formData.empresa_rif_numero} 
-                      onChange={handleInputChange} 
-                      disabled={isAgente} 
-                    />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">
+                    {user?.tipo_afiliado === 'Corporativo' ? "RIF del Corporativo" : "RIF Personal / Comercial"}
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative w-28">
+                      <select
+                        name="empresa_rif_tipo"
+                        value={formData.empresa_rif_tipo || 'J'}
+                        onChange={handleInputChange}
+                        disabled={isAgente}
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors appearance-none cursor-pointer text-center pr-6 disabled:opacity-50"
+                      >
+                        <option value="J">J</option>
+                        <option value="G">G</option>
+                        <option value="V">V</option>
+                        <option value="E">E</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                        <ChevronDown size={16} />
+                      </div>
+                    </div>
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        name="empresa_rif_numero"
+                        value={formData.empresa_rif_numero || ''}
+                        onChange={handleRifChange}
+                        placeholder="Ej: 12.345.678-9"
+                        maxLength={14}
+                        disabled={isAgente}
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors disabled:opacity-50"
+                      />
+                    </div>
                   </div>
                 </div>
                 <Input 
@@ -733,36 +938,14 @@ const SettingsPanel = () => {
                   disabled={isAgente} 
                 />
                 <Input 
-                  label="Website" 
-                  name="empresa_website" 
-                  value={formData.empresa_website} 
-                  onChange={handleInputChange} 
-                  icon={Globe} 
-                  placeholder={user?.tipo_afiliado === 'Corporativo' ? "www.tuempresa.com" : "www.tufirma.com"} 
-                  disabled={isAgente} 
-                />
-                <Input 
                   label={user?.tipo_afiliado === 'Corporativo' ? "Teléfono Empresa" : "Teléfono Comercial"} 
                   name="empresa_telefono" 
-                  value={formData.empresa_telefono} 
-                  onChange={handleInputChange} 
+                  value={formData.empresa_telefono || ''} 
+                  onChange={handleEmpresaPhoneChange} 
                   icon={Phone} 
+                  placeholder="Ej: 0414-1234567"
                   disabled={isAgente} 
                 />
-              </div>
-
-              <div className="mt-8 pt-8 border-t border-gray-100 space-y-6">
-                <HeaderSection 
-                  title={user?.tipo_afiliado === 'Corporativo' ? "Redes Sociales del Corporativo" : "Redes Sociales de tu Marca / Firma"} 
-                  subtitle={user?.tipo_afiliado === 'Corporativo' ? "Perfiles oficiales de tu organización." : "Perfiles oficiales de tu marca o firma comercial."} 
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input label="URL Instagram Empresa" name="empresa_instagram" value={formData.empresa_instagram} onChange={handleInputChange} icon={Instagram} placeholder="https://instagram.com/empresa" disabled={isAgente} />
-                  <Input label="URL Facebook Empresa" name="empresa_facebook" value={formData.empresa_facebook} onChange={handleInputChange} icon={Facebook} placeholder="https://facebook.com/empresa" disabled={isAgente} />
-                  <Input label="URL LinkedIn Empresa" name="empresa_linkedin" value={formData.empresa_linkedin} onChange={handleInputChange} icon={Linkedin} placeholder="https://linkedin.com/company/empresa" disabled={isAgente} />
-                  <Input label="URL X (Twitter) Empresa" name="empresa_twitter" value={formData.empresa_twitter} onChange={handleInputChange} icon={XIcon} placeholder="https://x.com/empresa" disabled={isAgente} />
-                  <Input label="URL TikTok Empresa" name="empresa_tiktok" value={formData.empresa_tiktok} onChange={handleInputChange} icon={TikTokIcon} placeholder="https://tiktok.com/@empresa" disabled={isAgente} />
-                </div>
               </div>
 
               {isAgente && (
@@ -781,8 +964,8 @@ const SettingsPanel = () => {
                 <FileUpload 
                   label={isCorp || user?.tipo_afiliado === 'Corporativo' ? "Curriculum Vitae del Representante (CV)" : "Curriculum Vitae (CV)"} 
                   initialUrl={getDocUrl('cv')}
-                  initialFileName={getDocName('cv')}
                   disableImagePreview
+                  hideFileName
                   onUploadSuccess={(url, name) => handleUploadSuccess('cv', url, name)}
                   onClear={() => handleClearDoc('cv')}
                 />
@@ -791,8 +974,8 @@ const SettingsPanel = () => {
                   <FileUpload 
                     label="Título Universitario / Académico" 
                     initialUrl={getDocUrl('titulo')}
-                    initialFileName={getDocName('titulo')}
                     disableImagePreview
+                    hideFileName
                     onUploadSuccess={(url, name) => handleUploadSuccess('titulo', url, name)}
                     onClear={() => handleClearDoc('titulo')}
                   />
@@ -800,8 +983,8 @@ const SettingsPanel = () => {
                   <FileUpload 
                     label="Título del Representante Legal" 
                     initialUrl={getDocUrl('titulo_representante')}
-                    initialFileName={getDocName('titulo_representante')}
                     disableImagePreview
+                    hideFileName
                     onUploadSuccess={(url, name) => handleUploadSuccess('titulo_representante', url, name)}
                     onClear={() => handleClearDoc('titulo_representante')}
                   />
@@ -812,8 +995,8 @@ const SettingsPanel = () => {
                     <FileUpload 
                       label="Registro Mercantil de la Empresa" 
                       initialUrl={getDocUrl('registro_mercantil')}
-                      initialFileName={getDocName('registro_mercantil')}
                       disableImagePreview
+                      hideFileName
                       maxSizeMB={20}
                       onUploadSuccess={(url, name) => handleUploadSuccess('registro_mercantil', url, name)}
                       onClear={() => handleClearDoc('registro_mercantil')}
@@ -822,8 +1005,8 @@ const SettingsPanel = () => {
                     <FileUpload 
                       label="RIF de la Empresa" 
                       initialUrl={getDocUrl('rif_empresa')}
-                      initialFileName={getDocName('rif_empresa')}
                       disableImagePreview
+                      hideFileName
                       onUploadSuccess={(url, name) => handleUploadSuccess('rif_empresa', url, name)}
                       onClear={() => handleClearDoc('rif_empresa')}
                     />
@@ -831,8 +1014,8 @@ const SettingsPanel = () => {
                     <FileUpload 
                       label="Cédula del Representante Legal" 
                       initialUrl={getDocUrl('cedula_representante')}
-                      initialFileName={getDocName('cedula_representante')}
                       disableImagePreview
+                      hideFileName
                       onUploadSuccess={(url, name) => handleUploadSuccess('cedula_representante', url, name)}
                       onClear={() => handleClearDoc('cedula_representante')}
                     />

@@ -572,17 +572,6 @@ async function run() {
     })
     const adminId = Number(adminRes.lastInsertRowid)
 
-    const persAdmin = await db.execute({
-      sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email) VALUES (?, ?, ?, ?, ?)`,
-      args: ['Admin', 'Cámara', 'V', '00000000', adminEmail]
-    })
-    const personaIdAdmin = Number(persAdmin.lastInsertRowid)
-
-    await db.execute({
-      sql: `INSERT INTO afiliados (id_user, id_persona, tipo_afiliado, estatus) VALUES (?, ?, ?, ?)`,
-      args: [adminId, personaIdAdmin, 'Natural', 'Afiliado']
-    })
-
     console.log(`  · Admin user ${adminEmail} created (ID: ${adminId}).`)
   } catch (e: any) {
     console.log(`  · Admin user already exists (error: ${e.message})`)

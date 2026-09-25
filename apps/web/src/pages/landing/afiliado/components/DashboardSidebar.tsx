@@ -260,7 +260,7 @@ const DashboardSidebar = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={[
-          'relative hidden md:flex flex-col h-screen sticky top-0 shadow-2xl transition-colors duration-300 ease-in-out flex-shrink-0 overflow-hidden',
+          'relative hidden md:flex flex-col h-full sticky top-0 shadow-2xl transition-colors duration-300 ease-in-out flex-shrink-0 overflow-hidden',
           isHovered ? 'w-72' : 'w-20',
         ].join(' ')}
         style={{ backgroundColor: 'var(--color-primary)' }}

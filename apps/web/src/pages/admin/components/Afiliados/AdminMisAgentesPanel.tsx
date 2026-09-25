@@ -317,8 +317,23 @@ export default function AdminMisAgentesPanel() {
                     <div key={agent.id_afiliado} className="rounded-3xl border border-slate-100 p-4 hover:border-slate-200 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 font-black">
-                            {getInitials(agent.nombre_completo || '', agent.nombre_completo ? '' : '')}
+                          {agent.foto_url ? (
+                            <img
+                              src={agent.foto_url}
+                              alt={agent.nombre_completo || 'Agente'}
+                              className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-xs shrink-0"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                                const fb = (e.currentTarget.parentElement?.querySelector('.avatar-fallback') as HTMLElement);
+                                if (fb) fb.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div
+                            className="avatar-fallback w-11 h-11 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 font-black shrink-0"
+                            style={{ display: agent.foto_url ? 'none' : 'flex' }}
+                          >
+                            {getInitials(agent.nombres || agent.nombre_completo || '', agent.apellidos || '')}
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-slate-900">{agent.nombre_completo}</p>

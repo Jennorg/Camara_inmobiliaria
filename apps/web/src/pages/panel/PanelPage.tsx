@@ -54,6 +54,7 @@ import FinancePanel from '@/pages/admin/components/Finance/FinancePanel';
 import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
 import SettingsPanel from './components/SettingsPanel';
+import ImpersonationBanner from '@/components/ImpersonationBanner';
 import { useSearchParams } from 'react-router-dom';
 import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
 
@@ -115,7 +116,7 @@ const Section = ({ label }: { label: string }) => (
 // ─── Panel unificado principal ────────────────────────────────────────────────
 
 const PanelPage = () => {
-  const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado } = useAuth();
+  const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado, isImpersonating } = useAuth();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
     if (searchParams.get('tab') === 'formacion') return 'Catálogo Académico';
@@ -128,6 +129,14 @@ const PanelPage = () => {
 
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
   const [preinscripcionesCount, setPreinscripcionesCount] = useState(0);
+  const [agentesCorpTab, setAgentesCorpTab] = useState<'agentes' | 'pendientes' | 'links' | 'vincular' | 'solicitudes'>('agentes');
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   useEffect(() => {
     if (!token || (!isAdmin && !isAsistente)) return;
@@ -235,9 +244,22 @@ const PanelPage = () => {
     );
   })();
 
-  const displayName = (afiliado?.tipo_afiliado === 'Corporativo' && afiliado?.razon_social) 
-    ? afiliado.razon_social 
-    : (user?.nombre_completo || (user?.email?.split('@')[0] ?? 'Usuario'));
+  const displayName = (() => {
+    if (afiliado?.tipo_afiliado === 'Corporativo' && afiliado?.razon_social) {
+      return afiliado.razon_social;
+    }
+    const nombres = afiliado?.nombres || user?.nombres;
+    const apellidos = afiliado?.apellidos || user?.apellidos;
+    if (nombres || apellidos) {
+      const formatted = formatNombreCard(nombres, apellidos);
+      if (formatted) return formatted;
+    }
+    if (user?.nombre_completo) {
+      const formatted = formatNombreCard(user.nombre_completo);
+      if (formatted) return formatted;
+    }
+    return user?.email?.split('@')[0] ?? 'Usuario';
+  })();
   const displayCode = user?.codigo ?? (isAdmin ? 'Administrador' : '—');
   const isActivo = user?.estatus === 'CIBIR' || user?.estatus === 'Afiliado';
   const isPaid = user?.id_afiliado ? (afiliado?.inscripcion_pagada === 1) : false; // Necesita fetch o estar en user
@@ -405,7 +427,10 @@ const PanelPage = () => {
                         </button>
                         <button 
                           type="button"
-                          onClick={() => setActiveTab('Mis Agentes')}
+                          onClick={() => {
+                            setAgentesCorpTab(solicitudesPendientesCount > 0 ? 'pendientes' : 'agentes');
+                            setActiveTab('Mis Agentes');
+                          }}
                           className={`px-8 h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:-translate-y-1 transition-colors transition-transform active:scale-95 whitespace-nowrap ${
                             solicitudesPendientesCount > 0 
                               ? 'bg-white text-emerald-700' 
@@ -464,7 +489,7 @@ const PanelPage = () => {
     if (activeTab === 'Sistema de Denuncias') return <Section label="Sistema de Denuncias" />;
     if (activeTab === 'Solicitud de Afiliación') return <div className="col-span-1 lg:col-span-3"><WidgetSolicitudAfiliacion /></div>;
     if (activeTab === 'Mis Agentes') {
-      return <div className="col-span-1 lg:col-span-3 h-full"><WidgetGestionAfiliadosCorp /></div>;
+      return <div className="col-span-1 lg:col-span-3 h-full"><WidgetGestionAfiliadosCorp defaultTab={agentesCorpTab} /></div>;
     }
     if (activeTab === 'Solicitudes de Agentes') {
       return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
@@ -512,39 +537,42 @@ const PanelPage = () => {
 
   return (
     <BatchDownloadProvider>
-      <div className="h-screen flex font-sans overflow-hidden" style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}>
-      <DashboardSidebar
-        navItems={navItems}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-        onLogout={logout}
-      />
+      <div 
+        className="h-screen w-full flex flex-col font-sans overflow-hidden" 
+        style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}
+      >
+        <ImpersonationBanner />
+        <div className="flex-1 min-h-0 flex overflow-hidden w-full">
+          <DashboardSidebar
+            navItems={navItems}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            mobileOpen={mobileOpen}
+            onMobileClose={() => setMobileOpen(false)}
+            onLogout={logout}
+          />
 
-      <main className="flex-grow flex flex-col min-w-0 h-full overflow-hidden">
-        <DashboardHeader
-          onMenuOpen={() => setMobileOpen(true)}
-          userName={displayName}
-          userCode={displayCode}
-          userFotoUrl={carnetFotoUrl || (user as any)?.foto_url}
-          afiliado={afiliado}
-          onUpdateAfiliado={(updatedFields) => {
-            if (afiliado) {
-              setAfiliado({
-                ...afiliado,
-                ...updatedFields,
-              });
-            }
-          }}
-        />
+          <main className="flex-grow flex flex-col min-w-0 h-full overflow-hidden">
+            <DashboardHeader
+              onMenuOpen={() => setMobileOpen(true)}
+              userName={displayName}
+              userCode={displayCode}
+              userFotoUrl={carnetFotoUrl || (user as any)?.foto_url}
+              afiliado={afiliado}
+              onUpdateAfiliado={(updatedFields) => {
+                if (afiliado) {
+                  setAfiliado({
+                    ...afiliado,
+                    ...updatedFields,
+                  });
+                }
+              }}
+            />
 
-        <div className={`flex-1 min-h-0 ${isFullPanel ? 'h-full' : 'overflow-y-auto p-4 sm:p-6 lg:p-8'}`}>
-          {isFullPanel ? (
-            <div className="h-full overflow-y-auto">
-              {renderContent()}
-            </div>
-          ) : (
+            <div className={`flex-1 min-h-0 ${isFullPanel && activeTab !== 'Configuración' ? 'h-full overflow-hidden' : 'overflow-y-auto custom-scrollbar-light'} ${!isFullPanel ? 'p-4 sm:p-6 lg:p-8' : ''}`}>
+              {isFullPanel ? (
+                renderContent()
+              ) : (
               <div className="max-w-7xl mx-auto w-full space-y-6 lg:space-y-8">
                 {/* Welcome */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -562,7 +590,11 @@ const PanelPage = () => {
                   <div className="flex flex-wrap gap-2">
                     {/* Filtramos y normalizamos los roles para la vista, priorizando afiliado sobre estudiante */}
                     {(() => {
-                      const uniqueRoles = Array.from(new Set(user?.roles?.map(r => r === 'super_admin' ? 'admin' : r)));
+                      let rawRoles = [...(user?.roles || [])];
+                      if ((user?.id_afiliado || user?.tipo_afiliado || afiliado?.id_afiliado) && !rawRoles.includes('afiliado')) {
+                        rawRoles.push('afiliado');
+                      }
+                      const uniqueRoles = Array.from(new Set(rawRoles.map(r => r === 'super_admin' ? 'admin' : r)));
                       if (uniqueRoles.includes('afiliado') && uniqueRoles.includes('estudiante')) {
                         return uniqueRoles.filter(r => r !== 'estudiante');
                       }
@@ -581,7 +613,8 @@ const PanelPage = () => {
                         {role === 'admin' ? 'Administrador'
                             : role === 'estudiante' ? 'Estudiante'
                             : isLimited ? 'CIBIR Restringido'
-                              : isActivo ? 'CIBIR Activo'
+                              : isActivo 
+                                ? (afiliado?.tipo_afiliado || user?.tipo_afiliado ? `${afiliado?.tipo_afiliado || user?.tipo_afiliado} Activo` : 'CIBIR Activo')
                                 : afiliado ? `Estatus: ${afiliado.estatus}` : 'Afiliado'}
                       </span>
                     ))}
@@ -597,7 +630,8 @@ const PanelPage = () => {
         </div>
       </main>
     </div>
-    </BatchDownloadProvider>
+  </div>
+  </BatchDownloadProvider>
   );
 };
 

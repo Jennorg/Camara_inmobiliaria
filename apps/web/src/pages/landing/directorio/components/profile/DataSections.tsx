@@ -2,7 +2,7 @@ import React from 'react';
 import { Briefcase, User, Building2, Mail, Phone, Globe, IdCard, FileText } from 'lucide-react';
 import { AfiliadoData } from '../AfiliadoCard';
 import { InfoCard } from './InfoCard';
-import { formatRif } from '@/utils/formatters';
+import { formatRif, formatSocialUrl } from '@/utils/formatters';
 
 interface DataSectionsProps {
   afiliado: AfiliadoData;
@@ -68,7 +68,7 @@ export const DataSections = ({
               )}
               {afiliado.empresa_website && (
                 <InfoCard icon={Globe} label="Sitio Web" variant="compact">
-                  <a href={afiliado.empresa_website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  <a href={formatSocialUrl('website', afiliado.empresa_website)} target="_blank" rel="noopener noreferrer" className="hover:underline">
                     {afiliado.empresa_website}
                   </a>
                 </InfoCard>
@@ -154,7 +154,7 @@ export const DataSections = ({
               )}
               {afiliado.website && (
                 <InfoCard icon={Globe} label="Sitio Web" variant="compact">
-                  <a href={afiliado.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  <a href={formatSocialUrl('website', afiliado.website)} target="_blank" rel="noopener noreferrer" className="hover:underline">
                     {afiliado.website}
                   </a>
                 </InfoCard>

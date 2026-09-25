@@ -117,6 +117,8 @@ export interface AuthUser {
   id_estudiante?: number
   
   // Datos de perfil
+  nombres?: string
+  apellidos?: string
   nombre_completo?: string
   codigo?: string | null
   cedula?: string

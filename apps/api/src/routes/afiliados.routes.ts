@@ -69,8 +69,8 @@ router.post('/:id/invitacion', requireAuth, enrichUser, generarInvitacionCorpora
 // GET /api/afiliados/:id/invitaciones — Lista links generados
 router.get('/:id/invitaciones', requireAuth, enrichUser, listarInvitacionesCorporativas);
 
-// DELETE /api/afiliados/:id/invitaciones/:tokenId — Revoca un link
-router.delete('/:id/invitaciones/:tokenId', requireAuth, requireRole('admin', 'super_admin'), revocarInvitacionCorporativa);
+// DELETE /api/afiliados/:id/invitaciones/:tokenId — Elimina/revoca un link
+router.delete('/:id/invitaciones/:tokenId', requireAuth, enrichUser, revocarInvitacionCorporativa);
 
 // GET /api/afiliados/:id/afiliados-corp — Lista individuales vinculados a la empresa
 router.get('/:id/afiliados-corp', requireAuth, enrichUser, listarAfiliadosCorporativos);

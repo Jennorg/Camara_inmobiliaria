@@ -555,9 +555,9 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
         ? 'admin'
         : roles.includes('asistente') || roles.includes('administrativo')
           ? 'asistente'
-          : roles.includes('estudiante')
-            ? 'estudiante'
-            : 'afiliado'
+          : roles.includes('afiliado')
+            ? 'afiliado'
+            : 'estudiante'
 
     const targetPayload: JwtPayload = {
       id: Number(targetRow.id),

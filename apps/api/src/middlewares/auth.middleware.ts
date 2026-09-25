@@ -17,6 +17,8 @@ export interface JwtPayload {
   id_afiliado?: number
   id_estudiante?: number
   codigo?: string
+  nombres?: string
+  apellidos?: string
   nombre_completo?: string
   cedula?: string
   telefono?: string
@@ -70,6 +72,7 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
     // 1. Intentar buscar en afiliados
     let resultAfiliado = await db.execute({
       sql: `SELECT a.id_afiliado, a.id_persona, a.id_empresa, a.codigo, a.tipo_afiliado,
+                   p.nombres, p.apellidos,
                    COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
                    p.cedula, p.telefono,
                    e.razon_social as empresa_nombre
@@ -85,8 +88,11 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
       const cleanEmail = user.email.trim().toLowerCase()
       resultAfiliado = await db.execute({
         sql: `SELECT a.id_afiliado, a.id_persona, a.id_empresa, a.codigo, a.tipo_afiliado,
-                     COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
-                     p.cedula, p.telefono,
+                     COALESCE(p.nombres, p_by_email.nombres) as nombres,
+                     COALESCE(p.apellidos, p_by_email.apellidos) as apellidos,
+                     COALESCE(p.nombres, p_by_email.nombres, '') || ' ' || COALESCE(p.apellidos, p_by_email.apellidos, '') as persona_nombre,
+                     COALESCE(p.cedula, p_by_email.cedula) as cedula,
+                     COALESCE(p.telefono, p_by_email.telefono) as telefono,
                      COALESCE(e.razon_social, e_by_email.razon_social) as empresa_nombre
               FROM afiliados a
               LEFT JOIN personas p ON a.id_persona = p.id
@@ -117,7 +123,40 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
       user.cedula = afi.cedula as string
       user.telefono = afi.telefono as string
       user.tipo_afiliado = afi.tipo_afiliado as string
+      user.nombres = (afi.nombres as string) || undefined
+      user.apellidos = (afi.apellidos as string) || undefined
       user.nombre_completo = (afi.persona_nombre || afi.empresa_nombre) as string
+
+      // Asegurar que 'afiliado' esté presente en roles y rol primario
+      if (!user.roles || !Array.isArray(user.roles)) {
+        user.roles = ['afiliado']
+      } else if (!user.roles.includes('afiliado')) {
+        user.roles = [...user.roles, 'afiliado']
+      }
+      if (user.rol === 'estudiante') {
+        user.rol = 'afiliado'
+      }
+
+      // Sincronizar roles en la tabla users si no incluía 'afiliado'
+      try {
+        const uRow = await db.execute({ sql: 'SELECT roles FROM users WHERE id = ?', args: [userId] })
+        if (uRow.rows.length > 0) {
+          let currentRoles: string[] = []
+          const raw = uRow.rows[0].roles
+          if (typeof raw === 'string') {
+            try { currentRoles = JSON.parse(raw) } catch { currentRoles = [raw] }
+          }
+          if (!currentRoles.includes('afiliado')) {
+            currentRoles.push('afiliado')
+            await db.execute({
+              sql: `UPDATE users SET roles = ?, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ?`,
+              args: [JSON.stringify(currentRoles), userId]
+            }).catch(e => console.warn('Error sincronizando roles en users:', e))
+          }
+        }
+      } catch (e) {
+        console.warn('Error verificando roles de usuario:', e)
+      }
 
       // Si es de tipo Corporativo y id_empresa no está asignado en afiliados, buscar la empresa que representa
       if (user.tipo_afiliado === 'Corporativo' && !user.id_empresa) {
@@ -143,6 +182,7 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
     // 2. Si no es afiliado, tal vez es estudiante sin ser afiliado
     const resultEstudiante = await db.execute({
       sql: `SELECT e.id_estudiante, e.id_persona, e.id_empresa,
+                   p.nombres, p.apellidos,
                    COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as persona_nombre,
                    p.cedula, p.telefono,
                    emp.razon_social as empresa_nombre
@@ -160,18 +200,29 @@ export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> =
       user.id_empresa = est.id_empresa as number
       user.cedula = est.cedula as string
       user.telefono = est.telefono as string
+      user.nombres = (est.nombres as string) || undefined
+      user.apellidos = (est.apellidos as string) || undefined
       user.nombre_completo = (est.persona_nombre || est.empresa_nombre) as string
+
+      if (!user.roles || !Array.isArray(user.roles)) {
+        user.roles = ['estudiante']
+      } else if (!user.roles.includes('estudiante')) {
+        user.roles = [...user.roles, 'estudiante']
+      }
+
       return user
     }
 
     // 3. Fallbacks
     const resultPersona = await db.execute({
-      sql: `SELECT id, COALESCE(nombres, '') || ' ' || COALESCE(apellidos, '') as nombre_completo FROM personas WHERE email = ?`,
+      sql: `SELECT id, nombres, apellidos, COALESCE(nombres, '') || ' ' || COALESCE(apellidos, '') as nombre_completo FROM personas WHERE email = ?`,
       args: [user.email]
     })
     
     if (resultPersona.rows.length > 0) {
       user.id_persona = resultPersona.rows[0].id as number
+      user.nombres = (resultPersona.rows[0].nombres as string) || undefined
+      user.apellidos = (resultPersona.rows[0].apellidos as string) || undefined
       user.nombre_completo = resultPersona.rows[0].nombre_completo as string
     } else {
       const resultEmpresa = await db.execute({

@@ -5,7 +5,7 @@ import {
   GraduationCap, Briefcase, Building2, Share2, Award, CheckCircle,
   Sparkles, MessageSquare, Download, CreditCard, X, ShieldCheck
 } from 'lucide-react';
-import { formatNombreCard, getInitials, formatRif, formatWhatsAppUrl } from '@/utils/formatters';
+import { formatNombreCard, getInitials, formatRif, formatWhatsAppUrl, formatSocialUrl } from '@/utils/formatters';
 import { AfiliadoData } from '../AfiliadoCard';
 import logoCibir from '@/assets/Logo3.webp';
 
@@ -249,7 +249,7 @@ END:VCARD`;
             )}
             {afiliado.linkedin && (
               <a
-                href={afiliado.linkedin}
+                href={formatSocialUrl('linkedin', afiliado.linkedin)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-blue-600 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
@@ -260,7 +260,7 @@ END:VCARD`;
             )}
             {afiliado.instagram && (
               <a
-                href={afiliado.instagram.startsWith('http') ? afiliado.instagram : `https://instagram.com/${afiliado.instagram.replace('@', '')}`}
+                href={formatSocialUrl('instagram', afiliado.instagram)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
@@ -271,7 +271,7 @@ END:VCARD`;
             )}
             {afiliado.facebook && (
               <a
-                href={afiliado.facebook.startsWith('http') ? afiliado.facebook : `https://facebook.com/${afiliado.facebook}`}
+                href={formatSocialUrl('facebook', afiliado.facebook)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-[#1877F2] hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
@@ -282,7 +282,7 @@ END:VCARD`;
             )}
             {afiliado.twitter && (
               <a
-                href={afiliado.twitter.startsWith('http') ? afiliado.twitter : `https://x.com/${afiliado.twitter.replace('@', '')}`}
+                href={formatSocialUrl('twitter', afiliado.twitter)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
@@ -293,7 +293,7 @@ END:VCARD`;
             )}
             {afiliado.tiktok && (
               <a
-                href={afiliado.tiktok}
+                href={formatSocialUrl('tiktok', afiliado.tiktok)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-black hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"
@@ -304,7 +304,7 @@ END:VCARD`;
             )}
             {(afiliado.website || (isCorporativo && afiliado.empresa_website)) && (
               <a
-                href={isCorporativo ? (afiliado.empresa_website || afiliado.website) : afiliado.website}
+                href={formatSocialUrl('website', isCorporativo ? (afiliado.empresa_website || afiliado.website) : afiliado.website)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-emerald-600 hover:text-white transition-colors transition-transform flex items-center justify-center border border-slate-200/30 text-slate-500 hover:scale-105 active:scale-95"

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as ImageIcon, FileUp, Crop } from 'lucide-react';
+import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as ImageIcon, FileUp, Crop, RefreshCw, ExternalLink } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
@@ -33,6 +33,12 @@ interface FileUploadProps {
   lockAspect?: boolean;
   /** Tamaño máximo permitido en MB (por defecto 20MB) */
   maxSizeMB?: number;
+  /** Variante de previsualización: 'compact' o 'logo' (destacado amplio) */
+  previewVariant?: 'compact' | 'logo';
+  /** Ajuste de la imagen: 'contain' o 'cover' */
+  imageFit?: 'contain' | 'cover';
+  /** Si es true, oculta el nombre/título del archivo dentro del card para evitar redundancias */
+  hideFileName?: boolean;
 }
 
 export default function FileUpload({ 
@@ -53,6 +59,9 @@ export default function FileUpload({
   disableImagePreview = false,
   lockAspect = false,
   maxSizeMB = 20,
+  previewVariant,
+  imageFit = 'contain',
+  hideFileName = false,
 }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -294,44 +303,180 @@ export default function FileUpload({
   };
 
   const isImage = file?.type.startsWith('image/');
+  const isLogoVariant = previewVariant === 'logo' || (folder === 'logos' && previewVariant !== 'compact');
   const isUrlImage = !disableImagePreview && !!(
     isImage || 
+    isLogoVariant ||
+    folder === 'logos' ||
+    folder === 'fotos' ||
     (uploadedUrl && (
       uploadedUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)/i) || 
-      uploadedUrl.includes('backblazeb2.com')
+      uploadedUrl.includes('backblazeb2.com') ||
+      uploadedUrl.startsWith('data:image') ||
+      uploadedUrl.startsWith('blob:')
     )) ||
     (restoredFileName && restoredFileName.match(/\.(jpeg|jpg|gif|png|webp|svg)/i))
   );
 
   return (
-    <div className="space-y-2 w-full max-w-full overflow-hidden">
-      <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex items-center justify-between pb-1 shrink-0">
-        <span className="truncate pr-2">{label} {required && <span className="text-rose-500">*</span>}</span>
-        {uploadedUrl && (
-          <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100 shrink-0">
-            <CheckCircle2 size={12} /> CARGADO
-          </span>
-        )}
-      </label>
+    <div className={`max-w-full overflow-hidden ${isLogoVariant ? 'w-32 flex flex-col items-center gap-2' : 'w-full space-y-2'}`}>
+      {isLogoVariant ? (
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center truncate shrink-0">
+          {label} {required && <span className="text-rose-500">*</span>}
+        </span>
+      ) : (
+        <label className="text-xs md:text-sm font-black uppercase tracking-wider ml-1 text-slate-500 flex items-center justify-between pb-1 shrink-0">
+          <span className="truncate pr-2">{label} {required && <span className="text-rose-500">*</span>}</span>
+          {uploadedUrl && (
+            <span className="flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs border border-emerald-100 shrink-0">
+              <CheckCircle2 size={12} /> CARGADO
+            </span>
+          )}
+        </label>
+      )}
 
       <div 
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => !uploadedUrl && !uploading && !disabled && fileInputRef.current?.click()}
-        className={`relative group transition-colors duration-300 rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden w-full max-w-full flex flex-col justify-center min-h-[110px] ${
+        onClick={() => {
+          if (!uploadedUrl && !uploading && !disabled) {
+            fileInputRef.current?.click();
+          } else if (disabled && uploadedUrl) {
+            window.open(uploadedUrl, '_blank');
+          }
+        }}
+        className={`relative group transition-all duration-300 rounded-2xl overflow-hidden ${
+          isLogoVariant
+            ? 'w-32 h-40 flex flex-col justify-center p-1 cursor-pointer'
+            : uploadedUrl 
+              ? 'w-full max-w-full flex flex-col justify-center border cursor-pointer border-emerald-200/90 bg-gradient-to-br from-emerald-50/40 via-white to-slate-50/40 shadow-xs hover:border-emerald-300 hover:shadow-sm'
+              : 'w-full max-w-full flex flex-col justify-center min-h-[105px] border-2 border-dashed cursor-pointer'
+        } ${
           disabled
-            ? 'border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
+            ? isLogoVariant && uploadedUrl
+              ? 'border-2 border-slate-100 dark:border-emerald-500/20 bg-slate-50 shadow-md hover:border-emerald-300'
+              : 'border-2 border-slate-200 bg-slate-100/50 cursor-not-allowed opacity-60'
             : isDragging
-              ? 'border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10'
-              : uploadedUrl 
-                ? 'border-emerald-500/30 bg-emerald-50/30 hover:bg-emerald-50/50' 
-                : error || hasError 
-                ? 'border-rose-500 bg-rose-50/30 ring-4 ring-rose-500/10'
-                : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
+              ? 'border-2 border-emerald-500 bg-emerald-50 ring-4 ring-emerald-500/10'
+              : !uploadedUrl && (error || hasError)
+              ? 'border-2 border-dashed border-rose-500 bg-rose-50/30 ring-4 ring-rose-500/10'
+              : isLogoVariant
+              ? uploadedUrl
+                ? 'border-2 border-slate-100 dark:border-emerald-500/20 bg-slate-50 shadow-md hover:border-emerald-300'
+                : 'border-2 border-dashed border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
+              : uploadedUrl
+              ? ''
+              : 'border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-white hover:shadow-md'
         }`}
       >
-        {!file && !uploadedUrl ? (
+        {isLogoVariant ? (
+          !file && !uploadedUrl ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center space-y-1.5">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors duration-300 ${
+                isDragging ? 'bg-emerald-500 text-white scale-110' : 'bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+              }`}>
+                <ImageIcon size={18} />
+              </div>
+              <div className="space-y-0.5 max-w-full">
+                <p className="text-[11px] font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">
+                  {disabled ? 'Sin logo' : isDragging ? 'Soltar' : 'Cargar logo'}
+                </p>
+                <p className="text-[9px] text-slate-400 font-medium">
+                  {disabled ? 'Corporativo' : 'PNG, JPG, SVG'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center relative">
+              {/* Contenedor central del logo aprovechando el área máxima del card */}
+              <div className="w-full h-full flex items-center justify-center p-1.5 pb-6 overflow-hidden">
+                {uploading ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <Loader2 size={24} className="animate-spin text-emerald-600" />
+                    <span className="text-[10px] font-bold text-emerald-700">Subiendo...</span>
+                  </div>
+                ) : isUrlImage && (uploadedUrl || previewObjectUrl) ? (
+                  <img
+                    src={uploadedUrl || previewObjectUrl || ''}
+                    alt="Logo preview"
+                    className="max-h-[120px] max-w-[96%] w-auto h-auto object-contain transition-transform duration-300 group-hover:scale-105 filter drop-shadow-sm"
+                  />
+                ) : (
+                  <FileText size={26} className="text-slate-400" />
+                )}
+              </div>
+
+              {/* Botones de acción flotantes en la base del card */}
+              {!uploading && (
+                disabled ? (
+                  uploadedUrl && (
+                    <div className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center py-0.5 px-2 rounded-xl bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-xs">
+                      <a
+                        href={uploadedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] font-bold"
+                        title="Ver en tamaño completo"
+                      >
+                        <ExternalLink size={12} />
+                        <span>Ver</span>
+                      </a>
+                    </div>
+                  )
+                ) : (
+                  <div className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center gap-1 py-0.5 px-1 rounded-xl bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      title="Cambiar logo"
+                    >
+                      <RefreshCw size={12} />
+                    </button>
+
+                    {enableCrop && isUrlImage && (
+                      <button
+                        type="button"
+                        onClick={handleTriggerCrop}
+                        className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 transition-colors cursor-pointer"
+                        title="Recortar / Ajustar"
+                      >
+                        <Crop size={12} />
+                      </button>
+                    )}
+
+                    {uploadedUrl && (
+                      <a
+                        href={uploadedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                        title="Ver en tamaño completo"
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleRemove}
+                      className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+                      title="Eliminar logo"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          )
+        ) : !file && !uploadedUrl ? (
           <div className="w-full flex flex-col items-center justify-center py-6 px-4 text-center space-y-2">
             <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${
               isDragging ? 'bg-emerald-500 text-white scale-110' : 'bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600'
@@ -348,62 +493,91 @@ export default function FileUpload({
             </div>
           </div>
         ) : (
-          <div className="w-full max-w-full flex items-center gap-2 sm:gap-4 px-3 sm:px-5 py-4 min-w-0">
-            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${
-              uploading ? 'bg-emerald-100 text-emerald-600' : (isUrlImage ? 'bg-slate-50 border border-slate-100' : 'bg-emerald-500 text-white')
+          <div className="w-full max-w-full flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 min-w-0">
+            <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${
+              uploading 
+                ? 'bg-emerald-100 text-emerald-600' 
+                : isUrlImage 
+                ? 'bg-slate-50 border border-slate-200/80 p-0.5 shadow-2xs' 
+                : 'bg-emerald-100/90 text-emerald-700 border border-emerald-200/70 shadow-2xs'
             }`}>
               {uploading ? (
-                <Loader2 size={20} className="animate-spin text-emerald-600" />
+                <Loader2 size={22} className="animate-spin text-emerald-600" />
               ) : isUrlImage && uploadedUrl ? (
-                <img src={uploadedUrl} alt="Preview" className="transition-opacity w-full h-full object-cover fade-in duration-200" />
+                <img src={uploadedUrl} alt="Preview" className={`transition-opacity w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} fade-in duration-200`} />
               ) : isUrlImage && previewObjectUrl ? (
-                <img src={previewObjectUrl} alt="Preview" className="transition-opacity w-full h-full object-cover fade-in duration-200" />
+                <img src={previewObjectUrl} alt="Preview" className={`transition-opacity w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} fade-in duration-200`} />
               ) : (
-                <FileText size={20} />
+                <FileText size={22} />
               )}
             </div>
             
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-              <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
-                {file?.name || restoredFileName || (uploadedUrl ? uploadedUrl.split('/').pop()?.split('?')[0] || 'Archivo cargado' : 'Archivo cargado')}
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 mt-0.5 min-w-0">
-                <span className={`text-[10px] sm:text-xs font-black uppercase tracking-widest ${uploading ? 'text-emerald-500 animate-pulse' : 'text-emerald-600'}`}>
-                  {uploading ? 'Subiendo...' : 'Listo'}
+              {!hideFileName ? (
+                <span className="text-xs sm:text-sm font-bold text-slate-800 truncate block">
+                  {file?.name || restoredFileName || (uploadedUrl ? uploadedUrl.split('/').pop()?.split('?')[0] || 'Archivo cargado' : 'Archivo cargado')}
                 </span>
+              ) : (
+                <span className="text-xs sm:text-sm font-bold text-slate-800 truncate flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  Archivo cargado
+                </span>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 mt-1 min-w-0">
+                {uploading && (
+                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-600 animate-pulse">
+                    Subiendo...
+                  </span>
+                )}
+
                 {uploadedUrl && !uploading && (
                   <a 
                     href={uploadedUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-[10px] sm:text-xs text-emerald-600 hover:text-emerald-700 font-bold underline uppercase tracking-widest truncate"
+                    className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200/80 shadow-2xs transition-colors"
                   >
-                    Ver archivo
+                    <ExternalLink size={12} />
+                    <span>Ver documento</span>
                   </a>
                 )}
               </div>
             </div>
 
             {!uploading && !disabled && (
-              <div className="flex items-center gap-1 shrink-0 ml-auto">
+              <div className="flex items-center gap-1 shrink-0 ml-auto pl-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
+                  title="Cambiar archivo"
+                >
+                  <RefreshCw size={15} className="sm:w-4 sm:h-4" />
+                </button>
+
                 {enableCrop && isUrlImage && (
                   <button
                     type="button"
                     onClick={handleTriggerCrop}
-                    className="p-1.5 sm:p-2 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-colors"
+                    className="p-1.5 sm:p-2 hover:bg-emerald-50 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
                     title="Recortar / Ajustar"
                   >
-                    <Crop size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <Crop size={15} className="sm:w-4 sm:h-4" />
                   </button>
                 )}
+
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="p-1.5 sm:p-2 hover:bg-rose-50 rounded-lg text-slate-300 hover:text-rose-500 transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-500 transition-colors"
                   title="Eliminar archivo"
                 >
-                  <X size={18} className="sm:w-5 sm:h-5" />
+                  <X size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </div>
             )}

@@ -131,3 +131,60 @@ export const formatCedula = (cedula?: string | null): string => {
   return `${prefix}-${formattedNumbers}`
 };
 
+/**
+ * Normaliza y formatea enlaces a redes sociales y sitios web.
+ * Si no inicia como link (http://, https://, www.), se interpreta como usuario.
+ * Si el usuario inicia con '@', se retira para insertarlo en la URL correspondiente.
+ */
+export const formatSocialUrl = (
+  platform: 'instagram' | 'facebook' | 'linkedin' | 'twitter' | 'tiktok' | 'website',
+  value?: string | null
+): string => {
+  if (!value) return '';
+  let trimmed = String(value).trim();
+  if (!trimmed) return '';
+
+  // Si ya es un enlace completo con protocolo
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Si inicia con www.
+  if (/^www\./i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  // Si contiene el dominio de la plataforma pero sin http/https
+  if (/^(instagram\.com|facebook\.com|fb\.com|linkedin\.com|twitter\.com|x\.com|tiktok\.com)/i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  // Si es para website y parece un dominio (o cualquier texto de website)
+  if (platform === 'website') {
+    return `https://${trimmed.replace(/^\/+/, '')}`;
+  }
+
+  // Si no inicia como link, se interpreta como usuario
+  // En caso de que dicho user inicie con @, se quita para insertarlo en la URL que se forma
+  const cleanUsername = trimmed.replace(/^@+/, '').trim();
+  if (!cleanUsername) return '';
+
+  switch (platform) {
+    case 'instagram':
+      return `https://www.instagram.com/${cleanUsername}`;
+    case 'facebook':
+      return `https://www.facebook.com/${cleanUsername}`;
+    case 'linkedin':
+      if (cleanUsername.startsWith('in/') || cleanUsername.startsWith('company/')) {
+        return `https://www.linkedin.com/${cleanUsername}`;
+      }
+      return `https://www.linkedin.com/in/${cleanUsername}`;
+    case 'twitter':
+      return `https://x.com/${cleanUsername}`;
+    case 'tiktok':
+      return `https://www.tiktok.com/@${cleanUsername}`;
+    default:
+      return `https://${cleanUsername}`;
+  }
+};
+

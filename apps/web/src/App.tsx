@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useLocation } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ToastProvider } from '@/context/ToastContext'
@@ -46,17 +46,14 @@ function PreservingQueryNavigate({ to }: { to: string }) {
 
 import ImpersonationBanner from '@/components/ImpersonationBanner'
 
-export default function App() {
+function AppRoutes() {
+  const location = useLocation()
+  const isPanel = location.pathname.startsWith('/panel')
+
   return (
-    <HelmetProvider>
-      <BrowserRouter>
-        <ScrollToHash />
-        <ScrollToTop />
-        <ToastProvider>
-        <Toaster position="bottom-right" />
-        <AuthProvider>
-        <ImpersonationBanner />
-        <Routes>
+    <>
+      {!isPanel && <ImpersonationBanner />}
+      <Routes>
           {/* Rutas principales dependientes del host */}
           <Route path='/' element={<><SEO /><LandingPage /></>} />
           <Route path='/cursos'        element={<CursosCatalogPage />} />
@@ -106,9 +103,23 @@ export default function App() {
           {/* Redireccion de rutas antiguas al panel unificado */}
           <Route path='/afiliado' element={<Navigate to='/panel' replace />} />
         </Routes>
-      </AuthProvider>
-      </ToastProvider>
-    </BrowserRouter>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <HelmetProvider>
+      <BrowserRouter>
+        <ScrollToHash />
+        <ScrollToTop />
+        <ToastProvider>
+          <Toaster position="bottom-right" />
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
     </HelmetProvider>
   )
 }

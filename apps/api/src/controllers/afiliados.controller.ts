@@ -286,7 +286,7 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       sql: `SELECT a.*, u.email AS acceso_email,
                    p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
                    p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
-                   (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
+                   (SELECT COALESCE(NULLIF(TRIM(dc.foto_junta_url), ''), '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
                    COALESCE(est.es_corredor_inmobiliario, 0) as es_corredor_inmobiliario,
                    e.razon_social as empresa_razon_social, 
                    e.rif_tipo as empresa_rif_tipo,
@@ -383,10 +383,39 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       ]
     })
 
+    let parsedRedes: Record<string, any> = {};
+    if (afiliado.redes_sociales) {
+      if (typeof afiliado.redes_sociales === 'string') {
+        try { parsedRedes = JSON.parse(afiliado.redes_sociales); } catch (e) { parsedRedes = {}; }
+      } else if (typeof afiliado.redes_sociales === 'object') {
+        parsedRedes = afiliado.redes_sociales;
+      }
+    }
+
+    let parsedEmpresaRedes: Record<string, any> = {};
+    if ((afiliado as any).empresa_redes_sociales) {
+      if (typeof (afiliado as any).empresa_redes_sociales === 'string') {
+        try { parsedEmpresaRedes = JSON.parse((afiliado as any).empresa_redes_sociales); } catch (e) { parsedEmpresaRedes = {}; }
+      } else if (typeof (afiliado as any).empresa_redes_sociales === 'object') {
+        parsedEmpresaRedes = (afiliado as any).empresa_redes_sociales;
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {
         ...afiliado,
+        instagram: afiliado.instagram || parsedRedes.instagram || '',
+        facebook: afiliado.facebook || parsedRedes.facebook || '',
+        linkedin: afiliado.linkedin || parsedRedes.linkedin || '',
+        twitter: afiliado.twitter || parsedRedes.twitter || '',
+        tiktok: afiliado.tiktok || parsedRedes.tiktok || '',
+        website: afiliado.website || parsedRedes.website || '',
+        empresa_instagram: afiliado.empresa_instagram || parsedEmpresaRedes.instagram || '',
+        empresa_facebook: afiliado.empresa_facebook || parsedEmpresaRedes.facebook || '',
+        empresa_linkedin: afiliado.empresa_linkedin || parsedEmpresaRedes.linkedin || '',
+        empresa_twitter: afiliado.empresa_twitter || parsedEmpresaRedes.twitter || '',
+        empresa_tiktok: afiliado.empresa_tiktok || parsedEmpresaRedes.tiktok || '',
         documentos: docsResult.rows,
         certificados: certsResult.rows
       }
@@ -795,7 +824,7 @@ export const getAfiliados = async (req: Request, res: Response) => {
              COALESCE(p.direccion, e.direccion, p_rep.direccion) as direccion, 
              p.fecha_nacimiento, p.nivel_academico, 
              COALESCE(p.foto_url, p_rep.foto_url) as foto_url,
-             (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
+             (SELECT COALESCE(NULLIF(TRIM(dc.foto_junta_url), ''), '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
              e.razon_social as empresa_razon_social, 
              e.razon_social as razon_social,
              e.rif_tipo as empresa_rif_tipo,
@@ -1120,12 +1149,12 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              END as nombre_completo,
              NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '') as representante_nombre,
              p.nombres, p.apellidos, a.codigo, p.foto_url,
-             (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
+             (SELECT COALESCE(NULLIF(TRIM(dc.foto_junta_url), ''), '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
              (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
              (strftime('%Y', 'now') - a.ano_inicio_servicio) as anos_servicio, a.fecha_afiliacion,
              (p.cedula_tipo || '-' || p.cedula) as cedula,
              e.rif_numero as empresa_rif_numero, e.rif_tipo as empresa_rif_tipo,
-             a.tipo_afiliado, a.redes_sociales,
+             a.tipo_afiliado, a.redes_sociales, e.redes_sociales as empresa_redes_sociales,
              e.razon_social as empresa_razon_social,
              COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as empresa_logo_url, e.website as empresa_website,
              p.email as email,
@@ -1133,12 +1162,30 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
              e.telefono as empresa_telefono,
              p.telefono as telefono,
              p.profesion as profesion,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END as instagram,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook')  ELSE NULL END as facebook,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin')  ELSE NULL END as linkedin,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter')   ELSE NULL END as twitter,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.tiktok')    ELSE NULL END as tiktok,
-             CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.website')   ELSE NULL END as website
+             COALESCE(
+               CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.instagram') ELSE NULL END,
+               CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.instagram') ELSE NULL END
+             ) as instagram,
+             COALESCE(
+               CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.facebook')  ELSE NULL END,
+               CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.facebook')  ELSE NULL END
+             ) as facebook,
+             COALESCE(
+               CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.linkedin')  ELSE NULL END,
+               CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.linkedin')  ELSE NULL END
+             ) as linkedin,
+             COALESCE(
+               CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.twitter')   ELSE NULL END,
+               CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.twitter')   ELSE NULL END
+             ) as twitter,
+             COALESCE(
+               CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.tiktok')    ELSE NULL END,
+               CASE WHEN json_valid(e.redes_sociales) = 1 THEN json_extract(e.redes_sociales, '$.tiktok')    ELSE NULL END
+             ) as tiktok,
+             COALESCE(
+               CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.website')   ELSE NULL END,
+               e.website
+             ) as website
       FROM afiliados a
       JOIN personas p ON a.id_persona = p.id
       LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -1213,28 +1260,51 @@ export const buscarAfiliadosPublic = async (req: Request, res: Response) => {
     const dataSql = `${BASE_SELECT} ${whereClauses} ${ORDER_BY} LIMIT ? OFFSET ?`
     const result = await db.execute({ sql: dataSql, args: [...args, limit, offset] })
 
-    const mappedData = result.rows.map((row) => {
+    const mappedData = result.rows.map((row: any) => {
       let origRedes: Record<string, any> = {};
       if (row.redes_sociales) {
         if (typeof row.redes_sociales === 'string') {
-          try {
-            origRedes = JSON.parse(row.redes_sociales);
-          } catch {}
-        } else {
-          origRedes = row.redes_sociales as Record<string, any>;
+          try { origRedes = JSON.parse(row.redes_sociales); } catch {}
+        } else if (typeof row.redes_sociales === 'object' && row.redes_sociales !== null) {
+          origRedes = row.redes_sociales;
         }
       }
+
+      let empRedes: Record<string, any> = {};
+      if (row.empresa_redes_sociales) {
+        if (typeof row.empresa_redes_sociales === 'string') {
+          try { empRedes = JSON.parse(row.empresa_redes_sociales); } catch {}
+        } else if (typeof row.empresa_redes_sociales === 'object' && row.empresa_redes_sociales !== null) {
+          empRedes = row.empresa_redes_sociales;
+        }
+      }
+
+      const isCorp = row.tipo_afiliado === 'Corporativo';
+
+      const instagram = (row.instagram || origRedes.instagram || (isCorp ? empRedes.instagram : '') || '').trim();
+      const facebook = (row.facebook || origRedes.facebook || (isCorp ? empRedes.facebook : '') || '').trim();
+      const linkedin = (row.linkedin || origRedes.linkedin || (isCorp ? empRedes.linkedin : '') || '').trim();
+      const twitter = (row.twitter || origRedes.twitter || (isCorp ? empRedes.twitter : '') || '').trim();
+      const tiktok = (row.tiktok || origRedes.tiktok || (isCorp ? empRedes.tiktok : '') || '').trim();
+      const website = (row.website || (isCorp ? (row.empresa_website || empRedes.website) : '') || origRedes.website || '').trim();
+
       return {
         ...row,
         foto_url: (row.foto_url as string) || (origRedes?.foto_original_url as string) || (origRedes?.foto_carnet_url as string) || null,
+        instagram,
+        facebook,
+        linkedin,
+        twitter,
+        tiktok,
+        website,
         redes_sociales: {
           ...origRedes,
-          instagram: row.instagram || origRedes.instagram || '',
-          linkedin: row.linkedin || origRedes.linkedin || '',
-          facebook: row.facebook || origRedes.facebook || '',
-          twitter: row.twitter || origRedes.twitter || '',
-          tiktok: row.tiktok || origRedes.tiktok || '',
-          website: row.website || origRedes.website || ''
+          instagram,
+          linkedin,
+          facebook,
+          twitter,
+          tiktok,
+          website
         }
       };
     })
@@ -1297,7 +1367,7 @@ export const getAfiliadoPublicById = async (req: Request, res: Response) => {
              END as nombre_completo, 
              p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula, p.email, p.telefono, p.direccion, 
              p.fecha_nacimiento, p.nivel_academico, p.profesion, p.foto_url,
-              (SELECT COALESCE(dc.foto_junta_url, '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
+              (SELECT COALESCE(NULLIF(TRIM(dc.foto_junta_url), ''), '') FROM directiva_cargos dc WHERE dc.id_afiliado = a.id_afiliado AND dc.activo = 1 LIMIT 1) as foto_junta_url,
              e.razon_social as empresa_razon_social, 
              (SELECT a2.codigo FROM afiliados a2 WHERE a2.id_empresa = a.id_empresa AND a2.tipo_afiliado = 'Corporativo' AND a2.eliminado_en IS NULL LIMIT 1) as empresa_codigo,
              e.rif_tipo as empresa_rif_tipo,
@@ -1666,14 +1736,14 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     // 1. Obtener el registro actual para saber qué id_persona, id_empresa, id_user, etc. tiene
     const current = await db.execute({
-      sql: `SELECT a.id_persona, a.id_empresa, a.id_user, a.tipo_afiliado, a.marca_logo_url,
+      sql: `SELECT a.id_persona, COALESCE(a.id_empresa, e.id_empresa) as id_empresa, a.id_user, a.tipo_afiliado, a.marca_logo_url,
                    p.email AS persona_email,
                    p.cedula AS persona_cedula,
                    p.nombres, p.apellidos, p.telefono AS persona_telefono,
                    e.email AS empresa_email, e.logo_url as empresa_logo_url, e.telefono AS empresa_telefono
             FROM afiliados a
             LEFT JOIN personas p ON a.id_persona = p.id
-            LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+            LEFT JOIN empresas e ON (a.id_empresa = e.id_empresa OR (a.tipo_afiliado = 'Corporativo' AND (e.id_representante_legal = a.id_afiliado OR e.id_user = a.id_user)))
             WHERE a.id_afiliado = ?`,
       args: [id as string]
     });
@@ -1750,8 +1820,8 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 
     const socialFields = ['instagram', 'facebook', 'linkedin', 'twitter', 'tiktok', 'website'];
 
-    const currentTipoAfiliado = current.rows[0]?.tipo_afiliado || 'Natural';
-    const targetTipoAfiliado = fields.tipo_afiliado !== undefined ? fields.tipo_afiliado : currentTipoAfiliado;
+    const currentTipoAfiliado = String(current.rows[0]?.tipo_afiliado || 'Natural');
+    const targetTipoAfiliado = fields.tipo_afiliado !== undefined ? String(fields.tipo_afiliado) : currentTipoAfiliado;
 
     // Sincronizar logotipos en la conversión de tipo de afiliado
     if (currentTipoAfiliado === 'Natural' && targetTipoAfiliado === 'Corporativo') {
@@ -1767,7 +1837,10 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       }
     }
 
-    if (targetTipoAfiliado !== 'Corporativo') {
+    if (['Agente Corporativo', 'Agente'].includes(currentTipoAfiliado)) {
+      delete fields.empresa_logo_url;
+      delete fields.marca_logo_url;
+    } else if (targetTipoAfiliado !== 'Corporativo') {
       if (fields.empresa_logo_url !== undefined) {
         aUpdates.push('marca_logo_url = ?');
         aArgs.push(fields.empresa_logo_url && String(fields.empresa_logo_url).trim() !== '' ? String(fields.empresa_logo_url).trim() : null);
@@ -1909,11 +1982,15 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       }
     }
 
-    // Re-procesar redes sociales de la EMPRESA if any
+    // Re-procesar redes sociales de la EMPRESA if any (o si es corporativo)
     const empresaSocialsToUpdate: Record<string, any> = {};
     socialFields.forEach(sf => {
       const key = `empresa_${sf}`;
-      if (fields[key] !== undefined) empresaSocialsToUpdate[sf] = fields[key];
+      if (fields[key] !== undefined) {
+        empresaSocialsToUpdate[sf] = fields[key];
+      } else if (targetTipoAfiliado === 'Corporativo' && fields[sf] !== undefined) {
+        empresaSocialsToUpdate[sf] = fields[sf];
+      }
     });
 
     if (Object.keys(empresaSocialsToUpdate).length > 0 && idEmpresa) {
@@ -1936,6 +2013,17 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       } else {
         const idx = eUpdates.findIndex(u => u.startsWith('redes_sociales'));
         eArgs[idx] = JSON.stringify(newERedes);
+      }
+    }
+
+    if (targetTipoAfiliado === 'Corporativo' && fields.website !== undefined && idEmpresa) {
+      const webVal = fields.website ? String(fields.website).trim() : null;
+      if (!eUpdates.some(u => u.startsWith('website'))) {
+        eUpdates.push('website = ?');
+        eArgs.push(webVal);
+      } else {
+        const idx = eUpdates.findIndex(u => u.startsWith('website'));
+        eArgs[idx] = webVal;
       }
     }
 
@@ -2387,15 +2475,21 @@ export const listarInvitacionesCorporativas = async (req: Request, res: Response
  */
 export const revocarInvitacionCorporativa = async (req: Request, res: Response): Promise<void> => {
   try {
+    const id = Number(req.params.id)
+
+    if (!(await canManageEmpresa(req.user, id))) {
+      res.status(403).json({ success: false, message: 'Acceso denegado.' }); return
+    }
+
     const tokenId = Number(req.params.tokenId)
     await db.execute({
-      sql: `UPDATE tokens_accion SET usado = 1 WHERE id = ? AND tipo = 'invitacion_empresa'`,
+      sql: `DELETE FROM tokens_accion WHERE id = ? AND tipo = 'invitacion_empresa'`,
       args: [tokenId]
     })
-    res.json({ success: true, message: 'Invitación revocada.' })
+    res.json({ success: true, message: 'Link de invitación eliminado exitosamente.' })
   } catch (error) {
     console.error('revocarInvitacionCorporativa:', error)
-    res.status(500).json({ success: false, message: 'Error al revocar invitación' })
+    res.status(500).json({ success: false, message: 'Error al eliminar invitación' })
   }
 }
 
@@ -2415,9 +2509,18 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
       sql: `SELECT 
               a.id_afiliado, 
               COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo, 
+              p.nombres,
+              p.apellidos,
               p.cedula, 
               p.email, 
               p.telefono, 
+              a.codigo,
+              COALESCE(
+                CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_carnet_url') ELSE NULL END,
+                CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_original_url') ELSE NULL END,
+                p.foto_url
+              ) as foto_url,
+              CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_carnet_url') ELSE NULL END as foto_carnet_url,
               a.estatus, 
               a.fecha_registro,
               CASE 
@@ -2436,9 +2539,14 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
             SELECT 
               NULL as id_afiliado,
               COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as nombre_completo,
+              p.nombres,
+              p.apellidos,
               p.cedula,
               p.email,
               p.telefono,
+              NULL as codigo,
+              p.foto_url as foto_url,
+              NULL as foto_carnet_url,
               ic.estatus,
               ic.creado_en as fecha_registro,
               'Solicitud' as fase
@@ -2453,9 +2561,14 @@ export const listarAfiliadosCorporativos = async (req: Request, res: Response): 
             SELECT 
               NULL as id_afiliado,
               COALESCE(json_extract(ta.data_json, '$.nombres'), '') || ' ' || COALESCE(json_extract(ta.data_json, '$.apellidos'), '') as nombre_completo,
+              json_extract(ta.data_json, '$.nombres') as nombres,
+              json_extract(ta.data_json, '$.apellidos') as apellidos,
               json_extract(ta.data_json, '$.cedula') as cedula,
               ta.email as email,
               json_extract(ta.data_json, '$.telefono') as telefono,
+              NULL as codigo,
+              NULL as foto_url,
+              NULL as foto_carnet_url,
               'Pendiente' as estatus,
               ta.creado_en as fecha_registro,
               'Solicitud' as fase
@@ -3481,7 +3594,13 @@ export const listarIndependientesDisponibles = async (req: Request, res: Respons
       SELECT a.id_afiliado, a.codigo, a.estatus, a.tipo_afiliado, a.fecha_registro,
         COALESCE(NULLIF(TRIM(COALESCE(p.nombres,'') || ' ' || COALESCE(p.apellidos,'')), ''), p.email) as nombre_completo,
         p.nombres, p.apellidos, (p.cedula_tipo || '-' || p.cedula) as cedula,
-        p.email, p.telefono, p.foto_url
+        p.email, p.telefono,
+        COALESCE(
+          CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_carnet_url') ELSE NULL END,
+          CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_original_url') ELSE NULL END,
+          p.foto_url
+        ) as foto_url,
+        CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_carnet_url') ELSE NULL END as foto_carnet_url
       FROM afiliados a JOIN personas p ON a.id_persona = p.id
       WHERE a.eliminado_en IS NULL AND p.eliminado_en IS NULL
         AND a.tipo_afiliado = 'Natural' AND a.estatus = 'Afiliado' AND a.activo = 1
@@ -3843,7 +3962,13 @@ export const listarSolicitudesCambioEmpresa = async (req: Request, res: Response
     const result = await db.execute({
       sql: `SELECT s.*, 
                    COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '') as afiliado_nombre, 
-                   p.email as afiliado_email, p.telefono as afiliado_telefono, p.cedula as afiliado_cedula
+                   p.email as afiliado_email, p.telefono as afiliado_telefono, p.cedula as afiliado_cedula,
+                   COALESCE(
+                     CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_carnet_url') ELSE NULL END,
+                     CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_original_url') ELSE NULL END,
+                     p.foto_url
+                   ) as afiliado_foto_url,
+                   CASE WHEN json_valid(a.redes_sociales) = 1 THEN json_extract(a.redes_sociales, '$.foto_carnet_url') ELSE NULL END as afiliado_foto_carnet_url
             FROM solicitudes_cambio_estado s
             JOIN afiliados a ON s.id_afiliado = a.id_afiliado
             JOIN personas p ON a.id_persona = p.id

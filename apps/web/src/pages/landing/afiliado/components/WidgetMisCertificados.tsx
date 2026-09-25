@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Award, Copy, ExternalLink, ShieldCheck } from 'lucide-react'
+import { Award, Copy, ExternalLink } from 'lucide-react'
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
@@ -18,10 +18,6 @@ interface CertRow {
 
 function tituloCertificado(r: CertRow): string {
   return r.curso_nombre || (r.programa_codigo ? `Programa ${r.programa_codigo}` : 'Formación académica')
-}
-
-function esVigente(r: CertRow): boolean {
-  return Number(r.completado) === 1 && (r.inscripcion_estatus === 'Inscrito' || r.inscripcion_estatus === 'Pagado')
 }
 
 const WidgetMisCertificados: React.FC = () => {
@@ -115,14 +111,6 @@ const WidgetMisCertificados: React.FC = () => {
         <div className="mb-6 rounded-2xl border-2 border-emerald-200/80 bg-emerald-50/40 p-5 sm:p-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100/60 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-800">
-                  <ShieldCheck size={11} /> {afiliadoData?.estatus === 'Afiliado' ? 'Miembro Activo' : 'CIBIR Aprobado'}
-                </span>
-                <span className="text-slate-400 text-xs font-bold font-mono">
-                  ID: #{afiliadoData?.codigo || user?.codigo || user?.id_afiliado}
-                </span>
-              </div>
               <h4 className="font-extrabold text-base text-emerald-950">
                 Certificado de Afiliación
               </h4>
@@ -156,14 +144,6 @@ const WidgetMisCertificados: React.FC = () => {
               )}
             </div>
           </div>
-          {urlAfiliacion && (
-            <div className="mt-4 rounded-xl border border-dashed border-emerald-200 bg-white/90 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
-                Enlace de verificación pública
-              </p>
-              <p className="text-xs font-medium text-emerald-800 break-all leading-snug">{urlAfiliacion}</p>
-            </div>
-          )}
         </div>
       )}
 
@@ -194,7 +174,6 @@ const WidgetMisCertificados: React.FC = () => {
         <ul className="space-y-4">
           {rows.map((r) => {
             const url = `${origin}/comprobante/${encodeURIComponent(r.codigo_validacion)}`
-            const vigente = esVigente(r)
             return (
               <li
                 key={r.id_certificado}
@@ -205,23 +184,9 @@ const WidgetMisCertificados: React.FC = () => {
                     <h4 className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>
                       {tituloCertificado(r)}
                     </h4>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Código:{' '}
-                      <span className="font-mono font-semibold text-slate-700">{r.codigo_validacion}</span>
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">
+                    <p className="mt-1 text-[11px] text-slate-400">
                       Emitido: {new Date(r.fecha_emision).toLocaleDateString('es-VE')}
                     </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${vigente
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            : 'border-amber-200 bg-amber-50 text-amber-800'
-                          }`}
-                      >
-                        {vigente ? 'Vigente' : 'No vigente'}
-                      </span>
-                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
                     <button
@@ -241,12 +206,6 @@ const WidgetMisCertificados: React.FC = () => {
                       Copiar enlace
                     </button>
                   </div>
-                </div>
-                <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-white/80 px-3 py-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    Enlace de verificación pública
-                  </p>
-                  <p className="text-xs font-medium text-emerald-800 break-all leading-snug">{url}</p>
                 </div>
               </li>
             )

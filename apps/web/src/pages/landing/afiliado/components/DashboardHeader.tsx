@@ -25,6 +25,42 @@ interface DashboardHeaderProps {
   onUpdateAfiliado?: (updatedFields: Partial<AfiliadoDTO>) => void;
 }
 
+function CarnetAvatarImg({
+  src,
+  alt,
+  isCropped,
+  onError,
+}: {
+  src: string;
+  alt?: string;
+  isCropped: boolean;
+  onError?: () => void;
+}) {
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
+
+  return (
+    <img
+      src={src}
+      alt={alt || 'Foto'}
+      onLoad={(e) => {
+        const img = e.currentTarget;
+        if (img.naturalWidth && img.naturalHeight) {
+          setImgAspect(img.naturalWidth / img.naturalHeight);
+        }
+      }}
+      onError={onError}
+      className="w-full h-full object-cover"
+      style={
+        isCropped
+          ? (imgAspect && imgAspect > (155 / 185) * 1.08
+              ? { objectPosition: 'center 35%', transform: `scale(${imgAspect / (155 / 185)})`, transformOrigin: 'center center' }
+              : { objectPosition: 'center center' })
+          : { transform: 'scale(2.1)', transformOrigin: 'center top' }
+      }
+    />
+  );
+}
+
 const DashboardHeader = ({
   onMenuOpen,
   userName = 'Juan Pérez',
@@ -418,36 +454,47 @@ const DashboardHeader = ({
               </span>
             </div>
             <div
-              className="w-11 sm:w-12 rounded-2xl border-2 border-emerald-600/40 shadow-sm flex items-center justify-center overflow-hidden transition-colors transition-transform group-hover:border-emerald-500 group-hover:scale-105 group-hover:shadow-md shrink-0"
-              style={{ backgroundColor: 'var(--color-accent-muted)', aspectRatio: '155 / 185' }}
+              className="w-11 sm:w-12 rounded-2xl border-2 border-emerald-600/40 shadow-sm flex items-center justify-center overflow-hidden transition-colors transition-transform group-hover:border-emerald-500 group-hover:scale-105 group-hover:shadow-md shrink-0 bg-slate-100"
+              style={{ aspectRatio: '155 / 185' }}
             >
               {(() => {
                 const redes = parseRedes(afiliado?.redes_sociales);
                 const carnetPhotoUrl = useJuntaPhoto
-                  ? redes?.foto_junta_carnet_url
-                  : redes?.foto_carnet_url;
+                  ? (redes?.foto_junta_carnet_url || redes?.foto_carnet_url)
+                  : (redes?.foto_carnet_url || redes?.foto_junta_carnet_url);
 
-                const displayPhoto =
+                const activePhoto =
                   carnetPhotoUrl ||
                   (useJuntaPhoto && afiliado?.foto_junta_url
                     ? afiliado.foto_junta_url
-                    : userFotoUrl || afiliado?.foto_url);
-                const isCropped = !!carnetPhotoUrl;
+                    : userFotoUrl || afiliado?.foto_url) ||
+                  (afiliado?.tipo_afiliado === 'Corporativo' ? afiliado.empresa_logo_url : null);
 
-                return displayPhoto && !imgError ? (
-                  <img
-                    src={displayPhoto}
+                const isCorpLogo = afiliado?.tipo_afiliado === 'Corporativo' && activePhoto === afiliado?.empresa_logo_url;
+                const isCropped = Boolean(carnetPhotoUrl || (activePhoto && activePhoto.includes('foto_carnet_')));
+
+                if (!activePhoto || imgError) {
+                  return <User size={24} style={{ color: 'var(--color-accent-hover)' }} />;
+                }
+
+                if (isCorpLogo) {
+                  return (
+                    <img
+                      src={activePhoto}
+                      alt={userName}
+                      onError={() => setImgError(true)}
+                      className="w-full h-full object-contain p-1"
+                    />
+                  );
+                }
+
+                return (
+                  <CarnetAvatarImg
+                    src={activePhoto}
                     alt={userName}
+                    isCropped={isCropped}
                     onError={() => setImgError(true)}
-                    className="w-full h-full object-cover"
-                    style={
-                      isCropped
-                        ? { objectPosition: 'center center' }
-                        : { transform: 'scale(2)', transformOrigin: 'center top' }
-                    }
                   />
-                ) : (
-                  <User size={24} style={{ color: 'var(--color-accent-hover)' }} />
                 );
               })()}
             </div>

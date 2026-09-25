@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Instagram, Linkedin, Facebook, Building2, User, Briefcase, Music2, Globe } from 'lucide-react';
-import { formatNombreCard, getInitials, formatWhatsAppUrl } from '@/utils/formatters';
+import { formatNombreCard, getInitials, formatWhatsAppUrl, formatSocialUrl } from '@/utils/formatters';
 import { Link } from 'react-router-dom';
 
 import { AfiliadoDTO } from '@/types/afiliados';
@@ -304,7 +304,7 @@ export const AfiliadoCard = ({
           )}
           {afiliado.linkedin && (
             <a
-              href={afiliado.linkedin}
+              href={formatSocialUrl('linkedin', afiliado.linkedin)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-blue-600 transition-colors duration-300"
@@ -315,7 +315,7 @@ export const AfiliadoCard = ({
           )}
           {afiliado.instagram && (
             <a
-              href={afiliado.instagram}
+              href={formatSocialUrl('instagram', afiliado.instagram)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-gradient-to-tr hover:from-purple-600 hover:to-pink-500 transition-colors duration-300"
@@ -326,7 +326,7 @@ export const AfiliadoCard = ({
           )}
           {afiliado.facebook && (
             <a
-              href={afiliado.facebook}
+              href={formatSocialUrl('facebook', afiliado.facebook)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-[#1877F2] transition-colors duration-300"
@@ -337,7 +337,7 @@ export const AfiliadoCard = ({
           )}
           {afiliado.twitter && (
             <a
-              href={afiliado.twitter}
+              href={formatSocialUrl('twitter', afiliado.twitter)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-colors duration-300"
@@ -348,7 +348,7 @@ export const AfiliadoCard = ({
           )}
           {afiliado.tiktok && (
             <a
-              href={afiliado.tiktok}
+              href={formatSocialUrl('tiktok', afiliado.tiktok)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-black transition-colors duration-300"
@@ -359,7 +359,7 @@ export const AfiliadoCard = ({
           )}
           {(afiliado.website || (isCorpView && afiliado.empresa_website)) && (
             <a
-              href={isCorpView ? (afiliado.empresa_website || afiliado.website) : afiliado.website}
+              href={formatSocialUrl('website', isCorpView ? (afiliado.empresa_website || afiliado.website) : afiliado.website)}
               target="_blank"
               rel="noopener noreferrer"
               className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-[#022c22] flex items-center justify-center text-slate-600 dark:text-emerald-400 hover:text-white hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors duration-300"

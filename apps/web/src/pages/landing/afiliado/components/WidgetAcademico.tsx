@@ -78,6 +78,8 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
   const [courses, setCourses] = useState<CursoDB[]>([]);
   const [enrolledCodes, setEnrolledCodes] = useState<string[]>([]);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<number[]>([]);
+  const [approvedCodes, setApprovedCodes] = useState<string[]>([]);
+  const [approvedCourseIds, setApprovedCourseIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, token } = useAuth(); // Para obtener info básica y prellenar modal
 
@@ -103,9 +105,19 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         }
         
         if (inscripcionesJson.success && inscripcionesJson.data) {
-          // Filtrar inscripciones activas (excluir aprobadas, rechazadas o canceladas)
-          const activeInscripciones = inscripcionesJson.data.filter((c: any) => {
-            return c.estatus_academico !== 'Aprobado' && c.estatus !== 'Rechazado' && c.estatus !== 'Cancelado';
+          const allInscripciones = inscripcionesJson.data;
+
+          // 1. Cursos aprobados/completados (permiten reinscripción y renovación)
+          const approved = allInscripciones.filter((c: any) => {
+            return c.estatus_academico === 'Aprobado' || Number(c.completado) === 1 || c.estatus === 'Aprobado';
+          });
+          setApprovedCodes(approved.filter((c: any) => c.programa_codigo).map((c: any) => c.programa_codigo));
+          setApprovedCourseIds(approved.filter((c: any) => c.id_curso).map((c: any) => c.id_curso));
+
+          // 2. Cursos activamente en curso o pendientes de evaluación
+          const activeInscripciones = allInscripciones.filter((c: any) => {
+            const isFinished = c.estatus_academico === 'Aprobado' || Number(c.completado) === 1 || c.estatus === 'Aprobado' || c.estatus === 'Rechazado' || c.estatus === 'Cancelado';
+            return !isFinished;
           });
 
           const codes = activeInscripciones
@@ -149,6 +161,10 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
       return;
     }
 
+    const isApprovedCourse = curso.isFlagship 
+      ? approvedCodes.includes(curso.codigo!) 
+      : approvedCourseIds.includes(curso.id_curso);
+
     const processInscripcion = (nombre: string, email: string) => {
       const url = curso.isFlagship 
         ? `${API_URL}/api/public/preinscripciones`
@@ -184,7 +200,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
             window.location.href = `/cursos/verificar?token=${json.data.token}`;
             return;
           }
-          Swal.fire('¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success');
+          Swal.fire(isApprovedCourse ? '¡Solicitud de renovación enviada!' : '¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success');
         } else {
           Swal.fire('Atención', json.message || 'Hubo un error al procesar tu solicitud.', 'warning');
         }
@@ -197,11 +213,13 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
     if (user?.email) {
       // Usuario logueado: No pedir datos, solo confirmar
       Swal.fire({
-        title: `¿Inscribirse en ${curso.nombre}?`,
-        text: `Usaremos los datos de tu perfil para formalizar la preinscripción.`,
+        title: isApprovedCourse ? `¿Reinscribirse en ${curso.nombre}?` : `¿Inscribirse en ${curso.nombre}?`,
+        text: isApprovedCourse
+          ? `Ya has aprobado este programa anteriormente. Si continúas, registraremos una nueva inscripción para cursarlo nuevamente y renovar tu certificación.`
+          : `Usaremos los datos de tu perfil para formalizar la preinscripción.`,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonText: 'Sí, inscribirme',
+        confirmButtonText: isApprovedCourse ? 'Sí, reinscribirme y renovar' : 'Sí, inscribirme',
         cancelButtonText: 'Cancelar',
         confirmButtonColor: '#00D084',
       }).then((result) => {
@@ -260,6 +278,10 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
               ? enrolledCodes.includes(course.codigo!)
               : enrolledCourseIds.includes(course.id_curso);
 
+            const isApproved = !isEnrolled && (course.isFlagship
+              ? approvedCodes.includes(course.codigo!)
+              : approvedCourseIds.includes(course.id_curso));
+
             return (
             <div 
               key={course.id_curso} 
@@ -291,6 +313,10 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                   <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">
                     Solo Informativo
                   </div>
+                ) : isApproved ? (
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-600 flex items-center gap-1">
+                    ✓ Aprobado
+                  </div>
                 ) : course.estatus === 'Próximamente' ? (
                   <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-500">
                     Próximamente
@@ -300,7 +326,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 {isEnrolled && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10">
                     <span className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
-                      Ya Inscrito
+                      En Curso
                     </span>
                   </div>
                 )}
@@ -322,9 +348,13 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 {!isEnrolled && (
                   <div
                     className="mt-3 flex items-center text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-transform -translate-x-2 group-hover:translate-x-0"
-                    style={{ color: 'var(--color-accent-hover)' }}
+                    style={{ color: isApproved ? 'var(--color-primary)' : 'var(--color-accent-hover)' }}
                   >
-                    {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo') ? 'Ver Información' : 'Formalizar Inscripción'} <ChevronRight size={12} className="ml-1" />
+                    {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo')
+                      ? 'Ver Información'
+                      : isApproved
+                        ? 'Reinscribir / Renovar'
+                        : 'Formalizar Inscripción'} <ChevronRight size={12} className="ml-1" />
                   </div>
                 )}
               </div>
