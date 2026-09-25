@@ -192,14 +192,23 @@ export async function drawCarnetCanvas(
   const photoImg = activePhotoUrl ? await loadImage(activePhotoUrl) : null;
 
   if (photoImg) {
+    const aspectImg = photoImg.width / photoImg.height;
+    const aspectBox = photoW / photoH; // 325 / 388 ≈ 0.8376
+
     if (isCropped) {
-      const aspectImg = photoImg.width / photoImg.height;
-      const aspectBox = photoW / photoH;
       let renderW = photoW;
       let renderH = photoH;
       let renderX = photoX;
       let renderY = photoY;
-      if (aspectImg > aspectBox) {
+
+      // Si el recorte es cuadrado o más ancho (1:1), escalar para igualar la escala visual del recorte rectangular 155:185
+      if (aspectImg > aspectBox * 1.08) {
+        const zoomFactor = aspectImg / aspectBox;
+        renderH = photoH * zoomFactor;
+        renderW = renderH * aspectImg;
+        renderX = photoX - (renderW - photoW) / 2;
+        renderY = photoY - (renderH - photoH) * 0.35;
+      } else if (aspectImg > aspectBox) {
         renderW = photoH * aspectImg;
         renderX = photoX - (renderW - photoW) / 2;
       } else {
@@ -208,12 +217,13 @@ export async function drawCarnetCanvas(
       }
       ctx.drawImage(photoImg, renderX, renderY, renderW, renderH);
     } else {
-      const targetW = photoW * 2;
-      const aspectImg = photoImg.width / photoImg.height;
-      const targetH = targetW / aspectImg;
-      const renderX = photoX - (targetW - photoW) / 2;
+      // Foto sin recorte previo: asegurar que la altura base de zoom sea consistente sin importar la relación de aspecto
+      const baseTargetH = photoH * 2.1;
+      const renderH = Math.max(baseTargetH, (photoW * 2.1) / aspectImg);
+      const renderW = renderH * aspectImg;
+      const renderX = photoX - (renderW - photoW) / 2;
       const renderY = photoY;
-      ctx.drawImage(photoImg, renderX, renderY, targetW, targetH);
+      ctx.drawImage(photoImg, renderX, renderY, renderW, renderH);
     }
   } else {
     const initial = (afiliado.nombres || afiliado.nombre_completo || 'A').charAt(0).toUpperCase();
@@ -251,7 +261,7 @@ export async function drawCarnetCanvas(
     afiliado.apellidos
   ).toUpperCase();
 
-  let textY = 624;
+  let textY = 616;
   ctx.fillStyle = '#0a523d';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -259,34 +269,35 @@ export async function drawCarnetCanvas(
   ctx.font = '900 35px "Plus Jakarta Sans", system-ui, sans-serif';
   ctx.fillText(fullNombre, WIDTH / 2, textY);
 
-  textY += 40;
+  textY += 39;
 
-  ctx.font = '800 22px "Plus Jakarta Sans", system-ui, sans-serif';
-  ctx.fillStyle = '#0d5c46';
+  const fontDataSub = '900 26px "Plus Jakarta Sans", system-ui, sans-serif';
+  ctx.font = fontDataSub;
+
   const codigoText = `AFILIADO - CÓDIGO: ${afiliado.codigo || ''}`;
   ctx.fillText(codigoText, WIDTH / 2, textY);
 
-  textY += 28;
+  textY += 32;
 
   const tipoLabelMap: Record<string, string | string[]> = {
     'Natural': 'AGENTE INDEPENDIENTE',
     'Agente': 'AGENTE INDEPENDIENTE',
+    'Agente Independiente': 'AGENTE INDEPENDIENTE',
     'Agente Corporativo': 'AGENTE CORPORATIVO',
     'Corporativo': ['CORPORATIVO', 'REPR. LEGAL'],
+    'Corporativo (Repr. Legal)': ['CORPORATIVO', 'REPR. LEGAL'],
   };
-  const label = afiliado.tipo_afiliado ? (tipoLabelMap[afiliado.tipo_afiliado] ?? afiliado.tipo_afiliado.toUpperCase()) : null;
+  const label = afiliado.tipo_afiliado ? (tipoLabelMap[afiliado.tipo_afiliado] ?? String(afiliado.tipo_afiliado).toUpperCase()) : null;
 
   if (label) {
-    ctx.font = '800 19px "Plus Jakarta Sans", system-ui, sans-serif';
-    ctx.fillStyle = '#12644e';
     if (Array.isArray(label)) {
       for (const line of label) {
         ctx.fillText(line, WIDTH / 2, textY);
-        textY += 23;
+        textY += 28;
       }
     } else {
       ctx.fillText(label, WIDTH / 2, textY);
-      textY += 23;
+      textY += 32;
     }
   }
 

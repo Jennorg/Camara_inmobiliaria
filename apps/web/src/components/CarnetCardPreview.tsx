@@ -53,6 +53,8 @@ export function CarnetCardPreview({
     afiliado.apellidos
   );
 
+  const [imgAspect, setImgAspect] = React.useState<number | null>(null);
+
   return (
     <div
       ref={cardRef}
@@ -76,6 +78,12 @@ export function CarnetCardPreview({
               src={activePhoto}
               alt="Foto Afiliado"
               crossOrigin="anonymous"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (img.naturalWidth && img.naturalHeight) {
+                  setImgAspect(img.naturalWidth / img.naturalHeight);
+                }
+              }}
               onError={(e) => {
                 if (e.currentTarget.getAttribute('crossOrigin') === 'anonymous') {
                   e.currentTarget.removeAttribute('crossOrigin');
@@ -83,7 +91,13 @@ export function CarnetCardPreview({
                 }
               }}
               className="w-full h-full object-cover"
-              style={isCropped ? { objectPosition: 'center center' } : { transform: 'scale(2)', transformOrigin: 'center top' }}
+              style={
+                isCropped
+                  ? (imgAspect && imgAspect > (155 / 185) * 1.08
+                      ? { objectPosition: 'center 35%', transform: `scale(${imgAspect / (155 / 185)})`, transformOrigin: 'center center' }
+                      : { objectPosition: 'center center' })
+                  : { transform: 'scale(2.1)', transformOrigin: 'center top' }
+              }
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center font-black text-6xl text-[#0a523d] bg-[#e6f3ed]">
@@ -118,11 +132,11 @@ export function CarnetCardPreview({
           <div className="text-[17px] font-black text-[#0a523d] uppercase tracking-wide leading-tight">
             {nombreCarnet}
           </div>
-          <span className="text-[11px] font-bold text-[#0d5c46] tracking-wider block mt-1.5 uppercase">
-            <span className="font-extrabold">AFILIADO - CÓDIGO:</span> {afiliado.codigo}
+          <span className="text-[12px] font-black text-[#0a523d] tracking-wide block mt-1.5 uppercase leading-tight">
+            AFILIADO - CÓDIGO: {afiliado.codigo}
           </span>
           {label && (
-            <span className="text-[10px] font-bold text-[#12644e] uppercase tracking-[0.12em] block mt-1 leading-tight">
+            <span className="text-[12px] font-black text-[#0a523d] uppercase tracking-wide block mt-1 leading-tight">
               {Array.isArray(label) ? label.map((line) => <span key={line} className="block">{line}</span>) : label}
             </span>
           )}
