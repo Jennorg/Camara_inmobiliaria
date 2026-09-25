@@ -22,45 +22,45 @@ export async function getDefaultFirmantesSnapshot(idInscripcion: number): Promis
   try {
     if (idInscripcion > 0) {
       const courseRes = await db.execute({
-        sql: `SELECT c.firmantes 
+        sql: `SELECT c.firmantes, ic.programa_codigo
               FROM inscripciones_cursos ic 
-              JOIN cursos c ON ic.id_curso = c.id_curso 
+              LEFT JOIN cursos c ON ic.id_curso = c.id_curso 
               WHERE ic.id_inscripcion = ?`,
         args: [idInscripcion]
       })
-      if (courseRes.rows.length > 0 && courseRes.rows[0].firmantes) {
+      if (courseRes.rows.length > 0 && courseRes.rows[0].firmantes && courseRes.rows[0].programa_codigo !== 'CIBIR') {
         const fStr = String(courseRes.rows[0].firmantes).trim()
         if (fStr && fStr !== '[]') return fStr
       }
     }
 
     const dirRes = await db.execute(`
-      SELECT p.nombres || ' ' || p.apellidos as nombre, dc.cargo, dc.firma_url
+      SELECT p.nombres || ' ' || p.apellidos as nombre, dc.cargo, dc.cargo_canonical, dc.firma_url
       FROM directiva_cargos dc
       JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
       JOIN personas p ON a.id_persona = p.id
-      WHERE dc.activo = 1 AND (dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%')
-      LIMIT 1
+      WHERE dc.activo = 1 AND (
+        dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%'
+        OR dc.cargo_canonical = 'director_de_formacion' OR LOWER(dc.cargo) LIKE '%formaci%'
+      )
+      ORDER BY CASE 
+        WHEN dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%' THEN 1 
+        ELSE 2 
+      END
     `)
     if (dirRes.rows.length > 0) {
-      const pres = dirRes.rows[0] as any
-      return JSON.stringify([{
-        nombre: pres.nombre,
-        cargo: pres.cargo || 'PRESIDENTE DE LA CÁMARA INMOBILIARIA',
-        firma_url: pres.firma_url || null,
+      return JSON.stringify(dirRes.rows.map((row: any) => ({
+        nombre: (row.nombre || '').trim(),
+        cargo: (row.cargo || '').trim(),
+        firma_url: row.firma_url || null,
         mostrar_firma: true
-      }])
+      })))
     }
   } catch (e) {
     console.error('Error snapshotting firmantes:', e)
   }
 
-  return JSON.stringify([{
-    nombre: 'FRANCISCO PIÑANGO',
-    cargo: 'PRESIDENTE DE LA CÁMARA INMOBILIARIA DE BOLÍVAR',
-    firma_url: null,
-    mostrar_firma: true
-  }])
+  return JSON.stringify([])
 }
 
 /**
@@ -94,30 +94,42 @@ export async function emitirComprobanteSiCompleto(
   }
 
   const exists = await db.execute({
-    sql: `SELECT 1 FROM certificados WHERE id_inscripcion = ? LIMIT 1`,
+    sql: `SELECT id_certificado, codigo_validacion FROM certificados WHERE id_inscripcion = ? LIMIT 1`,
     args: [idInscripcion],
   })
-  if (exists.rows.length > 0) return
 
   const fecha = new Date().toISOString()
   const firmantesSnapshot = await getDefaultFirmantesSnapshot(idInscripcion)
-  let insertedCodigo: string | null = null
-  for (let a = 0; a < 8; a++) {
-    const codigo = nuevoCodigoValidacion()
-    try {
-      await db.execute({
-        sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, firmantes_snapshot, fecha_emision) VALUES (?, ?, ?, ?, ?)`,
-        args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, firmantesSnapshot, fecha],
-      })
-      insertedCodigo = codigo
-      break
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      if (!msg.includes('UNIQUE')) throw e
+  let activeCodigo: string | null = null
+
+  if (exists.rows.length > 0) {
+    const existingCert = exists.rows[0] as any
+    activeCodigo = existingCert.codigo_validacion
+    await db.execute({
+      sql: `UPDATE certificados 
+            SET fecha_emision = ?, firmantes_snapshot = ?, eliminado_en = NULL 
+            WHERE id_certificado = ?`,
+      args: [fecha, firmantesSnapshot, existingCert.id_certificado]
+    })
+  } else {
+    for (let a = 0; a < 8; a++) {
+      const codigo = nuevoCodigoValidacion()
+      try {
+        await db.execute({
+          sql: `INSERT INTO certificados (id_inscripcion, codigo_validacion, url, firmantes_snapshot, fecha_emision) VALUES (?, ?, ?, ?, ?)`,
+          args: [idInscripcion, codigo, `${env.APP_URL}/comprobante/${codigo}`, firmantesSnapshot, fecha],
+        })
+        activeCodigo = codigo
+        break
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        if (!msg.includes('UNIQUE')) throw e
+      }
     }
   }
-  if (!insertedCodigo) {
-    throw new Error('No se pudo generar un código de validación único')
+
+  if (!activeCodigo) {
+    throw new Error('No se pudo generar o renovar el código de validación único')
   }
 
   if (skipEmail) return
@@ -156,7 +168,7 @@ export async function emitirComprobanteSiCompleto(
         nombre: m.nombre || 'Estudiante',
         emailEstudiante: m.email.trim().toLowerCase(),
         tituloFormacion: m.titulo_formacion || 'Formación académica',
-        codigoValidacion: insertedCodigo,
+        codigoValidacion: activeCodigo,
       })
     }
   } catch (e) {

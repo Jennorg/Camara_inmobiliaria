@@ -38,7 +38,7 @@ function patchOklchInClone(doc: Document): void {
 
 /**
  * Ensures all <img> tags inside an element are fully loaded and decoded in memory
- * before triggering html-to-image or html2canvas capture.
+ * before triggering capture.
  */
 export async function waitForImagesToLoad(element: HTMLElement): Promise<void> {
   const images = Array.from(element.querySelectorAll('img'));
@@ -57,16 +57,54 @@ export async function waitForImagesToLoad(element: HTMLElement): Promise<void> {
           });
         }
       } catch {
-        // Ignorar si decode falla en navegadores específicos
+        // Ignorar si decode falla
       }
     })
   );
 }
 
 /**
- * Captures any HTML/SVG element (e.g. #certificate-print-area) into a pixel-perfect
- * high-resolution PDF matching the exact visual preview on screen.
- * Powered by html-to-image (native browser rendering). Falls back to html2canvas.
+ * Prepares the live DOM element by un-scaling it and removing parent clipping
+ * while capturing, returning a restore function.
+ */
+function prepareElementForCapture(element: HTMLElement): () => void {
+  const originalTransform = element.style.transform;
+  const originalTransformOrigin = element.style.transformOrigin;
+  const originalBoxShadow = element.style.boxShadow;
+  const originalBorderRadius = element.style.borderRadius;
+
+  const parent = element.parentElement;
+  const originalParentHeight = parent ? parent.style.height : '';
+  const originalParentOverflow = parent ? parent.style.overflow : '';
+  const originalParentWidth = parent ? parent.style.width : '';
+
+  if (parent) {
+    parent.style.height = '707px';
+    parent.style.overflow = 'visible';
+    parent.style.width = '1000px';
+  }
+
+  element.style.transform = 'none';
+  element.style.transformOrigin = 'top left';
+  element.style.boxShadow = 'none';
+  element.style.borderRadius = '0px';
+
+  return () => {
+    element.style.transform = originalTransform;
+    element.style.transformOrigin = originalTransformOrigin;
+    element.style.boxShadow = originalBoxShadow;
+    element.style.borderRadius = originalBorderRadius;
+    if (parent) {
+      parent.style.height = originalParentHeight;
+      parent.style.overflow = originalParentOverflow;
+      parent.style.width = originalParentWidth;
+    }
+  };
+}
+
+/**
+ * Captures any certificate element into a pixel-perfect, High-Definition (3000 × 2121 px at 300 DPI)
+ * PDF matching the exact distribution on screen.
  */
 export async function exportElementToPdf(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
@@ -81,11 +119,7 @@ export async function exportElementToPdf(elementId: string, filename: string) {
   }
 
   await waitForImagesToLoad(element);
-
-  const originalTransform = element.style.transform;
-  const originalTransformOrigin = element.style.transformOrigin;
-  element.style.transform = 'none';
-  element.style.transformOrigin = 'top center';
+  const restore = prepareElementForCapture(element);
 
   try {
     const fontEmbedCSS = await getCertificateFontEmbedCSS();
@@ -94,14 +128,19 @@ export async function exportElementToPdf(elementId: string, filename: string) {
       dataUrl = await toJpeg(element, {
         quality: 0.98,
         pixelRatio: 3.0,
+        width: 1000,
+        height: 707,
         cacheBust: false,
         backgroundColor: '#ffffff',
         fontEmbedCSS,
-        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px' },
+        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px', width: '1000px', height: '707px' },
       });
-    } catch {
+    } catch (errToJpeg) {
+      console.warn('toJpeg failed, falling back to html2canvas:', errToJpeg);
       const canvas = await html2canvas(element, {
         scale: 3.0,
+        width: 1000,
+        height: 707,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -115,15 +154,13 @@ export async function exportElementToPdf(elementId: string, filename: string) {
     pdf.addImage(dataUrl, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
     pdf.save(filename);
   } finally {
-    element.style.transform = originalTransform;
-    element.style.transformOrigin = originalTransformOrigin;
+    restore();
   }
 }
 
 /**
- * Captures any HTML/SVG element (e.g. #certificate-print-area) into a lossless,
- * ultra high-resolution PNG (300 DPI A4 print standard: 3508 × 2480 px).
- * Ideal for physical high-quality professional printing.
+ * Captures any certificate element into a lossless, Ultra-HD (3000 × 2121 px at 300 DPI) PNG
+ * with 100% fidelity to the visual layout.
  */
 export async function exportElementToPng(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
@@ -138,27 +175,27 @@ export async function exportElementToPng(elementId: string, filename: string) {
   }
 
   await waitForImagesToLoad(element);
-
-  const originalTransform = element.style.transform;
-  const originalTransformOrigin = element.style.transformOrigin;
-  element.style.transform = 'none';
-  element.style.transformOrigin = 'top center';
+  const restore = prepareElementForCapture(element);
 
   try {
     const fontEmbedCSS = await getCertificateFontEmbedCSS();
     let dataUrl = '';
     try {
       dataUrl = await toPng(element, {
-        pixelRatio: 3.508,
+        pixelRatio: 3.0,
+        width: 1000,
+        height: 707,
         cacheBust: false,
         backgroundColor: '#ffffff',
         fontEmbedCSS,
-        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px' },
+        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px', width: '1000px', height: '707px' },
       });
     } catch (errToPng) {
       console.warn('toPng failed, falling back to html2canvas:', errToPng);
       const canvas = await html2canvas(element, {
-        scale: 3.508,
+        scale: 3.0,
+        width: 1000,
+        height: 707,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -184,13 +221,12 @@ export async function exportElementToPng(elementId: string, filename: string) {
     link.click();
     document.body.removeChild(link);
   } finally {
-    element.style.transform = originalTransform;
-    element.style.transformOrigin = originalTransformOrigin;
+    restore();
   }
 }
 
 /**
- * Captures an HTML element into a high-quality JPEG DataURL string.
+ * Captures an HTML element into a high-quality JPEG DataURL string in High Definition.
  */
 export async function captureElementToJpegDataUrl(element: HTMLElement): Promise<string> {
   if (document.fonts && document.fonts.ready) {
@@ -200,11 +236,7 @@ export async function captureElementToJpegDataUrl(element: HTMLElement): Promise
   }
 
   await waitForImagesToLoad(element);
-
-  const originalTransform = element.style.transform;
-  const originalTransformOrigin = element.style.transformOrigin;
-  element.style.transform = 'none';
-  element.style.transformOrigin = 'top center';
+  const restore = prepareElementForCapture(element);
 
   try {
     const fontEmbedCSS = await getCertificateFontEmbedCSS();
@@ -213,15 +245,19 @@ export async function captureElementToJpegDataUrl(element: HTMLElement): Promise
       dataUrl = await toJpeg(element, {
         quality: 0.98,
         pixelRatio: 3.0,
+        width: 1000,
+        height: 707,
         cacheBust: false,
         backgroundColor: '#ffffff',
         fontEmbedCSS,
-        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px' },
+        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px', width: '1000px', height: '707px' },
       });
     } catch (errToJpeg) {
       console.warn('[DataURL] toJpeg failed, falling back to html2canvas:', errToJpeg);
       const canvas = await html2canvas(element, {
         scale: 3.0,
+        width: 1000,
+        height: 707,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -229,7 +265,6 @@ export async function captureElementToJpegDataUrl(element: HTMLElement): Promise
         onclone: (clonedDoc: Document) => patchOklchInClone(clonedDoc),
       });
       dataUrl = canvas.toDataURL('image/jpeg', 0.98);
-      // Explicitly free canvas memory immediately
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
       canvas.width = 0;
@@ -242,14 +277,12 @@ export async function captureElementToJpegDataUrl(element: HTMLElement): Promise
 
     return dataUrl;
   } finally {
-    element.style.transform = originalTransform;
-    element.style.transformOrigin = originalTransformOrigin;
+    restore();
   }
 }
 
 /**
  * Captures an HTML element into an in-memory PDF ArrayBuffer (used for ZIP generation).
- * Uses optimized JPEG encoding and clean memory management to prevent heap exhaustion.
  */
 export async function captureElementToPdfBuffer(element: HTMLElement): Promise<ArrayBuffer> {
   const dataUrl = await captureElementToJpegDataUrl(element);
@@ -259,7 +292,7 @@ export async function captureElementToPdfBuffer(element: HTMLElement): Promise<A
 }
 
 /**
- * Captures an HTML element into an in-memory PNG ArrayBuffer (used for ZIP generation at max 300 DPI print resolution: 3508 × 2480 px).
+ * Captures an HTML element into an in-memory PNG ArrayBuffer (used for ZIP generation).
  */
 export async function captureElementToPngBuffer(element: HTMLElement): Promise<ArrayBuffer> {
   if (document.fonts && document.fonts.ready) {
@@ -269,27 +302,27 @@ export async function captureElementToPngBuffer(element: HTMLElement): Promise<A
   }
 
   await waitForImagesToLoad(element);
-
-  const originalTransform = element.style.transform;
-  const originalTransformOrigin = element.style.transformOrigin;
-  element.style.transform = 'none';
-  element.style.transformOrigin = 'top center';
+  const restore = prepareElementForCapture(element);
 
   try {
     const fontEmbedCSS = await getCertificateFontEmbedCSS();
     let dataUrl = '';
     try {
       dataUrl = await toPng(element, {
-        pixelRatio: 3.508,
+        pixelRatio: 3.0,
+        width: 1000,
+        height: 707,
         cacheBust: false,
         backgroundColor: '#ffffff',
         fontEmbedCSS,
-        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px' },
+        style: { opacity: '1', transform: 'none', borderRadius: '0px', margin: '0px', width: '1000px', height: '707px' },
       });
     } catch (errToPng) {
       console.warn('[ZIP] toPng failed, falling back to html2canvas:', errToPng);
       const canvas = await html2canvas(element, {
-        scale: 3.508,
+        scale: 3.0,
+        width: 1000,
+        height: 707,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -317,8 +350,6 @@ export async function captureElementToPngBuffer(element: HTMLElement): Promise<A
     dataUrl = '';
     return bytes.buffer;
   } finally {
-    element.style.transform = originalTransform;
-    element.style.transformOrigin = originalTransformOrigin;
+    restore();
   }
 }
-

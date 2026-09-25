@@ -2,10 +2,15 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FileDown, ArrowLeft, Loader2, Award, Download } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
+import QRCode from 'qrcode'
 import { API_URL } from '@/config/env'
 import logoImg from '@/assets/Logo4.webp'
 import firmaImg from '@/assets/firma-francisco.webp'
-import { exportElementToPdf, exportElementToPng } from '@/utils/domToPdf'
+import {
+  renderCertificadoAfiliacionCanvas,
+  downloadCanvasAsPdf,
+  downloadCanvasAsPng
+} from '@/utils/certificateCanvasRenderer'
 import { apiFetch } from '@/lib/apiClient'
 
 interface AfiliadoData {
@@ -78,6 +83,10 @@ const CertificadoAfiliacionPage: React.FC = () => {
     return () => { active = false }
   }, [id])
 
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const verificationUrl = id ? `${origin}/comprobante/afiliacion/${id}` : origin
+  const [localQr, setLocalQr] = useState<string>('')
+
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadingPng, setDownloadingPng] = useState(false)
 
@@ -85,8 +94,20 @@ const CertificadoAfiliacionPage: React.FC = () => {
     if (!data) return
     setDownloadingPdf(true)
     try {
+      const canvas = await renderCertificadoAfiliacionCanvas({
+        nombre_completo: data.nombre_completo,
+        nombres: data.nombres,
+        apellidos: data.apellidos,
+        cedula: data.cedula,
+        codigo: data.codigo,
+        tipo_afiliado: data.tipo_afiliado,
+        empresa_rif_tipo: data.empresa_rif_tipo,
+        empresa_rif_numero: data.empresa_rif_numero,
+        empresa_razon_social: data.empresa_razon_social,
+        verificationUrl,
+      }, 3.0)
       const safeName = (data.nombre_completo || 'Afiliado').replace(/[^a-zA-Z0-9_-]/g, '_')
-      await exportElementToPdf('certificate-print-area', `Certificado_Afiliacion_${safeName}.pdf`)
+      downloadCanvasAsPdf(canvas, `Certificado_Afiliacion_${safeName}.pdf`)
     } catch (err) {
       console.error('Error al generar el PDF del certificado:', err)
     } finally {
@@ -98,8 +119,20 @@ const CertificadoAfiliacionPage: React.FC = () => {
     if (!data) return
     setDownloadingPng(true)
     try {
+      const canvas = await renderCertificadoAfiliacionCanvas({
+        nombre_completo: data.nombre_completo,
+        nombres: data.nombres,
+        apellidos: data.apellidos,
+        cedula: data.cedula,
+        codigo: data.codigo,
+        tipo_afiliado: data.tipo_afiliado,
+        empresa_rif_tipo: data.empresa_rif_tipo,
+        empresa_rif_numero: data.empresa_rif_numero,
+        empresa_razon_social: data.empresa_razon_social,
+        verificationUrl,
+      }, 3.0)
       const safeName = (data.nombre_completo || 'Afiliado').replace(/[^a-zA-Z0-9_-]/g, '_')
-      await exportElementToPng('certificate-print-area', `Certificado_Afiliacion_${safeName}.png`)
+      await downloadCanvasAsPng(canvas, `Certificado_Afiliacion_${safeName}.png`)
     } catch (err) {
       console.error('Error al generar la imagen PNG del certificado:', err)
     } finally {
@@ -132,9 +165,15 @@ const CertificadoAfiliacionPage: React.FC = () => {
     return `${prefix}-${numberPart}`
   }
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
-  const verificationUrl = id ? `${origin}/comprobante/afiliacion/${id}` : origin
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`
+  useEffect(() => {
+    if (verificationUrl) {
+      QRCode.toDataURL(verificationUrl, { margin: 1, width: 250 })
+        .then(setLocalQr)
+        .catch(() => {})
+    }
+  }, [verificationUrl])
+
+  const qrApiUrl = localQr || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verificationUrl)}`
 
   const handleBack = () => {
     if (window.history.length > 1 && document.referrer.includes(window.location.host)) {

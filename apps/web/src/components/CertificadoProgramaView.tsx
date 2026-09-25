@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import QRCode from 'qrcode'
 import logoImg from '@/assets/logo_ciebo_green.svg'
-import firmaFranciscoImg from '@/assets/firma-francisco.webp'
-import firmaGracielaImg from '@/assets/firma-graciela-ledezma.webp'
 import { formatNombreCard } from '@/utils/formatters'
-
 import cibirBg from '@/assets/Cibir.webp'
+import pegiBg from '@/assets/Pegi.webp'
+import preaniBg from '@/assets/Preani.webp'
+import padiBg from '@/assets/Padi.webp'
 
 export interface Firmante {
   id?: string | number
@@ -127,57 +127,39 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           {/* ── ESQUINA SUPERIOR IZQUIERDA: CÍRCULO CON LA LLAVE ── */}
           <div className="absolute top-[-15px] left-[-15px] z-20 pointer-events-none">
             <div className="relative w-44 h-44 overflow-hidden rounded-full border-[6px] border-[#cf9f2d] shadow-md bg-white">
-              <img
-                src={cibirBg}
-                alt="CIBIR"
-                className="w-full h-full object-cover object-center"
-              />
+              {(() => {
+                const pCode = (programaCodigo || '').toUpperCase();
+                let badge = cibirBg;
+                if (pCode === 'PEGI') badge = pegiBg;
+                else if (pCode === 'PREANI') badge = preaniBg;
+                else if (pCode === 'PADI') badge = padiBg;
+                return (
+                  <img
+                    src={badge}
+                    alt={pCode || 'CIBIR'}
+                    className="w-full h-full object-cover object-center"
+                  />
+                );
+              })()}
             </div>
           </div>
 
-          {/* =========================================
-              ESQUINA SUPERIOR DERECHA (NUEVOS POLÍGONOS)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', right: '-4px', width: 'calc(40% + 8px)', height: 'calc(50% + 8px)', background: '#2F5496', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', right: '-4px', width: 'calc(25% + 8px)', height: 'calc(35% + 8px)', background: '#2E6F44', clipPath: 'polygon(100% 0, 30% 0, 100% 70%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', right: '-4px', width: 'calc(12% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
-          />
+          {/* ── POLÍGONOS DECORATIVOS ESQUINAS (SVG NATIVO 100% FIEL Y NÍTIDO) ── */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 1000 707" fill="none">
+            {/* Esquina superior derecha */}
+            <polygon points="1000,0 760,0 1000,212" fill="#2F5496" />
+            <polygon points="1000,0 825,0 1000,173" fill="#2E6F44" />
+            <polygon points="1000,0 928,0 1000,106" fill="#F6A644" />
 
-          {/* =========================================
-              ESQUINA INFERIOR DERECHA (NUEVOS POLÍGONOS)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', right: '-4px', width: 'calc(35% + 8px)', height: 'calc(35% + 8px)', background: '#F6A644', clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', right: '-4px', width: 'calc(20% + 8px)', height: 'calc(25% + 8px)', background: '#2F5496', clipPath: 'polygon(100% 100%, 100% 40%, 60% 100%)' }}
-          />
+            {/* Esquina inferior derecha */}
+            <polygon points="1000,707 1000,558 790,707" fill="#F6A644" />
+            <polygon points="1000,707 1000,601 920,707" fill="#2F5496" />
 
-          {/* =========================================
-              ESQUINA INFERIOR IZQUIERDA (NUEVOS POLÍGONOS)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', left: '-4px', width: 'calc(45% + 8px)', height: 'calc(45% + 8px)', background: '#2E6F44', clipPath: 'polygon(0% 100%, 45% 100%, 0% 55%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', left: '-4px', width: 'calc(35% + 8px)', height: 'calc(35% + 8px)', background: '#2F5496', clipPath: 'polygon(0% 100%, 65% 100%, 25% 75%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', left: '-4px', width: 'calc(25% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(0% 100%, 80% 100%, 0% 80%)' }}
-          />
+            {/* Esquina inferior izquierda */}
+            <polygon points="0,707 202,707 0,564" fill="#2E6F44" />
+            <polygon points="0,707 227,707 88,645" fill="#2F5496" />
+            <polygon points="0,707 200,707 0,672" fill="#F6A644" />
+          </svg>
 
           {/* ══════════════════════════════════════════════════════════════════
               MARCA DE AGUA CENTRAL
@@ -194,13 +176,13 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           <div className="absolute top-[155px] left-[161px] right-[24px] border-b border-slate-800/80 pointer-events-none" />
 
           {/* ── CONTENIDO DEL CERTIFICADO ── */}
-          {/* Header Left: Logo Cámara */}
-          <div className="absolute top-[18px] left-[180px] w-[300px] h-[145px] flex items-center justify-center z-10">
-            <img src={logoImg} className="h-[146px] w-auto object-contain drop-shadow-sm" alt="Logo CIEBO" />
+          {/* Header Left: Logo Cámara (Centrado verticalmente entre la línea perimetral superior y=24 y la divisoria y=155) */}
+          <div className="absolute top-[24px] left-[180px] w-[280px] h-[131px] flex items-center justify-center z-10">
+            <img src={logoImg} className="max-h-[105px] max-w-[270px] w-auto h-auto object-contain drop-shadow-sm" alt="Logo CIEBO" />
           </div>
 
           {/* Header Right: Info del Programa (CIBIR) */}
-          <div className="absolute top-[32px] right-[110px] w-[280px] h-[110px] flex flex-col items-center justify-center font-sans z-10">
+          <div className="absolute top-[32px] right-[150px] w-[280px] h-[110px] flex flex-col items-center justify-center font-sans z-10">
             <h1 className="text-[#0f5431] font-black uppercase text-[42px] tracking-wider leading-none mb-1">
               {info.abbr}
             </h1>
@@ -283,30 +265,25 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
 
           {/* Pie de Página: Firmas, QR y Fecha */}
           {(() => {
-            const activeFirmantes = (firmantes && firmantes.length > 0) ? firmantes : [
-              {
-                nombre: 'FRANCISCO PIÑANGO',
-                cargo: 'PRESIDENTE DE LA CAMARA INMOBILIARIA DEL ESTADO BOLIVAR',
-                firma_url: null,
-                mostrar_firma: true
-              },
-              {
-                nombre: 'GRACIELA LEDEZMA',
-                cargo: 'DIRECTORA DE FORMACIÓN',
-                firma_url: null,
-                mostrar_firma: true
-              }
-            ];
+            const activeFirmantes = (firmantes && firmantes.length > 0) ? [...firmantes] : [];
 
-            const leftFirmante = activeFirmantes[0];
-            const rightFirmante = activeFirmantes.length > 1 ? activeFirmantes[1] : null;
+            const leftFirmante = activeFirmantes[0] || {
+              nombre: 'FRANCISCO PIÑANGO',
+              cargo: 'PRESIDENTE DE LA CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR',
+              firma_url: null,
+              mostrar_firma: true
+            };
+
+            const rightFirmante = (activeFirmantes.length > 1 ? activeFirmantes[1] : null) || {
+              nombre: 'GRACIELA LEDEZMA',
+              cargo: 'DIRECTORA DE FORMACIÓN',
+              firma_url: null,
+              mostrar_firma: true
+            };
 
             const getFirmaImage = (f: Firmante) => {
               if (!f) return null;
               if (f.firma_url) return f.firma_url;
-              const nameUpper = (f.nombre || '').toString().toUpperCase();
-              if (nameUpper.includes('FRANCISCO')) return firmaFranciscoImg;
-              if (nameUpper.includes('GRACIELA')) return firmaGracielaImg;
               return null;
             };
 
@@ -332,7 +309,8 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                     {leftFirmante.mostrar_firma !== false && getFirmaImage(leftFirmante) ? (
                       <img
                         src={getFirmaImage(leftFirmante)!}
-                        className="absolute bottom-[-8px] h-28 w-auto object-contain select-none pointer-events-none"
+                        crossOrigin="anonymous"
+                        className="max-h-20 max-w-[170px] w-auto h-auto object-contain select-none pointer-events-none drop-shadow-xs"
                         alt={`Firma ${leftFirmante.nombre}`}
                       />
                     ) : null}
@@ -368,7 +346,8 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                         {rightFirmante.mostrar_firma !== false && getFirmaImage(rightFirmante) ? (
                           <img
                             src={getFirmaImage(rightFirmante)!}
-                            className="absolute bottom-[-2px] h-[72px] w-auto object-contain select-none pointer-events-none"
+                            crossOrigin="anonymous"
+                            className="max-h-20 max-w-[170px] w-auto h-auto object-contain select-none pointer-events-none drop-shadow-xs"
                             alt={`Firma ${rightFirmante.nombre}`}
                           />
                         ) : null}

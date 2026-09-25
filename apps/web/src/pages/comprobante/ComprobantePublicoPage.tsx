@@ -5,7 +5,12 @@ import { Helmet } from 'react-helmet-async'
 import CertificadoProgramaView from '@/components/CertificadoProgramaView'
 import CertificadoCursoView from '@/components/CertificadoCursoView'
 import { API_URL } from '@/config/env'
-import { exportElementToPdf, exportElementToPng } from '@/utils/domToPdf'
+import {
+  renderCertificadoProgramaCanvas,
+  renderCertificadoCursoCanvas,
+  downloadCanvasAsPdf,
+  downloadCanvasAsPng
+} from '@/utils/certificateCanvasRenderer'
 import { apiFetch } from '@/lib/apiClient'
 
 type ApiData = {
@@ -73,9 +78,37 @@ const ComprobantePublicoPage: React.FC = () => {
     if (!data) return
     setDownloadingPdf(true)
     try {
-      const targetId = 'certificate-print-area'
+      let canvas: HTMLCanvasElement
+      if (isMainProgram) {
+        canvas = await renderCertificadoProgramaCanvas({
+          codigo: data.codigo_validacion,
+          fechaEmisionIso: data.fecha_emision,
+          titularNombre: data.titular_nombre,
+          programaOCurso: data.programa_o_curso,
+          programaCodigo: data.programa_codigo || '',
+          urlVerificacion,
+          cedula: data.cedula,
+          firmantes: data.firmantes,
+        }, 3.0)
+      } else {
+        canvas = await renderCertificadoCursoCanvas({
+          codigo: data.codigo_validacion,
+          fechaEmisionIso: data.fecha_emision,
+          titularNombre: data.titular_nombre,
+          programaOCurso: data.programa_o_curso,
+          modalidad: data.modalidad,
+          categoria: data.categoria,
+          descripcion: data.descripcion,
+          instructorNombre: data.instructor_nombre,
+          instructorCargo: data.instructor_cargo,
+          urlVerificacion,
+          cedula: data.cedula,
+          modulosLista: data.modulos_lista,
+          firmantes: data.firmantes,
+        }, 3.0)
+      }
       const safeName = (data.titular_nombre || 'Comprobante').replace(/[^a-zA-Z0-9_-]/g, '_')
-      await exportElementToPdf(targetId, `Comprobante_${safeName}.pdf`)
+      downloadCanvasAsPdf(canvas, `Comprobante_${safeName}.pdf`)
     } catch (err) {
       console.error('Error generando PDF:', err)
     } finally {
@@ -87,9 +120,37 @@ const ComprobantePublicoPage: React.FC = () => {
     if (!data) return
     setDownloadingPng(true)
     try {
-      const targetId = 'certificate-print-area'
+      let canvas: HTMLCanvasElement
+      if (isMainProgram) {
+        canvas = await renderCertificadoProgramaCanvas({
+          codigo: data.codigo_validacion,
+          fechaEmisionIso: data.fecha_emision,
+          titularNombre: data.titular_nombre,
+          programaOCurso: data.programa_o_curso,
+          programaCodigo: data.programa_codigo || '',
+          urlVerificacion,
+          cedula: data.cedula,
+          firmantes: data.firmantes,
+        }, 3.0)
+      } else {
+        canvas = await renderCertificadoCursoCanvas({
+          codigo: data.codigo_validacion,
+          fechaEmisionIso: data.fecha_emision,
+          titularNombre: data.titular_nombre,
+          programaOCurso: data.programa_o_curso,
+          modalidad: data.modalidad,
+          categoria: data.categoria,
+          descripcion: data.descripcion,
+          instructorNombre: data.instructor_nombre,
+          instructorCargo: data.instructor_cargo,
+          urlVerificacion,
+          cedula: data.cedula,
+          modulosLista: data.modulos_lista,
+          firmantes: data.firmantes,
+        }, 3.0)
+      }
       const safeName = (data.titular_nombre || 'Comprobante').replace(/[^a-zA-Z0-9_-]/g, '_')
-      await exportElementToPng(targetId, `Comprobante_${safeName}.png`)
+      await downloadCanvasAsPng(canvas, `Comprobante_${safeName}.png`)
     } catch (err) {
       console.error('Error generando PNG:', err)
     } finally {

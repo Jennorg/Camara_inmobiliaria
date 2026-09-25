@@ -213,65 +213,27 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
           {/* Borde negro fino perimetral */}
           <div className="absolute inset-6 border border-slate-800/80 pointer-events-none rounded-none z-10" />
 
-          {/* =========================================
-              ESQUINA SUPERIOR IZQUIERDA (POLÍGONOS GEOMÉTRICOS)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', left: '-4px', width: 'calc(35% + 8px)', height: 'calc(45% + 8px)', background: '#F6A644', clipPath: 'polygon(0 0, 60% 0, 0 40%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', left: '-4px', width: 'calc(23% + 8px)', height: 'calc(32% + 8px)', background: '#2E6F44', clipPath: 'polygon(0 0, 70% 0, 0 30%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', left: '-4px', width: 'calc(13% + 8px)', height: 'calc(20% + 8px)', background: '#2F5496', clipPath: 'polygon(0 0, 60% 0, 0 40%)' }}
-          />
+          {/* ── POLÍGONOS DECORATIVOS ESQUINAS (SVG NATIVO 100% FIEL Y NÍTIDO) ── */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 1000 707" fill="none">
+            {/* Esquina superior izquierda */}
+            <polygon points="0,0 210,0 0,127" fill="#F6A644" />
+            <polygon points="0,0 161,0 0,68" fill="#2E6F44" />
+            <polygon points="0,0 78,0 0,57" fill="#2F5496" />
 
-          {/* =========================================
-              ESQUINA SUPERIOR DERECHA (POLÍGONOS CIBIR)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', right: '-4px', width: 'calc(40% + 8px)', height: 'calc(50% + 8px)', background: '#2F5496', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', right: '-4px', width: 'calc(25% + 8px)', height: 'calc(35% + 8px)', background: '#2E6F44', clipPath: 'polygon(100% 0, 30% 0, 100% 70%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ top: '-4px', right: '-4px', width: 'calc(12% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(100% 0, 40% 0, 100% 60%)' }}
-          />
+            {/* Esquina superior derecha */}
+            <polygon points="1000,0 760,0 1000,212" fill="#2F5496" />
+            <polygon points="1000,0 825,0 1000,173" fill="#2E6F44" />
+            <polygon points="1000,0 928,0 1000,106" fill="#F6A644" />
 
-          {/* =========================================
-              ESQUINA INFERIOR DERECHA (POLÍGONOS CIBIR)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', right: '-4px', width: 'calc(35% + 8px)', height: 'calc(35% + 8px)', background: '#F6A644', clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', right: '-4px', width: 'calc(20% + 8px)', height: 'calc(25% + 8px)', background: '#2F5496', clipPath: 'polygon(100% 100%, 100% 40%, 60% 100%)' }}
-          />
+            {/* Esquina inferior derecha */}
+            <polygon points="1000,707 1000,558 790,707" fill="#F6A644" />
+            <polygon points="1000,707 1000,601 920,707" fill="#2F5496" />
 
-          {/* =========================================
-              ESQUINA INFERIOR IZQUIERDA (POLÍGONOS CIBIR)
-          ========================================= */}
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', left: '-4px', width: 'calc(45% + 8px)', height: 'calc(45% + 8px)', background: '#2E6F44', clipPath: 'polygon(0% 100%, 45% 100%, 0% 55%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', left: '-4px', width: 'calc(35% + 8px)', height: 'calc(35% + 8px)', background: '#2F5496', clipPath: 'polygon(0% 100%, 65% 100%, 25% 75%)' }}
-          />
-          <div
-            className="absolute pointer-events-none z-10"
-            style={{ bottom: '-4px', left: '-4px', width: 'calc(25% + 8px)', height: 'calc(25% + 8px)', background: '#F6A644', clipPath: 'polygon(0% 100%, 80% 100%, 0% 80%)' }}
-          />
+            {/* Esquina inferior izquierda */}
+            <polygon points="0,707 202,707 0,564" fill="#2E6F44" />
+            <polygon points="0,707 227,707 88,645" fill="#2F5496" />
+            <polygon points="0,707 200,707 0,672" fill="#F6A644" />
+          </svg>
 
           {/* ══════════════════════════════════════════════════════════════════
               3. MARCA DE AGUA CENTRAL

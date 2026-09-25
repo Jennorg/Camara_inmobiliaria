@@ -94,27 +94,67 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
       } catch {}
     }
 
-    if (firmantesRawArray.length === 0) {
-      try {
-        const dirRes = await db.execute(`
-          SELECT p.nombres || ' ' || p.apellidos as nombre, dc.cargo, dc.firma_url
-          FROM directiva_cargos dc
-          JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
-          LEFT JOIN personas p ON a.id_persona = p.id
-          WHERE dc.activo = 1 AND (dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%')
-          LIMIT 1
-        `)
-        if (dirRes.rows.length > 0) {
-          const pres = dirRes.rows[0] as any
-          firmantesRawArray = [{
-            nombre: pres.nombre || 'FRANCISCO PIÑANGO',
-            cargo: pres.cargo || 'PRESIDENTE DE LA CÁMARA INMOBILIARIA',
-            firma_url: pres.firma_url || null,
-            mostrar_firma: true
-          }]
-        }
-      } catch {}
+    // Obtener autoridades activas de la junta directiva desde la BD
+    let directivaDbFirmantes: Array<{
+      nombre: string
+      cargo: string
+      cargo_canonical?: string | null
+      firma_url: string | null
+      mostrar_firma: boolean
+    }> = []
+
+    try {
+      const dirRes = await db.execute(`
+        SELECT p.nombres || ' ' || p.apellidos as nombre, dc.cargo, dc.cargo_canonical, dc.firma_url
+        FROM directiva_cargos dc
+        JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
+        LEFT JOIN personas p ON a.id_persona = p.id
+        WHERE dc.activo = 1 AND (
+          dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%'
+          OR dc.cargo_canonical = 'director_de_formacion' OR LOWER(dc.cargo) LIKE '%formaci%'
+        )
+        ORDER BY CASE 
+          WHEN dc.cargo_canonical = 'presidente' OR LOWER(dc.cargo) LIKE '%presidente%' THEN 1 
+          ELSE 2 
+        END
+      `)
+      directivaDbFirmantes = dirRes.rows.map((r: any) => ({
+        nombre: (r.nombre || '').trim(),
+        cargo: (r.cargo || '').trim(),
+        cargo_canonical: r.cargo_canonical || null,
+        firma_url: r.firma_url || null,
+        mostrar_firma: true,
+      }))
+    } catch (err) {
+      console.error('Error fetching directiva cargos for comprobante:', err)
     }
+
+    const isCibirOrProgram = row.programa_codigo === 'CIBIR' || (!row.curso_nombre && !!row.programa_codigo)
+
+    if (firmantesRawArray.length === 0 || isCibirOrProgram) {
+      if (directivaDbFirmantes.length > 0) {
+        firmantesRawArray = directivaDbFirmantes
+      }
+    }
+
+    // Asegurar que si un firmante no tiene firma_url o proviene de snapshot sin firma, se sincronice con la BD
+    firmantesRawArray = firmantesRawArray.map((f) => {
+      const fName = String(f?.nombre || '').toLowerCase().trim()
+      const fCargo = String(f?.cargo || '').toLowerCase().trim()
+      const dbMatch = directivaDbFirmantes.find((dbF) => {
+        const dbName = dbF.nombre.toLowerCase().trim()
+        const dbCargo = dbF.cargo.toLowerCase().trim()
+        return (
+          (fName && (dbName.includes(fName) || fName.includes(dbName))) ||
+          (fCargo.includes('presidente') && dbCargo.includes('presidente')) ||
+          (fCargo.includes('formaci') && dbCargo.includes('formaci'))
+        )
+      })
+      return {
+        ...f,
+        firma_url: f?.firma_url || dbMatch?.firma_url || null,
+      }
+    })
 
     if (firmantesRawArray.length === 0) {
       firmantesRawArray = [{
