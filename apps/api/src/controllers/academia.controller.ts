@@ -1473,7 +1473,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
     const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
     const existing = await db.execute({
-      sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico 
+      sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, ic.completado 
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -1491,6 +1491,8 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       const prev = existing.rows[0] as any
       const isFinalState = prev.estatus === 'Rechazado' || 
                            prev.estatus === 'Cancelado' || 
+                           prev.estatus === 'Aprobado' ||
+                           Number(prev.completado) === 1 ||
                            ['Aprobado', 'Reprobado', 'Retirado'].includes(prev.estatus_academico);
       if (!isFinalState) {
         if (prev.estatus === 'Preinscrito') {
@@ -1518,16 +1520,17 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     const now = new Date().toISOString()
     const result = await db.execute({
       sql: `INSERT INTO inscripciones_cursos
-              (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, creado_en, actualizado_en)
-            VALUES (?, ?, NULL, 'curso', 'Preinscrito', ?, ?)
+              (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, estatus_academico, completado, fecha_inscripcion, creado_en, actualizado_en)
+            VALUES (?, ?, NULL, 'curso', 'Preinscrito', 'Inscrito', 0, ?, ?, ?)
             ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
               estatus = 'Preinscrito',
               estatus_academico = 'Inscrito',
               completado = 0,
               tipo_inscripcion = 'curso',
+              fecha_inscripcion = excluded.fecha_inscripcion,
               actualizado_en = excluded.actualizado_en
             RETURNING *`,
-      args: [id_estudiante, idCurso, now, now],
+      args: [id_estudiante, idCurso, now, now, now],
     })
 
     res.status(201).json({
