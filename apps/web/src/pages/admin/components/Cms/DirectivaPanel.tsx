@@ -817,7 +817,12 @@ export const DirectivaPanel = () => {
 
     setSaving(true)
     try {
-      const payload = { ...form, activo: true }
+      const payload = {
+        ...form,
+        foto_junta_url: form.foto_junta_url && form.foto_junta_url.trim() ? form.foto_junta_url.trim() : null,
+        firma_url: form.firma_url && form.firma_url.trim() ? form.firma_url.trim() : null,
+        activo: true
+      }
       let resp;
       if (editingItem) {
         resp = await api.put(`/api/cms/directiva/${editingItem.id}`, payload)

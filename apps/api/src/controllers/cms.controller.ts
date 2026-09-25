@@ -330,8 +330,9 @@ export const getDirectiva = async (req: Request, res: Response) => {
              a.codigo,
              p.nombres || ' ' || p.apellidos as nombre,
              p.foto_url as foto_url_miembro,
-             COALESCE(dc.foto_junta_url, p.foto_url) as foto_url,
-             dc.firma_url
+             COALESCE(NULLIF(TRIM(dc.foto_junta_url), ''), NULLIF(TRIM(p.foto_url), '')) as foto_url,
+             NULLIF(TRIM(dc.foto_junta_url), '') as foto_junta_url,
+             NULLIF(TRIM(dc.firma_url), '') as firma_url
       FROM directiva_cargos dc
       JOIN afiliados a ON dc.id_afiliado = a.id_afiliado
       JOIN personas p ON a.id_persona = p.id
@@ -368,9 +369,12 @@ export const createMiembroDirectiva = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: `El cargo "${cargo}" ya está asignado en esta junta directiva` });
     }
 
+    const cleanFotoJunta = foto_junta_url && String(foto_junta_url).trim() ? String(foto_junta_url).trim() : null;
+    const cleanFirma = firma_url && String(firma_url).trim() ? String(firma_url).trim() : null;
+
     const result = await db.execute({
       sql: `INSERT INTO directiva_cargos (id_afiliado, cargo, cargo_canonical, periodo, orden, activo, foto_junta_url, firma_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo === false ? 0 : 1, foto_junta_url ?? null, firma_url ?? null]
+      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo === false ? 0 : 1, cleanFotoJunta, cleanFirma]
     });
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {
@@ -403,9 +407,12 @@ export const updateMiembroDirectiva = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: `El cargo "${cargo}" ya está asignado en esta junta directiva` });
     }
 
+    const cleanFotoJunta = foto_junta_url && String(foto_junta_url).trim() ? String(foto_junta_url).trim() : null;
+    const cleanFirma = firma_url && String(firma_url).trim() ? String(firma_url).trim() : null;
+
     const result = await db.execute({
       sql: `UPDATE directiva_cargos SET id_afiliado=?, cargo=?, cargo_canonical=?, periodo=?, orden=?, activo=?, foto_junta_url=?, firma_url=? WHERE id=? RETURNING *`,
-      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo ? 1 : 0, foto_junta_url ?? null, firma_url ?? null, id]
+      args: [Number(id_afiliado), cargo, canonical, periodo ?? null, orden ?? 0, activo ? 1 : 0, cleanFotoJunta, cleanFirma, id]
     });
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Miembro no encontrado' });
     return res.json({ success: true, data: result.rows[0] });

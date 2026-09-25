@@ -117,7 +117,7 @@ export default function EquipoDirectivo() {
         if (!active) return
         if (data && data.success && Array.isArray(data.data)) {
           const activeMembers = data.data
-            .filter((m: any) => (m.activo === 1 || m.activo === true) && m.foto_url)
+            .filter((m: any) => m.activo === 1 || m.activo === true)
             
           if (activeMembers.length > 0) {
             const firstPeriod = activeMembers[0].periodo
@@ -132,7 +132,7 @@ export default function EquipoDirectivo() {
               codigo: m.codigo,
               nombre: m.nombre,
               cargo: m.cargo,
-              foto: m.foto_url
+              foto: m.foto_url || m.foto_url_miembro || ''
             }))
             setDirectiva(mapped)
           } else {

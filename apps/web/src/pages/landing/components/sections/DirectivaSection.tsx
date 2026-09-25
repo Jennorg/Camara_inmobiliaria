@@ -55,13 +55,13 @@ export default function DirectivaSection() {
         if (!active) return
         if (data && data.success && Array.isArray(data.data)) {
           const activeMembers = data.data
-            .filter((m: any) => (m.activo === 1 || m.activo === true) && m.foto_url)
+            .filter((m: any) => m.activo === 1 || m.activo === true)
             .map((m: any) => ({
               id_afiliado: m.id_afiliado,
               codigo: m.codigo,
               nombre: m.nombre,
               cargo: m.cargo,
-              foto_url: m.foto_url
+              foto_url: m.foto_url || m.foto_url_miembro || ''
             }))
           setDirectivaMembers(activeMembers.length > 0 ? activeMembers : fallbackDirectiva)
         } else {
