@@ -19,6 +19,8 @@ export interface CertificadoProgramaViewProps {
   codigo: string
   fechaEmisionIso: string
   titularNombre: string
+  titularNombres?: string | null
+  titularApellidos?: string | null
   programaOCurso: string
   programaCodigo: string // 'CIBIR' | 'PEGI' | 'PREANI' | 'PADI'
   urlVerificacion: string
@@ -51,6 +53,8 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
   codigo,
   fechaEmisionIso,
   titularNombre,
+  titularNombres,
+  titularApellidos,
   programaOCurso,
   programaCodigo,
   urlVerificacion,
@@ -218,7 +222,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
           <div className="absolute top-[305px] left-[150px] right-[150px] flex flex-col items-center z-10">
             <div className="w-full border-b border-slate-700/80 pb-1 flex flex-col items-center min-h-[55px] justify-end">
               {(() => {
-                const nombreMostrado = formatNombreCard(titularNombre) || titularNombre;
+                const nombreMostrado = formatNombreCard(titularNombres || titularNombre, titularApellidos) || titularNombre;
                 return (
                   <span
                     className="font-extrabold text-slate-900 px-4 text-center leading-none italic"

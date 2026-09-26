@@ -359,12 +359,14 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
 
         const inscrito = targetRows[i];
         const rawNombre = (inscrito.estudiante_nombre || inscrito.nombre || `Inscrito_${i + 1}`).trim();
+        const rawNombres = inscrito.estudiante_nombres || inscrito.nombres || null;
+        const rawApellidos = inscrito.estudiante_apellidos || inscrito.apellidos || null;
         const nombreEstudiante = rawNombre;
         const codigoVal = inscrito.codigo_validacion || `CIV-${String(inscrito.id_inscripcion || (i + 1)).padStart(5, '0')}-${String(curso.id_curso || '0').padStart(3, '0')}`;
         const urlVerif = `${origin}/comprobante/${encodeURIComponent(codigoVal)}`;
 
         setBatchCurrent(i + 1);
-        setCurrentItemName(formatNombreCard(rawNombre) || nombreEstudiante);
+        setCurrentItemName(formatNombreCard(rawNombres || rawNombre, rawApellidos) || nombreEstudiante);
 
         // Pre-generate QR code data URL
         let qrDataUrl = '';
@@ -382,6 +384,8 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
           codigo: codigoVal,
           fechaEmisionIso: inscrito.fecha_emision || (curso.fecha_fin ? `${curso.fecha_fin}T12:00:00` : new Date().toISOString()),
           titularNombre: nombreEstudiante,
+          titularNombres: rawNombres,
+          titularApellidos: rawApellidos,
           programaOCurso: curso.titulo || curso.nombre || 'CURSO',
           programaCodigo: curso.programa_codigo || 'CURSO',
           modalidad: curso.modalidad || null,
@@ -610,6 +614,8 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
                 codigo={currentCertData.codigo}
                 fechaEmisionIso={currentCertData.fechaEmisionIso}
                 titularNombre={currentCertData.titularNombre}
+                titularNombres={currentCertData.titularNombres}
+                titularApellidos={currentCertData.titularApellidos}
                 programaOCurso={currentCertData.programaOCurso}
                 programaCodigo={currentCertData.programaCodigo}
                 urlVerificacion={currentCertData.urlVerificacion}
@@ -623,6 +629,8 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
                 codigo={currentCertData.codigo}
                 fechaEmisionIso={currentCertData.fechaEmisionIso}
                 titularNombre={currentCertData.titularNombre}
+                titularNombres={currentCertData.titularNombres}
+                titularApellidos={currentCertData.titularApellidos}
                 programaOCurso={currentCertData.programaOCurso}
                 modalidad={currentCertData.modalidad}
                 categoria={currentCertData.categoria}

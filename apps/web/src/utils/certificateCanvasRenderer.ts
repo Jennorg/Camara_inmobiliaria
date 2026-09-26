@@ -429,6 +429,8 @@ export interface CertificadoProgramaRenderData {
   codigo: string;
   fechaEmisionIso: string;
   titularNombre: string;
+  titularNombres?: string | null;
+  titularApellidos?: string | null;
   programaOCurso: string;
   programaCodigo: string;
   urlVerificacion: string;
@@ -645,7 +647,7 @@ export async function renderCertificadoProgramaCanvas(
   ctx.letterSpacing = '0px';
 
   // Nombre del Estudiante
-  const stName = formatNombreCard(data.titularNombre) || data.titularNombre;
+  const stName = formatNombreCard(data.titularNombres || data.titularNombre, data.titularApellidos) || data.titularNombre;
   ctx.fillStyle = '#0f172a';
   const stLen = stName.length;
   const stFontSize = stLen > 34 ? 26 : stLen > 26 ? 30 : 36;
@@ -801,6 +803,8 @@ export interface CertificadoCursoRenderData {
   codigo: string;
   fechaEmisionIso: string;
   titularNombre: string;
+  titularNombres?: string | null;
+  titularApellidos?: string | null;
   programaOCurso: string;
   modalidad?: string | null;
   categoria?: string | null;
@@ -1055,7 +1059,7 @@ export async function renderCertificadoCursoCanvas(
   ctx.letterSpacing = '0px';
 
   // 7 & 8. Sección Central: Nombre, Cédula y Participación (Centrado Vertical Dinámico)
-  const nombreMostrado = formatNombreCard(data.titularNombre) || data.titularNombre;
+  const nombreMostrado = formatNombreCard(data.titularNombres || data.titularNombre, data.titularApellidos) || data.titularNombre;
   const nameLen = (nombreMostrado || '').length;
   const nameFontSize = nameLen > 35 ? 42 : nameLen > 28 ? 50 : nameLen > 20 ? 60 : 70;
 

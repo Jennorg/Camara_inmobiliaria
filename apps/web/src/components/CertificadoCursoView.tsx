@@ -16,6 +16,8 @@ export interface CertificadoCursoViewProps {
   codigo: string
   fechaEmisionIso: string
   titularNombre: string
+  titularNombres?: string | null
+  titularApellidos?: string | null
   programaOCurso: string
   modalidad?: string | null
   categoria?: string | null
@@ -136,6 +138,8 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
   codigo,
   fechaEmisionIso,
   titularNombre,
+  titularNombres,
+  titularApellidos,
   programaOCurso,
   modalidad,
   categoria,
@@ -191,7 +195,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
   const { prefix, cleanTitle, itemsList } = getPrefijoParticipacion(modalidad, categoria, programaOCurso, descripcion, modulosLista)
 
   // Mostrar únicamente el primer nombre y primer apellido
-  const nombreMostrado = formatNombreCard(titularNombre) || titularNombre
+  const nombreMostrado = formatNombreCard(titularNombres || titularNombre, titularApellidos) || titularNombre
 
   return (
     <div className="w-full relative">

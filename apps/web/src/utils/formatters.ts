@@ -7,39 +7,111 @@
  * Puede recibir el nombre completo como un solo string o 
  * los nombres y apellidos por separado para mayor precisión.
  */
+const COMPOUND_PREFIXES_2 = new Set(['de la', 'de los', 'de las']);
+const COMPOUND_PREFIXES_1 = new Set(['de', 'del', 'da', 'das', 'do', 'dos', 'san', 'santa', 'van', 'von', 'di', 'la', 'le']);
+
+/**
+ * Capitaliza una palabra (primera letra en mayúscula, resto en minúscula).
+ */
+export const capitalizeWord = (str: string): string => {
+  if (!str) return '';
+  const s = str.trim();
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+};
+
+/**
+ * Extrae el primer apellido de una cadena de apellidos, respetando partículas compuestas
+ * como "De La Rosa", "De Luttinger", "Del Moral", "San Martín", etc.
+ */
+export const extractPrimerApellido = (apellidosStr: string): string => {
+  const clean = (apellidosStr || '').trim();
+  if (!clean) return '';
+  const words = clean.split(/\s+/);
+  if (words.length <= 1) return capitalizeWord(words[0]);
+
+  const lower0 = words[0].toLowerCase();
+  const lower1 = words[1]?.toLowerCase();
+
+  // Partículas de 2 palabras: "de la", "de los", "de las"
+  if (words.length >= 3 && COMPOUND_PREFIXES_2.has(`${lower0} ${lower1}`)) {
+    return `${capitalizeWord(words[0])} ${capitalizeWord(words[1])} ${capitalizeWord(words[2])}`;
+  }
+
+  // Partículas de 1 palabra: "de", "del", "san", etc.
+  if (words.length >= 2 && COMPOUND_PREFIXES_1.has(lower0)) {
+    return `${capitalizeWord(words[0])} ${capitalizeWord(words[1])}`;
+  }
+
+  return capitalizeWord(words[0]);
+};
+
+/**
+ * Extrae el primer nombre de una cadena de nombres.
+ */
+export const extractPrimerNombre = (nombresStr: string): string => {
+  const clean = (nombresStr || '').trim();
+  if (!clean) return '';
+  const words = clean.split(/\s+/);
+  return capitalizeWord(words[0]);
+};
+
 export const formatNombreCard = (
   arg1: string | null | undefined, 
   arg2?: string | null | undefined
 ): string => {
-  const capitalize = (str: string) => {
-    if (!str) return '';
-    const s = str.trim();
-    if (!s) return '';
-    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-  };
-
   const clean1 = (arg1 || '').trim();
   const clean2 = (arg2 || '').trim();
 
   // CASO A: Se pasan columna nombres y columna apellidos por separado
-  // Toma la primera palabra de la columna nombres y la primera palabra de la columna apellidos
+  // Toma el primer nombre de la columna nombres y el primer apellido de la columna apellidos
   if (clean1 && clean2) {
-    const primerNombre = clean1.split(/\s+/)[0];
-    const primerApellido = clean2.split(/\s+/)[0];
-    return `${capitalize(primerNombre)} ${capitalize(primerApellido)}`.trim();
+    const primerNombre = extractPrimerNombre(clean1);
+    const primerApellido = extractPrimerApellido(clean2);
+    return `${primerNombre} ${primerApellido}`.trim();
   }
 
   // CASO B: Solo se dispone de un único string (ej. nombre_completo)
   const text = clean1 || clean2;
   if (!text) return '';
 
-  const parts = text.split(/\s+/);
-  if (parts.length === 1) return capitalize(parts[0]);
-  if (parts.length === 2) return `${capitalize(parts[0])} ${capitalize(parts[1])}`;
+  const words = text.split(/\s+/);
+  if (words.length === 1) return capitalizeWord(words[0]);
+  if (words.length === 2) return `${capitalizeWord(words[0])} ${capitalizeWord(words[1])}`;
 
-  const firstName = capitalize(parts[0]);
-  const firstSurname = parts.length >= 4 ? capitalize(parts[2]) : capitalize(parts[parts.length - 1]);
-  return `${firstName} ${firstSurname}`.trim();
+  const firstName = extractPrimerNombre(words[0]);
+  const lower1 = words[1]?.toLowerCase();
+  const lower2 = words[2]?.toLowerCase();
+  const lower3 = words[3]?.toLowerCase();
+
+  // 1. Partículas compuestas en Nombres de pila ("del mar", "de los angeles", "del carmen", "de jesus")
+  if (lower1 === 'de' && lower2 === 'los' && lower3 === 'angeles' && words.length >= 5) {
+    return `${firstName} ${extractPrimerApellido(words.slice(4).join(' '))}`.trim();
+  }
+  if (lower1 === 'del' && (lower2 === 'mar' || lower2 === 'carmen' || lower2 === 'valle' || lower2 === 'rosario') && words.length >= 4) {
+    return `${firstName} ${extractPrimerApellido(words.slice(3).join(' '))}`.trim();
+  }
+  if (lower1 === 'de' && (lower2 === 'jesus' || lower2 === 'dios') && words.length >= 4) {
+    return `${firstName} ${extractPrimerApellido(words.slice(3).join(' '))}`.trim();
+  }
+
+  // 2. Partículas compuestas de 2 palabras en Apellidos ("de la rosa", "de los santos")
+  if (COMPOUND_PREFIXES_2.has(`${lower1} ${lower2}`) && words.length >= 4) {
+    return `${firstName} ${capitalizeWord(words[1])} ${capitalizeWord(words[2])} ${capitalizeWord(words[3])}`.trim();
+  }
+
+  // 3. Partículas compuestas de 1 palabra en Apellidos ("de luttinger", "del moral", "san martin")
+  if (COMPOUND_PREFIXES_1.has(lower1) && words.length >= 3) {
+    return `${firstName} ${capitalizeWord(words[1])} ${capitalizeWord(words[2])}`.trim();
+  }
+
+  // 4. Nombre estándar de 4 o más palabras (ej: Juan Carlos Pérez Gómez -> Juan Pérez)
+  if (words.length >= 4) {
+    return `${firstName} ${extractPrimerApellido(words.slice(2).join(' '))}`.trim();
+  }
+
+  // 5. Nombre de 3 palabras (ej: José Carlos Piñango -> José Piñango)
+  return `${firstName} ${extractPrimerApellido(words[words.length - 1])}`.trim();
 };
 
 /**

@@ -17,6 +17,8 @@ type ApiData = {
   codigo_validacion: string
   fecha_emision: string
   titular_nombre: string
+  titular_nombres?: string | null
+  titular_apellidos?: string | null
   cedula?: string | null
   programa_o_curso: string
   programa_codigo?: string | null
@@ -84,6 +86,8 @@ const ComprobantePublicoPage: React.FC = () => {
           codigo: data.codigo_validacion,
           fechaEmisionIso: data.fecha_emision,
           titularNombre: data.titular_nombre,
+          titularNombres: data.titular_nombres,
+          titularApellidos: data.titular_apellidos,
           programaOCurso: data.programa_o_curso,
           programaCodigo: data.programa_codigo || '',
           urlVerificacion,
@@ -95,6 +99,8 @@ const ComprobantePublicoPage: React.FC = () => {
           codigo: data.codigo_validacion,
           fechaEmisionIso: data.fecha_emision,
           titularNombre: data.titular_nombre,
+          titularNombres: data.titular_nombres,
+          titularApellidos: data.titular_apellidos,
           programaOCurso: data.programa_o_curso,
           modalidad: data.modalidad,
           categoria: data.categoria,
@@ -126,6 +132,8 @@ const ComprobantePublicoPage: React.FC = () => {
           codigo: data.codigo_validacion,
           fechaEmisionIso: data.fecha_emision,
           titularNombre: data.titular_nombre,
+          titularNombres: data.titular_nombres,
+          titularApellidos: data.titular_apellidos,
           programaOCurso: data.programa_o_curso,
           programaCodigo: data.programa_codigo || '',
           urlVerificacion,
@@ -137,6 +145,8 @@ const ComprobantePublicoPage: React.FC = () => {
           codigo: data.codigo_validacion,
           fechaEmisionIso: data.fecha_emision,
           titularNombre: data.titular_nombre,
+          titularNombres: data.titular_nombres,
+          titularApellidos: data.titular_apellidos,
           programaOCurso: data.programa_o_curso,
           modalidad: data.modalidad,
           categoria: data.categoria,
@@ -270,6 +280,8 @@ const ComprobantePublicoPage: React.FC = () => {
               codigo={data.codigo_validacion}
               fechaEmisionIso={data.fecha_emision}
               titularNombre={data.titular_nombre}
+              titularNombres={data.titular_nombres}
+              titularApellidos={data.titular_apellidos}
               programaOCurso={data.programa_o_curso}
               programaCodigo={data.programa_codigo || 'CURSO'}
               urlVerificacion={urlVerificacion}
@@ -282,6 +294,8 @@ const ComprobantePublicoPage: React.FC = () => {
               codigo={data.codigo_validacion}
               fechaEmisionIso={data.fecha_emision}
               titularNombre={data.titular_nombre}
+              titularNombres={data.titular_nombres}
+              titularApellidos={data.titular_apellidos}
               programaOCurso={data.programa_o_curso}
               modalidad={data.modalidad}
               categoria={data.categoria}
