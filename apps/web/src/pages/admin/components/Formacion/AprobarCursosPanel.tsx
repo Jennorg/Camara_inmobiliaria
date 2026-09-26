@@ -3,6 +3,7 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X, UserPlus, Users, ChevronDown, Loader2 } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { matchesSearch } from '@/utils/searchUtils'
 
 type Row = {
   id_inscripcion: number
@@ -453,23 +454,20 @@ export default function AprobarCursosPanel() {
   }, [rows, uiFilter])
 
   const filteredRows = useMemo(() => {
-    if (!search) return filteredByUi
-    const q = search.toLowerCase()
+    if (!search.trim()) return filteredByUi
     return filteredByUi.filter(r => {
       if (searchField === 'nombre') {
-        return r.estudiante_nombre?.toLowerCase().includes(q) || r.estudiante_email?.toLowerCase().includes(q)
+        return matchesSearch([r.estudiante_nombre, r.estudiante_email], search)
       }
       if (searchField === 'cedula') {
-        return r.estudiante_cedula?.toLowerCase().includes(q)
+        return matchesSearch(r.estudiante_cedula, search, { isCedula: true })
       }
       if (searchField === 'curso') {
-        return r.curso_nombre?.toLowerCase().includes(q)
+        return matchesSearch(r.curso_nombre, search)
       }
-      return (
-        r.estudiante_nombre?.toLowerCase().includes(q) ||
-        r.estudiante_email?.toLowerCase().includes(q) ||
-        r.estudiante_cedula?.toLowerCase().includes(q) ||
-        r.curso_nombre?.toLowerCase().includes(q)
+      return matchesSearch(
+        [r.estudiante_nombre, r.estudiante_email, r.estudiante_cedula, r.curso_nombre],
+        search
       )
     })
   }, [filteredByUi, search, searchField])
@@ -1163,32 +1161,14 @@ export default function AprobarCursosPanel() {
                           {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
                             .filter((af: any) => {
                               if (!af) return false;
-                              const normalize = (str: string = '') =>
-                                String(str)
-                                  .normalize('NFD')
-                                  .replace(/[\u0300-\u036f]/g, '')
-                                  .toLowerCase()
-                                  .trim();
-                              const cleanDigits = (str: string = '') => String(str).replace(/\D/g, '');
+                              const nombreFields = [af.nombres, af.apellidos, af.empresa_razon_social, af.razon_social, af.nombre_completo, af.representante_nombre, af.nombre, af.codigo];
+                              const emailFields = [af.email, af.empresa_email];
+                              const cedulaFields = [af.cedula, af.rif, af.empresa_rif_numero];
 
-                              const q = normalize(afiliadoSearch);
-                              const qDigits = cleanDigits(afiliadoSearch);
-
-                              const nombre = normalize([af.nombres, af.apellidos, af.empresa_razon_social, af.razon_social, af.nombre_completo, af.representante_nombre, af.nombre].filter(Boolean).join(' '));
-                              const codigo = normalize(af.codigo || '');
-                              const email = normalize(`${af.email || ''} ${af.empresa_email || ''}`);
-                              const rawCed = `${af.cedula || ''} ${af.rif || ''} ${af.empresa_rif_numero || ''}`;
-                              const cedula = normalize(rawCed);
-                              const cedulaDigits = cleanDigits(rawCed);
-
-                              const matchNombre = nombre.includes(q) || codigo.includes(q);
-                              const matchEmail = email.includes(q);
-                              const matchCedula = cedula.includes(q) || (qDigits.length >= 3 && cedulaDigits.includes(qDigits));
-
-                              if (afiliadoSearchField === 'nombre') return matchNombre;
-                              if (afiliadoSearchField === 'cedula') return matchCedula;
-                              if (afiliadoSearchField === 'email') return matchEmail;
-                              return matchNombre || matchEmail || matchCedula;
+                              if (afiliadoSearchField === 'nombre') return matchesSearch(nombreFields, afiliadoSearch);
+                              if (afiliadoSearchField === 'cedula') return matchesSearch(cedulaFields, afiliadoSearch, { isCedula: true });
+                              if (afiliadoSearchField === 'email') return matchesSearch(emailFields, afiliadoSearch);
+                              return matchesSearch([...nombreFields, ...emailFields, ...cedulaFields], afiliadoSearch);
                             })
                             .slice(0, 10)
                             .map((af: any) => {

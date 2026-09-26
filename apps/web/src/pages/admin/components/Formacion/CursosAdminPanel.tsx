@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
+import { matchesSearch } from '@/utils/searchUtils';
 import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -1672,17 +1673,17 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const filteredRows = React.useMemo(() => {
     let list = rows;
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
       list = list.filter(r => {
-        const nombre = (r.estudiante_nombre || '').toLowerCase();
-        const cedula = (r.estudiante_cedula || '').toLowerCase();
-        const email = (r.estudiante_email || '').toLowerCase();
-        const telefono = (r.estudiante_telefono || '').toLowerCase();
-
-        if (searchField === 'cedula') return cedula.includes(q);
-        if (searchField === 'email') return email.includes(q);
-        if (searchField === 'telefono') return telefono.includes(q);
-        return nombre.includes(q);
+        if (searchField === 'cedula') {
+          return matchesSearch(r.estudiante_cedula, searchQuery, { isCedula: true });
+        }
+        if (searchField === 'email') {
+          return matchesSearch(r.estudiante_email, searchQuery);
+        }
+        if (searchField === 'telefono') {
+          return matchesSearch(r.estudiante_telefono, searchQuery, { isPhone: true });
+        }
+        return matchesSearch([r.estudiante_nombre, r.estudiante_nombres, r.estudiante_apellidos], searchQuery);
       });
     }
 
@@ -1890,7 +1891,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
       const head = [['#', 'Participante', 'Cédula', 'Correo Electrónico', 'Teléfono', 'Fecha Registro', 'Estatus']];
       const body = rows.map((r, index) => [
         String(index + 1),
-        formatNombreCard(r.estudiante_nombre) || 'S/N',
+        formatNombreCard(r.estudiante_nombres || r.estudiante_nombre, r.estudiante_apellidos) || 'S/N',
         r.estudiante_cedula || 'S/N',
         r.estudiante_email || 'Sin correo',
         r.estudiante_telefono || 'Sin teléfono',
@@ -2783,7 +2784,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                           <div className="w-9 h-9 rounded-xl bg-[#E9FAF4] text-[#00B870] flex items-center justify-center font-black text-xs shrink-0 border border-[#00D084]/10 shadow-sm">
                             {r.estudiante_nombre?.charAt(0)}
                           </div>
-                          <span className="font-bold text-slate-800 leading-tight">{formatNombreCard(r.estudiante_nombre)}</span>
+                          <span className="font-bold text-slate-800 leading-tight">{formatNombreCard(r.estudiante_nombres || r.estudiante_nombre, r.estudiante_apellidos)}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -3097,32 +3098,14 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                           {(Array.isArray(afiliadosLista) ? afiliadosLista : [])
                             .filter((af: any) => {
                               if (!af) return false;
-                              const normalize = (str: string = '') =>
-                                String(str)
-                                  .normalize('NFD')
-                                  .replace(/[\u0300-\u036f]/g, '')
-                                  .toLowerCase()
-                                  .trim();
-                              const cleanDigits = (str: string = '') => String(str).replace(/\D/g, '');
+                              const nombreFields = [af.nombres, af.apellidos, af.empresa_razon_social, af.razon_social, af.nombre_completo, af.representante_nombre, af.nombre, af.codigo];
+                              const emailFields = [af.email, af.empresa_email];
+                              const cedulaFields = [af.cedula, af.rif, af.empresa_rif_numero];
 
-                              const q = normalize(afiliadoSearch);
-                              const qDigits = cleanDigits(afiliadoSearch);
-
-                              const nombre = normalize([af.nombres, af.apellidos, af.empresa_razon_social, af.razon_social, af.nombre_completo, af.representante_nombre, af.nombre].filter(Boolean).join(' '));
-                              const codigo = normalize(af.codigo || '');
-                              const email = normalize(`${af.email || ''} ${af.empresa_email || ''}`);
-                              const rawCed = `${af.cedula || ''} ${af.rif || ''} ${af.empresa_rif_numero || ''}`;
-                              const cedula = normalize(rawCed);
-                              const cedulaDigits = cleanDigits(rawCed);
-
-                              const matchNombre = nombre.includes(q) || codigo.includes(q);
-                              const matchEmail = email.includes(q);
-                              const matchCedula = cedula.includes(q) || (qDigits.length >= 3 && cedulaDigits.includes(qDigits));
-
-                              if (afiliadoSearchField === 'nombre') return matchNombre;
-                              if (afiliadoSearchField === 'cedula') return matchCedula;
-                              if (afiliadoSearchField === 'email') return matchEmail;
-                              return matchNombre || matchEmail || matchCedula;
+                              if (afiliadoSearchField === 'nombre') return matchesSearch(nombreFields, afiliadoSearch);
+                              if (afiliadoSearchField === 'cedula') return matchesSearch(cedulaFields, afiliadoSearch, { isCedula: true });
+                              if (afiliadoSearchField === 'email') return matchesSearch(emailFields, afiliadoSearch);
+                              return matchesSearch([...nombreFields, ...emailFields, ...cedulaFields], afiliadoSearch);
                             })
                             .slice(0, 10)
                             .map((af: any) => {

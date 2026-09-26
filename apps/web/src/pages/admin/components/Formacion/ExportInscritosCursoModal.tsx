@@ -22,6 +22,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
 import { CursoDB } from './CursosAdminPanel';
+import { matchesSearch } from '@/utils/searchUtils';
 
 export type ExportColumnId =
   | 'num'
@@ -382,18 +383,19 @@ export default function ExportInscritosCursoModal({
 
       // 2. Búsqueda por texto
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const nombre = (r.estudiante_nombre || '').toLowerCase();
-        const ape = getApellidos(r).toLowerCase();
-        const nom = getNombres(r).toLowerCase();
-        const cedula = (r.estudiante_cedula || '').toLowerCase();
-        const email = (r.estudiante_email || '').toLowerCase();
-        const telefono = (r.estudiante_telefono || '').toLowerCase();
-
-        if (searchField === 'nombre' && !nombre.includes(q) && !ape.includes(q) && !nom.includes(q)) return false;
-        if (searchField === 'cedula' && !cedula.includes(q)) return false;
-        if (searchField === 'email' && !email.includes(q)) return false;
-        if (searchField === 'telefono' && !telefono.includes(q)) return false;
+        if (searchField === 'nombre') {
+          const match = matchesSearch([r.estudiante_nombre, getApellidos(r), getNombres(r)], searchQuery);
+          if (!match) return false;
+        } else if (searchField === 'cedula') {
+          const match = matchesSearch(r.estudiante_cedula, searchQuery, { isCedula: true });
+          if (!match) return false;
+        } else if (searchField === 'email') {
+          const match = matchesSearch(r.estudiante_email, searchQuery);
+          if (!match) return false;
+        } else if (searchField === 'telefono') {
+          const match = matchesSearch(r.estudiante_telefono, searchQuery, { isPhone: true });
+          if (!match) return false;
+        }
       }
 
       // 3. Rango de Fechas

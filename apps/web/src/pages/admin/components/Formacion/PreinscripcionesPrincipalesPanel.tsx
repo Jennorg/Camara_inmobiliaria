@@ -5,6 +5,7 @@ import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCa
 import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
+import { matchesSearch } from '@/utils/searchUtils'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -782,12 +783,12 @@ export default function PreinscripcionesPrincipalesPanel({
     } else if (uiEstatus === 'Rechazado') {
       result = result.filter(r => r.estatus === 'Rechazado')
     }
-    if (!search) return result
-    const q = search.toLowerCase()
+    if (!search.trim()) return result
     return result.filter(r =>
-      (r.estudiante_nombre || '').toLowerCase().includes(q) ||
-      (r.estudiante_email || '').toLowerCase().includes(q) ||
-      (r.estudiante_cedula || '').toLowerCase().includes(q)
+      matchesSearch(
+        [r.estudiante_nombre, r.estudiante_email, r.estudiante_cedula, r.empresa_vinculada_nombre],
+        search
+      )
     )
   }, [rows, search, filtroAcreditacion, uiEstatus])
 
