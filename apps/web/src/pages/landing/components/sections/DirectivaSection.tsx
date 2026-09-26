@@ -5,42 +5,17 @@ import { formatNombreCard } from '@/utils/formatters'
 import { apiUrl } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 
-// Import directiva images from the repo
-import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
-import imgZulay from '@/assets/Junta_directiva/Zulay.webp'
-import imgMargaret from '@/assets/Junta_directiva/Margaret.webp'
-import imgRomelia from '@/assets/Junta_directiva/Romelia.webp'
-import imgMargot from '@/assets/Junta_directiva/Margot.webp'
-import imgPedro from '@/assets/Junta_directiva/Pedro.webp'
-import imgGraciela from '@/assets/Junta_directiva/Graciela.webp'
-import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.webp'
-import imgRina from '@/assets/Junta_directiva/Rina.webp'
-import imgPedroC from '@/assets/Junta_directiva/Pedro_C.webp'
-
-import PatrocinantesCarrusel from '@/pages/landing/components/PatrocinantesCarrusel'
-
 const s = STATIC.directiva
 
 interface MiembroDirectiva {
   id_afiliado?: number | string
   codigo?: string
   nombre: string
+  nombres?: string
+  apellidos?: string
   cargo: string
   foto_url: string
 }
-
-const fallbackDirectiva: MiembroDirectiva[] = [
-  { nombre: 'Francisco Piñango', cargo: 'Presidente', foto_url: imgFrancisco },
-  { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto_url: imgZulay },
-  { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto_url: imgMargaret },
-  { nombre: 'Romelina Rodríguez', cargo: 'Directora de Finanzas', foto_url: imgRomelia },
-  { nombre: 'Margot Castro', cargo: 'Directora de Asuntos Legales', foto_url: imgMargot },
-  { nombre: 'Pedro Vallenilla', cargo: 'Director de Comunicaciones', foto_url: imgPedro },
-  { nombre: 'Graciela Ledezma', cargo: 'Directora de Formación', foto_url: imgGraciela },
-  { nombre: 'Yorjharry Vicent', cargo: 'Director de Eventos', foto_url: imgYorjharry },
-  { nombre: 'Rina Centeno', cargo: 'Directora de Responsabilidad Social', foto_url: imgRina },
-  { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto_url: imgPedroC }
-]
 
 export default function DirectivaSection() {
   const [directivaMembers, setDirectivaMembers] = useState<MiembroDirectiva[]>([])
@@ -55,20 +30,22 @@ export default function DirectivaSection() {
         if (!active) return
         if (data && data.success && Array.isArray(data.data)) {
           const activeMembers = data.data
-            .filter((m: any) => m.activo === 1 || m.activo === true)
+            .filter((m: any) => (m.activo === 1 || m.activo === true) && Boolean(m.foto_url && String(m.foto_url).trim()))
             .map((m: any) => ({
               id_afiliado: m.id_afiliado,
               codigo: m.codigo,
               nombre: m.nombre,
+              nombres: m.nombres,
+              apellidos: m.apellidos,
               cargo: m.cargo,
-              foto_url: m.foto_url || m.foto_url_miembro || ''
+              foto_url: String(m.foto_url).trim()
             }))
-          setDirectivaMembers(activeMembers.length > 0 ? activeMembers : fallbackDirectiva)
+          setDirectivaMembers(activeMembers)
         } else {
-          setDirectivaMembers(fallbackDirectiva)
+          setDirectivaMembers([])
         }
       } catch {
-        if (active) setDirectivaMembers(fallbackDirectiva)
+        if (active) setDirectivaMembers([])
       } finally {
         if (active) setLoading(false)
       }
@@ -105,8 +82,6 @@ export default function DirectivaSection() {
   return (
     <section id='directiva' className='bg-white px-6 lg:px-20 pt-20 lg:pt-24 pb-24 scroll-mt-24 overflow-hidden relative'>
       <div className='max-w-7xl mx-auto space-y-16 relative'>
-        <PatrocinantesCarrusel />
-
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
             <p className='text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs'>
@@ -145,7 +120,7 @@ export default function DirectivaSection() {
                       />
                     </div>
                     <div className="w-full flex flex-col items-center">
-                      <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">{formatNombreCard(m.nombre)}</h4>
+                      <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">{formatNombreCard(m.nombres || m.nombre, m.apellidos)}</h4>
                       <p className="text-[9px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1.5 line-clamp-1 border border-emerald-100">{m.cargo}</p>
                     </div>
                   </div>
@@ -201,7 +176,7 @@ export default function DirectivaSection() {
                       />
                     </div>
                     <div>
-                      <h4 className="text-base sm:text-lg font-bold text-slate-800">{formatNombreCard(m.nombre)}</h4>
+                      <h4 className="text-base sm:text-lg font-bold text-slate-800">{formatNombreCard(m.nombres || m.nombre, m.apellidos)}</h4>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{m.cargo}</p>
                     </div>
                   </>

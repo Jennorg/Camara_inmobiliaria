@@ -6,19 +6,7 @@ import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
 import { apiUrl } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
-import PatrocinantesCarrusel from '@/pages/landing/components/PatrocinantesCarrusel'
-
-// Import directiva images from the repo
-import imgFrancisco from '@/assets/Junta_directiva/francisco.webp'
-import imgZulay from '@/assets/Junta_directiva/Zulay.webp'
-import imgMargaret from '@/assets/Junta_directiva/Margaret.webp'
-import imgRomelia from '@/assets/Junta_directiva/Romelia.webp'
-import imgMargot from '@/assets/Junta_directiva/Margot.webp'
-import imgPedro from '@/assets/Junta_directiva/Pedro.webp'
-import imgGraciela from '@/assets/Junta_directiva/Graciela.webp'
-import imgYorjharry from '@/assets/Junta_directiva/Yorjharry.webp'
-import imgRina from '@/assets/Junta_directiva/Rina.webp'
-import imgPedroC from '@/assets/Junta_directiva/Pedro_C.webp'
+import { formatNombreCard } from '@/utils/formatters'
 
 export function invalidateDirectivaCache() {
   // Función vacía para compatibilidad de importaciones sin romper la compilación
@@ -43,39 +31,35 @@ interface MiembroDirectiva {
   id_afiliado?: number | string
   codigo?: string
   nombre: string
+  nombres?: string
+  apellidos?: string
   cargo: string
   foto: string
 }
 
-const hardcodedDirectiva: MiembroDirectiva[] = [
-  { nombre: 'Francisco Piñango', cargo: 'Presidente', foto: imgFrancisco },
-  { nombre: 'Zulay Amaya', cargo: 'Vicepresidenta', foto: imgZulay },
-  { nombre: 'Margaret Vásquez', cargo: 'Directora General', foto: imgMargaret },
-  { nombre: 'Romelina Rodríguez', cargo: 'Directora de Finanzas', foto: imgRomelia },
-  { nombre: 'Margot Castro', cargo: 'Directora de Asuntos Legales', foto: imgMargot },
-  { nombre: 'Pedro Vallenilla', cargo: 'Director de Comunicaciones', foto: imgPedro },
-  { nombre: 'Graciela Ledezma', cargo: 'Directora de Formación', foto: imgGraciela },
-  { nombre: 'Yorjharry Vicent', cargo: 'Director de Eventos', foto: imgYorjharry },
-  { nombre: 'Rina Centeno', cargo: 'Directora de Responsabilidad Social', foto: imgRina },
-  { nombre: 'Pedro Castro', cargo: 'Director de Relaciones Interinstitucionales', foto: imgPedroC },
-]
-
-const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_afiliado?: number | string; codigo?: string; nombre: string; cargo: string; foto: string; index: number }) => {
+const DirectorCard = ({ id_afiliado, codigo, nombre, nombres, apellidos, cargo, foto, index }: { id_afiliado?: number | string; codigo?: string; nombre: string; nombres?: string; apellidos?: string; cargo: string; foto: string; index: number }) => {
   const setReveal = useScrollReveal()
   const targetIdentifier = codigo || id_afiliado;
+  const displayName = formatNombreCard(nombres || nombre, apellidos) || nombre;
   const cardContent = (
     <>
       <div className='relative overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] aspect-[4/5] mb-3 sm:mb-5 bg-gradient-to-br from-slate-50 to-slate-100'>
         {foto ? (
-          <img src={foto} alt={nombre} loading="lazy" decoding="async" className='w-full h-full object-cover object-top transition-transform duration-700 ease-in-out group-hover:scale-105' />
+          <img
+            src={foto}
+            alt={displayName}
+            loading="lazy"
+            decoding="async"
+            className='w-full h-full object-cover object-top transition-transform duration-700 ease-in-out group-hover:scale-105'
+          />
         ) : (
           <div className='w-full h-full flex items-center justify-center text-4xl sm:text-6xl font-black text-slate-300 bg-slate-50'>
-            {nombre.charAt(0)}
+            {displayName.charAt(0)}
           </div>
         )}
       </div>
       <div className='text-center space-y-1.5 sm:space-y-2 relative z-10'>
-        <h3 className='text-base sm:text-lg font-extrabold text-slate-800 leading-snug transition-colors duration-300'>{nombre}</h3>
+        <h3 className='text-base sm:text-lg font-extrabold text-slate-800 leading-snug transition-colors duration-300'>{displayName}</h3>
         <p className='text-slate-500 font-bold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-[9px] sm:text-[10px] bg-slate-100/80 py-1 sm:py-1.5 px-2.5 sm:px-3.5 rounded-full inline-block border border-slate-200/40 line-clamp-2'>{cargo}</p>
       </div>
     </>
@@ -87,7 +71,7 @@ const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_
         to={`/miembros/${targetIdentifier}`} 
         ref={setReveal as any} 
         style={{ transitionDelay: `${index * 0.03}s` }} 
-        className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-colors transition-transform duration-300 hover:-translate-y-1.5 block cursor-pointer'
+        className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-colors transition-transform duration-300 hover:-translate-y-1.5 block cursor-pointer w-full h-full'
       >
         {cardContent}
       </Link>
@@ -95,7 +79,7 @@ const DirectorCard = ({ id_afiliado, codigo, nombre, cargo, foto, index }: { id_
   }
 
   return (
-    <div ref={setReveal} style={{ transitionDelay: `${index * 0.03}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-colors transition-transform duration-300 hover:-translate-y-1.5'>
+    <div ref={setReveal} style={{ transitionDelay: `${index * 0.03}s` }} className='reveal-on-scroll group relative overflow-hidden rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm sm:shadow-md hover:shadow-xl transition-colors transition-transform duration-300 hover:-translate-y-1.5 w-full h-full'>
       {cardContent}
     </div>
   )
@@ -117,7 +101,7 @@ export default function EquipoDirectivo() {
         if (!active) return
         if (data && data.success && Array.isArray(data.data)) {
           const activeMembers = data.data
-            .filter((m: any) => m.activo === 1 || m.activo === true)
+            .filter((m: any) => (m.activo === 1 || m.activo === true) && Boolean(m.foto_url && String(m.foto_url).trim()))
             
           if (activeMembers.length > 0) {
             const firstPeriod = activeMembers[0].periodo
@@ -131,18 +115,20 @@ export default function EquipoDirectivo() {
               id_afiliado: m.id_afiliado,
               codigo: m.codigo,
               nombre: m.nombre,
+              nombres: m.nombres,
+              apellidos: m.apellidos,
               cargo: m.cargo,
-              foto: m.foto_url || m.foto_url_miembro || ''
+              foto: String(m.foto_url).trim()
             }))
             setDirectiva(mapped)
           } else {
-            setDirectiva(hardcodedDirectiva)
+            setDirectiva([])
           }
         } else {
-          setDirectiva(hardcodedDirectiva)
+          setDirectiva([])
         }
       } catch {
-        if (active) setDirectiva(hardcodedDirectiva)
+        if (active) setDirectiva([])
       } finally {
         if (active) setLoading(false)
       }
@@ -153,14 +139,18 @@ export default function EquipoDirectivo() {
   }, [])
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-clip transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
       <SEO 
         title="Junta Directiva" 
         description="Conoce a los líderes que guían la Cámara Inmobiliaria del Estado Bolívar. Compromiso y visión para el sector inmobiliario."
       />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
-      <header className='relative px-4 sm:px-6 lg:px-20 py-12 sm:py-16 lg:py-24 flex items-center justify-center min-h-[35vh] sm:min-h-[40vh] bg-cover animate-header-bg' style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-        <div className='text-center space-y-3 sm:space-y-4'>
+      <header className='relative px-4 sm:px-6 lg:px-20 py-12 sm:py-16 lg:py-24 flex items-center justify-center min-h-[35vh] sm:min-h-[40vh] overflow-hidden'>
+        <div 
+          className='absolute inset-0 bg-cover bg-center animate-header-bg' 
+          style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})` }} 
+        />
+        <div className='relative z-10 text-center space-y-3 sm:space-y-4'>
           <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Liderazgo Gremial</p>
           <h1 style={{ animationDelay: '0.4s', opacity: 0 }} className='text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white'>
             Junta <span className='text-emerald-500 italic'>Directiva</span>
@@ -170,34 +160,36 @@ export default function EquipoDirectivo() {
       </header>
       <main className='bg-[#f1f5f9] text-slate-900 rounded-t-[2.5rem] sm:rounded-t-[4rem] -mt-8 sm:-mt-12 relative z-10 px-4 sm:px-6 lg:px-20 py-12 sm:py-20 lg:py-24'>
         <div className='max-w-7xl mx-auto'>
-          <PatrocinantesCarrusel />
-
           <div className='text-center mb-10 sm:mb-16'>
             <h2 className='text-2xl sm:text-3xl lg:text-4xl font-black text-[#022c22] tracking-tight mb-3 sm:mb-4'>Conoce a Nuestra Junta Directiva</h2>
             <p className='text-slate-600 text-sm sm:text-lg max-w-2xl mx-auto leading-relaxed'>Profesionales comprometidos con el desarrollo y fortalecimiento del sector inmobiliario en el estado Bolívar.</p>
           </div>
 
           {loading ? (
-            <div className='grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8'>
+            <div className='flex flex-wrap justify-center gap-3 sm:gap-6 lg:gap-8'>
               {Array.from({ length: 8 }).map((_, skelIdx) => (
-                <div key={`dir-skel-${skelIdx}`} className='animate-pulse rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm space-y-4'>
-                  <div className='bg-slate-200 rounded-[1.5rem] aspect-[4/5] w-full' />
-                  <div className='space-y-2 flex flex-col items-center'>
-                    <div className='bg-slate-200 h-5 w-3/4 rounded-md' />
-                    <div className='bg-slate-200 h-3.5 w-1/2 rounded-full' />
+                <div key={`dir-skel-${skelIdx}`} className='w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1.334rem)] xl:w-[calc(25%-1.5rem)] max-w-xs'>
+                  <div className='animate-pulse rounded-[1.8rem] sm:rounded-[2.5rem] bg-white p-3.5 sm:p-5 border border-slate-200 shadow-sm space-y-4'>
+                    <div className='bg-slate-200 rounded-[1.5rem] aspect-[4/5] w-full' />
+                    <div className='space-y-2 flex flex-col items-center'>
+                      <div className='bg-slate-200 h-5 w-3/4 rounded-md' />
+                      <div className='bg-slate-200 h-3.5 w-1/2 rounded-full' />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className='grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8'>
+            <div className='flex flex-wrap justify-center gap-3 sm:gap-6 lg:gap-8'>
               {directiva.map((miembro, index) => (
-                <DirectorCard key={miembro.id_afiliado || miembro.nombre} index={index} id_afiliado={miembro.id_afiliado} nombre={miembro.nombre} cargo={miembro.cargo} foto={miembro.foto} />
+                <div key={miembro.id_afiliado || miembro.nombre} className='w-[calc(50%-0.375rem)] sm:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1.334rem)] xl:w-[calc(25%-1.5rem)] max-w-xs flex justify-center'>
+                  <DirectorCard index={index} id_afiliado={miembro.id_afiliado} codigo={miembro.codigo} nombre={miembro.nombre} nombres={miembro.nombres} apellidos={miembro.apellidos} cargo={miembro.cargo} foto={miembro.foto} />
+                </div>
               ))}
             </div>
           )}
 
-          <div className='mt-16 sm:mt-24 relative overflow-hidden rounded-[2rem] sm:rounded-[3rem] bg-gradient-to-br from-[#022c22] via-[#044b3a] to-[#022c22] text-white text-center p-6 sm:p-10 lg:p-12 space-y-6 sm:space-y-8 shadow-2xl shadow-emerald-900/30'>
+          <div className='mt-16 sm:mt-24 relative overflow-hidden isolate rounded-[2rem] sm:rounded-[3rem] bg-gradient-to-br from-[#022c22] via-[#044b3a] to-[#022c22] text-white text-center p-6 sm:p-10 lg:p-12 space-y-6 sm:space-y-8 shadow-2xl shadow-emerald-900/30'>
             <div className='absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full -mr-40 -mt-40 blur-3xl' />
             <div className='absolute bottom-0 left-0 w-64 h-64 bg-emerald-400/10 rounded-full -ml-32 -mb-32 blur-3xl' />
             <div className='relative z-10'>
