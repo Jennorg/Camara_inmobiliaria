@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { ArrowRight } from 'lucide-react'
 import { STATIC } from '@/pages/landing/config/staticContent'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 
@@ -10,17 +11,17 @@ export default function NosotrosSection() {
   const revealCards = useScrollReveal()
 
   return (
-    <section id='nosotros' className='scroll-mt-24 bg-white text-slate-900 px-6 lg:px-20 py-24 border-b border-slate-100 relative z-10 -mt-12'>
+    <section id='nosotros' className='scroll-mt-24 bg-white dark:bg-[#011a14] text-slate-900 dark:text-white px-6 lg:px-20 py-24 border-b border-slate-100 dark:border-white/5 relative z-10 -mt-12 transition-colors duration-300'>
       <div className='max-w-6xl mx-auto text-center space-y-12'>
         <div ref={revealTitle} className='space-y-4 reveal-on-scroll'>
-          <p className='text-emerald-600 font-black uppercase tracking-[0.3em] text-xs'>
+          <p className='text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-[0.3em] text-xs'>
             Nuestra Institución
           </p>
-          <h2 className='text-4xl lg:text-6xl font-black text-[#022c22] tracking-tighter'>
+          <h2 className='text-4xl lg:text-6xl font-black text-[#022c22] dark:text-white tracking-tighter'>
             {s.titulo}
           </h2>
           <div className='w-20 h-1.5 bg-emerald-500 mx-auto rounded-full' />
-          <p className='text-xl text-slate-600 leading-relaxed italic max-w-3xl mx-auto pt-4'>
+          <p className='text-xl text-slate-600 dark:text-slate-300 leading-relaxed italic max-w-3xl mx-auto pt-4'>
             {s.descripcion}
           </p>
         </div>
@@ -33,13 +34,13 @@ export default function NosotrosSection() {
               className="group cursor-pointer block" >
               <div className="group cursor-pointer">
                 {/* Contenedor de Imagen */}
-                <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] mb-4 shadow-2xl shadow-emerald-900/10">
+                <div className="relative aspect-[4/5] overflow-hidden rounded-3xl mb-4 shadow-2xl shadow-emerald-900/10 dark:shadow-black/50 border border-slate-100 dark:border-white/10">
                   <img
                     src={card.img}
                     alt={card.title}
                     loading="lazy"
                     decoding="async"
-                    className="w-full h-full object-cover  group-hover:grayscale-0 group-hover:scale-110 transition-transform duration-700 ease-in-out"
+                    className="w-full h-full object-cover group-hover:grayscale-0 group-hover:scale-110 transition-transform duration-700 ease-in-out"
                   />
                   {/* Overlay sutil hover */}
                   <div className="absolute inset-0 bg-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -51,7 +52,7 @@ export default function NosotrosSection() {
                     {card.title}
                   </span>
                   <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                    <span className="text-xl">→</span>
+                    <ArrowRight className="w-4 h-4 text-white" aria-hidden="true" />
                   </div>
                 </div>
               </div>

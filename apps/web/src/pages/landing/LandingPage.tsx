@@ -18,7 +18,14 @@ import NoticiasSection from '@/pages/landing/components/sections/NoticiasSection
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 
 export default function LandingPage() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('darkMode:v1')
+      return saved !== null ? JSON.parse(saved) : false
+    } catch {
+      return false
+    }
+  })
   const cfg = useCachedConfig()
 
   return (

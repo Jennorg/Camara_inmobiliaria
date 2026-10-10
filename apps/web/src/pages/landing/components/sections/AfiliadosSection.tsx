@@ -61,12 +61,12 @@ export default function AfiliadosSection() {
   }, [])
 
   return (
-    <section id='afiliados' className='scroll-mt-24 bg-slate-50 text-slate-900 px-6 lg:px-20 py-20'>
-      <div className='flex flex-col lg:flex-row gap-16 items-center'>
-        <div className='lg:w-1/2 grid grid-cols-1 sm:grid-cols-2 gap-4'>
-          <div className='space-y-4'>
-            <div className='bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 text-center'>
-              <div className='text-emerald-600 font-bold text-3xl mb-2'>
+    <section id='afiliados' className='scroll-mt-24 bg-slate-50 text-slate-900 px-6 lg:px-20 py-24 lg:py-32'>
+      <div className='max-w-7xl mx-auto flex flex-col lg:flex-row gap-16 lg:gap-20 items-center'>
+        <div className='lg:w-1/2 grid grid-cols-1 sm:grid-cols-2 gap-6 w-full'>
+          <div className='space-y-6'>
+            <div className='bg-white p-8 rounded-[2rem] shadow-sm border border-emerald-100 text-center'>
+              <div className='text-emerald-600 font-bold text-4xl mb-2'>
                 <Counter end={countAfiliados} key={countAfiliados} />
               </div>
               <p className='text-sm text-slate-500 font-medium uppercase tracking-tighter'>
@@ -79,15 +79,15 @@ export default function AfiliadosSection() {
               loading="lazy"
               decoding="async"
               ref={revealImg} 
-              className='rounded-[2rem] h-64 w-full object-cover shadow-lg reveal-on-scroll' 
+              className='rounded-[2.5rem] h-80 sm:h-96 lg:h-[420px] w-full object-cover object-top shadow-xl reveal-on-scroll' 
             />
           </div>
-          <div className='pt-12 space-y-4'>
+          <div className='pt-0 sm:pt-14 space-y-6'>
             <div ref={revealStats} className='bg-emerald-600 p-8 rounded-[2rem] text-white shadow-xl shadow-emerald-900/20 reveal-on-scroll'>
               <p className='font-bold text-xl leading-snug'>{s.respaldo}</p>
             </div>
-            <div className='bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 text-center'>
-              <div className='text-emerald-600 font-bold text-3xl mb-2'>25+</div>
+            <div className='bg-white p-8 rounded-[2rem] shadow-sm border border-emerald-100 text-center'>
+              <div className='text-emerald-600 font-bold text-4xl mb-2'>25+</div>
               <p className='text-sm text-slate-500 font-medium uppercase'>{s.labelAños}</p>
             </div>
           </div>

@@ -80,14 +80,14 @@ export default function DirectivaSection() {
   }, [scroll])
 
   return (
-    <section id='directiva' className='bg-white px-6 lg:px-20 pt-20 lg:pt-24 pb-24 scroll-mt-24 overflow-hidden relative'>
+    <section id='directiva' className='bg-white dark:bg-[#022c22] px-6 lg:px-20 pt-20 lg:pt-24 pb-24 scroll-mt-24 overflow-hidden relative transition-colors duration-300'>
       <div className='max-w-7xl mx-auto space-y-16 relative'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
-            <p className='text-emerald-600 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs'>
+            <p className='text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs'>
               {s.subtitulo}
             </p>
-            <h2 className='text-4xl sm:text-5xl lg:text-7xl font-black text-[#022c22] tracking-tighter'>
+            <h2 className='text-4xl sm:text-5xl lg:text-7xl font-black text-[#022c22] dark:text-white tracking-tighter'>
               {s.titulo}
             </h2>
           </div>
@@ -98,19 +98,19 @@ export default function DirectivaSection() {
           <div className="grid grid-cols-2 gap-3.5 sm:hidden w-full">
             {loading ? (
               Array.from({ length: 4 }).map((_, skelIdx) => (
-                <div key={`dir-mob-skel-${skelIdx}`} className="animate-pulse bg-slate-50 border border-slate-100 rounded-2xl p-3 flex flex-col items-center text-center space-y-3">
-                  <div className="w-full aspect-[4/5] rounded-xl bg-slate-200" />
+                <div key={`dir-mob-skel-${skelIdx}`} className="animate-pulse bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-white/10 rounded-2xl p-3 flex flex-col items-center text-center space-y-3">
+                  <div className="w-full aspect-[4/5] rounded-xl bg-slate-200 dark:bg-slate-700" />
                   <div className="space-y-1.5 w-full flex flex-col items-center">
-                    <div className="bg-slate-200 h-4 w-3/4 rounded-md" />
-                    <div className="bg-slate-200 h-3 w-1/2 rounded-full" />
+                    <div className="bg-slate-200 dark:bg-slate-700 h-4 w-3/4 rounded-md" />
+                    <div className="bg-slate-200 dark:bg-slate-700 h-3 w-1/2 rounded-full" />
                   </div>
                 </div>
               ))
             ) : (
               directivaMembers.map((m) => {
                 const cardContent = (
-                  <div className="bg-white border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center text-center space-y-2.5 h-full shadow-xs hover:shadow-md transition">
-                    <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xs bg-slate-100">
+                  <div className="bg-white dark:bg-[#011a14] border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 flex flex-col items-center text-center space-y-2.5 h-full shadow-xs hover:shadow-md transition">
+                    <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-xs bg-slate-100 dark:bg-slate-800">
                       <img
                         src={m.foto_url}
                         alt={m.nombre}
@@ -120,8 +120,8 @@ export default function DirectivaSection() {
                       />
                     </div>
                     <div className="w-full flex flex-col items-center">
-                      <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">{formatNombreCard(m.nombres || m.nombre, m.apellidos)}</h4>
-                      <p className="text-[9px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1.5 line-clamp-1 border border-emerald-100">{m.cargo}</p>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-snug line-clamp-2">{formatNombreCard(m.nombres || m.nombre, m.apellidos)}</h4>
+                      <p className="text-[9px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full inline-block mt-1.5 line-clamp-1 border border-emerald-100 dark:border-emerald-500/30">{m.cargo}</p>
                     </div>
                   </div>
                 )
@@ -141,8 +141,10 @@ export default function DirectivaSection() {
 
           {/* Desktop & Tablet Carousel View */}
           <button 
+            type="button"
+            aria-label="Miembro directivo anterior"
             onClick={() => scroll('left')} 
-            className='hidden sm:flex absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+            className='hidden sm:flex absolute -left-2 md:-left-12 lg:-left-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 cursor-pointer'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
           </button>
@@ -155,10 +157,10 @@ export default function DirectivaSection() {
             {loading ? (
               Array.from({ length: 4 }).map((_, skelIdx) => (
                 <div key={`dir-desk-skel-${skelIdx}`} className="animate-pulse flex flex-col items-center text-center space-y-4 sm:w-[calc(50%-16px)] lg:w-[calc(25%-24px)] flex-shrink-0 snap-start max-w-xs">
-                  <div className="w-full h-52 lg:w-48 lg:h-60 rounded-[2.5rem] bg-slate-200" />
+                  <div className="w-full h-52 lg:w-48 lg:h-60 rounded-3xl bg-slate-200 dark:bg-slate-800" />
                   <div className="space-y-2 flex flex-col items-center w-full">
-                    <div className="bg-slate-200 h-5 w-3/4 rounded-md animate-pulse" />
-                    <div className="bg-slate-200 h-3.5 w-1/2 rounded-full animate-pulse" />
+                    <div className="bg-slate-200 dark:bg-slate-800 h-5 w-3/4 rounded-md animate-pulse" />
+                    <div className="bg-slate-200 dark:bg-slate-800 h-3.5 w-1/2 rounded-full animate-pulse" />
                   </div>
                 </div>
               ))
@@ -208,8 +210,10 @@ export default function DirectivaSection() {
           </div>
 
           <button 
+            type="button"
+            aria-label="Siguiente miembro directivo"
             onClick={() => scroll('right')} 
-            className='hidden sm:flex absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+            className='hidden sm:flex absolute -right-2 md:-right-12 lg:-right-16 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 cursor-pointer'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
           </button>

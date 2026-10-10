@@ -197,10 +197,10 @@ export default function NoticiasSection() {
   if (noticiasBase.length === 0) return null
 
   return (
-    <section id='noticias' className='bg-slate-50/50 text-slate-900 px-6 lg:px-10 pt-12 pb-6 lg:pb-10 scroll-mt-20 overflow-hidden border-y border-slate-100'>
+    <section id='noticias' className='bg-slate-50/50 dark:bg-[#011a14] text-slate-900 dark:text-white px-6 lg:px-10 pt-12 pb-6 lg:pb-10 scroll-mt-20 overflow-hidden border-y border-slate-100 dark:border-white/5 transition-colors duration-300'>
       <div className='max-w-8xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-10'>
         <div>
-          <h2 className='text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#022c22] tracking-tight'>
+          <h2 className='text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#022c22] dark:text-white tracking-tight'>
             Próximos Eventos y Noticias
           </h2>
         </div>
@@ -214,8 +214,10 @@ export default function NoticiasSection() {
         {/* Left Arrow Button */}
         {noticiasBase.length > 1 && (
           <button
+            type="button"
+            aria-label="Noticia anterior"
             onClick={() => scroll('left')}
-            className='absolute -left-2 md:-left-10 lg:-left-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+            className='absolute -left-2 md:-left-10 lg:-left-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white dark:bg-[#022c22] border border-emerald-50 dark:border-emerald-500/30 shadow-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 cursor-pointer'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M15 19l-7-7 7-7' /></svg>
           </button>
@@ -246,8 +248,10 @@ export default function NoticiasSection() {
         {/* Right Arrow Button */}
         {noticiasBase.length > 1 && (
           <button
+            type="button"
+            aria-label="Siguiente noticia"
             onClick={() => scroll('right')}
-            className='absolute -right-2 md:-right-10 lg:-right-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white border border-emerald-50 shadow-xl text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0'
+            className='absolute -right-2 md:-right-10 lg:-right-12 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-white dark:bg-[#022c22] border border-emerald-50 dark:border-emerald-500/30 shadow-xl text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors transition-transform duration-300 opacity-100 md:opacity-0 md:group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 cursor-pointer'
           >
             <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M9 5l7 7-7 7' /></svg>
           </button>

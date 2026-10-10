@@ -26,7 +26,7 @@ export const getNoticias = async (req: Request, res: Response) => {
           sql: `SELECT id_curso, titulo, descripcion as contenido, imagen_url, estatus, solo_informativo, fecha_inicio as fecha_evento, creado_en as fecha_publicacion, COALESCE(orden, 0) as orden
                 FROM cursos 
                 WHERE (solo_informativo = ? OR estatus = ?)
-                  AND estatus NOT IN ('Cerrado', 'Borrador')
+                  AND LOWER(TRIM(COALESCE(estatus, ''))) NOT IN ('cerrado', 'borrador', 'finalizado', 'concluido', 'inactivo')
                   AND eliminado_en IS NULL
                   AND imagen_url IS NOT NULL AND LENGTH(TRIM(imagen_url)) > 0
                 ORDER BY CASE WHEN orden IS NULL OR orden = 0 THEN 999999 ELSE orden END ASC, creado_en DESC`,
