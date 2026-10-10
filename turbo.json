@@ -20,6 +20,9 @@
             "cache": false,
             "persistent": true
         },
-        "check-types": {}
+        "check-types": {},
+        "test:e2e": {
+            "cache": false
+        }
     }
 }
