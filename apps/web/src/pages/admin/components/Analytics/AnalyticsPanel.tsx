@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { Search, Users, Clock, AlertCircle, Building2 } from 'lucide-react'
+import EmbudoCaptacionChart from './EmbudoCaptacionChart'
 
 // ─── DonutChart ───────────────────────────────────────────────────────────────
 interface DonutSlice { label: string; value: number; color: string }
@@ -302,6 +303,18 @@ const AnalyticsPanel = () => {
             sub='Campos faltantes en la base de datos' 
           />
         </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════ */}
+      {/* 📈 HISTOGRAMA Y EMBUDO COMPARATIVO CON RECHARTS    */}
+      {/* ══════════════════════════════════════════════════ */}
+      <section className='space-y-5 pt-2 border-t-2 border-slate-200'>
+        <div className='pb-2 border-b-2 border-slate-200'>
+          <h2 className='text-sm font-black text-slate-800 uppercase tracking-widest'>Embudo de Captación (CIBIR vs Acreditación)</h2>
+          <p className='text-xs text-slate-400 font-medium mt-0.5'>Histograma interactivo con filtros de fecha y comparación por ruta</p>
+        </div>
+
+        <EmbudoCaptacionChart />
       </section>
 
       {/* ══════════════════════════════════════════════════ */}

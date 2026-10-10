@@ -247,3 +247,181 @@ export const getAnalyticsData = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ success: false, message: 'Error al cargar metricas: ' + error.message })
   }
 }
+
+/**
+ * GET /api/analytics/embudo
+ * Obtiene las métricas y distribución del embudo de captación (CIBIR vs Acreditación)
+ * con soporte para filtrado por fecha desde / hasta.
+ */
+export const getEmbudoAnalytics = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const desde = typeof req.query.desde === 'string' && req.query.desde.trim() !== '' ? req.query.desde.trim() : null
+    const hasta = typeof req.query.hasta === 'string' && req.query.hasta.trim() !== '' ? req.query.hasta.trim() : null
+
+    let dateWhere = ''
+    const dateArgs: any[] = []
+    if (desde) {
+      dateWhere += ' AND date(COALESCE(fecha_registro, fecha_afiliacion, datetime(\'now\'))) >= date(?)'
+      dateArgs.push(desde)
+    }
+    if (hasta) {
+      dateWhere += ' AND date(COALESCE(fecha_registro, fecha_afiliacion, datetime(\'now\'))) <= date(?)'
+      dateArgs.push(hasta)
+    }
+
+    const [statusRowsResult, timelineRowsResult] = await Promise.all([
+      db.execute({
+        sql: `
+          SELECT 
+            CASE WHEN COALESCE(optar_acreditacion, 0) = 1 THEN 'acreditacion' ELSE 'cibir' END as ruta,
+            estatus,
+            COUNT(*) as total
+          FROM afiliados
+          WHERE eliminado_en IS NULL
+            ${dateWhere}
+          GROUP BY ruta, estatus
+        `,
+        args: dateArgs
+      }),
+      db.execute({
+        sql: `
+          SELECT 
+            strftime('%Y-%m', COALESCE(fecha_registro, datetime('now'))) as periodo,
+            SUM(CASE WHEN COALESCE(optar_acreditacion, 0) = 0 THEN 1 ELSE 0 END) as cibir,
+            SUM(CASE WHEN COALESCE(optar_acreditacion, 0) = 1 THEN 1 ELSE 0 END) as acreditacion,
+            COUNT(*) as total
+          FROM afiliados
+          WHERE eliminado_en IS NULL
+            ${dateWhere}
+          GROUP BY periodo
+          ORDER BY periodo ASC
+        `,
+        args: dateArgs
+      })
+    ])
+
+    const statusCounts: Record<string, { cibir: number; acreditacion: number }> = {
+      '1_PREINSCRIPCION': { cibir: 0, acreditacion: 0 },
+      '2_EXPEDIENTE':     { cibir: 0, acreditacion: 0 },
+      '3_ENTREVISTA':     { cibir: 0, acreditacion: 0 },
+      '4_VERIFICACION':   { cibir: 0, acreditacion: 0 },
+      '5_CIBIR':          { cibir: 0, acreditacion: 0 },
+      '6_INSCRIPCION':    { cibir: 0, acreditacion: 0 },
+      'Afiliado':         { cibir: 0, acreditacion: 0 },
+      'Rechazado':        { cibir: 0, acreditacion: 0 },
+    }
+
+    for (const r of statusRowsResult.rows as any[]) {
+      const est = r.estatus
+      const ruta = r.ruta === 'acreditacion' ? 'acreditacion' : 'cibir'
+      if (!statusCounts[est]) {
+        statusCounts[est] = { cibir: 0, acreditacion: 0 }
+      }
+      statusCounts[est][ruta] = Number(r.total || 0)
+    }
+
+    // Definición de etapas en orden de avance en el embudo
+    const STAGES = [
+      { key: '1_PREINSCRIPCION', name: 'Preinscripción', shortName: 'Preinscr.' },
+      { key: '2_EXPEDIENTE',     name: 'Carga de Expediente', shortName: 'Expediente' },
+      { key: '3_ENTREVISTA',     name: 'Entrevista Gremial', shortName: 'Entrevista' },
+      { key: '4_VERIFICACION',   name: 'Verificación & Baremo', shortName: 'Verificación' },
+      { key: '5_CIBIR',          name: 'CIBIR / Nivelación', shortName: 'CIBIR' },
+      { key: '6_INSCRIPCION',    name: 'Inscripción Final', shortName: 'Inscripción' },
+      { key: 'Afiliado',         name: 'Afiliado Aprobado', shortName: 'Afiliado' },
+    ]
+
+    const STAGE_WEIGHT: Record<string, number> = {
+      '1_PREINSCRIPCION': 1,
+      '2_EXPEDIENTE': 2,
+      '3_ENTREVISTA': 3,
+      '4_VERIFICACION': 4,
+      '5_CIBIR': 5,
+      '6_INSCRIPCION': 6,
+      'Afiliado': 7,
+    }
+
+    const totalCibirCaptados = Object.entries(statusCounts).reduce((acc, [k, v]) => acc + v.cibir, 0)
+    const totalAcreditacionCaptados = Object.entries(statusCounts).reduce((acc, [k, v]) => acc + v.acreditacion, 0)
+    const totalCaptados = totalCibirCaptados + totalAcreditacionCaptados
+
+    const funnelStages = STAGES.map((st, idx) => {
+      const weight = STAGE_WEIGHT[st.key] || 1
+      
+      const cibirActual = statusCounts[st.key]?.cibir || 0
+      const acreditacionActual = statusCounts[st.key]?.acreditacion || 0
+      const totalActual = cibirActual + acreditacionActual
+
+      let cibirAcumulado = 0
+      let acreditacionAcumulado = 0
+      Object.entries(statusCounts).forEach(([k, v]) => {
+        const w = STAGE_WEIGHT[k] || 0
+        if (w >= weight) {
+          cibirAcumulado += v.cibir
+          acreditacionAcumulado += v.acreditacion
+        }
+      })
+
+      const totalAcumulado = cibirAcumulado + acreditacionAcumulado
+
+      const pctCibir = totalCibirCaptados > 0 ? Math.round((cibirAcumulado / totalCibirCaptados) * 100) : 0
+      const pctAcreditacion = totalAcreditacionCaptados > 0 ? Math.round((acreditacionAcumulado / totalAcreditacionCaptados) * 100) : 0
+      const pctTotal = totalCaptados > 0 ? Math.round((totalAcumulado / totalCaptados) * 100) : 0
+
+      return {
+        key: st.key,
+        name: st.name,
+        shortName: st.shortName,
+        stepIndex: idx + 1,
+        cibir: cibirAcumulado,
+        acreditacion: acreditacionAcumulado,
+        total: totalAcumulado,
+        cibirActual,
+        acreditacionActual,
+        totalActual,
+        pctCibir,
+        pctAcreditacion,
+        pctTotal,
+      }
+    })
+
+    const totalCibirAfiliados = statusCounts['Afiliado']?.cibir || 0
+    const totalAcreditacionAfiliados = statusCounts['Afiliado']?.acreditacion || 0
+    const totalAfiliados = totalCibirAfiliados + totalAcreditacionAfiliados
+    const totalRechazados = (statusCounts['Rechazado']?.cibir || 0) + (statusCounts['Rechazado']?.acreditacion || 0)
+
+    const timeline = (timelineRowsResult.rows as any[]).map(r => ({
+      periodo: r.periodo || '',
+      cibir: Number(r.cibir || 0),
+      acreditacion: Number(r.acreditacion || 0),
+      total: Number(r.total || 0),
+    }))
+
+    res.json({
+      success: true,
+      data: {
+        kpis: {
+          totalCaptados,
+          totalCibir: totalCibirCaptados,
+          totalAcreditacion: totalAcreditacionCaptados,
+          totalAfiliados,
+          totalRechazados,
+          pctCibirShare: totalCaptados > 0 ? Math.round((totalCibirCaptados / totalCaptados) * 100) : 0,
+          pctAcreditacionShare: totalCaptados > 0 ? Math.round((totalAcreditacionCaptados / totalCaptados) * 100) : 0,
+          tasaConversionGlobal: totalCaptados > 0 ? Math.round((totalAfiliados / totalCaptados) * 100) : 0,
+          tasaConversionCibir: totalCibirCaptados > 0 ? Math.round((totalCibirAfiliados / totalCibirCaptados) * 100) : 0,
+          tasaConversionAcreditacion: totalAcreditacionCaptados > 0 ? Math.round((totalAcreditacionAfiliados / totalAcreditacionCaptados) * 100) : 0,
+        },
+        funnelStages,
+        timeline,
+        filtros: {
+          desde,
+          hasta,
+        }
+      }
+    })
+  } catch (error: any) {
+    console.error('getEmbudoAnalytics error:', error)
+    res.status(500).json({ success: false, message: 'Error al consultar analítica del embudo: ' + error.message })
+  }
+}
