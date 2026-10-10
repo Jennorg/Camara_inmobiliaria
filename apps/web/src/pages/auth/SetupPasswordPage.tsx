@@ -4,6 +4,7 @@ import { ShieldCheck, Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, Arr
 import { API_URL } from '@/config/env';
 import { toast } from 'sonner';
 import logo from '@/assets/Logo2.webp';
+import SEO from '@/components/SEO';
 
 export default function SetupPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -116,6 +117,7 @@ export default function SetupPasswordPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 selection:bg-emerald-100 italic-none">
+      <SEO title={title} index={false} />
       <div className="max-w-md w-full bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 p-8 sm:p-10 border border-slate-100 relative overflow-hidden">
         {/* Background micro-decoration */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 opacity-50" />

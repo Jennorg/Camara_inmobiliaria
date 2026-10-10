@@ -141,8 +141,13 @@ export default function EquipoDirectivo() {
   return (
     <div className={`min-h-screen w-full max-w-full overflow-x-clip transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
       <SEO 
-        title="Junta Directiva" 
-        description="Conoce a los líderes que guían la Cámara Inmobiliaria del Estado Bolívar. Compromiso y visión para el sector inmobiliario."
+        title="Junta Directiva y Autoridades" 
+        description="Conoce a los directivos y líderes gremiales de la Cámara Inmobiliaria del Estado Bolívar. Compromiso, visión y ética profesional en el sector inmobiliario regional."
+        url="https://camarainmobiliariadebolivar.com/junta-directiva"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Junta Directiva', url: '/junta-directiva' }
+        ]}
       />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header className='relative px-4 sm:px-6 lg:px-20 py-12 sm:py-16 lg:py-24 flex items-center justify-center min-h-[35vh] sm:min-h-[40vh] overflow-hidden'>

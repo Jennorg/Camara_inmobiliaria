@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import Navbar from '@/pages/landing/components/navbar/Navbar';
 import Footer from '@/pages/landing/components/Footer';
+import SEO from '@/components/SEO';
 import { ProfileHero } from './components/profile/ProfileHero';
 import { OrganigramView } from './components/profile/OrganigramView';
 import { ProfileMainContent } from './components/profile/ProfileMainContent';
@@ -86,8 +87,23 @@ const AfiliadoProfilePage = () => {
     );
   }
 
+  const profileTitle = afiliado ? `${afiliado.nombre_completo || afiliado.empresa_razon_social || 'Miembro'} | Corredor Inmobiliario` : 'Perfil Profesional';
+  const profileDesc = afiliado
+    ? `Consulta el perfil profesional, acreditación y datos de contacto de ${afiliado.nombre_completo || afiliado.empresa_razon_social} en la Cámara Inmobiliaria del Estado Bolívar.`
+    : 'Perfil profesional de miembro certificado en la Cámara Inmobiliaria del Estado Bolívar.';
+
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+      <SEO
+        title={profileTitle}
+        description={profileDesc}
+        url={`https://camarainmobiliariadebolivar.com/miembros/${id}`}
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Miembros', url: '/miembros' },
+          { name: afiliado?.nombre_completo || 'Perfil', url: `/miembros/${id}` }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={() => {}} />
 
       <main className="flex-grow pt-6 pb-16 px-4 md:px-8 max-w-7xl mx-auto w-full space-y-12">

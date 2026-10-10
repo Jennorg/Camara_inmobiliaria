@@ -25,8 +25,13 @@ export default function MisionVision() {
   return (
     <div className={`min-h-screen transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22]' : 'bg-slate-50'}`}>
       <SEO
-        title="Misión y Visión"
-        description="Nuestro propósito institucional: elevar el estándar del profesional inmobiliario en Bolívar y ser referentes de excelencia."
+        title="Misión, Visión y Valores"
+        description="Conoce la misión, visión y principios éticos que rigen a la Cámara Inmobiliaria del Estado Bolívar y a nuestros profesionales afiliados."
+        url="https://camarainmobiliariadebolivar.com/mision-vision"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Misión y Visión', url: '/mision-vision' }
+        ]}
       />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header className='relative px-6 lg:px-20 py-16 lg:py-24 flex items-center justify-center min-h-[40vh] bg-cover animate-header-bg' style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>

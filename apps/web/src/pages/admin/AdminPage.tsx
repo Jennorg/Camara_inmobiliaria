@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import CmsHeader from '@/pages/admin/components/CmsHeader'
 import CmsAside from '@/pages/admin/components/CmsAside'
 import CmsContent from '@/pages/admin/components/CmsContent'
+import SEO from '@/components/SEO'
 
 const NAV_META: Record<string, { title: string; subtitle: string }> = {
   articles: { title: 'Artículos', subtitle: 'Gestionar el contenido del sitio' },
@@ -107,6 +108,7 @@ const AdminPage = () => {
 
   return (
     <div ref={containerRef} className="fixed inset-0 flex bg-gray-50 overflow-hidden w-full h-full">
+      <SEO title="Panel de Administración" index={false} />
 
       {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
       <CmsAside

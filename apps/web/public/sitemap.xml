@@ -4,52 +4,130 @@
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-  <!-- Página principal -->
+  <!-- ====================================================== -->
+  <!-- NIVEL 1: PÁGINA PRINCIPAL (Prioridad Máxima)           -->
+  <!-- ====================================================== -->
   <url>
     <loc>https://camarainmobiliariadebolivar.com/</loc>
-    <lastmod>2026-06-11</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- Directorio de inmobiliarias -->
+  <!-- ====================================================== -->
+  <!-- NIVEL 2: CONVERSIÓN Y AFILIACIÓN (Prioridad 0.9)       -->
+  <!-- ====================================================== -->
   <url>
-    <loc>https://camarainmobiliariadebolivar.com/directorio</loc>
-    <lastmod>2026-06-11</lastmod>
-    <changefreq>weekly</changefreq>
+    <loc>https://camarainmobiliariadebolivar.com/afiliate</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
 
-  <!-- Cursos y formación -->
+  <!-- ====================================================== -->
+  <!-- NIVEL 3: AUTORIDAD Y DIRECTORIO GREMIAL (Prioridad 0.8)-->
+  <!-- ====================================================== -->
   <url>
-    <loc>https://camarainmobiliariadebolivar.com/cursos</loc>
-    <lastmod>2026-06-11</lastmod>
+    <loc>https://camarainmobiliariadebolivar.com/miembros</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/junta-directiva</loc>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
 
-  <!-- Historia -->
+  <!-- ====================================================== -->
+  <!-- NIVEL 4: OFERTA FORMATIVA Y CURSOS (Prioridad 0.5)     -->
+  <!-- ====================================================== -->
   <url>
-    <loc>https://camarainmobiliariadebolivar.com/historia</loc>
-    <lastmod>2026-06-11</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://camarainmobiliariadebolivar.com/cursos</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 
-  <!-- Misión y Visión -->
+  <!-- ====================================================== -->
+  <!-- NIVEL 5: IDENTIDAD INSTITUCIONAL Y CIBIR (Prioridad 0.4)-->
+  <!-- ====================================================== -->
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/cibir</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
   <url>
     <loc>https://camarainmobiliariadebolivar.com/mision-vision</loc>
-    <lastmod>2026-06-11</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.6</priority>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
 
-  <!-- Junta Directiva -->
   <url>
-    <loc>https://camarainmobiliariadebolivar.com/junta-directiva</loc>
-    <lastmod>2026-06-11</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://camarainmobiliariadebolivar.com/historia</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- ====================================================== -->
+  <!-- NIVEL 6: PROGRAMAS ESPECÍFICOS Y LEYES (Prioridad 0.3) -->
+  <!-- ====================================================== -->
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/padi</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/pegi</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/preani</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/marco-legal/leyes-y-decretos</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- ====================================================== -->
+  <!-- NIVEL 7: NORMATIVAS Y ÉTICA (Prioridad 0.2)             -->
+  <!-- ====================================================== -->
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/marco-legal/normas-y-procedimientos</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.2</priority>
+  </url>
+
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/marco-legal/aranceles-e-impuestos</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.2</priority>
+  </url>
+
+  <url>
+    <loc>https://camarainmobiliariadebolivar.com/codigo-etica</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.2</priority>
   </url>
 
 </urlset>

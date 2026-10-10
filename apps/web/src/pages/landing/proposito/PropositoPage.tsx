@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import bgBolivar from "@/assets/Pzo.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
 import Footer from "@/pages/landing/components/Footer";
+import SEO from "@/components/SEO";
 
 const useScrollReveal = () => {
   const [node, setNode] = useState<HTMLElement | null>(null);
@@ -26,6 +27,15 @@ export default function Proposito() {
 
   return (
     <div className="min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
+      <SEO
+        title="Nuestro Propósito y Compromiso Ético"
+        description="Pilares fundamentales y compromiso ético para el desarrollo sostenible del sector inmobiliario en el Estado Bolívar."
+        url="https://camarainmobiliariadebolivar.com/proposito"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Propósito', url: '/proposito' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header
         className="relative px-6 lg:px-20 py-24 flex items-center justify-center min-h-[50vh] bg-cover animate-header-bg overflow-hidden"

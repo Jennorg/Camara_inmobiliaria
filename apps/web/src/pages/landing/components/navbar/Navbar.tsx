@@ -96,6 +96,7 @@ const Navbar = ({
           <div className="flex-1 flex items-center justify-end space-x-3">
             <button 
               type="button"
+              aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
               onClick={() => {
                 const nextMode = !darkMode;
                 setDarkMode(nextMode);
@@ -129,7 +130,8 @@ const Navbar = ({
                     type="button"
                     onClick={logout}
                     title={labelSalir}
-                    className='p-2 text-emerald-500/70 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors flex items-center gap-1 text-xs font-bold'
+                    aria-label={labelSalir}
+                    className='p-2 text-emerald-500/70 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer'
                   >
                     <LogOut size={20} />
                   </button>
@@ -138,7 +140,7 @@ const Navbar = ({
                 <button
                   type="button"
                   onClick={() => setShowLoginModal(true)}
-                  className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-colors transition-transform active:scale-95'
+                  className='px-6 py-2 bg-emerald-500 text-white rounded-full text-xs font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-colors transition-transform active:scale-95 cursor-pointer'
                 >
                   {labelLogin}
                 </button>
@@ -147,8 +149,10 @@ const Navbar = ({
 
             <button 
               type="button"
+              aria-label={isMobileMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+              aria-expanded={isMobileMenuOpen}
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              className={`xl:hidden p-2 rounded-lg transition-colors ${
+              className={`xl:hidden p-2 rounded-lg transition-colors cursor-pointer ${
                 darkMode ? "text-white hover:bg-white/10" : "text-emerald-950 hover:bg-emerald-50"
               }`}
             >
@@ -175,7 +179,7 @@ const Navbar = ({
           <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-white/10' : 'border-emerald-100'}`}>
             {/* Logo dinámico también en el menú móvil */}
             <img src={darkMode ? logoDark : logoLight} alt="Logo" className="h-12 w-auto" />
-            <button type="button" onClick={() => setIsMobileMenuOpen(false)} className={darkMode ? 'text-white' : 'text-emerald-900'}><X /></button>
+            <button type="button" aria-label="Cerrar menú" onClick={() => setIsMobileMenuOpen(false)} className={`cursor-pointer ${darkMode ? 'text-white' : 'text-emerald-900'}`}><X /></button>
           </div>
 
           <div className="flex-grow overflow-y-auto p-6 space-y-6">

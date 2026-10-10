@@ -2,6 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, GraduationCap, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import SEO from '@/components/SEO'
 
 export default function LobbyPage() {
   const navigate = useNavigate()
@@ -59,6 +60,7 @@ export default function LobbyPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SEO index={false} title="Selección de Módulo" />
       <div className="max-w-5xl mx-auto px-6 py-16">
         <div className="flex items-start justify-between gap-4 flex-wrap mb-10">
           <div className="space-y-2">

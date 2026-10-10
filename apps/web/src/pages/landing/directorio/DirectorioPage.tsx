@@ -161,8 +161,13 @@ const DirectorioPage = () => {
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-500 ${darkMode ? 'dark bg-[#022c22] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
       <SEO
-        title="Directorio de Miembros"
-        description="Encuentra a los profesionales inmobiliarios certificados en el Estado Bolívar. Consulta nuestro directorio de agentes y corporativos."
+        title="Directorio de Inmobiliarias y Corredores Certificados"
+        description="Directorio oficial de agentes y empresas inmobiliarias certificadas en el Estado Bolívar. Consulta la solvencia, datos de contacto y trayectoria de nuestros miembros."
+        url="https://camarainmobiliariadebolivar.com/miembros"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Miembros', url: '/miembros' }
+        ]}
       />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 

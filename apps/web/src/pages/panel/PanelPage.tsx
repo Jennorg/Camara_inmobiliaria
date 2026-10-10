@@ -50,6 +50,7 @@ import FormacionPanel from '@/pages/admin/components/Formacion/FormacionPanel';
 import MiembrosPanel from '@/pages/admin/components/Afiliados/MiembrosPanel';
 import PreinscripcionesPrincipalesPanel from '@/pages/admin/components/Formacion/PreinscripcionesPrincipalesPanel';
 import FinancePanel from '@/pages/admin/components/Finance/FinancePanel';
+import DenunciasPanel from '@/pages/admin/components/Denuncias/DenunciasPanel';
 
 import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
@@ -57,6 +58,7 @@ import SettingsPanel from './components/SettingsPanel';
 import ImpersonationBanner from '@/components/ImpersonationBanner';
 import { useSearchParams } from 'react-router-dom';
 import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
+import SEO from '@/components/SEO';
 
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
@@ -75,11 +77,13 @@ const NAV_AFILIADO = [
 
 const NAV_ADMIN_CORE = [
   { icon: Users, label: 'Directorio de Miembros' },
+  { icon: DollarSign, label: 'Control de Finanzas' },
   { icon: ShieldCheck, label: 'Control de Acceso' },
   { icon: ClipboardList, label: 'Preinscripciones' },
   { icon: BookOpen, label: 'Gestión de Formación' },
   { icon: UserPlus, label: 'Solicitudes de Agentes' },
   { icon: UserCheck, label: 'Solicitudes de Cambio' },
+  { icon: Gavel, label: 'Tribunal de Ética' },
   { icon: BarChart, label: 'Análisis y Métricas' },
 ];
 
@@ -119,7 +123,10 @@ const PanelPage = () => {
   const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado, isImpersonating } = useAuth();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
-    if (searchParams.get('tab') === 'formacion') return 'Catálogo Académico';
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'formacion') return 'Catálogo Académico';
+    if (tabParam === 'finanzas') return 'Control de Finanzas';
+    if (tabParam === 'denuncias') return 'Tribunal de Ética';
     return (isAdmin || isAsistente) ? 'Directorio de Miembros' : 'Mi Expediente';
   });
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -309,8 +316,10 @@ const PanelPage = () => {
     if (isAsistente && !isAdmin) {
       return [
         { icon: Users, label: 'Directorio de Miembros' },
+        { icon: DollarSign, label: 'Control de Finanzas' },
         { icon: ShieldCheck, label: 'Control de Acceso' },
         { icon: BookOpen, label: 'Gestión de Formación' },
+        { icon: Gavel, label: 'Tribunal de Ética' },
       ];
     }
 
@@ -322,6 +331,7 @@ const PanelPage = () => {
     if (isAdmin) {
       const navAdminCoreWithCounts = [
         { icon: Users, label: 'Directorio de Miembros' },
+        { icon: DollarSign, label: 'Control de Finanzas' },
         { icon: ShieldCheck, label: 'Control de Acceso' },
         { 
           icon: ClipboardList, 
@@ -337,6 +347,7 @@ const PanelPage = () => {
           count: solicitudesCambioCount > 0 ? solicitudesCambioCount : undefined,
           hasPendingDot: solicitudesCambioCount > 0
         },
+        { icon: Gavel, label: 'Tribunal de Ética' },
         { icon: BarChart, label: 'Análisis y Métricas' },
       ];
 
@@ -506,7 +517,8 @@ const PanelPage = () => {
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;
     if (activeTab === 'Preinscripciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><PreinscripcionesPrincipalesPanel /></div>;
     if (activeTab === 'Junta Directiva') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs p-6 overflow-hidden"><DirectivaPanel /></div>;
-    if (activeTab === 'Finanzas') return <div className="col-span-1 lg:col-span-3 h-full"><FinancePanel /></div>;
+    if (activeTab === 'Finanzas' || activeTab === 'Control de Finanzas') return <div className="col-span-1 lg:col-span-3 h-full"><FinancePanel /></div>;
+    if (activeTab === 'Tribunal de Ética' || activeTab === 'Denuncias' || activeTab === 'Sistema de Denuncias') return <div className="col-span-1 lg:col-span-3 h-full"><DenunciasPanel /></div>;
     if (activeTab === 'Análisis y Métricas') return <div className="col-span-1 lg:col-span-3 h-full"><AnalyticsPanel /></div>;
     if (activeTab === 'Gestión de Formación') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><FormacionPanel /></div>;
 
@@ -533,10 +545,11 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <BatchDownloadProvider>
+      <SEO index={false} title="Panel de Gestión" />
       <div 
         className="h-screen w-full flex flex-col font-sans overflow-hidden" 
         style={{ backgroundColor: 'var(--color-bg-page)', color: 'var(--color-text-base)' }}

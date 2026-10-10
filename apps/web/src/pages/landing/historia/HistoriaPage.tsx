@@ -57,8 +57,13 @@ export default function Historia() {
   return (
     <div className='min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth'>
       <SEO
-        title="Nuestra Historia"
-        description="Conoce la trayectoria de la Cámara Inmobiliaria del Estado Bolívar. Décadas impulsando el profesionalismo inmobiliario en la región."
+        title="Historia y Trayectoria Gremial"
+        description="Conoce los orígenes y evolución de la Cámara Inmobiliaria del Estado Bolívar. Décadas impulsando el profesionalismo y la ética inmobiliaria en la región."
+        url="https://camarainmobiliariadebolivar.com/historia"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Historia', url: '/historia' }
+        ]}
       />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header

@@ -1,7 +1,12 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
-interface SEOProps {
+export interface BreadcrumbItem {
+  name: string;
+  url: string;
+}
+
+export interface SEOProps {
   title?: string;
   description?: string;
   keywords?: string;
@@ -10,6 +15,7 @@ interface SEOProps {
   url?: string;
   type?: 'website' | 'article';
   index?: boolean;
+  breadcrumbs?: BreadcrumbItem[];
 }
 
 const SEO: React.FC<SEOProps> = ({
@@ -20,16 +26,19 @@ const SEO: React.FC<SEOProps> = ({
   imageAlt = 'Logo Cámara Inmobiliaria de Bolívar',
   url,
   type = 'website',
-  index = true
+  index = true,
+  breadcrumbs
 }) => {
-  const baseTitle = 'Cámara Inmobiliaria de Bolívar';
-  const fullTitle = title ? `${title}` : baseTitle;
-  const defaultDescription = 'Gremio líder de profesionales inmobiliarios en el Estado Bolívar, Venezuela. Encuentra agentes certificados, inmobiliarias de confianza y formación especializada.';
-  const defaultKeywords = 'inmobiliarias en bolivar, bienes raices puerto ordaz, corredores inmobiliarios venezuela, cibir bolivar, agentes inmobiliarios certificados, venta de casas puerto ordaz, apartamentos ciudad bolivar';
+  const baseTitle = 'Cámara Inmobiliaria del Estado Bolívar | CIBIR';
+  const fullTitle = title
+    ? (title.includes('Cámara Inmobiliaria') || title.includes('CIBIR') ? title : `${title} | Cámara Inmobiliaria de Bolívar`)
+    : baseTitle;
+  const defaultDescription = 'Gremio oficial de profesionales e inmobiliarias certificadas en el Estado Bolívar, Venezuela. Encuentra agentes confiables, cursos y asesoría legal en Puerto Ordaz y Ciudad Bolívar.';
+  const defaultKeywords = 'camara inmobiliaria bolivar, CIBIR, bienes raices puerto ordaz, corredores inmobiliarios bolivar, inmobiliarias puerto ordaz, venta de casas bolivar, cursos inmobiliarios bolivar';
 
-  const currentUrl = url || (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '');
+  const currentUrl = url || (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : 'https://camarainmobiliariadebolivar.com');
 
-  const structuredData = [
+  const structuredData: any[] = [
     {
       "@context": "https://schema.org",
       "@type": "RealEstateAgent",
@@ -38,7 +47,7 @@ const SEO: React.FC<SEOProps> = ({
       "url": "https://camarainmobiliariadebolivar.com",
       "logo": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
       "image": "https://camarainmobiliariadebolivar.com/assets/Logo2.png",
-      "description": defaultDescription,
+      "description": description || defaultDescription,
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "Puerto Ordaz",
@@ -58,6 +67,19 @@ const SEO: React.FC<SEOProps> = ({
     }
   ];
 
+  if (breadcrumbs && breadcrumbs.length > 0) {
+    structuredData.push({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": breadcrumbs.map((crumb, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "name": crumb.name,
+        "item": crumb.url.startsWith('http') ? crumb.url : `https://camarainmobiliariadebolivar.com${crumb.url.startsWith('/') ? '' : '/'}${crumb.url}`
+      }))
+    });
+  }
+
   return (
     <Helmet>
       {/* Basic */}
@@ -74,7 +96,7 @@ const SEO: React.FC<SEOProps> = ({
       <meta property="og:image:alt" content={imageAlt} />
       <meta property="og:url" content={currentUrl} />
       <meta property="og:type" content={type} />
-      <meta property="og:locale" content="es_ES" />
+      <meta property="og:locale" content="es_VE" />
       <meta property="og:site_name" content="Cámara Inmobiliaria de Bolívar" />
 
       {/* Twitter */}

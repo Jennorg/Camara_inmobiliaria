@@ -260,3 +260,63 @@ export const formatSocialUrl = (
   }
 };
 
+/**
+ * Sanitiza una fecha recibida del backend o estado para asegurar formato YYYY-MM-DD
+ * compatible con inputs de tipo date de HTML5 (evita que se rompan con timestamps ISO con hora).
+ */
+export const sanitizeDateForInput = (dateInput?: string | Date | null): string => {
+  if (!dateInput) return '';
+  const str = String(dateInput).trim();
+  if (!str || str === 'null' || str === 'undefined') return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.slice(0, 10);
+  }
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return '';
+};
+
+/**
+ * Formatea una fecha al estándar latino DD/MM/AAAA (ej. 27/03/1971 o 01/10/2026).
+ * Si shortYear es true, formatea en DD/MM/AA (ej. 27/03/71 o 01/10/26).
+ * Previene desfases de zona horaria al parsear fechas 'YYYY-MM-DD'.
+ */
+export const formatDateLatina = (
+  dateInput?: string | Date | number | null,
+  options?: { shortYear?: boolean; fallback?: string }
+): string => {
+  const fallback = options?.fallback ?? '—';
+  if (!dateInput) return fallback;
+  const str = String(dateInput).trim();
+  if (!str || str === 'null' || str === 'undefined' || str === '—') return fallback;
+
+  // Caso YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, y, m, d] = match;
+    const yearStr = options?.shortYear ? y.slice(-2) : y;
+    return `${d}/${m}/${yearStr}`;
+  }
+
+  const parsed = new Date(dateInput);
+  if (isNaN(parsed.getTime())) return fallback;
+
+  const d = String(parsed.getDate()).padStart(2, '0');
+  const m = String(parsed.getMonth() + 1).padStart(2, '0');
+  const y = String(parsed.getFullYear());
+  const yearStr = options?.shortYear ? y.slice(-2) : y;
+  return `${d}/${m}/${yearStr}`;
+};
+
+/**
+ * Formatea fecha en formato corto latino DD/MM/AA (ej. 15/09/26)
+ */
+export const formatDateShortLatina = (dateInput?: string | Date | number | null): string => {
+  return formatDateLatina(dateInput, { shortYear: true });
+};
+

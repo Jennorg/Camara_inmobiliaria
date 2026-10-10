@@ -6,7 +6,6 @@ import { ToastProvider } from '@/context/ToastContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollToHash from '@/components/ScrollToHash'
 import ScrollToTop from '@/components/ScrollToTop'
-import SEO from '@/components/SEO'
 
 // Static imports (Removing lazy/preload)
 import LandingPage from '@/pages/landing/LandingPage'
@@ -34,6 +33,7 @@ import MarcoLegalPage from '@/pages/landing/marco-legal/MarcoLegalPage'
 import RequisitosPage from '@/pages/landing/afiliado/RequisitosPage'
 import InvitacionCorporativaPage from '@/pages/landing/afiliado/InvitacionCorporativaPage'
 import AfiliadoProfilePage from '@/pages/landing/directorio/AfiliadoProfilePage'
+import DenunciasPublicPage from '@/pages/landing/denuncias/DenunciasPublicPage'
 
 import { Toaster } from '@/components/ui/sonner'
 
@@ -55,7 +55,7 @@ function AppRoutes() {
       {!isPanel && <ImpersonationBanner />}
       <Routes>
           {/* Rutas principales dependientes del host */}
-          <Route path='/' element={<><SEO /><LandingPage /></>} />
+          <Route path='/' element={<LandingPage />} />
           <Route path='/cursos'        element={<CursosCatalogPage />} />
           <Route path='/talleres'      element={<CursosCatalogPage />} />
           <Route path='/mision-vision' element={<MisionVisionPage />} />
@@ -81,6 +81,8 @@ function AppRoutes() {
           <Route path='/beneficios'    element={<Navigate to='/#afiliados' replace />} />
           <Route path='/comprobante/:codigo' element={<ComprobantePublicoPage />} />
           <Route path='/comprobante/afiliacion/:id' element={<CertificadoAfiliacionPage />} />
+          <Route path='/denuncias' element={<DenunciasPublicPage />} />
+          <Route path='/tribunal-etica' element={<Navigate to='/denuncias' replace />} />
           <Route path='/establecer-contrasena' element={<SetupPasswordPage />} />
           <Route path='/afiliacion/invitacion/:token' element={<InvitacionCorporativaPage />} />
 

@@ -4,6 +4,7 @@ import { FileText } from 'lucide-react'
 import bgBolivar from '@/assets/Pzo.webp'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import SEO from '@/components/SEO'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 
@@ -70,6 +71,16 @@ export default function MarcoLegalPage() {
 
   return (
     <div className="min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
+      <SEO
+        title={`${config.label} | Marco Legal`}
+        description={`Consulta ${config.label.toLowerCase()} y normativas oficiales aplicables al sector inmobiliario en el Estado Bolívar.`}
+        url={`https://camarainmobiliariadebolivar.com/marco-legal/${category || 'leyes-y-decretos'}`}
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Marco Legal', url: '/marco-legal/leyes-y-decretos' },
+          { name: config.label, url: `/marco-legal/${category || 'leyes-y-decretos'}` }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       <header
