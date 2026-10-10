@@ -27,6 +27,7 @@ import {
 } from '../lib/email.js'
 import bcrypt from 'bcryptjs'
 import { NotificationService } from '../services/notification.service.js'
+import { autoAsignarEdicionCibir } from '../services/cibir.service.js'
 
 function getCookie(req: Request, name: string): string | undefined {
   const raw = req.headers.cookie
@@ -2155,7 +2156,17 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           entr.lugar as entrevista_lugar,
           entr.estatus as entrevista_estatus,
           COALESCE(af.optar_acreditacion, 0) as apto_acreditacion,
-          COALESCE(af.cibir_acreditado, 0) as cibir_acreditado
+          COALESCE(af.cibir_acreditado, 0) as cibir_acreditado,
+          (
+            SELECT ec.nombre 
+            FROM inscripciones_edicion_cibir iec
+            JOIN ediciones_cibir ec ON ec.id_edicion = iec.id_edicion
+            WHERE iec.id_afiliado = af.id_afiliado 
+              AND iec.estatus <> 'Cancelado'
+              AND ec.eliminado_en IS NULL
+            ORDER BY iec.fecha_asignacion DESC
+            LIMIT 1
+          ) as edicion_cibir_nombre
         FROM inscripciones_cursos ic
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
@@ -2586,6 +2597,14 @@ async function promocionarYVincularAfiliado(
       await ensureCibirCertificate(Number(insertedAfiliadoId))
     } catch (e) {
       console.error('Error ensuring CIBIR certificate in convalidation:', e)
+    }
+
+    if (targetStatus === '5_CIBIR') {
+      try {
+        await autoAsignarEdicionCibir(Number(insertedAfiliadoId))
+      } catch (eAuto) {
+        console.error('Error auto-asignando CIBIR en promocionarYVincularAfiliado:', eAuto)
+      }
     }
   }
 

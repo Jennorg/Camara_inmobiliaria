@@ -7,6 +7,7 @@ import Estudiosa from "@/assets/estudiosa1.webp";
 import Estudioso from "@/assets/estudioso1.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
+import SEO from "@/components/SEO";
 import ProgramTimeline, {
   type ProgramModule,
 } from "@/pages/landing/courses/components/ProgramTimeline";
@@ -47,6 +48,16 @@ export default function PadiPage() {
 
   return (
     <div className="w-full max-w-full bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
+      <SEO
+        title="Programa de Administración de Inmuebles (PADI)"
+        description="Especialización avanzada en administración, gestión condominal y gerencia de inmuebles avalada por la Cámara Inmobiliaria de Bolívar."
+        url="https://camarainmobiliariadebolivar.com/padi"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Cursos', url: '/cursos' },
+          { name: 'PADI', url: '/padi' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header
         className="relative px-4 sm:px-6 lg:px-20 py-20 lg:py-32 flex items-center justify-center min-h-[55vh] bg-cover animate-header-bg"

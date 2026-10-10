@@ -7,6 +7,7 @@ import Estudiosa from "@/assets/estudiosa1.webp";
 import Estudioso from "@/assets/estudioso1.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
+import SEO from "@/components/SEO";
 import ProgramTimeline, {
   type ProgramModule,
 } from "@/pages/landing/courses/components/ProgramTimeline";
@@ -59,6 +60,16 @@ export default function PegiPage() {
 
   return (
     <div className="w-full max-w-full bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
+      <SEO
+        title="Programa Ejecutivo de Gerencia Inmobiliaria (PEGI)"
+        description="Formación ejecutiva de alto nivel en liderazgo, finanzas, derecho mercantil y gestión estratégica para directores y gerentes de empresas inmobiliarias."
+        url="https://camarainmobiliariadebolivar.com/pegi"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Cursos', url: '/cursos' },
+          { name: 'PEGI', url: '/pegi' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header
         className="relative px-4 sm:px-6 lg:px-20 py-20 lg:py-32 flex items-center justify-center min-h-[55vh] bg-cover animate-header-bg"

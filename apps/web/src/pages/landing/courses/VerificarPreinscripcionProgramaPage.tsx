@@ -8,8 +8,10 @@ import { toast } from 'sonner'
 import FileUpload from '@/components/common/FileUpload'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import SEO from '@/components/SEO'
 import { useExpedienteProgress } from '@/hooks/useExpedienteProgress'
 import { useAuth } from '@/context/AuthContext'
+import { formatDateLatina, sanitizeDateForInput } from '@/utils/formatters'
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -243,7 +245,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               profesion: saved.profesion || '',
               optarAcreditacion: !!saved.optarAcreditacion,
               ano_inicio_servicio: saved.ano_inicio_servicio || '',
-              fecha_nacimiento: saved.fecha_nacimiento || '',
+              fecha_nacimiento: sanitizeDateForInput(saved.fecha_nacimiento),
               url_cv: saved.url_cv || '',
               name_cv: saved.name_cv || '',
               url_titulo: saved.url_titulo || '',
@@ -252,10 +254,10 @@ export default function VerificarPreinscripcionProgramaPage() {
               name_registro_mercantil: saved.name_registro_mercantil || '',
               url_titulo_representante: saved.url_titulo_representante || '',
               name_titulo_representante: saved.name_titulo_representante || '',
-              especializaciones: saved.especializaciones || [],
-              cursos_extras: saved.cursos_extras || [],
-              diplomados: saved.diplomados || [],
-              otros_docs: saved.otros_docs || [],
+              especializaciones: (saved.especializaciones || []).map((e: any) => ({ ...e, fecha: sanitizeDateForInput(e.fecha) })),
+              cursos_extras: (saved.cursos_extras || []).map((c: any) => ({ ...c, fecha: sanitizeDateForInput(c.fecha) })),
+              diplomados: (saved.diplomados || []).map((d: any) => ({ ...d, fecha: sanitizeDateForInput(d.fecha) })),
+              otros_docs: (saved.otros_docs || []).map((o: any) => ({ ...o, fecha: sanitizeDateForInput(o.fecha) })),
               url_referencia1: saved.url_referencia1 || '',
               nombre_referencia1: saved.nombre_referencia1 || '',
               url_referencia2: saved.url_referencia2 || '',
@@ -281,7 +283,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               profesion: profileData?.profesion || json.data.profesion || '',
               optarAcreditacion: hasPriorRefs || hasFippiPreani,
               ano_inicio_servicio: profileData?.ano_inicio_servicio !== undefined ? String(profileData.ano_inicio_servicio) : (json.data.ano_inicio_servicio !== undefined ? String(json.data.ano_inicio_servicio) : ''),
-              fecha_nacimiento: profileData?.fecha_nacimiento || json.data.fecha_nacimiento || '',
+              fecha_nacimiento: sanitizeDateForInput(profileData?.fecha_nacimiento || json.data.fecha_nacimiento),
               url_cv: cvDoc?.url || '',
               name_cv: cvDoc?.nombre_archivo || '',
               url_titulo: tituloDoc?.url || '',
@@ -290,10 +292,10 @@ export default function VerificarPreinscripcionProgramaPage() {
               name_registro_mercantil: registroDoc?.nombre_archivo || '',
               url_titulo_representante: tituloRepDoc?.url || '',
               name_titulo_representante: tituloRepDoc?.nombre_archivo || '',
-              especializaciones: docs.filter((d: any) => d.tipo_doc === 'especializacion').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
-              cursos_extras: docs.filter((d: any) => d.tipo_doc === 'curso_extra').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
-              diplomados: listDiplomados.map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
-              otros_docs: docs.filter((d: any) => d.tipo_doc === 'otro_documento').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: d.fecha_documento || '' })),
+              especializaciones: docs.filter((d: any) => d.tipo_doc === 'especializacion').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: sanitizeDateForInput(d.fecha_documento) })),
+              cursos_extras: docs.filter((d: any) => d.tipo_doc === 'curso_extra').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: sanitizeDateForInput(d.fecha_documento) })),
+              diplomados: listDiplomados.map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: sanitizeDateForInput(d.fecha_documento) })),
+              otros_docs: docs.filter((d: any) => d.tipo_doc === 'otro_documento').map((d: any) => ({ nombre: d.nombre_archivo, url: d.url, fecha: sanitizeDateForInput(d.fecha_documento) })),
               url_referencia1: ref1Doc?.url || '',
               nombre_referencia1: ref1Doc?.nombre_archivo || '',
               url_referencia2: ref2Doc?.url || '',
@@ -692,19 +694,23 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <div className="text-sm font-bold text-slate-700 select-none">
                         {dip.nombre}
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={10} className="text-slate-400" />
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/80">
+                          <Calendar size={11} className="text-slate-400" />
+                          <span className="text-xs font-bold text-slate-700">
+                            {formatDateLatina(dip.fecha) !== '—' ? formatDateLatina(dip.fecha) : 'DD/MM/AAAA'}
+                          </span>
                           <input
                             type="date"
-                            value={dip.fecha}
+                            value={sanitizeDateForInput(dip.fecha)}
                             onChange={(e) => setFormData(prev => ({
                               ...prev,
                               diplomados: prev.diplomados.map((d, i) =>
                                 i === idx ? { ...d, fecha: e.target.value } : d
                               )
                             }))}
-                            className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                            className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
+                            title="Modificar fecha (DD/MM/AAAA)"
                           />
                         </div>
                         <a href={dip.url} target="_blank" rel="noopener noreferrer"
@@ -742,7 +748,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
+                      {pendingDiplomadoFecha && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                          {formatDateLatina(pendingDiplomadoFecha)}
+                        </span>
+                      )}
+                    </div>
                     <div className="relative">
                       <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
@@ -840,6 +853,7 @@ export default function VerificarPreinscripcionProgramaPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO index={false} title={tituloLabel} />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       {status !== 'error' && (
@@ -980,16 +994,23 @@ export default function VerificarPreinscripcionProgramaPage() {
                   {/* Fecha de Nacimiento */}
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-3 mb-1">
-                        <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
-                        <div>
-                          <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
-                            Fecha de Nacimiento
-                          </h3>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 mb-1">
+                          <div className="w-1.5 h-6 rounded-full bg-emerald-600" />
+                          <div>
+                            <h3 className="text-base md:text-lg font-black uppercase tracking-wider text-[#022c22]">
+                              Fecha de Nacimiento <span className="text-rose-500">*</span>
+                            </h3>
+                          </div>
                         </div>
+                        {formData.fecha_nacimiento && (
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            {formatDateLatina(formData.fecha_nacimiento)}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-600 font-medium ml-4.5 italic">
-                        Es un requisito obligatorio para el registro de tu expediente.
+                        Es un requisito obligatorio para el registro de tu expediente (Formato latino: DD/MM/AAAA).
                       </p>
                     </div>
                     <div className="relative group">
@@ -1000,7 +1021,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                         type="date"
                         required
                         max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                        value={formData.fecha_nacimiento}
+                        value={sanitizeDateForInput(formData.fecha_nacimiento)}
                         onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
                         className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-colors text-base font-bold text-slate-700 ${INPUT_H}`}
                       />
@@ -1163,14 +1184,21 @@ export default function VerificarPreinscripcionProgramaPage() {
 
                         {/* Fecha de Nacimiento (Representante Legal) */}
                         <div className="space-y-1.5">
-                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Nacimiento</label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Nacimiento</label>
+                            {formData.fecha_nacimiento && (
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                {formatDateLatina(formData.fecha_nacimiento)}
+                              </span>
+                            )}
+                          </div>
                           <div className="relative group">
                             <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                               type="date"
                               required
                               max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                              value={formData.fecha_nacimiento}
+                              value={sanitizeDateForInput(formData.fecha_nacimiento)}
                               onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
                               className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-colors text-sm font-bold text-slate-700 h-[50px]"
                             />
@@ -1292,19 +1320,23 @@ export default function VerificarPreinscripcionProgramaPage() {
                                 placeholder="Título obtenido..."
                                 className="w-full text-sm font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
                               />
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-1.5">
-                                  <Calendar size={10} className="text-slate-400" />
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <div className="flex items-center gap-1.5 bg-emerald-100/60 px-2.5 py-1 rounded-lg border border-emerald-200/70">
+                                  <Calendar size={11} className="text-emerald-700" />
+                                  <span className="text-xs font-bold text-emerald-900">
+                                    {formatDateLatina(esp.fecha) !== '—' ? formatDateLatina(esp.fecha) : 'DD/MM/AAAA'}
+                                  </span>
                                   <input
                                     type="date"
-                                    value={esp.fecha}
+                                    value={sanitizeDateForInput(esp.fecha)}
                                     onChange={(e) => setFormData(prev => ({
                                       ...prev,
                                       especializaciones: prev.especializaciones.map((item, i) =>
                                         i === idx ? { ...item, fecha: e.target.value } : item
                                       )
                                     }))}
-                                    className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                    className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
+                                    title="Modificar fecha (DD/MM/AAAA)"
                                   />
                                 </div>
                                 <a href={esp.url} target="_blank" rel="noopener noreferrer"
@@ -1339,7 +1371,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Finalización</label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Finalización</label>
+                            {pendingEspecializacionFecha && (
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                {formatDateLatina(pendingEspecializacionFecha)}
+                              </span>
+                            )}
+                          </div>
                           <div className="relative">
                             <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
@@ -1407,19 +1446,23 @@ export default function VerificarPreinscripcionProgramaPage() {
                             placeholder="Nombre del curso..."
                             className="w-full text-sm font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
                           />
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <Calendar size={10} className="text-slate-400" />
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-1.5 bg-amber-100/60 px-2.5 py-1 rounded-lg border border-amber-200/70">
+                              <Calendar size={11} className="text-amber-700" />
+                              <span className="text-xs font-bold text-amber-900">
+                                {formatDateLatina(curso.fecha) !== '—' ? formatDateLatina(curso.fecha) : 'DD/MM/AAAA'}
+                              </span>
                               <input
                                 type="date"
-                                value={curso.fecha}
+                                value={sanitizeDateForInput(curso.fecha)}
                                 onChange={(e) => setFormData(prev => ({
                                   ...prev,
                                   cursos_extras: prev.cursos_extras.map((c, i) =>
                                     i === idx ? { ...c, fecha: e.target.value } : c
                                   )
                                 }))}
-                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
+                                title="Modificar fecha (DD/MM/AAAA)"
                               />
                             </div>
                             <a href={curso.url} target="_blank" rel="noopener noreferrer"
@@ -1454,7 +1497,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
+                        {pendingCursoFecha && (
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                            {formatDateLatina(pendingCursoFecha)}
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
                         <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -1545,19 +1595,23 @@ export default function VerificarPreinscripcionProgramaPage() {
                             placeholder="Nombre del documento..."
                             className="w-full text-sm font-bold text-slate-700 bg-transparent border-none outline-none focus:ring-0 placeholder:text-slate-400 truncate"
                           />
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <Calendar size={10} className="text-slate-400" />
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                              <Calendar size={11} className="text-slate-500" />
+                              <span className="text-xs font-bold text-slate-700">
+                                {formatDateLatina(doc.fecha) !== '—' ? formatDateLatina(doc.fecha) : 'DD/MM/AAAA'}
+                              </span>
                               <input
                                 type="date"
-                                value={doc.fecha}
+                                value={sanitizeDateForInput(doc.fecha)}
                                 onChange={(e) => setFormData(prev => ({
                                   ...prev,
                                   otros_docs: prev.otros_docs.map((item, i) =>
                                     i === idx ? { ...item, fecha: e.target.value } : item
                                   )
                                 }))}
-                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 w-24"
+                                className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
+                                title="Modificar fecha (DD/MM/AAAA)"
                               />
                             </div>
                             <a href={doc.url} target="_blank" rel="noopener noreferrer"
@@ -1592,7 +1646,14 @@ export default function VerificarPreinscripcionProgramaPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Documento</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Documento</label>
+                        {pendingOtroFecha && (
+                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {formatDateLatina(pendingOtroFecha)}
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
                         <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input

@@ -7,6 +7,7 @@ import Navbar from "@/pages/landing/components/navbar/Navbar";
 import Estudiosa from "@/assets/estudiosa1.webp";
 import Estudioso from "@/assets/estudioso1.webp";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
+import SEO from "@/components/SEO";
 import ProgramTimeline, {
   type ProgramModule,
 } from "@/pages/landing/courses/components/ProgramTimeline";
@@ -58,6 +59,16 @@ export default function PreaniPage() {
 
   return (
     <div className="w-full max-w-full bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
+      <SEO
+        title="Programa de Formación en Bienes Raíces (PREANI)"
+        description="Programa integral de capacitación técnica, financiera y comercial en el negocio de bienes raíces avalado por la Cámara Inmobiliaria de Bolívar."
+        url="https://camarainmobiliariadebolivar.com/preani"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Cursos', url: '/cursos' },
+          { name: 'PREANI', url: '/preani' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       <header

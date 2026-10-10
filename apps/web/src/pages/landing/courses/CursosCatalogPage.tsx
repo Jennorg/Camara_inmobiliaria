@@ -114,9 +114,14 @@ export default function CursosCatalogPage() {
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <section id='cursos' className={`relative w-full max-w-full overflow-x-hidden transition-colors duration-700 px-4 sm:px-6 lg:px-20 pt-16 pb-24 scroll-mt-24 ${darkMode ? 'bg-[#011a14] text-white' : 'bg-[#f8fafc] text-slate-900'}`}>
         <SEO 
-          title="Catálogo de Formación Inmobiliaria"
-          description="Explora nuestra oferta académica para profesionales de bienes raíces en Bolívar. Cursos, talleres y certificaciones avaladas por la CIBIR."
-          keywords="cursos inmobiliarios bolivar, capacitacion bienes raices, certificacion inmobiliaria venezuela, puerto ordaz formacion"
+          title="Cursos y Capacitación Inmobiliaria"
+          description="Programas de formación, talleres y cursos profesionales en bienes raíces avalados por la Cámara Inmobiliaria de Bolívar (CIBIR). Consulta nuestra oferta académica."
+          keywords="cursos inmobiliarios bolivar, capacitacion bienes raices, certificacion inmobiliaria venezuela, puerto ordaz formacion, CIBIR cursos"
+          url="https://camarainmobiliariadebolivar.com/cursos"
+          breadcrumbs={[
+            { name: 'Inicio', url: '/' },
+            { name: 'Cursos y Formación', url: '/cursos' }
+          ]}
         />
         <div className={`absolute inset-0 opacity-20 pointer-events-none ${darkMode ? 'opacity-10' : 'opacity-40'}`} style={{ backgroundImage: 'radial-gradient(#10b981 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
 

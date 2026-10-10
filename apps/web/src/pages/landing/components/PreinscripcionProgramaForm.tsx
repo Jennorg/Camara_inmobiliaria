@@ -18,6 +18,8 @@ interface EmpresaAfiliada {
   empresa_razon_social?: string
   empresa_rif_numero?: string
   codigo?: string
+  logo_url?: string | null
+  empresa_logo_url?: string | null
   tipo_afiliado: string
 }
 
@@ -75,7 +77,8 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           rif_numero: e.rif_numero,
           rif_tipo: e.rif_tipo,
           representante_legal: e.representante_legal,
-          codigo: e.codigo
+          codigo: e.codigo,
+          logo_url: e.logo_url || e.empresa_logo_url || e.marca_logo_url || null
         })))
       }
       if (resAfiliados.success && Array.isArray(resAfiliados.data)) {
@@ -87,7 +90,8 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             rif_numero: a.empresa_rif_numero || '',
             rif_tipo: a.empresa_rif_tipo || 'J',
             representante_legal: a.representante_nombre || a.nombre_completo,
-            codigo: a.codigo
+            codigo: a.codigo,
+            logo_url: a.empresa_logo_url || a.marca_logo_url || a.foto_url || null
           }))
         rawList.push(...corpAfiliados)
       }
@@ -256,6 +260,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                       empresa_razon_social: company.razon_social || company.empresa_razon_social,
                       empresa_rif_numero: company.rif_numero || company.empresa_rif_numero,
                       codigo: company.codigo || company.empresa_codigo,
+                      logo_url: company.logo_url || company.empresa_logo_url || company.marca_logo_url || null,
                       tipo_afiliado: 'Corporativo'
                     });
                   }

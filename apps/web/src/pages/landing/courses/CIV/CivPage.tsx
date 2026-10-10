@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import bgBolivar from '@/assets/Camara_Metropolitana.webp'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import SEO from '@/components/SEO'
 import actaPDF from '@/pages/landing/courses/CIV/acta.pdf'
 
 const useScrollReveal = () => {
@@ -31,6 +32,15 @@ export default function CodigoEtica() {
 
   return (
     <div className='min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30'>
+      <SEO
+        title="Código de Ética Profesional"
+        description="Principios éticos, normas deontológicas y compromisos de conducta que rigen a los profesionales de la Cámara Inmobiliaria de Bolívar y de Venezuela."
+        url="https://camarainmobiliariadebolivar.com/codigo-etica"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Código de Ética', url: '/codigo-etica' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
       <header
         className='relative px-6 lg:px-20 py-20 flex items-center justify-center min-h-[40vh] bg-cover animate-header-bg'
