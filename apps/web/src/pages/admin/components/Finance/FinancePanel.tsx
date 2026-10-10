@@ -1,640 +1,944 @@
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { 
+  Landmark, 
+  DollarSign, 
+  Plus, 
+  Download, 
+  FileSpreadsheet, 
+  Search, 
+  Calendar, 
+  Receipt, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  AlertCircle, 
+  CheckCircle, 
+  ExternalLink, 
+  FileText, 
+  TrendingUp, 
+  TrendingDown, 
+  Building2, 
+  RefreshCw, 
+  Filter, 
+  X,
+  CreditCard,
+  Ban
+} from 'lucide-react'
+import { API_URL } from '@/config/env'
+import { useAuth } from '@/context/AuthContext'
+import { toast } from 'sonner'
+import Swal from 'sweetalert2'
+import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/ModalGestionCuentasBancarias'
+import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
+import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrarGasto'
+import ReciboDigitalModal from '@/components/ReciboDigitalModal'
+import type { 
+  ResumenFinancieroDTO, 
+  LibroVentaItemDTO, 
+  LibroCompraItemDTO, 
+  TxCategory, 
+  TxStatus 
+} from '@/types/finanzas'
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-type TxType = 'ingreso' | 'egreso'
-type TxStatus = 'completado' | 'pendiente' | 'anulado'
-type TxCategory =
-  | 'afiliacion'
-  | 'curso'
-  | 'convenio'
-  | 'servicio'
-  | 'gasto_operativo'
-  | 'gasto_admin'
-  | 'donacion'
-  | 'otro'
+type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra'
 
-interface Movimiento {
-  id: string
-  fecha: string
-  tipo: TxType
-  categoria: TxCategory
-  concepto: string
-  monto: number
-  referencia: string
-  vinculado: { tipo: 'afiliado' | 'curso' | 'preinscripcion'; id: number; nombre: string } | null
-  metodo_pago: string
-  estado: TxStatus
-  proveedor_cliente: string
-  documento: string
+const CATEGORIAS: Record<string, { label: string; color: string }> = {
+  afiliacion:           { label: 'Afiliación',                  color: '#059669' },
+  curso:                { label: 'Curso/Taller',                 color: '#0D9488' },
+  convenio:             { label: 'Convenio',                     color: '#047857' },
+  servicio:             { label: 'Servicio Gremial',             color: '#65A30D' },
+  alquiler:             { label: 'Alquiler Sede',                color: '#D97706' },
+  servicios_publicos:   { label: 'Servicios Públicos/Internet',  color: '#EA580C' },
+  nomina:               { label: 'Nómina Administrativa',        color: '#DC2626' },
+  honorarios:           { label: 'Honorarios Profesionales',     color: '#7C3AED' },
+  papeleria:            { label: 'Papelería y Suministros',      color: '#4F46E5' },
+  mantenimiento:        { label: 'Mantenimiento',                color: '#2563EB' },
+  impuestos:            { label: 'Impuestos / Tasas',            color: '#B91C1C' },
+  gasto_operativo:      { label: 'Gasto Operativo',              color: '#A16207' },
+  gasto_admin:          { label: 'Gasto Admin.',                 color: '#78716C' },
+  donacion:             { label: 'Donación',                     color: '#1D4ED8' },
+  otro:                 { label: 'Otro',                         color: '#6B7280' },
 }
 
-// ─── Categorías — paleta corporativa verde ────────────────────────────────────
-const CATEGORIAS: Record<TxCategory, { label: string; color: string }> = {
-  afiliacion:       { label: 'Afiliación',       color: '#059669' },
-  curso:            { label: 'Curso/Taller',      color: '#0D9488' },
-  convenio:         { label: 'Convenio',          color: '#047857' },
-  servicio:         { label: 'Servicio',          color: '#65A30D' },
-  gasto_operativo:  { label: 'Gasto Operativo',   color: '#A16207' },
-  gasto_admin:      { label: 'Gasto Admin.',      color: '#78716C' },
-  donacion:         { label: 'Donación',          color: '#1D4ED8' },
-  otro:             { label: 'Otro',              color: '#6B7280' },
-}
-
-// ─── Datos mock — montos pequeños y realistas ────────────────────────────────
-const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-
-const MOCK_MOVIMIENTOS: Movimiento[] = [
-  { id: 'M-001', fecha: '2026-03-15', tipo: 'ingreso', categoria: 'afiliacion', concepto: 'Cuota afiliación — María López',              monto: 35,  referencia: 'TRN-001245', vinculado: { tipo: 'afiliado', id: 101, nombre: 'María López' }, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'María López C.I. 12.345.678',                           documento: 'FAC-2026-001' },
-  { id: 'M-002', fecha: '2026-03-14', tipo: 'ingreso', categoria: 'curso',      concepto: 'Inscripción Curso AVALUOS — Juan Pérez',     monto: 85,  referencia: 'TRN-001244', vinculado: { tipo: 'curso', id: 5, nombre: 'Curso de Avaluos Inmobiliarios' }, metodo_pago: 'Depósito',      estado: 'completado', proveedor_cliente: 'Juan Pérez C.I. 23.456.789',                             documento: 'FAC-2026-002' },
-  { id: 'M-003', fecha: '2026-03-12', tipo: 'egreso',  categoria: 'gasto_operativo', concepto: 'Alquiler sede gremial — Marzo',          monto: 120, referencia: 'TRN-001243', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Inmobiliaria Centro C.A. RIF J-12345678-9',         documento: 'FAC-P-2026-003' },
-  { id: 'M-004', fecha: '2026-03-10', tipo: 'ingreso', categoria: 'convenio',    concepto: 'Pago convenio Cámara de Comercio — Febrero', monto: 250, referencia: 'TRN-001242', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Cámara de Comercio de Bolívar RIF J-20012345-6',       documento: 'FAC-2026-004' },
-  { id: 'M-005', fecha: '2026-03-08', tipo: 'egreso',  categoria: 'gasto_admin',  concepto: 'Servicios públicos sede',                  monto: 45,  referencia: 'TRN-001241', vinculado: null, metodo_pago: 'Efectivo',      estado: 'pendiente',  proveedor_cliente: 'CORPOELEC RIF G-20012345-0',                      documento: 'FAC-P-2026-005' },
-  { id: 'M-006', fecha: '2026-03-05', tipo: 'ingreso', categoria: 'curso',      concepto: 'Inscripción Taller TASACIÓN — Carlos Rivas',  monto: 60,  referencia: 'TRN-001240', vinculado: { tipo: 'curso', id: 7, nombre: 'Taller de Tasación Inmobiliaria' }, metodo_pago: 'Depósito',      estado: 'completado', proveedor_cliente: 'Carlos Rivas C.I. 15.678.901',                           documento: 'FAC-2026-006' },
-  { id: 'M-007', fecha: '2026-03-03', tipo: 'ingreso', categoria: 'afiliacion',  concepto: 'Afiliación corporativa — Constructora ABC',   monto: 180, referencia: 'TRN-001239', vinculado: { tipo: 'afiliado', id: 202, nombre: 'Constructora ABC S.A.' }, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Constructora ABC S.A. RIF J-30456789-0',                    documento: 'FAC-2026-007' },
-  { id: 'M-008', fecha: '2026-02-28', tipo: 'egreso',  categoria: 'gasto_operativo', concepto: 'Suministros de oficina',                   monto: 28,  referencia: 'TRN-001238', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Papelería El Gremial RIF J-40567890-1',                documento: 'FAC-P-2026-008' },
-  { id: 'M-009', fecha: '2026-02-25', tipo: 'ingreso', categoria: 'curso',      concepto: 'Preinscripción PEGI — Ana Torres',            monto: 75,  referencia: 'TRN-001237', vinculado: { tipo: 'preinscripcion', id: 56, nombre: 'Ana Torres' }, metodo_pago: 'Depósito',      estado: 'completado', proveedor_cliente: 'Ana Torres C.I. 18.901.234',                             documento: 'FAC-2026-009' },
-  { id: 'M-010', fecha: '2026-02-22', tipo: 'egreso',  categoria: 'servicio',     concepto: 'Mantenimiento sitio web',                   monto: 55,  referencia: 'TRN-001236', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'WebSolutions C.A. RIF J-50678901-2',                      documento: 'FAC-P-2026-010' },
-  { id: 'M-011', fecha: '2026-02-20', tipo: 'ingreso', categoria: 'convenio',    concepto: 'Cuota convenio inmobiliarias — Enero',        monto: 200, referencia: 'TRN-001235', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Asociación de Inmobiliarias Bolívar RIF J-60789012-3',    documento: 'FAC-2026-011' },
-  { id: 'M-012', fecha: '2026-02-18', tipo: 'egreso',  categoria: 'gasto_admin',  concepto: 'Pago nómina administrativa',                monto: 350, referencia: 'TRN-001234', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Personal Administrativo CIBIR',                              documento: 'REC-2026-012' },
-  { id: 'M-013', fecha: '2026-02-15', tipo: 'ingreso', categoria: 'afiliacion',  concepto: 'Afiliación agente — Roberto Méndez',         monto: 35,  referencia: 'TRN-001233', vinculado: { tipo: 'afiliado', id: 303, nombre: 'Roberto Méndez' }, metodo_pago: 'Transferencia', estado: 'pendiente',  proveedor_cliente: 'Roberto Méndez C.I. 20.123.456',                           documento: 'FAC-2026-013' },
-  { id: 'M-014', fecha: '2026-02-12', tipo: 'egreso',  categoria: 'gasto_operativo', concepto: 'Material didáctico cursos',                monto: 40,  referencia: 'TRN-001232', vinculado: null, metodo_pago: 'Efectivo',      estado: 'completado', proveedor_cliente: 'Librería Técnica C.A. RIF J-70890123-4',                  documento: 'FAC-P-2026-014' },
-  { id: 'M-015', fecha: '2026-02-10', tipo: 'ingreso', categoria: 'curso',      concepto: 'Inscripción PADI — Laura Silva',             monto: 90,  referencia: 'TRN-001231', vinculado: { tipo: 'curso', id: 3, nombre: 'Programa PADI' }, metodo_pago: 'Depósito',      estado: 'completado', proveedor_cliente: 'Laura Silva C.I. 25.678.901',                             documento: 'FAC-2026-015' },
-  { id: 'M-016', fecha: '2026-02-08', tipo: 'egreso',  categoria: 'servicio',     concepto: 'Servicio de hosting + dominio',              monto: 18,  referencia: 'TRN-001230', vinculado: null, metodo_pago: 'Tarjeta',       estado: 'completado', proveedor_cliente: 'DigitalOcean LLC',                                        documento: 'FAC-P-2026-016' },
-  { id: 'M-017', fecha: '2026-02-05', tipo: 'ingreso', categoria: 'donacion',    concepto: 'Donación programa formación',                monto: 150, referencia: 'TRN-001229', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Fundación Desarrollo Local RIF J-30098765-4',              documento: 'FAC-2026-017' },
-  { id: 'M-018', fecha: '2026-02-01', tipo: 'egreso',  categoria: 'gasto_operativo', concepto: 'Alquiler sede gremial — Febrero',          monto: 120, referencia: 'TRN-001228', vinculado: null, metodo_pago: 'Transferencia', estado: 'completado', proveedor_cliente: 'Inmobiliaria Centro C.A. RIF J-12345678-9',         documento: 'FAC-P-2026-018' },
+const MESES = [
+  { num: 1, label: 'Enero' },
+  { num: 2, label: 'Febrero' },
+  { num: 3, label: 'Marzo' },
+  { num: 4, label: 'Abril' },
+  { num: 5, label: 'Mayo' },
+  { num: 6, label: 'Junio' },
+  { num: 7, label: 'Julio' },
+  { num: 8, label: 'Agosto' },
+  { num: 9, label: 'Septiembre' },
+  { num: 10, label: 'Octubre' },
+  { num: 11, label: 'Noviembre' },
+  { num: 12, label: 'Diciembre' },
 ]
 
-// ─── Resumen mensual — montos pequeños ───────────────────────────────────────
-const MOCK_RESUMEN_MENSUAL = MESES.map((mes, i) => {
-  const ingresosBase = 280 + Math.random() * 220 + i * 18
-  const egresosBase  = 150 + Math.random() * 160 + i * 6
-  return {
-    mes,
-    ingresos:  Math.round(ingresosBase),
-    egresos:   Math.round(egresosBase),
-  }
-})
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const formatter = new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
-const fmt = (n: number) => formatter.format(n)
-const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-const fmtShortDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
-
-const ESTADO_BADGE: Record<TxStatus, { label: string; style: string }> = {
-  completado: { label: 'Completado', style: 'bg-emerald-100 text-emerald-700' },
-  pendiente:  { label: 'Pendiente',  style: 'bg-amber-100 text-amber-700' },
-  anulado:    { label: 'Anulado',    style: 'bg-red-100 text-red-600' },
+const fmt = (n: number) => `$${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmtBs = (n: number) => `Bs. ${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmtDate = (s: string) => {
+  if (!s) return '-'
+  const [y, m, d] = s.split('-')
+  if (!d) return s
+  return `${d}/${m}/${y}`
 }
 
-// ─── PDF export ───────────────────────────────────────────────────────────────
-function exportarPDF(tipo: 'compra' | 'venta', movimientos: Movimiento[]) {
-  const esCompra = tipo === 'compra'
-  const label = esCompra ? 'Compra' : 'Venta'
+export default function FinancePanel() {
+  const { authHeaders } = useAuth()
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-
-  // ── Header ──
-  doc.setFillColor(0, 110, 70)
-  doc.rect(0, 0, 280, 22, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(14)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Libro de ${label}`, 14, 14)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Cámara Inmobiliaria de Bolívar · Período: Marzo 2026 · Emitido: ${new Date().toLocaleDateString('es-ES')}`, 14, 20)
-
-  // Totales
-  const total = movimientos.reduce((s, m) => s + m.monto, 0)
-
-  doc.setFillColor(240, 253, 244)
-  doc.rect(14, 25, 252, 10, 'F')
-  doc.setTextColor(21, 128, 61)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Total ${label === 'Compra' ? 'Compras' : 'Ventas'}: $${total.toFixed(2)}`, 18, 32)
-
-  // ── Table ──
-  const rows = movimientos.map(m => [
-    fmtDate(m.fecha),
-    m.documento,
-    m.proveedor_cliente.slice(0, 35),
-    m.concepto.slice(0, 35),
-    `$${m.monto.toFixed(2)}`,
-  ])
-
-  autoTable(doc, {
-    head: [[ 'Fecha', 'Comprobante', 'Proveedor / Cliente', 'Concepto', 'Total' ]],
-    body: rows,
-    startY: 38,
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [0, 110, 70], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-    foot: [[ '', '', '', 'Totales', `$${total.toFixed(2)}` ]],
-    footStyles: { fillColor: [240, 253, 244], textColor: [21, 128, 61], fontStyle: 'bold', fontSize: 7 },
-    columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 24 },
-      2: { cellWidth: 60 },
-      3: { cellWidth: 64 },
-      4: { cellWidth: 24, halign: 'right' },
-    },
-    margin: { left: 14, right: 14 },
-    tableWidth: 'auto',
-    pageBreak: 'auto',
-  })
-
-  const filename = `Libro_${label}_Marzo2026.pdf`
-  doc.save(filename)
-}
-
-// ─── Iconos SVG ───────────────────────────────────────────────────────────────
-const I = {
-  plus: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
-  x: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
-  download: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>,
-  balance: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
-  search: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
-  check: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>,
-  alert: <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
-  arrowUp: <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="18 15 12 9 6 15" /></svg>,
-  arrowDown: <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9" /></svg>,
-}
-
-// ─── StatCard ──────────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, change, changePositive, icon }: {
-  label: string; value: string; change?: string; changePositive?: boolean; icon: React.ReactNode
-}) => (
-  <div className="bg-white rounded-xl border border-emerald-100/60 p-4 flex flex-col gap-2 hover:shadow-sm transition-shadow">
-    <div className="flex items-center justify-between">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
-      <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600">{icon}</div>
-    </div>
-    <div className="flex items-end gap-2">
-      <span className="text-xl font-bold text-slate-800 leading-none tabular-nums">{value}</span>
-      {change && (
-        <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-          changePositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
-        }`}>
-          {changePositive ? I.arrowUp : I.arrowDown}
-          {change}
-        </span>
-      )}
-    </div>
-  </div>
-)
-
-// ─── Bar Chart (Histograma) — verde corporativo ────────────────────────────────
-const HistogramaChart = ({ data, onBarClick, selectedMonth }: {
-  data: typeof MOCK_RESUMEN_MENSUAL
-  onBarClick?: (idx: number) => void
-  selectedMonth: number | null
-}) => {
-  const allVals = data.flatMap(d => [d.ingresos, d.egresos])
-  const maxVal = Math.max(...allVals) * 1.2
-  const barW = 24
-  const gap = 6
-  const groupW = barW * 2 + gap
-  const padL = 36
-  const padR = 12
-  const padT = 16
-  const padB = 24
-  const svgW = padL + data.length * (groupW + 4) + padR
-  const svgH = 180
-
-  const ref = useRef<HTMLDivElement>(null)
-
-  return (
-    <div ref={ref} className="bg-white rounded-xl border border-emerald-100/60 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-slate-700">Ingresos vs Egresos</h3>
-        <div className="flex items-center gap-3 text-[10px] font-semibold">
-          <span className="flex items-center gap-1.5 text-emerald-600"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Ingresos</span>
-          <span className="flex items-center gap-1.5 text-amber-700"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" /> Egresos</span>
-        </div>
-      </div>
-      <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full" style={{ height: 180 }}>
-        {[0, 0.25, 0.5, 0.75, 1].map(r => {
-          const y = padT + (1 - r) * (svgH - padT - padB)
-          return <line key={r} x1={padL} y1={y} x2={svgW - padR} y2={y} stroke="#f1f5f9" strokeWidth="1" />
-        })}
-        {data.map((d, i) => {
-          const cx = padL + i * (groupW + 4)
-          const ih = (d.ingresos / maxVal) * (svgH - padT - padB)
-          const eh = (d.egresos / maxVal) * (svgH - padT - padB)
-          const isSelected = selectedMonth === i
-          return (
-            <g key={d.mes} className="cursor-pointer" onClick={() => onBarClick?.(i)}>
-              <rect x={cx} y={svgH - padB - ih} width={barW} height={Math.max(ih, 2)} rx={2} fill="#10B981" opacity={isSelected ? 1 : 0.85} className="hover:opacity-100 transition-opacity" />
-              <rect x={cx + barW + gap} y={svgH - padB - eh} width={barW} height={Math.max(eh, 2)} rx={2} fill="#F59E0B" opacity={isSelected ? 1 : 0.75} className="hover:opacity-100 transition-opacity" />
-              <text x={cx + barW + gap / 2} y={svgH - 5} textAnchor="middle" fontSize="8" fill="#94a3b8" fontWeight="600">{d.mes}</text>
-            </g>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-// ─── Modal ─────────────────────────────────────────────────────────────────────
-const RegistrarMovimientoModal = ({ open, onClose, onSave }: {
-  open: boolean; onClose: () => void; onSave: (m: Partial<Movimiento>) => void
-}) => {
-  const [tipo, setTipo] = useState<TxType>('ingreso')
-  const [categoria, setCategoria] = useState<TxCategory>('afiliacion')
-  const [concepto, setConcepto] = useState('')
-  const [monto, setMonto] = useState('')
-  const [metodoPago, setMetodoPago] = useState('Transferencia')
-  const [proveedor, setProveedor] = useState('')
-
-  if (!open) return null
-
-  const handleSave = () => {
-    const montoNum = parseFloat(monto) || 0
-    onSave({
-      tipo, categoria, concepto,
-      monto: montoNum,
-      metodo_pago: metodoPago,
-      proveedor_cliente: proveedor,
-      estado: 'pendiente',
-    })
-    setConcepto(''); setMonto(''); setProveedor('')
-    onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-emerald-100/60">
-          <h2 className="text-base font-bold text-slate-800">Registrar Movimiento</h2>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">{I.x}</button>
-        </div>
-        <div className="p-5 space-y-4">
-          {/* Tipo */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tipo</label>
-            <div className="flex gap-2">
-              {(['ingreso', 'egreso'] as const).map(t => (
-                <button key={t} onClick={() => setTipo(t)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${
-                    tipo === t
-                      ? t === 'ingreso' ? 'bg-emerald-50 text-emerald-600 ring-2 ring-emerald-400' : 'bg-amber-50 text-amber-600 ring-2 ring-amber-300'
-                      : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                  }`}>
-                  {t === 'ingreso' ? 'Ingreso' : 'Egreso'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Categoría */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoría</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(Object.entries(CATEGORIAS) as [TxCategory, typeof CATEGORIAS[TxCategory]][]).map(([key, cat]) => (
-                <button key={key} onClick={() => setCategoria(key)}
-                  className={`py-1.5 px-3 rounded-lg text-[10px] font-semibold transition-colors text-left ${
-                    categoria === key ? 'ring-2 text-slate-700' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                  }`}
-                  style={categoria === key ? { '--tw-ring-color': cat.color, backgroundColor: cat.color + '12' } as React.CSSProperties : {}}>
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Concepto */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Concepto</label>
-            <input value={concepto} onChange={e => setConcepto(e.target.value)}
-              placeholder="Ej: Inscripción curso — Nombre"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors" />
-          </div>
-
-          {/* Monto */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Monto ($)</label>
-            <input value={monto} onChange={e => setMonto(e.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="0.00"
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors" />
-          </div>
-
-          {/* Método de pago + Proveedor */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Método de Pago</label>
-              <select value={metodoPago} onChange={e => setMetodoPago(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors bg-white">
-                {['Transferencia', 'Depósito', 'Efectivo', 'Tarjeta', 'Cheque'].map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">{tipo === 'ingreso' ? 'Cliente' : 'Proveedor'}</label>
-              <input value={proveedor} onChange={e => setProveedor(e.target.value)}
-                placeholder="Nombre / RIF"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 placeholder-slate-300 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors" />
-            </div>
-          </div>
-
-          {/* Vinculado (mock info) */}
-          <div className="bg-emerald-50/50 border border-emerald-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
-            <span className="text-emerald-500 mt-0.5">{I.alert}</span>
-            <p className="text-[11px] text-emerald-700">
-              <strong>Modo simulación:</strong> Los ingresos por afiliaciones, cursos y preinscripciones se vinculan automáticamente a sus registros originales. Quedará como <em>Pendiente</em> hasta su confirmación.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-emerald-100/60 bg-emerald-50/30 rounded-b-2xl">
-          <button onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
-          <button onClick={handleSave}
-            disabled={!concepto || !monto}
-            className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors transition-opacity flex items-center gap-1.5">
-            {I.check} Registrar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Tabla de Movimientos ──────────────────────────────────────────────────────
-const TablaMovimientos = ({ data, tipo }: { data: Movimiento[]; tipo?: TxType }) => {
-  const filtrados = tipo ? data.filter(m => m.tipo === tipo) : data
-  if (filtrados.length === 0) return (
-    <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
-      <p className="text-sm font-semibold">No hay movimientos</p>
-    </div>
-  )
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm min-w-[600px]">
-        <thead>
-          <tr className="bg-emerald-50/50 border-b border-emerald-100/60">
-            {['Fecha', 'Concepto', 'Categoría', 'Total'].map(h => (
-              <th key={h} className="px-3 py-2.5 text-left text-[9px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {filtrados.map(m => (
-            <tr key={m.id} className="hover:bg-emerald-50/30 transition-colors">
-              <td className="px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap">{fmtDate(m.fecha)}</td>
-              <td className="px-3 py-2.5">
-                <p className="text-[11px] font-semibold text-slate-700">{m.concepto}</p>
-                <p className="text-[9px] text-slate-400 font-mono">{m.referencia}</p>
-              </td>
-              <td className="px-3 py-2.5">
-                <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: CATEGORIAS[m.categoria].color + '15', color: CATEGORIAS[m.categoria].color }}>
-                  {CATEGORIAS[m.categoria].label}
-                </span>
-              </td>
-              <td className={`px-3 py-2.5 text-xs font-bold tabular-nums whitespace-nowrap ${m.tipo === 'ingreso' ? 'text-emerald-600' : 'text-slate-600'}`}>
-                {m.tipo === 'ingreso' ? '+' : '-'}{fmt(m.monto)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ─── Libro de Compra / Venta ───────────────────────────────────────────────────
-const LibroCompraVenta = ({ tipo, movimientos }: { tipo: 'compra' | 'venta'; movimientos: Movimiento[] }) => {
-  const esCompra = tipo === 'compra'
-  const movs = movimientos.filter(m => esCompra ? m.tipo === 'egreso' : m.tipo === 'ingreso')
-
-  const total = movs.reduce((s, m) => s + m.monto, 0)
-
-  const [search, setSearch] = useState('')
-
-  const filtrados = search
-    ? movs.filter(m => m.concepto.toLowerCase().includes(search.toLowerCase()) || m.documento.toLowerCase().includes(search.toLowerCase()))
-    : movs
-
-  const handleExport = () => exportarPDF(tipo, filtrados)
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Encabezado */}
-      <div className="bg-white rounded-xl border border-emerald-100/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${esCompra ? 'bg-amber-50' : 'bg-emerald-50'}`}>
-            <span className={`text-xs font-bold ${esCompra ? 'text-amber-600' : 'text-emerald-600'}`}>
-              {esCompra ? 'C' : 'V'}
-            </span>
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-700">Libro de {esCompra ? 'Compra' : 'Venta'}</h3>
-            <p className="text-[10px] text-slate-400">Marzo 2026 · {filtrados.length} movimientos</p>
-          </div>
-        </div>
-        <button onClick={handleExport}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
-          {I.download} Exportar PDF
-        </button>
-      </div>
-
-      {/* Total general */}
-      <div className="bg-emerald-50 rounded-lg p-3 flex items-center justify-between">
-        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total {esCompra ? 'Compras' : 'Ventas'}</span>
-        <span className="text-base font-bold text-emerald-700 tabular-nums">{fmt(total)}</span>
-      </div>
-
-      {/* Búsqueda */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">{I.search}</div>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder={`Buscar por concepto o comprobante...`}
-          className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-colors bg-white" />
-      </div>
-
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-emerald-100/60 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
-            <thead>
-              <tr className="bg-emerald-50/50 border-b border-emerald-100/60">
-                {['Fecha', 'Comprobante', 'Proveedor / Cliente', 'Concepto', 'Total'].map(h => (
-                  <th key={h} className="px-3 py-2.5 text-left text-[9px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtrados.map(m => (
-                <tr key={m.id} className="hover:bg-emerald-50/30 transition-colors">
-                  <td className="px-3 py-2.5 text-[11px] text-slate-500 whitespace-nowrap">{fmtDate(m.fecha)}</td>
-                  <td className="px-3 py-2.5 text-[11px] font-mono font-bold text-slate-600">{m.documento}</td>
-                  <td className="px-3 py-2.5 text-[11px] text-slate-600 max-w-[200px] truncate">{m.proveedor_cliente}</td>
-                  <td className="px-3 py-2.5 text-[11px] text-slate-500 max-w-[200px] truncate">{m.concepto}</td>
-                  <td className={`px-3 py-2.5 text-xs font-bold tabular-nums whitespace-nowrap ${esCompra ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    {fmt(m.monto)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            {filtrados.length > 0 && (
-              <tfoot>
-                <tr className="bg-slate-50 border-t-2 border-slate-200">
-                  <td colSpan={4} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 text-right">Totales</td>
-                  <td className="px-3 py-2.5 text-xs font-bold font-mono text-slate-800 tabular-nums">{fmt(total)}</td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Panel Principal ───────────────────────────────────────────────────────────
-type FinanceTab = 'dashboard' | 'libro_compra' | 'libro_venta'
-
-const FinancePanel = () => {
   const [tab, setTab] = useState<FinanceTab>('dashboard')
-  const [movimientos, setMovimientos] = useState(MOCK_MOVIMIENTOS)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const ingresos = useMemo(() => movimientos.filter(m => m.tipo === 'ingreso'), [movimientos])
-  const egresos  = useMemo(() => movimientos.filter(m => m.tipo === 'egreso'), [movimientos])
+  // Filtros de periodo
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth() + 1)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const totalIngresos = useMemo(() => ingresos.reduce((s, m) => s + m.monto, 0), [ingresos])
-  const totalEgresos  = useMemo(() => egresos.reduce((s, m) => s + m.monto, 0), [egresos])
-  const balance       = totalIngresos - totalEgresos
+  // Datos
+  const [resumen, setResumen] = useState<ResumenFinancieroDTO | null>(null)
+  const [libroVentas, setLibroVentas] = useState<LibroVentaItemDTO[]>([])
+  const [totalesVentas, setTotalesVentas] = useState<any>(null)
+  const [libroCompras, setLibroCompras] = useState<LibroCompraItemDTO[]>([])
+  const [totalesCompras, setTotalesCompras] = useState<any>(null)
 
-  const handleSave = (m: Partial<Movimiento>) => {
-    const tipo = m.tipo || 'ingreso'
-    const nuevo: Movimiento = {
-      id: `M-${String(movimientos.length + 1).padStart(3, '0')}`,
-      fecha: new Date().toISOString().slice(0, 10),
-      tipo,
-      categoria: m.categoria || 'otro',
-      concepto: m.concepto || '',
-      monto: m.monto || 0,
-      referencia: `TRN-${String(100000 + movimientos.length + 1)}`,
-      vinculado: null,
-      metodo_pago: m.metodo_pago || 'Transferencia',
-      estado: 'pendiente',
-      proveedor_cliente: m.proveedor_cliente || '',
-      documento: tipo === 'egreso' ? `FAC-P-2026-${String(movimientos.length + 1).padStart(3, '0')}` : `FAC-2026-${String(movimientos.length + 1).padStart(3, '0')}`,
+  // Modales
+  const [modalGastoOpen, setModalGastoOpen] = useState(false)
+  const [modalCuentasOpen, setModalCuentasOpen] = useState(false)
+  const [modalArancelesOpen, setModalArancelesOpen] = useState(false)
+  
+  // Visor de Recibo Digital
+  const [selectedReciboId, setSelectedReciboId] = useState<number | string | null>(null)
+  const [reciboModalOpen, setReciboModalOpen] = useState(false)
+
+  // Cargar Resumen Financiero
+  const fetchResumen = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      params.append('anio', String(selectedYear))
+      if (selectedMonth) params.append('mes', String(selectedMonth))
+
+      const res = await fetch(`${API_URL}/api/finanzas/resumen?${params.toString()}`, {
+        headers: authHeaders
+      })
+      if (!res.ok) throw new Error('Error al cargar resumen')
+      const json = await res.json()
+      setResumen(json.data)
+    } catch (err: any) {
+      console.error(err)
     }
-    setMovimientos(prev => [nuevo, ...prev])
+  }, [selectedYear, selectedMonth, authHeaders])
+
+  // Cargar Libro de Ventas
+  const fetchLibroVentas = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      params.append('anio', String(selectedYear))
+      if (selectedMonth) params.append('mes', String(selectedMonth))
+      if (searchQuery) params.append('search', searchQuery)
+
+      const res = await fetch(`${API_URL}/api/finanzas/libro-ventas?${params.toString()}`, {
+        headers: authHeaders
+      })
+      if (!res.ok) throw new Error('Error al cargar libro de ventas')
+      const json = await res.json()
+      setLibroVentas(json.data.items || [])
+      setTotalesVentas(json.data.totales)
+    } catch (err: any) {
+      console.error(err)
+    }
+  }, [selectedYear, selectedMonth, searchQuery, authHeaders])
+
+  // Cargar Libro de Compras
+  const fetchLibroCompras = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      params.append('anio', String(selectedYear))
+      if (selectedMonth) params.append('mes', String(selectedMonth))
+      if (searchQuery) params.append('search', searchQuery)
+
+      const res = await fetch(`${API_URL}/api/finanzas/libro-compras?${params.toString()}`, {
+        headers: authHeaders
+      })
+      if (!res.ok) throw new Error('Error al cargar libro de compras')
+      const json = await res.json()
+      setLibroCompras(json.data.items || [])
+      setTotalesCompras(json.data.totales)
+    } catch (err: any) {
+      console.error(err)
+    }
+  }, [selectedYear, selectedMonth, searchQuery, authHeaders])
+
+  // Cargar todo
+  const refreshData = useCallback(async () => {
+    setLoading(true)
+    await Promise.all([fetchResumen(), fetchLibroVentas(), fetchLibroCompras()])
+    setLoading(false)
+  }, [fetchResumen, fetchLibroVentas, fetchLibroCompras])
+
+  useEffect(() => {
+    refreshData()
+  }, [refreshData])
+
+  // Anular gasto
+  const handleAnularGasto = async (id: number) => {
+    const { value: motivo } = await Swal.fire({
+      title: '¿Anular movimiento contable?',
+      input: 'text',
+      inputLabel: 'Motivo de la anulación',
+      inputPlaceholder: 'Ej: Factura anulada por el proveedor / Error de carga',
+      showCancelButton: true,
+      confirmButtonText: 'Anular Gasto',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626'
+    })
+
+    if (motivo !== undefined) {
+      try {
+        const res = await fetch(`${API_URL}/api/finanzas/movimientos/${id}/anular`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders
+          },
+          body: JSON.stringify({ motivo: motivo || 'Anulado por administración' })
+        })
+        if (!res.ok) throw new Error('Error al anular movimiento')
+        toast.success('Movimiento anulado correctamente')
+        refreshData()
+      } catch (err: any) {
+        toast.error(err.message || 'Error al anular')
+      }
+    }
   }
 
-  const TABS: { id: FinanceTab; label: string }[] = [
-    { id: 'dashboard',    label: 'Dashboard' },
-    { id: 'libro_compra', label: 'Libro de Compra' },
-    { id: 'libro_venta',  label: 'Libro de Venta' },
-  ]
+  // Exportar a PDF
+  const handleExportPDF = (tipo: 'ventas' | 'compras') => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+    const esVentas = tipo === 'ventas'
+    const titulo = esVentas ? 'LIBRO DE VENTAS' : 'LIBRO DE COMPRAS'
+    const mesNombre = selectedMonth ? MESES.find(m => m.num === selectedMonth)?.label : 'Todos'
+    const periodoTexto = `Período: ${mesNombre} ${selectedYear}`
+
+    // Encabezado
+    doc.setFillColor(6, 78, 59)
+    doc.rect(0, 0, 280, 24, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR — ${titulo}`, 14, 12)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`RIF: J-30456789-0 · ${periodoTexto} · Emitido: ${new Date().toLocaleDateString('es-VE')}`, 14, 18)
+
+    if (esVentas) {
+      const rows = libroVentas.map(item => [
+        fmtDate(item.fecha),
+        item.documento,
+        item.cliente,
+        item.rif_cedula || '-',
+        item.concepto.slice(0, 32),
+        item.metodo_pago,
+        `$${item.monto_exento.toFixed(2)}`,
+        `$${item.base_imponible.toFixed(2)}`,
+        `$${item.monto_iva.toFixed(2)}`,
+        `$${item.monto_usd.toFixed(2)}`
+      ])
+
+      const total = totalesVentas?.totalVentasUSD || 0
+
+      autoTable(doc, {
+        head: [['Fecha', 'Nro. Recibo/Doc', 'Cliente / Afiliado', 'RIF/C.I.', 'Concepto', 'Método', 'Exento ($)', 'Base ($)', 'IVA ($)', 'Total ($)']],
+        body: rows,
+        startY: 30,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [6, 78, 59], textColor: 255, fontStyle: 'bold' },
+        foot: [['', '', '', '', '', 'Totales:', `$${(totalesVentas?.totalExentoUSD || 0).toFixed(2)}`, `$${(totalesVentas?.totalBaseUSD || 0).toFixed(2)}`, `$${(totalesVentas?.totalIvaUSD || 0).toFixed(2)}`, `$${total.toFixed(2)}`]],
+        footStyles: { fillColor: [240, 253, 244], textColor: [6, 78, 59], fontStyle: 'bold' },
+        margin: { left: 14, right: 14 }
+      })
+
+      doc.save(`Libro_Ventas_${selectedYear}_${selectedMonth || 'Anual'}.pdf`)
+    } else {
+      const rows = libroCompras.map(item => [
+        fmtDate(item.fecha),
+        item.nro_factura_documento,
+        item.nro_control_fiscal || '-',
+        item.proveedor,
+        item.rif_cedula || '-',
+        item.concepto.slice(0, 28),
+        `$${item.monto_exento.toFixed(2)}`,
+        `$${item.base_imponible.toFixed(2)}`,
+        `${item.alicuota_iva}%`,
+        `$${item.monto_iva.toFixed(2)}`,
+        `$${item.monto_usd_equivalente.toFixed(2)}`
+      ])
+
+      const total = totalesCompras?.totalComprasUSD || 0
+
+      autoTable(doc, {
+        head: [['Fecha', 'Nro. Factura', 'Nro. Control', 'Proveedor', 'RIF', 'Concepto', 'Exento ($)', 'Base ($)', 'Alíc.', 'IVA ($)', 'Total ($)']],
+        body: rows,
+        startY: 30,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [6, 78, 59], textColor: 255, fontStyle: 'bold' },
+        foot: [['', '', '', '', '', 'Totales:', `$${(totalesCompras?.totalExentoUSD || 0).toFixed(2)}`, `$${(totalesCompras?.totalBaseUSD || 0).toFixed(2)}`, '', `$${(totalesCompras?.totalIvaCreditoUSD || 0).toFixed(2)}`, `$${total.toFixed(2)}`]],
+        footStyles: { fillColor: [240, 253, 244], textColor: [6, 78, 59], fontStyle: 'bold' },
+        margin: { left: 14, right: 14 }
+      })
+
+      doc.save(`Libro_Compras_${selectedYear}_${selectedMonth || 'Anual'}.pdf`)
+    }
+  }
+
+  // Exportar a CSV / Excel
+  const handleExportCSV = (tipo: 'ventas' | 'compras') => {
+    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
+    if (tipo === 'ventas') {
+      csvContent += 'Fecha,Documento,Cliente,RIF_CI,Concepto,Metodo_Pago,Exento_USD,Base_USD,IVA_USD,Total_USD\n'
+      libroVentas.forEach(item => {
+        csvContent += `"${item.fecha}","${item.documento}","${item.cliente}","${item.rif_cedula}","${item.concepto.replace(/"/g, '""')}","${item.metodo_pago}",${item.monto_exento},${item.base_imponible},${item.monto_iva},${item.monto_usd}\n`
+      })
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', `Libro_Ventas_${selectedYear}_${selectedMonth || 'Anual'}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      csvContent += 'Fecha,Nro_Factura,Nro_Control,Proveedor,RIF,Concepto,Categoria,Exento_USD,Base_USD,Alicuota_IVA,IVA_USD,Total_USD,Metodo_Pago,Referencia\n'
+      libroCompras.forEach(item => {
+        csvContent += `"${item.fecha}","${item.nro_factura_documento}","${item.nro_control_fiscal || ''}","${item.proveedor}","${item.rif_cedula}","${item.concepto.replace(/"/g, '""')}","${item.categoria}",${item.monto_exento},${item.base_imponible},${item.alicuota_iva},${item.monto_iva},${item.monto_usd_equivalente},"${item.metodo_pago}","${item.referencia_pago || ''}"\n`
+      })
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', `Libro_Compras_${selectedYear}_${selectedMonth || 'Anual'}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
 
   return (
-    <div className="p-4 sm:p-6 w-full overflow-y-auto h-full space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex items-start sm:items-center justify-between flex-wrap gap-3">
+    <div className="p-4 sm:p-6 w-full overflow-y-auto h-full space-y-6">
+      {/* Header Superior */}
+      <div className="flex items-start sm:items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Finanzas</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Libros de compra y venta · Flujo de caja — {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+              Contabilidad & Finanzas
+            </span>
+            <span className="text-xs text-slate-400">· Flujo de Caja & Libros Fiscales</span>
+          </div>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight mt-1">
+            Centro de Control Financiero
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Libro de compras, libro de ventas y conciliación de ingresos por afiliaciones, cursos y gastos de sede.
           </p>
         </div>
-        <button onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm">
-          {I.plus}
-          Nuevo Movimiento
-        </button>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0.5 bg-slate-100 rounded-lg p-0.5 w-fit border border-slate-200/60">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors ${
-              tab === t.id
-                ? 'bg-white text-emerald-700 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}>
-            {t.label}
+        {/* Botones de Acción Global */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setModalCuentasOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm"
+          >
+            <Landmark size={14} className="text-emerald-600" />
+            Cuentas Receptoras
           </button>
-        ))}
+          <button
+            onClick={() => setModalArancelesOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm"
+          >
+            <DollarSign size={14} className="text-emerald-600" />
+            Aranceles
+          </button>
+          <button
+            onClick={() => setModalGastoOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-all shadow-sm shadow-emerald-600/20"
+          >
+            <Plus size={15} />
+            + Registrar Compra / Gasto
+          </button>
+        </div>
       </div>
 
-      {/* Dashboard */}
-      {tab === 'dashboard' && (
-        <>
-          {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-            <StatCard label="Balance Neto"  value={fmt(balance)} change={`${balance >= 0 ? '+' : ''}${((balance / (totalEgresos || 1)) * 100).toFixed(0)}%`} changePositive={balance >= 0} icon={I.balance} />
-            <StatCard label="Ingresos"      value={fmt(totalIngresos)} change={`+${movimientos.filter(m => m.tipo === 'ingreso').length} ops`} changePositive icon={I.arrowUp} />
-            <StatCard label="Egresos"       value={fmt(totalEgresos)}  change={`${movimientos.filter(m => m.tipo === 'egreso').length} ops`} changePositive={false} icon={I.arrowDown} />
-            <StatCard label="Movimientos"   value={String(movimientos.length)} change={`${movimientos.filter(m => m.estado === 'pendiente').length} pend.`} changePositive icon={I.alert} />
+      {/* Barra de Filtro Temporal y Tabs */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm">
+        {/* Tabs Principales */}
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 border border-slate-200/60">
+          <button
+            onClick={() => setTab('dashboard')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              tab === 'dashboard'
+                ? 'bg-white text-emerald-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Dashboard & Flujo de Caja
+          </button>
+          <button
+            onClick={() => setTab('libro_venta')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              tab === 'libro_venta'
+                ? 'bg-white text-emerald-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <TrendingUp size={13} className="text-emerald-600" />
+            Libro de Ventas ({totalesVentas?.cantidadRegistros || 0})
+          </button>
+          <button
+            onClick={() => setTab('libro_compra')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              tab === 'libro_compra'
+                ? 'bg-white text-emerald-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <TrendingDown size={13} className="text-amber-600" />
+            Libro de Compras ({totalesCompras?.cantidadRegistros || 0})
+          </button>
+        </div>
+
+        {/* Filtros de Año y Mes */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+            <Calendar size={14} className="text-slate-400" />
+            <select
+              value={selectedYear}
+              onChange={e => setSelectedYear(Number(e.target.value))}
+              className="text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
+            >
+              {[2024, 2025, 2026, 2027].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Histograma + Últimos movimientos */}
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="flex-1 min-w-0">
-              <HistogramaChart data={MOCK_RESUMEN_MENSUAL} onBarClick={i => setSelectedMonth(i)} selectedMonth={selectedMonth} />
-              {selectedMonth !== null && (
-                <div className="mt-1.5 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2">
-                  <span className="text-emerald-500 mt-0.5">{I.alert}</span>
-                  <p className="text-[11px] text-emerald-700">
-                    <strong>{MESES[selectedMonth]}:</strong> Ingresos <strong>{fmt(MOCK_RESUMEN_MENSUAL[selectedMonth].ingresos)}</strong> · Egresos <strong>{fmt(MOCK_RESUMEN_MENSUAL[selectedMonth].egresos)}</strong> ·
-                    Neto <strong>{fmt(MOCK_RESUMEN_MENSUAL[selectedMonth].ingresos - MOCK_RESUMEN_MENSUAL[selectedMonth].egresos)}</strong>
-                  </p>
+          <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+            <select
+              value={selectedMonth === null ? '' : selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value === '' ? null : Number(e.target.value))}
+              className="text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer"
+            >
+              <option value="">Todo el Año</option>
+              {MESES.map(m => (
+                <option key={m.num} value={m.num}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={refreshData}
+            title="Refrescar datos"
+            className="p-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-600' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── TAB 1: DASHBOARD & FLUJO DE CAJA ── */}
+      {tab === 'dashboard' && (
+        <div className="space-y-6">
+          {/* Tarjetas KPI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Ingresos */}
+            <div className="bg-white rounded-2xl border border-emerald-100 p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Ingresos</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <ArrowUpRight size={18} />
                 </div>
-              )}
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-black text-emerald-700 tabular-nums">
+                  {fmt(resumen?.kpis.totalIngresosUSD || 0)}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {resumen?.kpis.conteoIngresos || 0} operaciones registradas
+                </p>
+              </div>
             </div>
 
-            {/* Últimos movimientos */}
-            <div className="w-full lg:w-[280px] flex-shrink-0">
-              <div className="bg-white rounded-xl border border-emerald-100/60 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-100/60">
-                  <h3 className="text-xs font-bold text-slate-700">Últimos</h3>
-                  <span className="text-[9px] font-bold text-slate-400">{movimientos.filter(m => m.estado === 'pendiente').length} pendientes</span>
+            {/* Egresos */}
+            <div className="bg-white rounded-2xl border border-amber-100 p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Egresos</span>
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <ArrowDownRight size={18} />
                 </div>
-                <div className="divide-y divide-slate-50 max-h-[280px] overflow-y-auto">
-                  {movimientos.slice(0, 5).map(m => (
-                    <div key={m.id} className="px-4 py-2.5 flex items-center justify-between gap-2 hover:bg-emerald-50/30 transition-colors">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-slate-700 truncate">{m.concepto}</p>
-                        <p className="text-[9px] text-slate-400">{fmtShortDate(m.fecha)} · {m.referencia}</p>
-                      </div>
-                      <span className={`text-[11px] font-bold tabular-nums whitespace-nowrap ${m.tipo === 'ingreso' ? 'text-emerald-600' : 'text-slate-600'}`}>
-                        {m.tipo === 'ingreso' ? '+' : '-'}{fmt(m.monto)}
-                      </span>
-                    </div>
-                  ))}
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-black text-slate-700 tabular-nums">
+                  {fmt(resumen?.kpis.totalEgresosUSD || 0)}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {resumen?.kpis.conteoEgresos || 0} gastos operativos
+                </p>
+              </div>
+            </div>
+
+            {/* Flujo Neto */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Flujo Neto / Superávit</span>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  (resumen?.kpis.flujoNetoUSD || 0) >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                }`}>
+                  <TrendingUp size={18} />
                 </div>
+              </div>
+              <div className="mt-3">
+                <span className={`text-2xl font-black tabular-nums ${
+                  (resumen?.kpis.flujoNetoUSD || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'
+                }`}>
+                  {fmt(resumen?.kpis.flujoNetoUSD || 0)}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {(resumen?.kpis.flujoNetoUSD || 0) >= 0 ? 'Balance positivo' : 'Déficit en el periodo'}
+                </p>
+              </div>
+            </div>
+
+            {/* IVA Crédito vs Débito */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">IVA Crédito Fiscal</span>
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <Receipt size={18} />
+                </div>
+              </div>
+              <div className="mt-3">
+                <span className="text-2xl font-black text-purple-700 tabular-nums">
+                  {fmt(resumen?.kpis.ivaCreditoFiscal || 0)}
+                </span>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Crédito a favor en compras
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Tabla completa */}
-          <div className="bg-white rounded-xl border border-emerald-100/60 overflow-hidden">
-            <div className="px-4 py-3 border-b border-emerald-100/60">
-              <h3 className="text-xs font-bold text-slate-700">Historial de Transacciones</h3>
+          {/* Gráfico Mensual y Desglose de Gastos */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Gráfico de Barras */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Ingresos vs. Egresos Mensuales ({selectedYear})</h3>
+                  <p className="text-xs text-slate-400">Comportamiento del flujo de caja mensual</p>
+                </div>
+                <div className="flex items-center gap-3 text-xs font-bold">
+                  <span className="flex items-center gap-1.5 text-emerald-600">
+                    <span className="w-3 h-3 rounded-md bg-emerald-500 inline-block" /> Ingresos
+                  </span>
+                  <span className="flex items-center gap-1.5 text-amber-600">
+                    <span className="w-3 h-3 rounded-md bg-amber-400 inline-block" /> Egresos
+                  </span>
+                </div>
+              </div>
+
+              {/* Render de barras SVG */}
+              {resumen?.historicoMensual && (
+                <div className="h-56 w-full pt-2">
+                  <div className="grid grid-cols-12 gap-1.5 sm:gap-2 h-full items-end pb-6 border-b border-slate-100 relative">
+                    {resumen.historicoMensual.map(m => {
+                      const maxVal = Math.max(
+                        ...resumen.historicoMensual.flatMap(x => [x.ingresos, x.egresos]),
+                        100
+                      )
+                      const altIngreso = Math.max((m.ingresos / maxVal) * 100, 3)
+                      const altEgreso = Math.max((m.egresos / maxVal) * 100, 3)
+                      const isCurrentSelected = selectedMonth === m.mesNumero
+
+                      return (
+                        <div
+                          key={m.mesNumero}
+                          onClick={() => setSelectedMonth(isCurrentSelected ? null : m.mesNumero)}
+                          className={`flex flex-col items-center justify-end h-full group cursor-pointer p-1 rounded-xl transition-all ${
+                            isCurrentSelected ? 'bg-emerald-50/80 ring-2 ring-emerald-500' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="w-full flex items-end justify-center gap-1 h-36">
+                            {/* Barra Ingreso */}
+                            <div
+                              style={{ height: `${altIngreso}%` }}
+                              title={`${m.mes}: Ingresos ${fmt(m.ingresos)}`}
+                              className="w-full max-w-[12px] bg-emerald-500 rounded-t-sm transition-all group-hover:bg-emerald-600"
+                            />
+                            {/* Barra Egreso */}
+                            <div
+                              style={{ height: `${altEgreso}%` }}
+                              title={`${m.mes}: Egresos ${fmt(m.egresos)}`}
+                              className="w-full max-w-[12px] bg-amber-400 rounded-t-sm transition-all group-hover:bg-amber-500"
+                            />
+                          </div>
+                          <span className={`text-[10px] font-bold mt-2 ${
+                            isCurrentSelected ? 'text-emerald-800' : 'text-slate-400'
+                          }`}>
+                            {m.mes}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-            <TablaMovimientos data={movimientos} />
+
+            {/* Desglose por Categoría */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col">
+              <h3 className="text-sm font-bold text-slate-800 mb-1">Distribución de Gastos</h3>
+              <p className="text-xs text-slate-400 mb-4">Egresos categorizados en el período</p>
+
+              {resumen?.gastosPorCategoria && resumen.gastosPorCategoria.length > 0 ? (
+                <div className="space-y-3 overflow-y-auto max-h-56 pr-1">
+                  {resumen.gastosPorCategoria.map(c => {
+                    const catInfo = CATEGORIAS[c.categoria] || { label: c.categoria, color: '#6B7280' }
+                    const totalEgresos = resumen.kpis.totalEgresosUSD || 1
+                    const pct = Math.round((c.total / totalEgresos) * 100)
+
+                    return (
+                      <div key={c.categoria} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="text-slate-700 truncate">{catInfo.label}</span>
+                          <span className="text-slate-900 font-bold tabular-nums">{fmt(c.total)} ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, backgroundColor: catInfo.color }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-xs py-8">
+                  <AlertCircle size={24} className="mb-1 text-slate-300" />
+                  No hay gastos registrados en este período.
+                </div>
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Libro de Compra */}
-      {tab === 'libro_compra' && <LibroCompraVenta tipo="compra" movimientos={movimientos} />}
+      {/* ── TAB 2: LIBRO DE VENTAS (INGRESOS GREMIALES / FISCALES) ── */}
+      {tab === 'libro_venta' && (
+        <div className="space-y-4">
+          {/* Header del Libro de Ventas */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <h3 className="font-bold text-slate-800 text-base">Libro de Ventas & Ingresos</h3>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Total Ingresos: <strong className="text-emerald-700">{fmt(totalesVentas?.totalVentasUSD || 0)}</strong> · Base: {fmt(totalesVentas?.totalBaseUSD || 0)} · Exento: {fmt(totalesVentas?.totalExentoUSD || 0)}
+              </p>
+            </div>
 
-      {/* Libro de Venta */}
-      {tab === 'libro_venta' && <LibroCompraVenta tipo="venta" movimientos={movimientos} />}
+            {/* Búsqueda y Exportar */}
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Buscar recibo, cliente o RIF..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
 
-      {/* Modal */}
-      <RegistrarMovimientoModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} />
+              <button
+                onClick={() => handleExportPDF('ventas')}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <Download size={13} className="text-emerald-600" />
+                PDF
+              </button>
+              <button
+                onClick={() => handleExportCSV('ventas')}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <FileSpreadsheet size={13} className="text-emerald-600" />
+                Excel / CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Tabla del Libro de Ventas */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">Fecha</th>
+                    <th className="py-3 px-4">Recibo / Doc</th>
+                    <th className="py-3 px-4">Cliente / Afiliado</th>
+                    <th className="py-3 px-4">RIF / C.I.</th>
+                    <th className="py-3 px-4">Concepto</th>
+                    <th className="py-3 px-4">Método</th>
+                    <th className="py-3 px-4 text-right">Exento ($)</th>
+                    <th className="py-3 px-4 text-right">Total ($)</th>
+                    <th className="py-3 px-4 text-center">Recibo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {libroVentas.length > 0 ? (
+                    libroVentas.map(item => (
+                      <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-4 font-mono whitespace-nowrap text-[11px] text-slate-500">
+                          {fmtDate(item.fecha)}
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-emerald-800 whitespace-nowrap">
+                          {item.documento}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-slate-800 max-w-[180px] truncate">
+                          {item.cliente}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                          {item.rif_cedula || '-'}
+                        </td>
+                        <td className="py-3 px-4 max-w-[200px] truncate text-slate-600">
+                          {item.concepto}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap text-[11px] text-slate-500 capitalize">
+                          {item.metodo_pago.replace('_', ' ')}
+                        </td>
+                        <td className="py-3 px-4 text-right tabular-nums text-slate-500">
+                          {fmt(item.monto_exento)}
+                        </td>
+                        <td className="py-3 px-4 text-right tabular-nums font-black text-emerald-700">
+                          {fmt(item.monto_usd)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {item.id_pago ? (
+                            <button
+                              onClick={() => {
+                                setSelectedReciboId(item.id_pago)
+                                setReciboModalOpen(true)
+                              }}
+                              title="Ver Recibo Digital Oficial"
+                              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors inline-flex items-center gap-1 text-[10px] font-bold"
+                            >
+                              <Receipt size={13} />
+                              <span>Ver</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">Manual</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} className="text-center py-10 text-slate-400">
+                        No hay ventas registradas para este periodo.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: LIBRO DE COMPRAS (GASTOS OPERATIVOS / PROVEEDORES) ── */}
+      {tab === 'libro_compra' && (
+        <div className="space-y-4">
+          {/* Header del Libro de Compras */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <h3 className="font-bold text-slate-800 text-base">Libro de Compras & Gastos Operativos</h3>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Total Compras: <strong className="text-slate-800">{fmt(totalesCompras?.totalComprasUSD || 0)}</strong> · Base: {fmt(totalesCompras?.totalBaseUSD || 0)} · IVA Crédito: <strong className="text-purple-700">{fmt(totalesCompras?.totalIvaCreditoUSD || 0)}</strong>
+              </p>
+            </div>
+
+            {/* Búsqueda y Exportar */}
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Buscar factura, proveedor o RIF..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <button
+                onClick={() => handleExportPDF('compras')}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <Download size={13} className="text-emerald-600" />
+                PDF
+              </button>
+              <button
+                onClick={() => handleExportCSV('compras')}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <FileSpreadsheet size={13} className="text-emerald-600" />
+                Excel / CSV
+              </button>
+              <button
+                onClick={() => setModalGastoOpen(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus size={13} />
+                + Nuevo Gasto
+              </button>
+            </div>
+          </div>
+
+          {/* Tabla del Libro de Compras */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">Fecha</th>
+                    <th className="py-3 px-4">Nro. Factura</th>
+                    <th className="py-3 px-4">Nro. Control</th>
+                    <th className="py-3 px-4">Proveedor</th>
+                    <th className="py-3 px-4">RIF</th>
+                    <th className="py-3 px-4">Concepto / Categoría</th>
+                    <th className="py-3 px-4 text-right">Base ($)</th>
+                    <th className="py-3 px-4 text-right">IVA ($)</th>
+                    <th className="py-3 px-4 text-right">Total ($)</th>
+                    <th className="py-3 px-4 text-center">Adjunto</th>
+                    <th className="py-3 px-4 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {libroCompras.length > 0 ? (
+                    libroCompras.map(item => {
+                      const esAnulado = item.estatus === 'anulado'
+                      return (
+                        <tr
+                          key={item.id_movimiento}
+                          className={`transition-colors ${esAnulado ? 'bg-red-50/40 opacity-60' : 'hover:bg-slate-50/60'}`}
+                        >
+                          <td className="py-3 px-4 font-mono whitespace-nowrap text-[11px] text-slate-500">
+                            {fmtDate(item.fecha)}
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-slate-800 whitespace-nowrap">
+                            {item.nro_factura_documento}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            {item.nro_control_fiscal || '-'}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-slate-800 max-w-[170px] truncate">
+                            {item.proveedor}
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                            {item.rif_cedula || '-'}
+                          </td>
+                          <td className="py-3 px-4 max-w-[190px]">
+                            <p className="truncate text-slate-700 font-medium">{item.concepto}</p>
+                            <span className="text-[9px] font-bold text-slate-400 capitalize">
+                              {CATEGORIAS[item.categoria]?.label || item.categoria}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right tabular-nums text-slate-600">
+                            {fmt(item.base_imponible)}
+                          </td>
+                          <td className="py-3 px-4 text-right tabular-nums font-semibold text-purple-700">
+                            {fmt(item.monto_iva)} ({item.alicuota_iva}%)
+                          </td>
+                          <td className="py-3 px-4 text-right tabular-nums font-black text-slate-800">
+                            {fmt(item.monto_usd_equivalente)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {item.comprobante_url ? (
+                              <a
+                                href={item.comprobante_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Ver Comprobante Digital"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors inline-flex items-center gap-1 text-[10px] font-bold"
+                              >
+                                <ExternalLink size={12} />
+                                <span>Doc</span>
+                              </a>
+                            ) : (
+                              <span className="text-[10px] text-slate-300">-</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {!esAnulado && (
+                              <button
+                                onClick={() => handleAnularGasto(item.id_movimiento)}
+                                title="Anular Gasto"
+                                className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              >
+                                <Ban size={14} />
+                              </button>
+                            )}
+                            {esAnulado && (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-red-100 text-red-700">
+                                Anulado
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={11} className="text-center py-10 text-slate-400">
+                        No hay compras o gastos registrados para este periodo.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODALES ── */}
+      <ModalRegistrarGasto
+        isOpen={modalGastoOpen}
+        onClose={() => setModalGastoOpen(false)}
+        onSuccess={refreshData}
+      />
+
+      <ModalGestionCuentasBancarias
+        isOpen={modalCuentasOpen}
+        open={modalCuentasOpen}
+        onClose={() => setModalCuentasOpen(false)}
+        authHeaders={authHeaders}
+      />
+
+      <ModalGestionAranceles
+        isOpen={modalArancelesOpen}
+        open={modalArancelesOpen}
+        onClose={() => setModalArancelesOpen(false)}
+        authHeaders={authHeaders}
+      />
+
+      <ReciboDigitalModal
+        isOpen={reciboModalOpen}
+        onClose={() => setReciboModalOpen(false)}
+        reciboIdOrCode={selectedReciboId}
+      />
     </div>
   )
 }
-
-export default FinancePanel
