@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import { env } from './config/env.js'
 import { isOriginAllowed, corsMiddleware } from './lib/cors.js'
-import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes } from './routes/index.js'
+import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes, cibirRoutes, pagosRoutes, finanzasRoutes, denunciasRoutes } from './routes/index.js'
 
 
 const app = express() // v1.0.3
@@ -42,6 +42,11 @@ app.use('/api/public', publicRoutes)
 app.use('/api/cms', cmsRoutes)
 app.use('/api/cms/uploads', uploadsRoutes)
 app.use('/api/academia', academiaRoutes)
+app.use('/api/admin/cibir', cibirRoutes)
+app.use('/api/cibir', cibirRoutes)
+app.use('/api/pagos', pagosRoutes)
+app.use('/api/finanzas', finanzasRoutes)
+app.use('/api/denuncias', denunciasRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/analytics', analyticsRoutes)
 
