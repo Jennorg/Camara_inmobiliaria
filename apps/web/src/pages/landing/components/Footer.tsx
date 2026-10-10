@@ -52,6 +52,15 @@ export default function Footer() {
           </a>
         ))}
       </div>
+      <div className='flex flex-wrap justify-center items-center gap-6 text-xs text-emerald-200/80 font-medium pt-2'>
+        <a href='/codigo-etica' className='hover:text-emerald-400 transition-colors'>Código de Ética</a>
+        <span className='text-emerald-500/40'>•</span>
+        <a href='/denuncias' className='hover:text-emerald-400 transition-colors'>Tribunal de Ética y Denuncias</a>
+        <span className='text-emerald-500/40'>•</span>
+        <a href='/marco-legal/reglamentos-y-estatutos' className='hover:text-emerald-400 transition-colors'>Estatutos</a>
+        <span className='text-emerald-500/40'>•</span>
+        <a href='/miembros' className='hover:text-emerald-400 transition-colors'>Directorio de Afiliados</a>
+      </div>
       <p className='text-white text-[10px] pt-4'>
         {s.copyright}
       </p>
