@@ -27,7 +27,7 @@ import {
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { formatNombreCard, getInitials } from '@/utils/formatters';
+import { formatNombreCard, getInitials, formatDateLatina } from '@/utils/formatters';
 import { apiFetch } from '@/lib/apiClient';
 
 interface Invitacion {
@@ -635,7 +635,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       </p>
                       <p className="text-[10px] font-medium text-gray-500">{m.email} • {m.telefono}</p>
                       <p className="text-[10px] text-gray-400 font-bold">
-                        C.I. / RIF: {m.cedula || '—'} • Envío: {new Date(m.fecha_registro).toLocaleDateString()}
+                        C.I. / RIF: {m.cedula || '—'} • Envío: {formatDateLatina(m.fecha_registro)}
                       </p>
                     </div>
                   </div>
@@ -715,7 +715,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                            m.fase === 'En Proceso' ? 'Esperando Admin' : 
                            m.fase}
                         </span>
-                        <span className="text-[9px] text-gray-400 font-medium">Registrado: {new Date(m.fecha_registro).toLocaleDateString()}</span>
+                        <span className="text-[9px] text-gray-400 font-medium">Registrado: {formatDateLatina(m.fecha_registro)}</span>
                       </div>
                     </div>
                   </div>
@@ -755,7 +755,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       </code>
                       {inv.fecha_expiracion && (
                         <span className="text-[9px] font-bold text-amber-600 uppercase tracking-widest">
-                          Exp: {new Date(inv.fecha_expiracion).toLocaleDateString()}
+                          Exp: {formatDateLatina(inv.fecha_expiracion)}
                         </span>
                       )}
                     </div>
@@ -763,7 +763,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       Link Reutilizable
                     </p>
                     <p className="text-[9px] font-medium text-gray-400">
-                      Creado el {new Date(inv.creado_en).toLocaleDateString()}
+                      Creado el {formatDateLatina(inv.creado_en)}
                     </p>
                   </div>
 
@@ -989,7 +989,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       </p>
                       <p className="text-[10px] font-medium text-gray-500">{sol.afiliado_email} • {sol.afiliado_telefono || 'sin teléfono'}</p>
                       <p className="text-[10px] text-gray-400 font-bold">
-                        C.I. / RIF: {sol.afiliado_cedula || '—'} • Envío: {new Date(sol.creado_en).toLocaleDateString()}
+                        C.I. / RIF: {sol.afiliado_cedula || '—'} • Envío: {formatDateLatina(sol.creado_en)}
                       </p>
                     </div>
                   </div>

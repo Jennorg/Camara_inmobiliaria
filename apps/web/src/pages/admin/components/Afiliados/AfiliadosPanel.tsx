@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { formatNombreCard, formatRif } from '@/utils/formatters'
+import { formatNombreCard, formatRif, formatDateLatina } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
-import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check, CheckCircle, ChevronDown, ShieldAlert, BadgeCheck, Search, X, Building2 } from 'lucide-react'
+import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check, CheckCircle, ChevronDown, ShieldAlert, BadgeCheck, Search, X, Building2, Landmark, Banknote, DollarSign } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
+import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
+import ModalVerificarPagoPendiente from '@/pages/admin/components/Finance/ModalVerificarPagoPendiente'
+import ReciboDigitalModal from '@/components/ReciboDigitalModal'
+import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/ModalGestionCuentasBancarias'
+import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
+import type { PagoDTO } from '@/types/pagos'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 import Swal from 'sweetalert2'
 import FileUpload from '@/components/common/FileUpload'
@@ -102,6 +108,15 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
   const [nombreRegistro, setNombreRegistro] = useState('')
   const [nombreRif, setNombreRif] = useState('')
   const [submittingChangeType, setSubmittingChangeType] = useState(false)
+
+  // ── Gestión de Pagos y Cobros ──
+  const [afiliadoPagos, setAfiliadoPagos] = useState<PagoDTO[]>([])
+  const [showCobroModal, setShowCobroModal] = useState(false)
+  const [showVerificarModal, setShowVerificarModal] = useState(false)
+  const [showReciboModal, setShowReciboModal] = useState(false)
+  const [selectedPago, setSelectedPago] = useState<PagoDTO | null>(null)
+  const [showCuentasModal, setShowCuentasModal] = useState(false)
+  const [showArancelesModal, setShowArancelesModal] = useState(false)
 
   const fetchEmpresas = async () => {
     try {
@@ -234,6 +249,19 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'Error cargando detalle')
       setSelected(json.data as AfiliadoDTO)
+
+      // Cargar historial de pagos
+      try {
+        const resP = await fetch(`${API_URL}/api/pagos/afiliado/${id}`, { headers: authHeaders })
+        const jsonP = await resP.json()
+        if (jsonP.success && Array.isArray(jsonP.data)) {
+          setAfiliadoPagos(jsonP.data)
+        } else {
+          setAfiliadoPagos([])
+        }
+      } catch {
+        setAfiliadoPagos([])
+      }
     } catch (e: unknown) {
       const err = e as Error
       setError(err.message || 'Error inesperado')
@@ -365,15 +393,35 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Listado General</h3>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">Manejo de candidatos, aprobaciones y estatus.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowExportModal(true)}
-                  title="Exportar listado en PDF"
-                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
-                >
-                  <FileDown size={14} />
-                  PDF
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowCuentasModal(true)}
+                    title="Configurar cuentas bancarias receptoras"
+                    className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors text-[9px] font-bold uppercase tracking-wider"
+                  >
+                    <Landmark size={12} />
+                    <span>Cuentas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowArancelesModal(true)}
+                    title="Configurar aranceles y tarifas"
+                    className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors text-[9px] font-bold uppercase tracking-wider"
+                  >
+                    <DollarSign size={12} />
+                    <span>Aranceles</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(true)}
+                    title="Exportar listado en PDF"
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+                  >
+                    <FileDown size={14} />
+                    PDF
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -471,7 +519,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   </div>
                   <span className="text-xs text-slate-400 truncate">{a.email}</span>
                   <span className="text-[10px] text-slate-300">
-                    #{a.id_afiliado} · {a.codigo || 'sin código'} · {new Date(a.fecha_registro).toLocaleDateString('es-ES')}
+                    #{a.id_afiliado} · {a.codigo || 'sin código'} · {formatDateLatina(a.fecha_registro)}
                   </span>
                 </button>
               ))
@@ -501,7 +549,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   </div>
                   <span className="text-xs text-slate-400 truncate">{s.afiliado_email}</span>
                   <span className="text-[10px] text-slate-300">
-                    Solicitud #{s.id_solicitud} · {new Date(s.creado_en).toLocaleDateString('es-ES')}
+                    Solicitud #{s.id_solicitud} · {formatDateLatina(s.creado_en)}
                   </span>
                 </button>
               ))
@@ -1008,7 +1056,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     {(selected as any).certificados.map((cert: any) => {
                       const certTitle = cert.curso_nombre || (cert.programa_codigo ? `Programa ${cert.programa_codigo}` : 'Certificado de Aprobación');
                       const validationCode = cert.codigo_validacion;
-                      const fechaStr = cert.fecha_emision ? new Date(cert.fecha_emision).toLocaleDateString() : '';
+                      const fechaStr = cert.fecha_emision ? formatDateLatina(cert.fecha_emision) : '';
 
                       return (
                         <div
@@ -1169,18 +1217,81 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 </label>
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <input
-                  type="checkbox"
-                  id="inscripcion_pagada"
-                  checked={!!selected.inscripcion_pagada}
-                  onChange={(e) => updateField('inscripcion_pagada', e.target.checked ? 1 : 0)}
-                  className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500"
-                />
-                <label htmlFor="inscripcion_pagada" className="text-xs font-bold text-slate-600 cursor-pointer">
-                  Cuota de inscripción pagada
-                </label>
-              </div>
+              {/* Bloque de Formalización de Inscripción y Pagos */}
+              {(() => {
+                const pagoPendiente = afiliadoPagos.find(p => p.estatus === 'Pendiente');
+                const pagoVerificado = afiliadoPagos.find(p => p.estatus === 'Verificado');
+
+                return (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                          Formalización & Pagos
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">
+                        Arancel: $30.00 USD ($25 + $5)
+                      </span>
+                    </div>
+
+                    {pagoPendiente && (
+                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                            <ShieldAlert size={12} /> Pago Reportado Pendiente
+                          </span>
+                          <span className="font-mono font-bold text-xs">{pagoPendiente.numero_recibo}</span>
+                        </div>
+                        <p className="text-[11px] font-medium leading-tight">
+                          {pagoPendiente.metodo_pago.toUpperCase()} · Ref: <strong>{pagoPendiente.referencia || 'S/R'}</strong> · Monto: <strong>{pagoPendiente.monto} {pagoPendiente.moneda}</strong>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedPago(pagoPendiente); setShowVerificarModal(true); }}
+                          className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm transition-colors"
+                        >
+                          <ShieldCheck size={14} />
+                          <span>Revisar y Validar Pago</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {pagoVerificado && (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                            <CheckCircle size={12} /> Pago Verificado
+                          </span>
+                          <p className="text-[11px] font-medium mt-0.5">
+                            {pagoVerificado.numero_recibo} · ${pagoVerificado.monto_usd_equivalente} USD
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedPago(pagoVerificado); setShowReciboModal(true); }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 transition-colors"
+                        >
+                          <FileText size={12} />
+                          <span>Recibo</span>
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowCobroModal(true)}
+                        className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-transform hover:-translate-y-0.5"
+                      >
+                        <Banknote size={14} />
+                        <span>Cobro en Taquilla (Efectivo/POS)</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {(['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) || (selected.tipo_afiliado === 'Agente Corporativo' && selected.estatus === '2_EXPEDIENTE')) && (
                 <div className="flex gap-2 pt-2 border-t border-slate-50">
@@ -1188,7 +1299,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     onClick={() => procesar(selected.id_afiliado, 'aprobar')}
                     className="flex-1 py-2.5 rounded-xl bg-[#00D084] text-white text-sm font-bold hover:bg-[#00B870] shadow-sm shadow-emerald-200 transition-colors transition-transform hover:-translate-y-0.5"
                   >
-                    ✓ Aprobar Afiliación
+                    ✓ Aprobar Directo
                   </button>
                   <button
                     onClick={() => procesar(selected.id_afiliado, 'rechazar')}
@@ -1215,6 +1326,57 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
           estatus,
           tipo: filterTipo as ExportTipoFilter,
         }}
+      />
+
+      {/* Modales de Gestión Financiera y Pagos */}
+      {selected && (
+        <>
+          <ModalCobroTaquilla
+            open={showCobroModal}
+            onClose={() => setShowCobroModal(false)}
+            onSuccess={(pago) => {
+              loadDetail(selected.id_afiliado);
+              load();
+              setSelectedPago(pago);
+              setShowReciboModal(true);
+            }}
+            afiliadoId={selected.id_afiliado}
+            afiliadoNombre={formatNombreCard(selected.nombre_completo)}
+            afiliadoTipo={selected.tipo_afiliado}
+            conceptoDefault="formalizacion_afiliacion"
+            authHeaders={authHeaders}
+          />
+
+          <ModalVerificarPagoPendiente
+            open={showVerificarModal}
+            onClose={() => setShowVerificarModal(false)}
+            pago={selectedPago}
+            onVerified={(pago) => {
+              loadDetail(selected.id_afiliado);
+              load();
+              setSelectedPago(pago);
+              setShowReciboModal(true);
+            }}
+            authHeaders={authHeaders}
+          />
+
+          <ReciboDigitalModal
+            pago={selectedPago}
+            onClose={() => { setShowReciboModal(false); setSelectedPago(null); }}
+          />
+        </>
+      )}
+
+      <ModalGestionCuentasBancarias
+        open={showCuentasModal}
+        onClose={() => setShowCuentasModal(false)}
+        authHeaders={authHeaders}
+      />
+
+      <ModalGestionAranceles
+        open={showArancelesModal}
+        onClose={() => setShowArancelesModal(false)}
+        authHeaders={authHeaders}
       />
 
       {showChangeTypeModal && (

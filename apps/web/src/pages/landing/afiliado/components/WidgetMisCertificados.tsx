@@ -4,6 +4,7 @@ import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
+import { formatDateLatina } from '@/utils/formatters'
 
 interface CertRow {
   id_certificado: number
@@ -185,7 +186,7 @@ const WidgetMisCertificados: React.FC = () => {
                       {tituloCertificado(r)}
                     </h4>
                     <p className="mt-1 text-[11px] text-slate-400">
-                      Emitido: {new Date(r.fecha_emision).toLocaleDateString('es-VE')}
+                      Emitido: {formatDateLatina(r.fecha_emision)}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">

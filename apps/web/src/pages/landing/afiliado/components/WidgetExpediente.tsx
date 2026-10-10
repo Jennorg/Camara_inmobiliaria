@@ -5,6 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import { apiFetch } from '@/lib/apiClient';
 
+import { formatDateLatina } from '@/utils/formatters';
+
 import WidgetSolicitudCambioEstado from './WidgetSolicitudCambioEstado';
 
 interface Documento {
@@ -102,7 +104,7 @@ const WidgetExpediente = () => {
               const Icon = getFileIcon(doc.url);
               const label = TIPO_LABELS[doc.tipo_doc] || doc.tipo_doc;
               const date = doc.creado_en 
-                ? new Date(doc.creado_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+                ? formatDateLatina(doc.creado_en)
                 : 'Fecha no registrada';
 
               return (

@@ -5,6 +5,7 @@ import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import { apiFetch } from '@/lib/apiClient';
+import { formatDateLatina } from '@/utils/formatters';
 
 interface ModuloCurso {
   nombre_modulo: string;
@@ -150,7 +151,7 @@ const WidgetMisCursos = () => {
                           </div>
                           {isAprobado && modRecord?.fecha_evaluacion && (
                             <span className="text-[10px] text-slate-400">
-                              {new Date(modRecord.fecha_evaluacion).toLocaleDateString()}
+                              {formatDateLatina(modRecord.fecha_evaluacion)}
                             </span>
                           )}
                         </div>
@@ -189,7 +190,7 @@ const WidgetMisCursos = () => {
                             </div>
                             {isAprobado && mod.fecha_evaluacion && (
                               <span className="text-[10px] text-slate-400 font-medium">
-                                {new Date(mod.fecha_evaluacion).toLocaleDateString()}
+                                {formatDateLatina(mod.fecha_evaluacion)}
                               </span>
                             )}
                           </div>

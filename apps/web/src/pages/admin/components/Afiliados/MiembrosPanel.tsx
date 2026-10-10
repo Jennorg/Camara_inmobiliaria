@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { formatNombreCard, formatRif, getInitials } from '@/utils/formatters'
+import { formatNombreCard, formatRif, getInitials, formatDateLatina, sanitizeDateForInput } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import { apiFetch } from '@/lib/apiClient'
@@ -1931,7 +1931,7 @@ export default function MiembrosPanel() {
                     {(selected as any).certificados.map((cert: any) => {
                       const certTitle = cert.curso_nombre || (cert.programa_codigo ? `Programa ${cert.programa_codigo}` : 'Certificado de Aprobación');
                       const validationCode = cert.codigo_validacion;
-                      const fechaStr = cert.fecha_emision ? new Date(cert.fecha_emision).toLocaleDateString() : '';
+                      const fechaStr = cert.fecha_emision ? formatDateLatina(cert.fecha_emision) : '';
 
                       return (
                         <div
@@ -1985,7 +1985,7 @@ export default function MiembrosPanel() {
             />
 
             <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium pt-2">
-              <Calendar size={12} /> Registrado el {new Date(selected.fecha_registro).toLocaleDateString()}
+              <Calendar size={12} /> Registrado el {formatDateLatina(selected.fecha_registro)}
             </div>
 
             {/* Nueva Sección: Afiliados Asociados (Solo para Corporativos) */}
@@ -2951,12 +2951,14 @@ function DataField({ label, value, isEditing, fieldName, form, setForm, type = '
           <input
             type={type}
             className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
-            value={form[fieldName] || ''}
+            value={type === 'date' ? sanitizeDateForInput(form[fieldName]) : (form[fieldName] || '')}
             onChange={(e) => setForm({ ...form, [fieldName]: e.target.value })}
           />
         )
       ) : (
-        <p className={`bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 ${className}`}>{value}</p>
+        <p className={`bg-slate-50/50 border border-transparent rounded-xl px-4 py-2 text-sm font-bold text-slate-700 ${className}`}>
+          {type === 'date' ? formatDateLatina(value) : value}
+        </p>
       )}
     </div>
   )

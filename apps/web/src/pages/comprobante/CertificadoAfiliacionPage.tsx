@@ -189,6 +189,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
         <title>
           {data ? `Certificado de Afiliación - ${data.nombre_completo}` : 'Certificado de Afiliación'}
         </title>
+        <meta name="robots" content="noindex, follow" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

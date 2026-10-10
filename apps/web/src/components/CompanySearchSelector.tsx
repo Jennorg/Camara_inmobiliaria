@@ -14,6 +14,10 @@ export interface EmpresaSearchItem {
   representante_nombre?: string;
   codigo?: string;
   empresa_codigo?: string;
+  logo_url?: string | null;
+  empresa_logo_url?: string | null;
+  marca_logo_url?: string | null;
+  foto_url?: string | null;
 }
 
 interface Props {
@@ -22,6 +26,65 @@ interface Props {
   onSelect: (id: string, company?: EmpresaSearchItem | null) => void;
   placeholder?: string;
   darkTheme?: boolean;
+}
+
+const getCompanyLogo = (emp?: EmpresaSearchItem | null): string | null => {
+  if (!emp) return null;
+  const raw = emp.logo_url || emp.empresa_logo_url || emp.marca_logo_url || emp.foto_url || null;
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (
+    trimmed === '' ||
+    trimmed.includes('ui-avatars.com') ||
+    trimmed.toLowerCase().includes('pendiente') ||
+    trimmed.includes('test.jpg') ||
+    trimmed.includes('test.png')
+  ) {
+    return null;
+  }
+  return trimmed;
+};
+
+function CompanyAvatar({
+  logoUrl,
+  nombre,
+  size = 'md',
+  darkTheme = false
+}: {
+  logoUrl?: string | null;
+  nombre?: string;
+  size?: 'sm' | 'md';
+  darkTheme?: boolean;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const sizeClasses = size === 'sm' ? 'w-8 h-8 rounded-xl' : 'w-10 h-10 rounded-xl';
+  const iconSize = size === 'sm' ? 16 : 20;
+
+  if (logoUrl && !imgError) {
+    return (
+      <div className={`${sizeClasses} overflow-hidden shrink-0 border bg-white p-1 shadow-sm flex items-center justify-center transition-colors ${
+        darkTheme ? 'border-emerald-500/30 ring-1 ring-emerald-500/20' : 'border-slate-200/80 ring-1 ring-slate-100'
+      }`}>
+        <img
+          src={logoUrl}
+          alt={nombre || 'Logo empresa'}
+          className="w-full h-full object-contain"
+          onError={() => setImgError(true)}
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${sizeClasses} flex items-center justify-center shrink-0 border transition-colors ${
+      darkTheme
+        ? 'bg-emerald-900/40 border-emerald-500/20 text-emerald-400'
+        : 'bg-slate-100 border-slate-200 text-slate-400'
+    }`}>
+      <Building2 size={iconSize} />
+    </div>
+  );
 }
 
 const removeAccents = (str: string): string => {
@@ -83,7 +146,8 @@ export default function CompanySearchSelector({
         _displayRifTipo: emp.rif_tipo || emp.empresa_rif_tipo || 'J',
         _displayRifNum: emp.rif_numero || emp.empresa_rif_numero || '',
         _displayRep: emp.representante_legal || emp.representante_nombre || '',
-        _displayCod: emp.codigo || emp.empresa_codigo || ''
+        _displayCod: emp.codigo || emp.empresa_codigo || '',
+        _logoUrl: getCompanyLogo(emp)
       };
     });
   }, [empresas]);
@@ -224,13 +288,12 @@ export default function CompanySearchSelector({
             : 'bg-white border-slate-200 text-slate-800'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-              darkTheme 
-                ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' 
-                : 'bg-emerald-50 border-emerald-200/60 text-emerald-600'
-            }`}>
-              <Building2 size={18} />
-            </div>
+            <CompanyAvatar
+              logoUrl={getCompanyLogo(selectedCompany)}
+              nombre={selectedCompany.razon_social || selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}
+              size="md"
+              darkTheme={darkTheme}
+            />
             <div className="min-w-0">
               <p className={`text-xs font-black uppercase tracking-tight truncate ${darkTheme ? 'text-white' : 'text-slate-900'}`}>
                 {selectedCompany.razon_social || selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}
@@ -294,13 +357,12 @@ export default function CompanySearchSelector({
                     darkTheme ? 'hover:bg-emerald-900/40' : 'hover:bg-emerald-50/60'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                    darkTheme
-                      ? 'bg-emerald-900/40 group-hover:bg-emerald-500/30 text-emerald-400'
-                      : 'bg-slate-100 group-hover:bg-emerald-100 text-slate-400 group-hover:text-emerald-700'
-                  }`}>
-                    <Building2 size={16} />
-                  </div>
+                  <CompanyAvatar
+                    logoUrl={emp._logoUrl}
+                    nombre={emp._displayNombre}
+                    size="sm"
+                    darkTheme={darkTheme}
+                  />
                   <div className="min-w-0 flex-1">
                     <h6 className={`text-xs font-black uppercase tracking-tight truncate transition-colors ${
                       darkTheme ? 'text-white group-hover:text-emerald-300' : 'text-slate-800 group-hover:text-emerald-950'

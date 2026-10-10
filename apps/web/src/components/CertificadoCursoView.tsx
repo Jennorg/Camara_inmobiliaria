@@ -282,7 +282,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
             <div className="w-full flex flex-col items-center my-auto max-w-[820px]">
               {/* Nombre en Fuente Caligráfica Cursiva (Primer Nombre y Primer Apellido) */}
               <div className="relative w-full flex items-center justify-center py-2">
-                <div className="absolute left-10 right-10 h-[1px] bg-gradient-to-r from-transparent via-slate-400 to-transparent bottom-0" />
+                <div className="absolute inset-x-0 mx-auto max-w-[480px] h-[1px] bg-slate-800 bottom-0" />
                 <span
                   className="text-slate-900 text-center leading-tight tracking-wide px-8 select-all"
                   style={{

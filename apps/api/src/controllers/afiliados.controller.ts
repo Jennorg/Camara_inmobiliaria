@@ -36,6 +36,8 @@ import { toTitleCase } from '../lib/formatters.js';
 import { crearVerificacionPreinscripcionPrograma, upsertEstudianteByEmail } from './academia.controller.js';
 import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
+import { autoAsignarEdicionCibir } from '../services/cibir.service.js';
+import { reportarPagoDigital } from '../services/pagos.service.js';
 
 /**
  * GET /api/afiliados/:id
@@ -1554,37 +1556,38 @@ export const getSolicitudesCibir = async (req: Request, res: Response) => {
 export const formalizarInscripcion = async (req: Request, res: Response) => {
   try {
     const requesterId = req.user!.id_afiliado;
-    const { banco, referencia, monto } = req.body;
+    const { banco, referencia, monto, comprobante_url, metodo_pago, moneda, tasa_bcv, titular_origen, telefono_origen } = req.body;
 
     if (!requesterId) {
       return res.status(403).json({ success: false, message: 'Usuario no autenticado o sin perfil de afiliado' });
     }
 
-    if (!banco || !referencia || !monto) {
-      return res.status(400).json({ success: false, message: 'Todos los campos financieros son requeridos' });
+    if (!referencia || !monto) {
+      return res.status(400).json({ success: false, message: 'La referencia y el monto son requeridos' });
     }
 
-    // El registro financiero ahora se gestiona de forma externa o solo se notificará por correo/notificación de sistema.
-
-    const userDisplayName = req.user!.nombre_completo || req.user!.email || 'Afiliado';
-    NotificationService.notifyAdmins({
-      title: `Pago de Inscripción Registrado`,
-      message: `El afiliado ${userDisplayName} ha registrado un pago de ${monto} en ${banco} (Ref: ${referencia}).`,
-      type: 'PAGO_REGISTRADO',
-      priority: 'ALTA',
-      data: {
-        id_afiliado: requesterId,
-        nombre: userDisplayName,
-        email: req.user!.email,
-        banco,
-        referencia,
-        monto
-      }
-    }).catch(e => console.error('Error enviando notificación In-App a admins (pago):', e));
+    const pago = await reportarPagoDigital({
+      id_afiliado: Number(requesterId),
+      tipo_concepto: 'formalizacion_afiliacion',
+      descripcion_concepto: 'Formalización de Inscripción y Membresía Gremial',
+      metodo_pago: metodo_pago || 'pago_movil',
+      moneda: moneda || 'USD',
+      monto: Number(monto),
+      monto_usd_equivalente: Number(monto),
+      tasa_bcv: tasa_bcv ? Number(tasa_bcv) : null,
+      banco_origen: banco || null,
+      referencia: String(referencia),
+      titular_origen: titular_origen || null,
+      telefono_origen: telefono_origen || null,
+      comprobante_url: comprobante_url || null,
+      registrado_por: req.user!.id,
+      notas: 'Reportado desde portal de afiliado'
+    });
 
     return res.status(200).json({
       success: true,
-      message: 'Inscripción formalizada exitosamente. El portal ha sido desbloqueado.'
+      message: 'Inscripción formalizada exitosamente. Tu pago está en proceso de verificación por la administración.',
+      data: pago
     });
   } catch (error) {
     console.error('Error al formalizar la inscripción:', error);
@@ -1684,6 +1687,15 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     }
     if (cibir_acreditado !== undefined || afi.cibir_acreditado !== undefined) {
       await syncCibirCertificateState(Number(id), Number(afi.cibir_acreditado) === 1);
+    }
+
+    // Auto-asignar a edición CIBIR abierta si pasa a 5_CIBIR (R1)
+    if (estatus === '5_CIBIR') {
+      try {
+        await autoAsignarEdicionCibir(Number(id));
+      } catch (errAuto) {
+        console.error('Error auto-asignando CIBIR en updateEstatusAfiliado:', errAuto);
+      }
     }
 
     return res.json({ success: true, data: afi });
@@ -2056,6 +2068,13 @@ export const updateAfiliado = async (req: Request, res: Response) => {
       });
       if (fields.cibir_acreditado !== undefined) {
         await syncCibirCertificateState(Number(id), Boolean(fields.cibir_acreditado));
+      }
+      if (fields.estatus === '5_CIBIR') {
+        try {
+          await autoAsignarEdicionCibir(Number(id));
+        } catch (eAuto) {
+          console.error('Error auto-asignando CIBIR en updateAfiliado:', eAuto);
+        }
       }
     }
 
@@ -3707,7 +3726,8 @@ export const publicListEmpresas = async (req: Request, res: Response): Promise<v
                COALESCE(NULLIF(TRIM(e.rif_tipo), ''), 'J') as rif_tipo,
                COALESCE(e.rif_numero, '') as rif_numero,
                COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), '') as representante_legal,
-               COALESCE(a.codigo, '') as codigo
+               COALESCE(a.codigo, '') as codigo,
+               COALESCE(e.logo_url, (SELECT rep.marca_logo_url FROM afiliados rep WHERE rep.id_afiliado = e.id_representante_legal LIMIT 1), a.marca_logo_url) as logo_url
         FROM empresas e
         LEFT JOIN afiliados a ON (a.id_empresa = e.id_empresa OR a.id_afiliado = e.id_representante_legal OR a.id_user = e.id_user)
         LEFT JOIN personas p ON a.id_persona = p.id

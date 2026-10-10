@@ -8,6 +8,7 @@ import {
 import { API_URL } from '@/config/env'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
 import Footer from '@/pages/landing/components/Footer'
+import SEO from '@/components/SEO'
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -118,6 +119,7 @@ export default function InvitacionCorporativaPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <SEO title="Invitación de Afiliación Corporativa" index={false} />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       {/* Hero */}

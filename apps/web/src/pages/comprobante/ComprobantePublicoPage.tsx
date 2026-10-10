@@ -182,6 +182,7 @@ const ComprobantePublicoPage: React.FC = () => {
         <title>
           {data ? `${data.programa_o_curso} - ${data.titular_nombre}` : 'Verificación de Comprobante'}
         </title>
+        <meta name="robots" content="noindex, follow" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

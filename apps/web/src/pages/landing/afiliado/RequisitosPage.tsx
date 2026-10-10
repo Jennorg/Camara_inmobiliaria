@@ -5,6 +5,7 @@ import Footer from '@/pages/landing/components/Footer';
 import Estudiosa from "@/assets/estudiosa1.webp";
 import Estudioso from "@/assets/estudioso1.webp";
 import PreinscripcionProgramaForm from '@/pages/landing/components/PreinscripcionProgramaForm'
+import SEO from '@/components/SEO'
 import { ClipboardList, FileText, UserCheck, ShieldCheck, GraduationCap, PartyPopper } from 'lucide-react'
 
 const AFFILIATION_STEPS = [
@@ -86,6 +87,15 @@ export default function RequisitosPage() {
 
   return (
     <div className="min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30 scroll-smooth">
+      <SEO
+        title="Afiliación y Requisitos Gremiales"
+        description="Únete a la Cámara Inmobiliaria del Estado Bolívar. Conoce los pasos, recaudos y beneficios para afiliarte como corredor independiente o empresa inmobiliaria."
+        url="https://camarainmobiliariadebolivar.com/afiliate"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Afíliate', url: '/afiliate' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       <header
@@ -137,15 +147,15 @@ export default function RequisitosPage() {
                   return (
                     <div
                       key={step.title}
-                      className={`flex-1 relative group transition-transform duration-500 ease-in-out hover:flex-[2.2] hover:-translate-y-1 ${!isFirst ? '-ml-[24px]' : ''}`}
+                      className={`flex-1 relative group transition-all duration-500 ease-in-out hover:flex-[2.4] hover:-translate-y-2 cursor-pointer ${!isFirst ? '-ml-[24px]' : ''}`}
                       style={{
                         backgroundColor: step.color,
                         clipPath: clipPath,
                         paddingLeft: !isFirst ? '24px' : '0'
                       }}
                     >
-                      <div className="py-10 px-5 h-full flex flex-col items-center text-center space-y-4 pr-10">
-                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white/20 shadow-inner backdrop-blur-sm shrink-0 transition-transform duration-500 group-hover:scale-110">
+                      <div className="py-10 px-5 h-full flex flex-col items-center text-center space-y-4 pr-10 transition-all duration-500">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white/20 shadow-inner backdrop-blur-sm shrink-0 transition-transform duration-500 group-hover:scale-115 group-hover:rotate-3">
                           <step.icon size={28} strokeWidth={2} className="text-white" />
                         </div>
 
@@ -161,9 +171,9 @@ export default function RequisitosPage() {
                           </p>
 
                           {/* Detailed Explanation - Hidden by default, shown on hover */}
-                          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-colors duration-500 ease-in-out w-full">
+                          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-all duration-500 ease-in-out w-full">
                             <div className="overflow-hidden">
-                              <div className="text-xs text-white/80 leading-relaxed font-normal pt-3 border-t border-white/20 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                              <div className="text-xs text-white/95 leading-relaxed font-normal pt-3 border-t border-white/20 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-150">
                                 {step.details}
                               </div>
                             </div>
