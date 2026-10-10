@@ -6,6 +6,7 @@ import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
 import { matchesSearch } from '@/utils/searchUtils'
+import { formatDateLatina } from '@/utils/formatters'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -51,6 +52,7 @@ type Row = {
   num_modulos?: number
   modulos_aprobados?: number
   num_documentos?: number
+  edicion_cibir_nombre?: string | null
 }
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -967,53 +969,63 @@ export default function PreinscripcionesPrincipalesPanel({
           ) : filteredRows.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-400 mt-10">No hay registros.</div>
           ) : (
-            filteredRows.map(r => (
-              <button
-                key={r.id_inscripcion}
-                onClick={() => { setSelected(r); fetchDocumentos(r.id_estudiante) }}
-                className={['w-full text-left px-4 py-3.5 transition-colors flex flex-col gap-1',
-                  selected?.id_inscripcion === r.id_inscripcion ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
-                ].join(' ')}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className={['text-sm font-semibold flex-1', selected?.id_inscripcion === r.id_inscripcion ? 'text-[#00B870]' : 'text-slate-800'].join(' ')}>
-                    {r.estudiante_nombre}
-                  </span>
-                  {(() => {
-                    const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus, r.num_documentos)
-                    return (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
-                        {statusObj.label}
-                      </span>
-                    )
-                  })()}
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300/80 uppercase tracking-tight shadow-2xs">
-                    <GraduationCap size={10} className="text-emerald-700 shrink-0" />
-                    {r.programa_codigo === 'AFILIACION' && r.afiliado_tipo ? (
-                      r.afiliado_tipo === 'Corporativo' ? 'Corporativo' :
-                      r.afiliado_tipo === 'Agente Corporativo' || r.afiliado_tipo === 'Agente' 
-                        ? `Agente Corp${r.empresa_vinculada_nombre ? ` (${r.empresa_vinculada_nombre})` : ''}` :
-                      'Agente Indep.'
-                    ) : r.programa_codigo}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">
-                    {r.estudiante_cedula || 'S/N'}
-                  </span>
-                  {r.afiliado_estatus === 'Afiliado' && (
-                    <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Afiliado
+            filteredRows.map(r => {
+              const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus, r.num_documentos)
+              const isSelected = selected?.id_inscripcion === r.id_inscripcion
+
+              // Tipo descriptivo limpio
+              const tipoLabel = r.programa_codigo === 'AFILIACION' && r.afiliado_tipo
+                ? (r.afiliado_tipo === 'Corporativo' ? 'Corporativo' :
+                   r.afiliado_tipo === 'Agente Corporativo' || r.afiliado_tipo === 'Agente' ? 'Agente Corp.' :
+                   'Agente Indep.')
+                : (r.programa_codigo || null)
+
+              // Meta parts separados por punto medio
+              const metaParts = [
+                r.estudiante_cedula || null,
+                tipoLabel,
+                r.empresa_vinculada_nombre || null,
+                r.edicion_cibir_nombre ? `Ed. ${r.edicion_cibir_nombre}` : null
+              ].filter(Boolean)
+
+              return (
+                <button
+                  key={r.id_inscripcion}
+                  onClick={() => { setSelected(r); fetchDocumentos(r.id_estudiante) }}
+                  className={[
+                    'w-full text-left px-4 py-3 transition-colors flex flex-col gap-1 cursor-pointer border-b border-gray-100/60',
+                    isSelected ? 'bg-emerald-50/80 border-l-4 border-l-[#00D084]' : 'hover:bg-slate-50/80',
+                  ].join(' ')}
+                >
+                  {/* Línea 1: Nombre + Opta icon + Estado único (dot) */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs font-bold flex items-center gap-1.5 truncate flex-1 ${
+                      isSelected ? 'text-emerald-900' : 'text-slate-800'
+                    }`}>
+                      <span className="truncate">{r.estudiante_nombre}</span>
+                      {!!r.apto_acreditacion && (
+                        <span
+                          title="Opta por Acreditación"
+                          className="text-emerald-600 text-xs font-bold shrink-0"
+                        >
+                          ✦
+                        </span>
+                      )}
                     </span>
-                  )}
-                </div>
-                {r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && (
-                  <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-0.5 self-start">
-                    Opta por Acreditación
-                  </span>
-                )}
-              </button>
-            ))
+
+                    {/* Indicador de Estado Único */}
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusObj.styles}`}>
+                      {statusObj.label}
+                    </span>
+                  </div>
+
+                  {/* Línea 2: Meta en texto gris discreto */}
+                  <p className="text-[11px] text-slate-400 font-medium truncate">
+                    {metaParts.length > 0 ? metaParts.join(' · ') : 'Sin datos adicionales'}
+                  </p>
+                </button>
+              )
+            })
           )}
         </div>
       </div>
@@ -1222,7 +1234,7 @@ export default function PreinscripcionesPrincipalesPanel({
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{new Date(selected.creado_en).toLocaleString('es-ES')}</span>
+                  <span className="text-sm text-slate-700 font-medium break-all">{formatDateLatina(selected.creado_en)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nivel Académico</span>
@@ -1337,7 +1349,7 @@ export default function PreinscripcionesPrincipalesPanel({
                               )}
                               {isAprobado && mod.fecha_evaluacion && (
                                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                                  Aprobado el {new Date(mod.fecha_evaluacion).toLocaleDateString()}
+                                  Aprobado el {formatDateLatina(mod.fecha_evaluacion)}
                                 </p>
                               )}
                             </div>
@@ -1601,7 +1613,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
                 {selected.estatus === 'Entrevista' && (
                   <div className="flex flex-col gap-3">
-                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">Entrevista: {selected.entrevista_fecha} @ {selected.entrevista_hora}</div>
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">Entrevista: {formatDateLatina(selected.entrevista_fecha)} @ {selected.entrevista_hora}</div>
                     <div className="flex gap-2">
                       <button 
                         onClick={() => setShowModalFinalizar(true)} 

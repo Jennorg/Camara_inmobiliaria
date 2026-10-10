@@ -9,6 +9,7 @@ import Navbar from "@/pages/landing/components/navbar/Navbar";
 import Estudiosa from "@/assets/estudiosa1.webp";
 import Estudioso from "@/assets/estudioso1.webp";
 import PreinscripcionProgramaForm from "@/pages/landing/components/PreinscripcionProgramaForm";
+import SEO from "@/components/SEO";
 
 // --- INTERFACES ---
 interface ModuloProps {
@@ -118,6 +119,16 @@ export default function Cibir() {
 
   return (
     <div className="w-full max-w-full bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
+      <SEO
+        title="Curso Introductorio de Bienes Raíces (CIBIR)"
+        description="Programa insignia de formación básica inicial para el ejercicio profesional del corretaje inmobiliario en el Estado Bolívar."
+        url="https://camarainmobiliariadebolivar.com/cibir"
+        breadcrumbs={[
+          { name: 'Inicio', url: '/' },
+          { name: 'Cursos', url: '/cursos' },
+          { name: 'CIBIR', url: '/cibir' }
+        ]}
+      />
       <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
 
       {/* HEADER CON ANIMACIÓN DE FONDO Y TEXTO SINCRONIZADA */}
