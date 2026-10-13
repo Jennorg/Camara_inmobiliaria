@@ -5,6 +5,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import FileUpload from '@/components/common/FileUpload';
 import { CuentaBancariaDTO, PagoDTO, MetodoPago } from '@/types/pagos';
+import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { toast } from 'sonner';
 
 interface WidgetFormalizarInscripcionProps {
@@ -29,6 +30,10 @@ const WidgetFormalizarInscripcion = ({ onSuccess }: WidgetFormalizarInscripcionP
     totalUSD: 30
   });
 
+  // Tasas de referencia activas
+  const [tasaBcv, setTasaBcv] = useState<number>(875.65);
+  const [tasaUsdt, setTasaUsdt] = useState<number>(1008.45);
+
   // Estado de pagos existentes
   const [existingPagos, setExistingPagos] = useState<PagoDTO[]>([]);
   const [loadingPagos, setLoadingPagos] = useState<boolean>(true);
@@ -50,6 +55,17 @@ const WidgetFormalizarInscripcion = ({ onSuccess }: WidgetFormalizarInscripcionP
 
   const fetchInitialData = async () => {
     try {
+      // 0. Tasas de cambio activas
+      fetch(`${API_URL}/api/public/tasas-referencia`)
+        .then(r => r.json())
+        .then(json => {
+          if (json.success && json.data?.tasas) {
+            if (json.data.tasas.USD_BCV?.tasa) setTasaBcv(json.data.tasas.USD_BCV.tasa);
+            if (json.data.tasas.USDT_BINANCE?.tasa) setTasaUsdt(json.data.tasas.USDT_BINANCE.tasa);
+          }
+        })
+        .catch(() => {});
+
       // 1. Cuentas bancarias
       const resC = await fetch(`${API_URL}/api/pagos/cuentas`);
       const jsonC = await resC.json();
@@ -176,16 +192,19 @@ const WidgetFormalizarInscripcion = ({ onSuccess }: WidgetFormalizarInscripcionP
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
               Arancel Total de Formalización
             </span>
-            <div className="flex items-center gap-2 justify-center sm:justify-start">
+            <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
               <span className="text-2xl font-black font-mono text-slate-900">
                 ${arancelInfo.totalUSD.toFixed(2)} USD
               </span>
-              <span className="text-xs text-slate-500 font-medium">
-                (o equivalente en Bs. a Tasa Oficial BCV)
+              <span className="text-xs text-emerald-800 font-bold px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200">
+                ≈ Bs. {(arancelInfo.totalUSD * tasaBcv).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (BCV)
+              </span>
+              <span className="text-xs text-amber-800 font-bold px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200">
+                o {arancelInfo.totalUSD} USDT
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Desglose: Cuota de Inscripción (${arancelInfo.cuotaInscripcion.toFixed(2)}) + 1ª Mensualidad (${arancelInfo.primeraMensualidad.toFixed(2)})
+              Desglose: Cuota de Inscripción (${arancelInfo.cuotaInscripcion.toFixed(2)}) + 1ª Mensualidad (${arancelInfo.primeraMensualidad.toFixed(2)}) · Tasa BCV: Bs. {tasaBcv.toFixed(2)}
             </p>
           </div>
 
@@ -261,8 +280,9 @@ const WidgetFormalizarInscripcion = ({ onSuccess }: WidgetFormalizarInscripcionP
               <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-medium">
                 🇻🇪 <strong>Efectivo Bolívares</strong> (Tasa BCV del día)
               </div>
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-medium">
-                💳 <strong>Punto de Venta</strong> (Tarjeta Débito)
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200 font-medium flex items-center gap-1.5">
+                <BinanceIcon className="w-3.5 h-3.5 text-[#F0B90B] shrink-0" />
+                <span><strong>Binance (USDT)</strong> (Binance Pay)</span>
               </div>
             </div>
             <p className="text-[11px] text-emerald-800 font-semibold italic">

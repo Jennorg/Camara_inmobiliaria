@@ -49,8 +49,21 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
   const [concepto, setConcepto] = useState('')
   
   const [moneda, setMoneda] = useState<'USD' | 'VES'>('USD')
-  const [tasaBcv, setTasaBcv] = useState('55.00')
+  const [tasaBcv, setTasaBcv] = useState('875.65')
   
+  // Cargar tasa activa de referencia al abrir
+  useEffect(() => {
+    if (!isOpen) return
+    fetch(`${API_URL}/api/public/tasas-referencia`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data?.tasas?.USD_BCV?.tasa) {
+          setTasaBcv(String(json.data.tasas.USD_BCV.tasa))
+        }
+      })
+      .catch(() => {})
+  }, [isOpen])
+
   // Desglose contable
   const [montoExento, setMontoExento] = useState('0')
   const [baseImponible, setBaseImponible] = useState('')
@@ -326,7 +339,11 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
                 Desglose Impositivo (SENIAT / Contabilidad)
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500">Moneda:</span>
+                <span className="text-xs font-semibold text-slate-500">Tasa BCV:</span>
+                <span className="text-xs font-black text-slate-700 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                  Bs. {parseFloat(tasaBcv || '1').toFixed(2)}
+                </span>
+                <span className="text-xs font-semibold text-slate-500 ml-2">Moneda:</span>
                 <select
                   value={moneda}
                   onChange={e => setMoneda(e.target.value as any)}
@@ -429,7 +446,7 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
                 <option value="efectivo_usd">Efectivo USD ($)</option>
                 <option value="efectivo_bs">Efectivo Bolívares (Bs.)</option>
                 <option value="zelle">Zelle</option>
-                <option value="pos_debito">Tarjeta Débito (Punto / POS)</option>
+                <option value="binance_usdt">Binance (USDT)</option>
                 <option value="cheque">Cheque</option>
                 <option value="otro">Otro</option>
               </select>

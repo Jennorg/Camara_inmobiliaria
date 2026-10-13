@@ -32,7 +32,9 @@ import Swal from 'sweetalert2'
 import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/ModalGestionCuentasBancarias'
 import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
 import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrarGasto'
+import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
+import { BinanceIcon } from '@/components/icons/BinanceIcon'
 import type { 
   ResumenFinancieroDTO, 
   LibroVentaItemDTO, 
@@ -41,7 +43,7 @@ import type {
   TxStatus 
 } from '@/types/finanzas'
 
-type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra'
+type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra' | 'tasas_referencias'
 
 const CATEGORIAS: Record<string, { label: string; color: string }> = {
   afiliacion:           { label: 'Afiliación',                  color: '#059669' },
@@ -112,6 +114,24 @@ export default function FinancePanel() {
   const [selectedReciboId, setSelectedReciboId] = useState<number | string | null>(null)
   const [reciboModalOpen, setReciboModalOpen] = useState(false)
 
+  // Cotizaciones para Ticker de Referencia
+  const [tasasTicker, setTasasTicker] = useState<{ bcv: number; usdt: number } | null>(null)
+
+  const fetchTasasTicker = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/finanzas/referencias`, { headers: authHeaders })
+      const json = await res.json()
+      if (json.success && json.data?.tasas) {
+        setTasasTicker({
+          bcv: json.data.tasas.USD_BCV?.tasa || 0,
+          usdt: json.data.tasas.USDT_BINANCE?.tasa || 0
+        })
+      }
+    } catch {
+      // Ignorar error no crítico de ticker
+    }
+  }, [authHeaders])
+
   // Cargar Resumen Financiero
   const fetchResumen = useCallback(async () => {
     try {
@@ -173,9 +193,9 @@ export default function FinancePanel() {
   // Cargar todo
   const refreshData = useCallback(async () => {
     setLoading(true)
-    await Promise.all([fetchResumen(), fetchLibroVentas(), fetchLibroCompras()])
+    await Promise.all([fetchResumen(), fetchLibroVentas(), fetchLibroCompras(), fetchTasasTicker()])
     setLoading(false)
-  }, [fetchResumen, fetchLibroVentas, fetchLibroCompras])
+  }, [fetchResumen, fetchLibroVentas, fetchLibroCompras, fetchTasasTicker])
 
   useEffect(() => {
     refreshData()
@@ -403,7 +423,35 @@ export default function FinancePanel() {
             <TrendingDown size={13} className="text-amber-600" />
             Libro de Compras ({totalesCompras?.cantidadRegistros || 0})
           </button>
+          <button
+            onClick={() => setTab('tasas_referencias')}
+            data-testid="tab-tasas-referencias"
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              tab === 'tasas_referencias'
+                ? 'bg-white text-emerald-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <DollarSign size={13} className="text-emerald-600" />
+            Tasas & Conversor
+          </button>
         </div>
+
+        {/* Cotizaciones Ticker Rápido */}
+        {tasasTicker && tasasTicker.bcv > 0 && (
+          <div 
+            onClick={() => setTab('tasas_referencias')}
+            data-testid="ticker-tasas-referencia"
+            title="Ver conversor y cotizaciones en vivo"
+            className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200/80 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors text-[11px]"
+          >
+            <span className="font-bold text-slate-500">BCV:</span>
+            <span className="font-mono font-black text-slate-800">Bs. {tasasTicker.bcv.toFixed(2)}</span>
+            <span className="text-slate-300">|</span>
+            <span className="font-bold text-[#b58b09]">USDT:</span>
+            <span className="font-mono font-black text-slate-800">Bs. {tasasTicker.usdt.toFixed(2)}</span>
+          </div>
+        )}
 
         {/* Filtros de Año y Mes */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -911,6 +959,11 @@ export default function FinancePanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── TAB 4: TASAS DE REFERENCIA & CONVERSOR ── */}
+      {tab === 'tasas_referencias' && (
+        <ReferenciasTasasPanel />
       )}
 
       {/* ── MODALES ── */}

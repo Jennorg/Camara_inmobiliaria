@@ -63,4 +63,15 @@ router.get('/invitaciones/:token', publicValidarInvitacion);
 // POST /api/public/invitaciones/:token/registrar — Registro individual por invitación
 router.post('/invitaciones/:token/registrar', publicRegistrarPorInvitacion);
 
+// ── Referencias Cambiarias (Pública para pasarela y widgets de afiliación) ──
+router.get('/tasas-referencia', async (_req, res) => {
+  try {
+    const { tasasService } = await import('../services/tasas.service.js');
+    const snapshot = await tasasService.getTasas(false);
+    return res.json({ success: true, data: snapshot });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'Error al obtener tasas' });
+  }
+});
+
 export { router as publicRoutes };

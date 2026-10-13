@@ -459,6 +459,32 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS idx_mov_pago ON movimientos_financieros(id_pago)`,
 
   // ===========================================================
+  // REFERENCIAS Y TASAS DE CAMBIO (USD BCV / BINANCE USDT)
+  // ===========================================================
+  `CREATE TABLE IF NOT EXISTS tasas_cambio_referencia (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo              TEXT UNIQUE NOT NULL,
+    nombre              TEXT NOT NULL,
+    tasa                REAL NOT NULL,
+    moneda_origen       TEXT NOT NULL DEFAULT 'USD',
+    moneda_destino      TEXT NOT NULL DEFAULT 'VES',
+    fuente              TEXT NOT NULL,
+    fecha_actualizacion TEXT NOT NULL,
+    es_manual           INTEGER NOT NULL DEFAULT 0 CHECK (es_manual IN (0, 1)),
+    detalles_json       TEXT DEFAULT '{}',
+    actualizado_en      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS historial_tasas_cambio (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    codigo              TEXT NOT NULL,
+    tasa                REAL NOT NULL,
+    fuente              TEXT NOT NULL,
+    fecha               TEXT NOT NULL,
+    creado_en           TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_historial_tasas_cod ON historial_tasas_cambio(codigo, fecha)`,
+
+  // ===========================================================
   // MÓDULO DE DENUNCIAS Y TRIBUNAL ÉTICO/DISCIPLINARIO
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS denuncias (

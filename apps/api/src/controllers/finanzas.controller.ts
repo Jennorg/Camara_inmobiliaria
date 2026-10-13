@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { finanzasService, FiltrosFinanzas } from '../services/finanzas.service.js';
+import { tasasService } from '../services/tasas.service.js';
 
 function parseFiltros(req: Request): FiltrosFinanzas {
   const { anio, mes, fechaInicio, fechaFin, search, categoria, tipo } = req.query;
@@ -151,3 +152,87 @@ export async function eliminarMovimiento(req: Request, res: Response) {
     return res.status(500).json({ error: error.message || 'Error al eliminar movimiento financiero' });
   }
 }
+
+// ── CONTROLADORES DE TASAS DE CAMBIO Y REFERENCIAS ──
+
+export async function getTasasReferencias(req: Request, res: Response) {
+  try {
+    const force = req.query.force === 'true' || req.query.force === '1';
+    const snapshot = await tasasService.getTasas(force);
+    return res.json({ success: true, data: snapshot });
+  } catch (error: any) {
+    console.error('Error al obtener referencias cambiarias:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al obtener tasas de cambio' });
+  }
+}
+
+export async function sincronizarTasasEnVivo(_req: Request, res: Response) {
+  try {
+    const snapshot = await tasasService.sincronizarEnVivo();
+    return res.json({
+      success: true,
+      message: 'Tasas sincronizadas en vivo exitosamente',
+      data: snapshot
+    });
+  } catch (error: any) {
+    console.error('Error sincronizando tasas en vivo:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al sincronizar tasas en vivo' });
+  }
+}
+
+export async function actualizarTasaManual(req: Request, res: Response) {
+  try {
+    const codigo = String(req.params.codigo).toUpperCase();
+    if (codigo !== 'USD_BCV' && codigo !== 'USDT_BINANCE') {
+      return res.status(400).json({ success: false, error: 'Código de tasa no soportado. Use USD_BCV o USDT_BINANCE' });
+    }
+
+    const tasa = parseFloat(req.body.tasa);
+    if (isNaN(tasa) || tasa <= 0) {
+      return res.status(400).json({ success: false, error: 'La tasa debe ser un número mayor a 0' });
+    }
+
+    const actualizada = await tasasService.setTasaManual(codigo as any, tasa);
+    return res.json({
+      success: true,
+      message: `Tasa ${codigo} actualizada manualmente a Bs. ${tasa.toFixed(2)}`,
+      data: actualizada
+    });
+  } catch (error: any) {
+    console.error('Error actualizando tasa manual:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al actualizar tasa manual' });
+  }
+}
+
+export async function resetTasaManual(req: Request, res: Response) {
+  try {
+    const codigo = String(req.params.codigo).toUpperCase();
+    if (codigo !== 'USD_BCV' && codigo !== 'USDT_BINANCE') {
+      return res.status(400).json({ success: false, error: 'Código de tasa no soportado' });
+    }
+
+    await tasasService.resetTasaAuto(codigo as any);
+    const snapshot = await tasasService.getTasas(true);
+    return res.json({
+      success: true,
+      message: `Tasa ${codigo} restablecida a sincronización automática`,
+      data: snapshot
+    });
+  } catch (error: any) {
+    console.error('Error restableciendo tasa:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al restablecer tasa automática' });
+  }
+}
+
+export async function getHistorialTasas(req: Request, res: Response) {
+  try {
+    const codigo = req.query.codigo ? String(req.query.codigo) : undefined;
+    const limite = req.query.limite ? parseInt(String(req.query.limite), 10) : 50;
+    const historial = await tasasService.getHistorial(codigo, limite);
+    return res.json({ success: true, data: historial });
+  } catch (error: any) {
+    console.error('Error obteniendo historial de tasas:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al obtener historial' });
+  }
+}
+

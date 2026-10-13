@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, CreditCard, Banknote, Landmark, CheckCircle2, Loader2, Info } from 'lucide-react';
+import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { API_URL } from '@/config/env';
 import { MetodoPago, TipoConceptoPago, PagoDTO } from '@/types/pagos';
 import Swal from 'sweetalert2';
@@ -31,53 +32,71 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo_usd');
   const [moneda, setMoneda] = useState<'USD' | 'VES'>('USD');
   const [montoUSD, setMontoUSD] = useState<number>(30);
-  const [tasaBcv, setTasaBcv] = useState<string>('60.00');
-  const [montoVES, setMontoVES] = useState<number>(1800);
+  const [tasaBcv, setTasaBcv] = useState<string>('875.65');
+  const [tasaUsdt, setTasaUsdt] = useState<string>('1008.45');
+  const [montoVES, setMontoVES] = useState<number>(0);
   const [referencia, setReferencia] = useState<string>('');
   const [bancoOrigen, setBancoOrigen] = useState<string>('');
   const [notas, setNotas] = useState<string>('Recibido en taquilla de sede administrativa');
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingAranceles, setLoadingAranceles] = useState<boolean>(false);
 
-  // Cargar aranceles configurados al abrir
+  // Cargar tasas dinámicas y aranceles configurados al abrir
   useEffect(() => {
     if (!open) return;
 
     setTipoConcepto(conceptoDefault);
     setLoadingAranceles(true);
 
-    fetch(`${API_URL}/api/pagos/aranceles`)
-      .then(res => res.json())
+    // 1. Cargar tasas activas de referencia
+    fetch(`${API_URL}/api/public/tasas-referencia`)
+      .then(r => r.json())
       .then(json => {
-        if (json.success && Array.isArray(json.data)) {
-          const aranceles = json.data;
-          let suggestedMonto = 30;
-
-          if (conceptoDefault === 'formalizacion_afiliacion') {
-            const keyInscripcion = afiliadoTipo === 'Corporativo'
-              ? 'inscripcion_corporativo'
-              : afiliadoTipo === 'Agente Corporativo'
-                ? 'inscripcion_agente'
-                : 'inscripcion_natural';
-            const arInsc = aranceles.find((a: any) => a.codigo === keyInscripcion);
-            const arMens = aranceles.find((a: any) => a.codigo === 'mensualidad_base');
-            const pInsc = arInsc ? Number(arInsc.monto_usd) : 25;
-            const pMens = arMens ? Number(arMens.monto_usd) : 5;
-            suggestedMonto = pInsc + pMens;
-          } else if (conceptoDefault === 'curso_cibir') {
-            const arCibir = aranceles.find((a: any) => a.codigo === 'curso_cibir');
-            suggestedMonto = arCibir ? Number(arCibir.monto_usd) : 30;
-          } else if (conceptoDefault === 'mensualidad') {
-            const arMens = aranceles.find((a: any) => a.codigo === 'mensualidad_base');
-            suggestedMonto = arMens ? Number(arMens.monto_usd) : 5;
-          }
-
-          setMontoUSD(suggestedMonto);
-          const t = parseFloat(tasaBcv) || 60;
-          setMontoVES(Number((suggestedMonto * t).toFixed(2)));
+        if (json.success && json.data?.tasas) {
+          const tB = json.data.tasas.USD_BCV?.tasa;
+          const tU = json.data.tasas.USDT_BINANCE?.tasa;
+          if (tB) setTasaBcv(String(tB));
+          if (tU) setTasaUsdt(String(tU));
+          return tB || 875.65;
         }
+        return 875.65;
       })
-      .catch(err => console.error('Error cargando aranceles:', err))
+      .catch(() => 875.65)
+      .then((activeTasa) => {
+        // 2. Cargar aranceles
+        return fetch(`${API_URL}/api/pagos/aranceles`)
+          .then(res => res.json())
+          .then(json => {
+            if (json.success && Array.isArray(json.data)) {
+              const aranceles = json.data;
+              let suggestedMonto = 30;
+
+              if (conceptoDefault === 'formalizacion_afiliacion') {
+                const keyInscripcion = afiliadoTipo === 'Corporativo'
+                  ? 'inscripcion_corporativo'
+                  : afiliadoTipo === 'Agente Corporativo'
+                    ? 'inscripcion_agente'
+                    : 'inscripcion_natural';
+                const arInsc = aranceles.find((a: any) => a.codigo === keyInscripcion);
+                const arMens = aranceles.find((a: any) => a.codigo === 'mensualidad_base');
+                const pInsc = arInsc ? Number(arInsc.monto_usd) : 25;
+                const pMens = arMens ? Number(arMens.monto_usd) : 5;
+                suggestedMonto = pInsc + pMens;
+              } else if (conceptoDefault === 'curso_cibir') {
+                const arCibir = aranceles.find((a: any) => a.codigo === 'curso_cibir');
+                suggestedMonto = arCibir ? Number(arCibir.monto_usd) : 30;
+              } else if (conceptoDefault === 'mensualidad') {
+                const arMens = aranceles.find((a: any) => a.codigo === 'mensualidad_base');
+                suggestedMonto = arMens ? Number(arMens.monto_usd) : 5;
+              }
+
+              setMontoUSD(suggestedMonto);
+              const t = parseFloat(String(activeTasa)) || 875.65;
+              setMontoVES(Number((suggestedMonto * t).toFixed(2)));
+            }
+          });
+      })
+      .catch(err => console.error('Error cargando aranceles/tasas:', err))
       .finally(() => setLoadingAranceles(false));
   }, [open, conceptoDefault, afiliadoTipo]);
 
@@ -100,7 +119,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
 
   const handleMetodoChange = (m: MetodoPago) => {
     setMetodoPago(m);
-    if (m === 'efectivo_usd' || m === 'zelle') {
+    if (m === 'efectivo_usd' || m === 'zelle' || m === 'binance_usdt') {
       setMoneda('USD');
     } else {
       setMoneda('VES');
@@ -274,7 +293,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
               {[
                 { key: 'efectivo_usd', label: 'Efectivo USD', icon: DollarSign },
                 { key: 'efectivo_bs', label: 'Efectivo Bs', icon: Banknote },
-                { key: 'pos_debito', label: 'Punto (POS)', icon: CreditCard },
+                { key: 'binance_usdt', label: 'Binance (USDT)', icon: BinanceIcon },
                 { key: 'pago_movil', label: 'Pago Móvil', icon: Landmark },
                 { key: 'transferencia_bs', label: 'Transferencia Bs', icon: Landmark },
                 { key: 'zelle', label: 'Zelle USD', icon: DollarSign },
@@ -292,7 +311,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className={`w-4 h-4 ${m.key === 'binance_usdt' && !isSelected ? 'text-[#F0B90B]' : ''}`} />
                     <span className="text-[10px] leading-tight">{m.label}</span>
                   </button>
                 );
@@ -353,30 +372,30 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             </div>
           </div>
 
-          {/* Referencia y Banco (opcional si es digital o POS) */}
+          {/* Referencia y Banco (opcional si es digital o Binance) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                Nº Referencia / Lote POS (Opcional)
+                {metodoPago === 'binance_usdt' ? 'Nº Referencia / Order ID / Hash (Opcional)' : 'Nº Referencia / Confirmación (Opcional)'}
               </label>
               <input
                 type="text"
                 value={referencia}
                 onChange={(e) => setReferencia(e.target.value)}
-                placeholder="Ej. 182739 o Lote-04"
+                placeholder={metodoPago === 'binance_usdt' ? 'Ej. Order ID / TXID' : 'Ej. 182739'}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 text-xs font-mono font-bold"
               />
             </div>
 
             <div>
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                Banco Origen (Opcional)
+                {metodoPago === 'binance_usdt' ? 'Cuenta / Binance Pay ID (Opcional)' : 'Banco Origen (Opcional)'}
               </label>
               <input
                 type="text"
                 value={bancoOrigen}
                 onChange={(e) => setBancoOrigen(e.target.value)}
-                placeholder="Ej. Banesco, Mercantil, BDV"
+                placeholder={metodoPago === 'binance_usdt' ? 'Ej. Binance Pay ID / Email' : 'Ej. Banesco, Mercantil, BDV'}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 text-xs font-medium"
               />
             </div>

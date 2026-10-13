@@ -7,7 +7,12 @@ import {
   crearMovimiento,
   actualizarMovimiento,
   anularMovimiento,
-  eliminarMovimiento
+  eliminarMovimiento,
+  getTasasReferencias,
+  sincronizarTasasEnVivo,
+  actualizarTasaManual,
+  resetTasaManual,
+  getHistorialTasas
 } from '../controllers/finanzas.controller.js';
 
 const router = Router();
@@ -23,5 +28,12 @@ router.post('/movimientos', crearMovimiento);
 router.put('/movimientos/:id', actualizarMovimiento);
 router.patch('/movimientos/:id/anular', anularMovimiento);
 router.delete('/movimientos/:id', eliminarMovimiento);
+
+// ── Rutas de referencias y tasas de cambio ──
+router.get('/referencias', getTasasReferencias);
+router.post('/referencias/sync', sincronizarTasasEnVivo);
+router.put('/referencias/:codigo', actualizarTasaManual);
+router.delete('/referencias/:codigo/manual', resetTasaManual);
+router.get('/referencias/historial', getHistorialTasas);
 
 export default router;
