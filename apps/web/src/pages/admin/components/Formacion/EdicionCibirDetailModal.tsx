@@ -15,7 +15,10 @@ import {
   AlertCircle,
   Calendar,
   GraduationCap,
-  Banknote
+  Banknote,
+  ChevronDown,
+  Mail,
+  Phone
 } from 'lucide-react'
 import { formatDateLatina } from '@/utils/formatters'
 import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
@@ -63,6 +66,8 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
   const [loading, setLoading] = useState(true)
   const [filterEstatus, setFilterEstatus] = useState<string>('Todos')
   const [search, setSearch] = useState('')
+  const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'email'>('nombre')
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [actionLoading, setActionLoading] = useState(false)
   const [showCobroModal, setShowCobroModal] = useState(false)
@@ -80,7 +85,10 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
     try {
       const q = new URLSearchParams()
       if (filterEstatus !== 'Todos') q.set('estatus', filterEstatus)
-      if (search.trim()) q.set('search', search.trim())
+      if (search.trim()) {
+        q.set('search', search.trim())
+        q.set('searchField', searchField)
+      }
 
       const res = await fetch(`${API_URL}/api/admin/cibir/ediciones/${edicion.id_edicion}/inscritos?${q.toString()}`, {
         headers
@@ -97,7 +105,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
     } finally {
       setLoading(false)
     }
-  }, [edicion.id_edicion, filterEstatus, search, token])
+  }, [edicion.id_edicion, filterEstatus, search, searchField, token])
 
   useEffect(() => {
     fetchInscritos()
@@ -217,8 +225,8 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6">
+      <div className="bg-white rounded-3xl w-full max-w-6xl xl:max-w-7xl h-[92vh] max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header Modal */}
         <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/60">
           <div className="flex items-center gap-3">
@@ -250,20 +258,76 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
 
         {/* Barra de Filtros y Búsqueda */}
         <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
-          <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 focus-within:border-emerald-500 focus-within:bg-white transition-all">
-            <Search size={14} className="text-slate-400 shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por nombre, cédula o empresa..."
-              className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-600">
-                <X size={12} />
+          {/* Buscador libre con dropdown de criterio igual al estándar del proyecto */}
+          <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-9 flex-1 min-w-[260px] max-w-md z-20">
+            {/* Dropdown de criterio */}
+            <div className="relative shrink-0 border-r border-slate-200/80 h-full flex items-center z-10">
+              <button
+                type="button"
+                onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+                className="flex items-center gap-1 px-3 h-full text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                <span>
+                  {searchField === 'nombre' && 'Nombre'}
+                  {searchField === 'cedula' && 'Cédula'}
+                  {searchField === 'email' && 'Correo'}
+                </span>
+                <ChevronDown size={11} className={`text-slate-400 transition-transform ${showSearchDropdown ? 'rotate-180' : ''}`} />
               </button>
-            )}
+
+              {showSearchDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowSearchDropdown(false)} />
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] animate-in fade-in slide-in-from-top-1 duration-100">
+                    {([
+                      { key: 'nombre', label: 'Nombre' },
+                      { key: 'cedula', label: 'Cédula' },
+                      { key: 'email', label: 'Correo' },
+                    ] as const).map(option => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setSearchField(option.key)
+                          setShowSearchDropdown(false)
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                          searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Input de texto */}
+            <div className="relative flex-grow h-full flex items-center">
+              <Search className="absolute left-2.5 text-slate-400" size={13} />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={`Buscar por ${
+                  searchField === 'nombre'
+                    ? 'nombre o empresa...'
+                    : searchField === 'cedula'
+                    ? 'cédula de identidad...'
+                    : 'correo electrónico...'
+                }`}
+                className="w-full h-full pl-7 pr-8 bg-transparent text-xs font-semibold placeholder:text-slate-400 outline-none text-slate-800"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-slate-300 transition-colors cursor-pointer"
+                >
+                  <X size={10} />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -271,9 +335,9 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
               <button
                 key={st}
                 onClick={() => setFilterEstatus(st)}
-                className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors cursor-pointer ${
+                className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
                   filterEstatus === st
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -333,6 +397,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                   </th>
                   <th className="py-2.5 px-3">Participante</th>
                   <th className="py-2.5 px-3">Cédula / Rif</th>
+                  <th className="py-2.5 px-3">Contacto</th>
                   <th className="py-2.5 px-3">Estado CIBIR</th>
                   <th className="py-2.5 px-3 text-right pr-4">Acciones</th>
                 </tr>
@@ -369,6 +434,21 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-600 text-[11px]">
                         {p.cedula || 'S/D'}
+                      </td>
+                      <td className="py-3 px-3">
+                        {p.email && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-600 truncate max-w-[220px]">
+                            <Mail size={12} className="text-slate-400 shrink-0" />
+                            <span className="truncate">{p.email}</span>
+                          </div>
+                        )}
+                        {p.telefono && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                            <Phone size={11} className="text-slate-400 shrink-0" />
+                            <span>{p.telefono}</span>
+                          </div>
+                        )}
+                        {!p.email && !p.telefono && <span className="text-[11px] text-slate-300">S/D</span>}
                       </td>
                       <td className="py-3 px-3">
                         {p.estatus === 'Aprobado' && (

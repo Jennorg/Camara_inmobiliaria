@@ -20,7 +20,7 @@ import {
   RefreshCw,
   Search
 } from 'lucide-react'
-import { formatDateLatina } from '@/utils/formatters'
+import { formatDateLatina, numeroAOrdinalEdicion } from '@/utils/formatters'
 import EdicionCibirDetailModal from './EdicionCibirDetailModal'
 
 export interface EdicionCibir {
@@ -54,7 +54,6 @@ export default function EdicionesCibirPanel() {
   const [formFechaInicio, setFormFechaInicio] = useState('')
   const [formFechaFin, setFormFechaFin] = useState('')
   const [formCupo, setFormCupo] = useState<number | ''>('')
-  const [formEstado, setFormEstado] = useState<'Planificada' | 'Abierta'>('Planificada')
   const [submitting, setSubmitting] = useState(false)
 
   const headers: Record<string, string> = {
@@ -89,6 +88,11 @@ export default function EdicionesCibirPanel() {
 
   const edicionActiva = ediciones.find(e => e.estado === 'Abierta' || e.estado === 'Planificada')
 
+  const proximoNumero = (ediciones && ediciones.length > 0 
+    ? Math.max(...ediciones.map(e => e.id_edicion || 0)) 
+    : 0) + 1
+  const proximoNombre = numeroAOrdinalEdicion(proximoNumero)
+
   const handleOpenCreate = () => {
     if (edicionActiva) {
       Swal.fire({
@@ -105,7 +109,6 @@ export default function EdicionesCibirPanel() {
     setFormFechaInicio(new Date().toISOString().split('T')[0])
     setFormFechaFin('')
     setFormCupo('')
-    setFormEstado('Abierta')
     setShowCreateModal(true)
   }
 
@@ -121,15 +124,15 @@ export default function EdicionesCibirPanel() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formNombre.trim() || !formFechaInicio) {
-      toast.error('Nombre y fecha de inicio son requeridos')
+    if (!formFechaInicio) {
+      toast.error('La fecha de inicio es requerida')
       return
     }
 
     try {
       setSubmitting(true)
       const payload: any = {
-        nombre: formNombre.trim(),
+        nombre: editingEdicion ? (formNombre.trim() || editingEdicion.nombre) : proximoNombre,
         descripcion: formDescripcion.trim() || null,
         fecha_inicio: formFechaInicio,
         fecha_fin: formFechaFin || null,
@@ -144,7 +147,7 @@ export default function EdicionesCibirPanel() {
           body: JSON.stringify(payload)
         })
       } else {
-        payload.estado = formEstado
+        payload.estado = 'Abierta'
         res = await fetch(`${API_URL}/api/admin/cibir/ediciones`, {
           method: 'POST',
           headers,
@@ -511,19 +514,35 @@ export default function EdicionesCibirPanel() {
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  Nombre de la Edición *
-                </label>
-                <input
-                  type="text"
-                  value={formNombre}
-                  onChange={e => setFormNombre(e.target.value)}
-                  placeholder="Ej: CIBIR 2026-I"
-                  required
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
+              {editingEdicion ? (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Nombre de la Edición *
+                  </label>
+                  <input
+                    type="text"
+                    value={formNombre}
+                    onChange={e => setFormNombre(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+              ) : (
+                <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-2xl p-3.5 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                      Nombre de la Edición (Autonumérico)
+                    </span>
+                    <span className="text-base font-black text-slate-900 uppercase tracking-tight block">
+                      {proximoNombre}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-emerald-800 shadow-xs">
+                    <GraduationCap size={15} />
+                    <span className="text-xs font-black">#{proximoNumero}</span>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -564,35 +583,18 @@ export default function EdicionesCibirPanel() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Cupo Máximo
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formCupo}
-                    onChange={e => setFormCupo(e.target.value ? Number(e.target.value) : '')}
-                    placeholder="Sin límite"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                {!editingEdicion && (
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      Estado Inicial
-                    </label>
-                    <select
-                      value={formEstado}
-                      onChange={e => setFormEstado(e.target.value as any)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none bg-white"
-                    >
-                      <option value="Abierta">Abierta (recibe aspirantes ya)</option>
-                      <option value="Planificada">Planificada</option>
-                    </select>
-                  </div>
-                )}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Cupo Máximo
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formCupo}
+                  onChange={e => setFormCupo(e.target.value ? Number(e.target.value) : '')}
+                  placeholder="Sin límite"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">

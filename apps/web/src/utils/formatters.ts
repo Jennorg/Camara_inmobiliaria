@@ -320,3 +320,44 @@ export const formatDateShortLatina = (dateInput?: string | Date | number | null)
   return formatDateLatina(dateInput, { shortYear: true });
 };
 
+/**
+ * Convierte un número correlativo autonumérico a texto ordinal en femenino
+ * (ej. 1 -> "Primera Edición", 2 -> "Segunda Edición", 3 -> "Tercera Edición").
+ */
+export const numeroAOrdinalEdicion = (n: number): string => {
+  const unidades = [
+    '', 'Primera', 'Segunda', 'Tercera', 'Cuarta', 'Quinta',
+    'Sexta', 'Séptima', 'Octava', 'Novena'
+  ];
+  const decenas = [
+    '', 'Décima', 'Vigésima', 'Trigésima', 'Cuadragésima',
+    'Quincuagésima', 'Sexagésima', 'Septuagésima', 'Octogésima', 'Nonagésima'
+  ];
+  const centenas = [
+    '', 'Centésima', 'Ducentésima', 'Trecentésima', 'Cuadringentésima',
+    'Quingentésima', 'Sexcentésima', 'Septingentésima', 'Octingentésima', 'Noningentésima'
+  ];
+
+  if (!n || n <= 0) return 'Primera Edición';
+  if (n < 10) return `${unidades[n]} Edición`;
+  if (n === 10) return 'Décima Edición';
+  if (n < 20) return `Décima ${unidades[n % 10]} Edición`;
+  if (n < 100) {
+    const d = Math.floor(n / 10);
+    const u = n % 10;
+    return `${u === 0 ? decenas[d] : `${decenas[d]} ${unidades[u]}`} Edición`;
+  }
+  if (n < 1000) {
+    const c = Math.floor(n / 100);
+    const resto = n % 100;
+    if (resto === 0) return `${centenas[c]} Edición`;
+    const d = Math.floor(resto / 10);
+    const u = resto % 10;
+    const parts = [centenas[c]];
+    if (d > 0) parts.push(d === 1 && u > 0 ? 'Décima' : decenas[d]);
+    if (u > 0) parts.push(unidades[u]);
+    return `${parts.join(' ')} Edición`;
+  }
+  return `${n}ª Edición`;
+};
+

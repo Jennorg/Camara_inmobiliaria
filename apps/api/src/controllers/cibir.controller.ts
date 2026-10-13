@@ -33,6 +33,47 @@ export const listEdiciones = async (req: Request, res: Response): Promise<void> 
 }
 
 /**
+ * Convierte un número correlativo autonumérico a texto ordinal en femenino
+ * (ej. 1 -> "Primera Edición", 2 -> "Segunda Edición", 3 -> "Tercera Edición").
+ */
+function numeroAOrdinalEdicion(n: number): string {
+  const unidades = [
+    '', 'Primera', 'Segunda', 'Tercera', 'Cuarta', 'Quinta',
+    'Sexta', 'Séptima', 'Octava', 'Novena'
+  ]
+  const decenas = [
+    '', 'Décima', 'Vigésima', 'Trigésima', 'Cuadragésima',
+    'Quincuagésima', 'Sexagésima', 'Septuagésima', 'Octogésima', 'Nonagésima'
+  ]
+  const centenas = [
+    '', 'Centésima', 'Ducentésima', 'Trecentésima', 'Cuadringentésima',
+    'Quingentésima', 'Sexcentésima', 'Septingentésima', 'Octingentésima', 'Noningentésima'
+  ]
+
+  if (!n || n <= 0) return 'Primera Edición'
+  if (n < 10) return `${unidades[n]} Edición`
+  if (n === 10) return 'Décima Edición'
+  if (n < 20) return `Décima ${unidades[n % 10]} Edición`
+  if (n < 100) {
+    const d = Math.floor(n / 10)
+    const u = n % 10
+    return `${u === 0 ? decenas[d] : `${decenas[d]} ${unidades[u]}`} Edición`
+  }
+  if (n < 1000) {
+    const c = Math.floor(n / 100)
+    const resto = n % 100
+    if (resto === 0) return `${centenas[c]} Edición`
+    const d = Math.floor(resto / 10)
+    const u = resto % 10
+    const parts = [centenas[c]]
+    if (d > 0) parts.push(d === 1 && u > 0 ? 'Décima' : decenas[d])
+    if (u > 0) parts.push(unidades[u])
+    return `${parts.join(' ')} Edición`
+  }
+  return `${n}ª Edición`
+}
+
+/**
  * POST /api/admin/cibir/ediciones
  * Crea una nueva edición CIBIR.
  * R2: Valida que NO exista otra edición 'Planificada' o 'Abierta'.
@@ -41,14 +82,14 @@ export const createEdicion = async (req: Request, res: Response): Promise<void> 
   try {
     const { nombre, descripcion, fecha_inicio, fecha_fin, cupo_maximo, estado } = req.body
 
-    if (!nombre || !fecha_inicio) {
-      res.status(400).json({ success: false, message: 'El nombre y la fecha de inicio son requeridos' })
+    if (!fecha_inicio) {
+      res.status(400).json({ success: false, message: 'La fecha de inicio es requerida' })
       return
     }
 
-    const estadoFinal = estado && ['Planificada', 'Abierta'].includes(estado) ? estado : 'Planificada'
+    const estadoFinal = 'Abierta'
 
-    // Regla R2: Solo una edición activa a la vez
+    // Regla R2: Solo una edición activa/abierta a la vez
     const activas = await db.execute(`
       SELECT id_edicion, nombre, estado 
       FROM ediciones_cibir 
@@ -60,10 +101,15 @@ export const createEdicion = async (req: Request, res: Response): Promise<void> 
       const act = activas.rows[0] as any
       res.status(409).json({
         success: false,
-        message: `Ya existe una edición CIBIR activa ("${act.nombre}" en estado ${act.estado}). Debe cerrarla o finalizarla antes de crear una nueva.`
+        message: `Ya existe una edición CIBIR activa ("${act.nombre}"). Debe cerrarla o finalizarla antes de crear una nueva.`
       })
       return
     }
+
+    // Calcular el número correlativo autonumérico de la edición
+    const maxRes = await db.execute(`SELECT COALESCE(MAX(id_edicion), 0) as max_id FROM ediciones_cibir`)
+    const nextNum = Number((maxRes.rows[0] as any)?.max_id || 0) + 1
+    const nombreFinal = (nombre && String(nombre).trim()) ? String(nombre).trim() : numeroAOrdinalEdicion(nextNum)
 
     const userId = req.user?.id || null
     const cupo = cupo_maximo !== undefined && cupo_maximo !== null && cupo_maximo !== '' ? Number(cupo_maximo) : null
@@ -72,15 +118,13 @@ export const createEdicion = async (req: Request, res: Response): Promise<void> 
       sql: `INSERT INTO ediciones_cibir (nombre, descripcion, fecha_inicio, fecha_fin, estado, cupo_maximo, creado_por)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
-      args: [nombre.trim(), descripcion ? descripcion.trim() : null, fecha_inicio, fecha_fin || null, estadoFinal, cupo, userId]
+      args: [nombreFinal, descripcion ? descripcion.trim() : null, fecha_inicio, fecha_fin || null, estadoFinal, cupo, userId]
     })
 
     const nuevaEdicion = ins.rows[0] as any
 
-    // Si se creó directamente como 'Abierta', auto-asignar a todos los pendientes en 5_CIBIR
-    if (estadoFinal === 'Abierta') {
-      await autoAsignarPendientesAEdicion(nuevaEdicion.id_edicion, cupo)
-    }
+    // Al crearse directamente como 'Abierta', auto-asignar a todos los pendientes en 5_CIBIR
+    await autoAsignarPendientesAEdicion(nuevaEdicion.id_edicion, cupo)
 
     res.status(201).json({
       success: true,
@@ -304,7 +348,7 @@ export const deleteEdicion = async (req: Request, res: Response): Promise<void> 
 export const listInscritos = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id)
-    const { estatus, search } = req.query
+    const { estatus, search, searchField } = req.query
 
     let sql = `
       SELECT 
@@ -340,8 +384,19 @@ export const listInscritos = async (req: Request, res: Response): Promise<void> 
 
     if (search && String(search).trim() !== '') {
       const term = `%${String(search).trim()}%`
-      sql += ` AND (p.nombres LIKE ? OR p.apellidos LIKE ? OR p.cedula LIKE ? OR e.razon_social LIKE ? OR a.codigo LIKE ?)`
-      args.push(term, term, term, term, term)
+      if (searchField === 'nombre') {
+        sql += ` AND (p.nombres LIKE ? OR p.apellidos LIKE ? OR e.razon_social LIKE ?)`
+        args.push(term, term, term)
+      } else if (searchField === 'cedula') {
+        sql += ` AND (p.cedula LIKE ?)`
+        args.push(term)
+      } else if (searchField === 'email') {
+        sql += ` AND (p.email LIKE ? OR e.email LIKE ?)`
+        args.push(term, term)
+      } else {
+        sql += ` AND (p.nombres LIKE ? OR p.apellidos LIKE ? OR p.cedula LIKE ? OR e.razon_social LIKE ? OR a.codigo LIKE ? OR p.email LIKE ? OR e.email LIKE ?)`
+        args.push(term, term, term, term, term, term, term)
+      }
     }
 
     sql += ` ORDER BY i.fecha_asignacion DESC`
