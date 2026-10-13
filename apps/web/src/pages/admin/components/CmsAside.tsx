@@ -395,6 +395,7 @@ const SidebarContent = ({
           return (
             <React.Fragment key={item.id}>
               <button
+                data-testid={`aside-nav-${item.id}`}
                 onClick={() => {
                   if (hasChildren) {
                     toggleGroup(item.id)
