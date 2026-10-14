@@ -5,7 +5,7 @@ import Header from '@/pages/landing/components/Header'
 import NosotrosSection from '@/pages/landing/components/sections/NosotrosSection'
 import OrigenesSection from '@/pages/landing/components/sections/OrigenesSection'
 import AfiliadosSection from '@/pages/landing/components/sections/AfiliadosSection'
-import FormacionSection from '@/pages/landing/components/sections/FormacionSection'
+// import FormacionSection from '@/pages/landing/components/sections/FormacionSection'
 import DirectivaSection from '@/pages/landing/components/sections/DirectivaSection'
 import BentoGallerySection from '@/pages/landing/components/sections/BentoGallerySection'
 import Footer from '@/pages/landing/components/Footer'
@@ -40,7 +40,7 @@ export default function LandingPage() {
       </div>
 
       <NosotrosSection />
-      <FormacionSection />
+      {/* <FormacionSection /> */}
 
       <AfiliadosSection />
 

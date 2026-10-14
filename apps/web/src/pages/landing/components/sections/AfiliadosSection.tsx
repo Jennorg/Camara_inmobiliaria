@@ -79,7 +79,7 @@ export default function AfiliadosSection() {
               loading="lazy"
               decoding="async"
               ref={revealImg} 
-              className='rounded-[2rem] h-64 w-full object-cover shadow-lg reveal-on-scroll' 
+              className='rounded-[2rem] w-full h-auto object-contain shadow-lg reveal-on-scroll' 
             />
           </div>
           <div className='pt-12 space-y-4'>
