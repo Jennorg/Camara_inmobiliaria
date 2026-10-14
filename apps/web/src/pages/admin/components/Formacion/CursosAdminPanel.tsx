@@ -75,6 +75,7 @@ export interface CursoDB {
   modalidad?: string | null;
   instructor_cargo?: string | null;
   modulos_lista?: string | null;
+  cursos_excluyentes?: string | number[] | null;
   modulos?: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
 }
 
@@ -201,6 +202,7 @@ const CursosAdminPanel = () => {
     categoria: string;
     estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
     solo_informativo: number;
+    cursos_excluyentes: number[];
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
     firmantes: FirmanteItem[];
   }>({
@@ -214,6 +216,7 @@ const CursosAdminPanel = () => {
     categoria: 'Taller',
     estatus: 'Abierto',
     solo_informativo: 0,
+    cursos_excluyentes: [],
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
     firmantes: [],
   });
@@ -353,6 +356,17 @@ const CursosAdminPanel = () => {
       }
     }
 
+    let parsedExcluyentes: number[] = [];
+    if (curso && curso.cursos_excluyentes) {
+      try {
+        parsedExcluyentes = typeof curso.cursos_excluyentes === 'string'
+          ? JSON.parse(curso.cursos_excluyentes)
+          : (Array.isArray(curso.cursos_excluyentes) ? curso.cursos_excluyentes : []);
+      } catch {
+        parsedExcluyentes = [];
+      }
+    }
+
     if (curso) {
       setEditingId(curso.id_curso);
       setFormData({
@@ -366,6 +380,7 @@ const CursosAdminPanel = () => {
         categoria: curso.categoria || 'Taller',
         estatus: (curso.estatus as any) || 'Abierto',
         solo_informativo: curso.solo_informativo ? 1 : 0,
+        cursos_excluyentes: parsedExcluyentes,
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
       });
@@ -382,6 +397,7 @@ const CursosAdminPanel = () => {
         categoria: 'Taller',
         estatus: 'Abierto',
         solo_informativo: 0,
+        cursos_excluyentes: [],
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
       });
@@ -671,6 +687,22 @@ const CursosAdminPanel = () => {
                           Informativo
                         </span>
                       )}
+                      {(() => {
+                        let excl: number[] = [];
+                        try {
+                          excl = typeof c.cursos_excluyentes === 'string'
+                            ? JSON.parse(c.cursos_excluyentes)
+                            : (Array.isArray(c.cursos_excluyentes) ? c.cursos_excluyentes : []);
+                        } catch { excl = []; }
+                        if (excl.length > 0) {
+                          return (
+                            <span className="bg-amber-500/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1">
+                              <span>🚫</span> {excl.length} {excl.length === 1 ? 'excluyente' : 'excluyentes'}
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     <div className="absolute top-2 right-2 z-10">
@@ -818,6 +850,22 @@ const CursosAdminPanel = () => {
                             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${STATUS_STYLES[c.estatus] || 'bg-slate-100 text-slate-500'}`}>
                               {c.estatus}
                             </span>
+                            {(() => {
+                              let excl: number[] = [];
+                              try {
+                                excl = typeof c.cursos_excluyentes === 'string'
+                                  ? JSON.parse(c.cursos_excluyentes)
+                                  : (Array.isArray(c.cursos_excluyentes) ? c.cursos_excluyentes : []);
+                              } catch { excl = []; }
+                              if (excl.length > 0) {
+                                return (
+                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 uppercase tracking-wider flex items-center gap-1">
+                                    <span>🚫</span> {excl.length} {excl.length === 1 ? 'excluyente' : 'excluyentes'}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                           {c.categoria && (
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
@@ -1081,6 +1129,83 @@ const CursosAdminPanel = () => {
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                     value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({ ...formData, fecha_inicio: e.target.value })}
                   />
+                </div>
+
+                {/* Sección de Cursos Mutuamente Excluyentes */}
+                <div className="p-4 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-3 shadow-xs">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                        <span>🚫 Cursos Mutuamente Excluyentes (Incompatibilidad)</span>
+                        {formData.cursos_excluyentes.length > 0 && (
+                          <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">
+                            {formData.cursos_excluyentes.length} {formData.cursos_excluyentes.length === 1 ? 'curso' : 'cursos'}
+                          </span>
+                        )}
+                      </h5>
+                      <p className="text-[11px] text-amber-800/80 font-medium leading-relaxed mt-0.5">
+                        Si un estudiante se inscribe en este curso, <strong>no podrá inscribirse en ninguno de los cursos que selecciones aquí</strong> (y viceversa). Puedes seleccionar más de un curso.
+                      </p>
+                    </div>
+                    {formData.cursos_excluyentes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, cursos_excluyentes: [] })}
+                        className="text-[10px] text-amber-700 hover:text-amber-900 underline font-bold shrink-0"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {cursos.filter(c => c.id_curso !== editingId).length === 0 ? (
+                      <p className="text-[11px] text-slate-400 italic">No hay otros cursos disponibles para vincular en este momento.</p>
+                    ) : (
+                      cursos.filter(c => c.id_curso !== editingId).map(other => {
+                        const isSelected = formData.cursos_excluyentes.includes(other.id_curso);
+                        return (
+                          <label
+                            key={other.id_curso}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-amber-100/90 border-amber-400 shadow-xs'
+                                : 'bg-white/80 border-gray-200 hover:border-amber-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const updated = e.target.checked
+                                    ? [...formData.cursos_excluyentes, other.id_curso]
+                                    : formData.cursos_excluyentes.filter(id => id !== other.id_curso);
+                                  setFormData({ ...formData, cursos_excluyentes: updated });
+                                }}
+                                className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500 shrink-0"
+                              />
+                              <div className="truncate">
+                                <p className="text-xs font-bold text-slate-800 truncate">
+                                  {other.titulo || other.nombre}
+                                </p>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                  <span>{other.categoria || 'Curso'}</span>
+                                  <span>•</span>
+                                  <span>{other.estatus}</span>
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded-md shrink-0">
+                                Excluyente
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3 border-t border-gray-100 pt-4">

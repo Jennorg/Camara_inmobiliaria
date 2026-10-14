@@ -207,6 +207,7 @@ const statements = [
     banner_url        TEXT,
     cupos_totales     INTEGER,
     firmantes         TEXT,
+    cursos_excluyentes TEXT       DEFAULT '[]',
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en    TEXT,
     eliminado_en      TEXT
@@ -524,6 +525,12 @@ async function run() {
     // Migración: asegurar que exista firmantes en cursos
     try {
       await db.execute(`ALTER TABLE cursos ADD COLUMN firmantes TEXT`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: asegurar que exista cursos_excluyentes en cursos
+    try {
+      await db.execute(`ALTER TABLE cursos ADD COLUMN cursos_excluyentes TEXT DEFAULT '[]'`)
     } catch (e) {
       // Ignorar si la columna ya existe
     }
