@@ -96,15 +96,24 @@ export default function CursosCatalogPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nombreCompleto: result.value.nombre, email: result.value.email }),
         })
-          .then((res) => {
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return res.json();
+          .then(async (res) => {
+            const json = await res.json().catch(() => ({}));
+            if (json && typeof json.message === 'string') {
+              if (json.success) {
+                Swal.fire('¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success');
+              } else {
+                Swal.fire('Atención', json.message, 'warning');
+              }
+              return;
+            }
+            if (!res.ok) {
+              throw new Error(`Error en el servidor (${res.status})`);
+            }
+            Swal.fire('¡Solicitud enviada!', 'Te contactaremos pronto.', 'success');
           })
-          .then((json) => {
-            if (json.success) Swal.fire('¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success')
-            else Swal.fire('Atención', json.message || 'Hubo un error al procesar tu solicitud.', 'warning')
+          .catch((err) => {
+            Swal.fire('Error', err?.message || 'Hubo un fallo de conexión al enviar la solicitud.', 'error');
           })
-          .catch(() => Swal.fire('Error', 'Hubo un fallo de conexión al enviar la solicitud.', 'error'))
       }
     })
   }
