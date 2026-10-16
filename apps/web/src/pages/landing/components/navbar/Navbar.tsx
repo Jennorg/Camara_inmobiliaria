@@ -122,7 +122,11 @@ const Navbar = ({
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 shadow-xs ${darkMode ? 'bg-emerald-400 text-slate-950' : 'bg-white text-emerald-700'}`}>
                       <User size={13} strokeWidth={2.8} />
                     </div>
-                    <span className="truncate max-w-[130px] font-extrabold">{user.email.split('@')[0]}</span>
+                    {user?.nombres && user?.apellidos ? (
+  <span className="truncate max-w-[130px] font-extrabold">{user.nombres} {user.apellidos}</span>
+) : (
+  <span className="truncate max-w-[130px] font-extrabold">{user.email.split('@')[0]}</span>
+)}
                   </Link>
 
                   <button

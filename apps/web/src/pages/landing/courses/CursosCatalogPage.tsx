@@ -70,10 +70,12 @@ export default function CursosCatalogPage() {
       icon: 'info',
       html: `
         <div class="text-left mt-3" style="color: black;">
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Nombre Completo</label>
-          <input id="swal-nombre" class="w-full border rounded p-2 mb-3">
+          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Nombres</label>
+          <input id="swal-nombres" placeholder="Ej. María Elena" class="w-full border rounded p-2 mb-3">
+          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Apellidos</label>
+          <input id="swal-apellidos" placeholder="Ej. González Pérez" class="w-full border rounded p-2 mb-3">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Correo Electrónico</label>
-          <input id="swal-email" type="email" class="w-full border rounded p-2">
+          <input id="swal-email" type="email" placeholder="ejemplo@correo.com" class="w-full border rounded p-2">
         </div>
       `,
       showCancelButton: true,
@@ -81,20 +83,25 @@ export default function CursosCatalogPage() {
       cancelButtonText: 'Cancelar',
       confirmButtonColor: '#10b981',
       preConfirm: () => {
-        const nombre = (document.getElementById('swal-nombre') as HTMLInputElement).value
-        const email = (document.getElementById('swal-email') as HTMLInputElement).value
-        if (!nombre || !email) {
-          Swal.showValidationMessage('Nombre y correo son requeridos')
+        const nombres = ((document.getElementById('swal-nombres') as HTMLInputElement)?.value || '').trim()
+        const apellidos = ((document.getElementById('swal-apellidos') as HTMLInputElement)?.value || '').trim()
+        const email = ((document.getElementById('swal-email') as HTMLInputElement)?.value || '').trim()
+        if (!nombres || !apellidos || !email) {
+          Swal.showValidationMessage('Nombres, apellidos y correo son requeridos')
           return false
         }
-        return { nombre, email }
+        return { nombres, apellidos, email }
       },
     }).then((result) => {
       if (result.isConfirmed) {
         fetch(`${API_URL}/api/public/cursos/${curso.id_curso}/preinscribir`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombreCompleto: result.value.nombre, email: result.value.email }),
+          body: JSON.stringify({
+            nombres: result.value.nombres,
+            apellidos: result.value.apellidos,
+            email: result.value.email
+          }),
         })
           .then(async (res) => {
             const json = await res.json().catch(() => ({}));

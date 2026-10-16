@@ -1884,8 +1884,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
     const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed.replace(/\D/g, '');
 
-    const nombre = r.estudiante_nombres || (r.estudiante_nombre ? (r.estudiante_nombre.trim().split(/\s+/).length > 1 ? r.estudiante_nombre.trim().split(/\s+/).slice(0, -1).join(' ') : r.estudiante_nombre.trim()) : '');
-    const apellido = r.estudiante_apellidos || (r.estudiante_nombre && r.estudiante_nombre.trim().split(/\s+/).length > 1 ? r.estudiante_nombre.trim().split(/\s+/).slice(-1)[0] : '');
+    const nombre = r.estudiante_nombres || r.estudiante_nombre || '';
+    const apellido = r.estudiante_apellidos || '';
 
     setEditFormData({
       nombre,
