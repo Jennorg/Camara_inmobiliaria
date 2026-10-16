@@ -164,7 +164,10 @@ const PanelPage = () => {
       .then(d => {
         if (!active) return;
         if (d.success && Array.isArray(d.data)) {
-          setPreinscripcionesCount(d.data.length);
+          const pendingProgramas = d.data.filter((r: any) =>
+            r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0 && !r.id_curso
+          )
+          setPreinscripcionesCount(pendingProgramas.length)
         }
       })
       .catch(() => {});
@@ -590,7 +593,7 @@ const PanelPage = () => {
                   <div className="flex flex-wrap gap-2">
                     {/* Filtramos y normalizamos los roles para la vista, priorizando afiliado sobre estudiante */}
                     {(() => {
-                      let rawRoles = [...(user?.roles || [])];
+                      const rawRoles = [...(user?.roles || [])];
                       if ((user?.id_afiliado || user?.tipo_afiliado || afiliado?.id_afiliado) && !rawRoles.includes('afiliado')) {
                         rawRoles.push('afiliado');
                       }
