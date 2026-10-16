@@ -18,7 +18,7 @@ const AFILIACION_STEPS_FLOW = [
   { label: 'Afiliación', desc: 'Miembro activo de la Cámara', icon: Check, labelShort: 'Afil.' }
 ]
 
-type ProgramaCodigo = 'PADI' | 'PEGI' | 'PREANI' | 'CIBIR' | 'AFILIACION'
+type ProgramaCodigo = 'ACREDITACION' | 'CIBIR' | 'PADI' | 'PEGI' | 'PREANI' | 'AFILIACION'
 type Estatus = 'Preinscrito' | 'Entrevista' | 'Inscrito' | 'Rechazado' | 'Cancelado'
 
 type Row = {
@@ -66,9 +66,7 @@ export default function PreinscripcionesPrincipalesPanel({
   type UiEstatus = 'Todos' | 'Pendiente' | 'Sin Expediente' | 'Entrevista' | 'Inscripción' | 'Rechazado'
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
   const [search, setSearch] = useState('')
-  const [filtroAcreditacion, setFiltroAcreditacion] = useState<'todos' | 'apto' | 'no_apto'>('todos')
   const [showProgramaDropdown, setShowProgramaDropdown] = useState(false)
-  const [showAcreditacionDropdown, setShowAcreditacionDropdown] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -136,7 +134,14 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const qs = new URLSearchParams()
       qs.set('estatus', 'Todos')
-      if (programa !== 'Todos') qs.set('programaCodigo', programa)
+      if (programa !== 'Todos') {
+        // Tanto ACREDITACION como CIBIR se mapean a 'AFILIACION' en la API
+        if (programa === 'ACREDITACION' || programa === 'CIBIR') {
+          qs.set('programaCodigo', 'AFILIACION')
+        } else {
+          qs.set('programaCodigo', programa)
+        }
+      }
 
       const res = await fetch(`${API_URL}/api/academia/preinscripciones?${qs.toString()}`, {
         headers: { ...authHeaders },
@@ -740,13 +745,22 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
-  const counts = useMemo(() => {
-    let base = rows
-    if (filtroAcreditacion === 'apto') {
-      base = base.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
-    } else if (filtroAcreditacion === 'no_apto') {
-      base = base.filter(r => r.programa_codigo !== 'AFILIACION' || !r.apto_acreditacion)
+  // Filas acotadas por el programa seleccionado.
+  // El servidor ya filtra por programa (ACREDITACION y CIBIR se piden como 'AFILIACION').
+  //  - ACREDITACION: lista de preinscritos pendientes que SÍ optan por acreditación.
+  //  - CIBIR: quienes NO optaron por acreditación.
+  const programaRows = useMemo(() => {
+    if (programa === 'ACREDITACION') {
+      return rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
     }
+    if (programa === 'CIBIR') {
+      return rows.filter(r => !r.apto_acreditacion)
+    }
+    return rows
+  }, [rows, programa])
+
+  const counts = useMemo(() => {
+    const base = programaRows
 
     const todos = base.length
     const pendiente = base.filter(r => r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0).length
@@ -763,15 +777,10 @@ export default function PreinscripcionesPrincipalesPanel({
       Inscripción: inscripcion,
       Rechazado: rechazado,
     }
-  }, [rows, filtroAcreditacion])
+  }, [programaRows])
 
   const filteredRows = useMemo(() => {
-    let result = rows
-    if (filtroAcreditacion === 'apto') {
-      result = result.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
-    } else if (filtroAcreditacion === 'no_apto') {
-      result = result.filter(r => r.programa_codigo !== 'AFILIACION' || !r.apto_acreditacion)
-    }
+    let result = programaRows
 
     // Filtro por sub-estado de expediente
     if (uiEstatus === 'Pendiente') {
@@ -793,7 +802,7 @@ export default function PreinscripcionesPrincipalesPanel({
         search
       )
     )
-  }, [rows, search, filtroAcreditacion, uiEstatus])
+  }, [programaRows, search, uiEstatus])
 
   const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1) => {
     // Si es un trámite de afiliación o tiene estatus en la tabla de afiliados, mostrar su etapa real
@@ -876,7 +885,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[150px] fade-in slide-in-from-top-1 duration-200">
                     {[
                       { key: 'Todos', label: 'Todos los Programas' },
-                      { key: 'AFILIACION', label: 'AFILIACION' },
+                      { key: 'ACREDITACION', label: 'ACREDITACION' },
                       { key: 'CIBIR', label: 'CIBIR' },
                       { key: 'PADI', label: 'PADI' },
                       { key: 'PEGI', label: 'PEGI' },
@@ -901,46 +910,7 @@ export default function PreinscripcionesPrincipalesPanel({
               )}
             </div>
 
-            {/* Custom Filtro Acreditación Dropdown */}
-            <div className="relative flex-1">
-              <button
-                type="button"
-                onClick={() => setShowAcreditacionDropdown(!showAcreditacionDropdown)}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                <span className="truncate">
-                  {filtroAcreditacion === 'todos' ? 'Todos (Acreditación)' : filtroAcreditacion === 'apto' ? 'Opta por acreditación' : 'No opta por acreditación'}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${showAcreditacionDropdown ? 'rotate-180' : ''}`} />
-              </button>
 
-              {showAcreditacionDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowAcreditacionDropdown(false)} />
-                  <div className="transition-opacity transition-transform absolute right-0 sm:left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[160px] fade-in slide-in-from-top-1 duration-200">
-                    {[
-                      { key: 'todos', label: 'Todos (Acreditación)' },
-                      { key: 'apto', label: 'Opta por acreditación' },
-                      { key: 'no_apto', label: 'No opta por acreditación' },
-                    ].map(option => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => {
-                          setFiltroAcreditacion(option.key as any)
-                          setShowAcreditacionDropdown(false)
-                        }}
-                        className={`w-full text-left px-3 py-1.5 text-[10px] font-bold transition-colors ${
-                          filtroAcreditacion === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
           </div>
 
           <div className="flex flex-wrap gap-1.5 mt-1">
