@@ -143,8 +143,8 @@ export async function upsertEstudianteByEmail(params: {
     });
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number;
-      const parsedNombres = nombres || (params.nombreCompleto ? (params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(0, -1).join(' ') : params.nombreCompleto.trim()) : null);
-      const parsedApellidos = apellidos || (params.nombreCompleto && params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(-1)[0] : null);
+      const parsedNombres = (nombres && nombres.trim()) || (params.nombreCompleto ? params.nombreCompleto.trim() : null);
+      const parsedApellidos = (apellidos && apellidos.trim()) || null;
 
       await db.execute({
         sql: `UPDATE personas SET 
@@ -174,7 +174,7 @@ export async function upsertEstudianteByEmail(params: {
       const finalCedula = docNumero || `TEMP-V-${Date.now()}`;
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [toTitleCase(nombres || params.nombreCompleto) || '', toTitleCase(apellidos) || '', docTipo, finalCedula, cleanEmail, telefono || null, nivelProfesional || null, profesion || null]
+        args: [toTitleCase(nombres || params.nombreCompleto || '') || '', toTitleCase(apellidos || '') || '', docTipo, finalCedula, cleanEmail, telefono || null, nivelProfesional || null, profesion || null]
       });
       idPersona = insP.rows[0].id as number;
     }
@@ -240,6 +240,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   esCorredorInmobiliario?: boolean | string | null
   razonSocial?: string | null
   representanteLegal?: string | null
+  representanteLegalNombres?: string | null
+  representanteLegalApellidos?: string | null
   cedulaRepresentante?: string | null
   emailRepresentante?: string | null
   empresaTelefono?: string | null
@@ -249,18 +251,13 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   const {
     nombreCompleto, nombres, apellidos, cedulaRif, email, telefono, programaCodigo,
     tipoAfiliado, nivelProfesional, profesion, esCorredorInmobiliario,
-    razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa,
+    razonSocial, representanteLegal, representanteLegalNombres, representanteLegalApellidos,
+    cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa,
     aprobadoPorEmpresa
   } = params
 
-  let finalNombres = nombres;
-  let finalApellidos = apellidos;
-  if (!finalNombres && nombreCompleto) {
-    const parts = nombreCompleto.trim().split(' ');
-    const mid = Math.ceil(parts.length / 2);
-    finalNombres = parts.slice(0, mid).join(' ');
-    finalApellidos = parts.length > 1 ? parts.slice(mid).join(' ') : '';
-  }
+  const finalNombres = (nombres && nombres.trim()) || (nombreCompleto ? nombreCompleto.trim() : null);
+  const finalApellidos = (apellidos && apellidos.trim()) || null;
 
   const expiracion = new Date()
   expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
@@ -271,11 +268,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   const cleanedCedulaRif = (cedulaRif || '').replace(/\D/g, '')
   const cleanedCedulaRep = (cedulaRepresentante || '').replace(/\D/g, '')
 
-  const repNombre = representanteLegal || ''
-  const repParts = repNombre.trim().split(' ')
-  const repMid = Math.ceil(repParts.length / 2)
-  const repNombres = repParts.slice(0, repMid).join(' ')
-  const repApellidos = repParts.length > 1 ? repParts.slice(repMid).join(' ') : ''
+  const repNombres = (representanteLegalNombres && representanteLegalNombres.trim()) || (representanteLegal ? representanteLegal.trim() : null);
+  const repApellidos = (representanteLegalApellidos && representanteLegalApellidos.trim()) || null;
 
   await db.execute({
     sql: `DELETE FROM tokens_accion 
@@ -323,6 +317,10 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
   try {
     const programaCodigo = normalizeProgramaCodigo(req.body?.programaCodigo)
     const nombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
+    const reqNombres = typeof req.body?.nombres === 'string' ? req.body.nombres.trim() : null
+    const reqApellidos = typeof req.body?.apellidos === 'string' ? req.body.apellidos.trim() : null
+    const reqRepNombres = typeof req.body?.representanteLegalNombres === 'string' ? req.body.representanteLegalNombres.trim() : null
+    const reqRepApellidos = typeof req.body?.representanteLegalApellidos === 'string' ? req.body.representanteLegalApellidos.trim() : null
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
@@ -337,8 +335,8 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       res.status(400).json({ success: false, message: 'programaCodigo inválido. Use PADI/PEGI/PREANI/CIBIR/AFILIACION.' })
       return
     }
-    if (!nombreCompleto || !email) {
-      res.status(400).json({ success: false, message: 'nombreCompleto y email son requeridos' })
+    if ((!reqNombres && !nombreCompleto) || !email) {
+      res.status(400).json({ success: false, message: 'Nombres, apellidos y email son requeridos' })
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -555,13 +553,12 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       return
     }
 
-    const nombreParts = nombreCompleto.trim().split(' ')
-    const mid = Math.ceil(nombreParts.length / 2)
-    const nombres = isCorporativo ? null : nombreParts.slice(0, mid).join(' ')
-    const apellidos = isCorporativo ? null : (nombreParts.length > 1 ? nombreParts.slice(mid).join(' ') : '')
+    const nombres = isCorporativo ? null : (reqNombres || (nombreCompleto ? nombreCompleto.trim() : null))
+    const apellidos = isCorporativo ? null : (reqApellidos || null)
+    const finalNombreDisplay = isCorporativo ? (razonSocial || '') : [nombres, apellidos].filter(Boolean).join(' ')
 
     const { token } = await crearVerificacionPreinscripcionPrograma({
-      nombreCompleto,
+      nombreCompleto: finalNombreDisplay,
       nombres,
       apellidos,
       cedulaRif,
@@ -574,6 +571,8 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       esCorredorInmobiliario,
       razonSocial,
       representanteLegal,
+      representanteLegalNombres: reqRepNombres,
+      representanteLegalApellidos: reqRepApellidos,
       cedulaRepresentante,
       emailRepresentante,
       empresaTelefono,
@@ -582,7 +581,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
 
     if (env.NODE_ENV !== 'development') {
       await enviarCorreoConfirmacionPreinscripcionPrograma({
-        nombre: nombreCompleto,
+        nombre: finalNombreDisplay,
         emailOriginal: email,
         programaCodigo,
         token,
@@ -1544,13 +1543,15 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
 
+    const reqNombres = typeof req.body?.nombres === 'string' ? req.body.nombres.trim() : null
+    const reqApellidos = typeof req.body?.apellidos === 'string' ? req.body.apellidos.trim() : null
     const nombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
 
-    if (!nombreCompleto || !email) {
-      res.status(400).json({ success: false, message: 'nombreCompleto y email son requeridos' })
+    if ((!reqNombres && !nombreCompleto) || !email) {
+      res.status(400).json({ success: false, message: 'Nombres, apellidos y email son requeridos' })
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1633,7 +1634,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
               LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
               WHERE ic.id_curso IN (${placeholders})
                 AND (
-                  p.email = ? OR emp.email = ? 
+                  LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ? 
                   OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
                 )
                 AND ic.estatus NOT IN ('Rechazado', 'Cancelado')
@@ -1654,7 +1655,9 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Upsert estudiante por email o cédula/RIF
     const { id_estudiante } = await upsertEstudianteByEmail({
-      nombreCompleto,
+      nombreCompleto: nombreCompleto || [reqNombres, reqApellidos].filter(Boolean).join(' '),
+      nombres: reqNombres,
+      apellidos: reqApellidos,
       cedulaRif,
       email,
       telefono,
@@ -3493,13 +3496,8 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
     const cedulaNum = (cedulaRif || '').replace(/\D/g, '')
 
     if (idPersona) {
-      let nombres = reqNombres
-      let apellidos = reqApellidos
-      if (!nombres && !apellidos && nombreCompleto) {
-        const parts = (nombreCompleto || '').trim().split(/\s+/)
-        nombres = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || ''
-        apellidos = parts.length > 1 ? parts.slice(-1)[0] : ''
-      }
+      const nombres = reqNombres || (nombreCompleto ? nombreCompleto.trim() : null)
+      const apellidos = reqApellidos || null
 
       await db.execute({
         sql: `UPDATE personas SET

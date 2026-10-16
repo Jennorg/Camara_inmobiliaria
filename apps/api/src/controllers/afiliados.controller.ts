@@ -654,7 +654,9 @@ export const registerAfiliado = async (req: Request, res: Response) => {
 
     // Insertar en tabla de verificaciones
     const dataJson = JSON.stringify({
-      nombre_completo: nombreCompleto,
+      nombres: nombres ? String(nombres).trim() : null,
+      apellidos: apellidos ? String(apellidos).trim() : null,
+      nombre_completo: nombreCompleto || [nombres, apellidos].filter(Boolean).join(' '),
       cedula_rif: cleanedCedulaRif,
       telefono: telefono
     });
@@ -745,11 +747,8 @@ export const verificarEmail = async (req: Request, res: Response) => {
     const estatus = '1_PREINSCRIPCION';
 
     try {
-      // Intentamos parsear nombres/apellidos del nombre_completo almacenado en la verificación
-      const fullName = String(data.nombre_completo || '').trim()
-      const parts = fullName.split(' ')
-      const apellidos = parts.length > 1 ? parts.slice(Math.ceil(parts.length / 2)).join(' ') : ''
-      const nombres = parts.length > 1 ? parts.slice(0, Math.ceil(parts.length / 2)).join(' ') : fullName
+      const nombres = (data.nombres && String(data.nombres).trim()) || (data.nombre_completo ? String(data.nombre_completo).trim() : '');
+      const apellidos = (data.apellidos && String(data.apellidos).trim()) || '';
 
       const cedulaInput = String(data.cedula_rif || '').trim()
       const cedulaMatch = cedulaInput.match(/^([VEP])?-?(.+)$/i)
@@ -766,7 +765,7 @@ export const verificarEmail = async (req: Request, res: Response) => {
                 cedula, 
                 telefono
               ) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [toTitleCase(nombres || fullName), toTitleCase(apellidos), registro.email, cedulaTipo, cedulaNumero, data.telefono]
+        args: [toTitleCase(nombres), toTitleCase(apellidos), registro.email, cedulaTipo, cedulaNumero, data.telefono]
       });
 
       const idPersona = insertPersona.rows[0].id;
