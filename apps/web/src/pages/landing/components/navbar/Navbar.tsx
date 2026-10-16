@@ -45,13 +45,10 @@ const Navbar = ({
   const buildDynamicNavItems = () => {
     return NAV_ITEMS.map(item => {
       if (item.title === 'Formación') {
-        const baseItems = [...item.items];
-        if (hasOtherCourses) {
-          return {
-            ...item,
-            items: [...baseItems, { label: 'Otros', path: '/cursos' }]
-          };
-        }
+        return {
+          ...item,
+          items: [...item.items]
+        };
       }
       return item;
     });
