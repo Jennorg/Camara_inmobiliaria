@@ -12,6 +12,7 @@ import {
   downloadCanvasAsPng
 } from '@/utils/certificateCanvasRenderer'
 import { apiFetch } from '@/lib/apiClient'
+import { formatNombreCard, nombreCertificadoAfiliacion } from '@/utils/formatters'
 
 interface AfiliadoData {
   id_afiliado: number
@@ -361,13 +362,13 @@ const CertificadoAfiliacionPage: React.FC = () => {
 
               {/* Nombre del Afiliado */}
               <h1 className="text-emerald-950 font-sans font-extrabold text-3xl mt-4 mb-1 tracking-tight uppercase">
-                {data.nombre_completo}
+                {nombreCertificadoAfiliacion(data)}
               </h1>
 
               {/* Roles corporativos */}
               {data.tipo_afiliado === 'Corporativo' && (data.nombres || data.apellidos) && (
                 <p className="text-emerald-800 font-sans font-bold text-sm mb-3 uppercase tracking-wider">
-                  Representante Legal: {data.nombres} {data.apellidos}
+                  Representante Legal: {formatNombreCard(data.nombres, data.apellidos)}
                 </p>
               )}
 

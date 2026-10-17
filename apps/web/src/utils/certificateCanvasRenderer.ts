@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
-import { formatNombreCard } from '@/utils/formatters';
+import { formatNombreCard, nombreCertificadoAfiliacion } from '@/utils/formatters';
 
 import logoCieboGreen from '@/assets/logo_ciebo_green.svg';
 import logoAffiliationImg from '@/assets/Logo4.webp';
@@ -234,7 +234,7 @@ export async function renderCertificadoAfiliacionCanvas(
   ctx.letterSpacing = '0px';
 
   // Nombre del Afiliado
-  const nombre = (data.nombre_completo || 'AFILIADO').toUpperCase();
+  const nombre = (nombreCertificadoAfiliacion(data) || 'AFILIADO').toUpperCase();
   ctx.fillStyle = '#022c22';
   const nameLen = nombre.length;
   const nameFontSize = nameLen > 36 ? 24 : nameLen > 28 ? 27 : 31;
@@ -246,7 +246,7 @@ export async function renderCertificadoAfiliacionCanvas(
   if (data.tipo_afiliado === 'Corporativo' && (data.nombres || data.apellidos)) {
     ctx.fillStyle = '#065f46';
     ctx.font = 'bold 12px Montserrat, sans-serif';
-    ctx.fillText(`REPRESENTANTE LEGAL: ${(data.nombres || '')} ${(data.apellidos || '')}`.toUpperCase(), 500, currentY);
+    ctx.fillText(`REPRESENTANTE LEGAL: ${formatNombreCard(data.nombres, data.apellidos)}`.toUpperCase(), 500, currentY);
     currentY += 20;
   } else if (data.tipo_afiliado === 'Agente Corporativo' && data.empresa_razon_social) {
     ctx.fillStyle = '#065f46';

@@ -12,6 +12,7 @@ import {
   downloadCanvasAsPng
 } from '@/utils/certificateCanvasRenderer'
 import { apiFetch } from '@/lib/apiClient'
+import { formatNombreCard } from '@/utils/formatters'
 
 type ApiData = {
   codigo_validacion: string
@@ -180,7 +181,9 @@ const ComprobantePublicoPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 text-slate-800 print:bg-white">
       <Helmet>
         <title>
-          {data ? `${data.programa_o_curso} - ${data.titular_nombre}` : 'Verificación de Comprobante'}
+          {data
+            ? `${data.programa_o_curso} - ${data.titular_apellidos ? formatNombreCard(data.titular_nombres || data.titular_nombre, data.titular_apellidos) : data.titular_nombre}`
+            : 'Verificación de Comprobante'}
         </title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
