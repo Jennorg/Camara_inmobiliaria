@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
 import { matchesSearch } from '@/utils/searchUtils';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -65,6 +65,7 @@ export interface CursoDB {
   precio: string | null;
   estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
   solo_informativo?: number | boolean;
+  solo_afiliados?: number | boolean;
   firmantes?: string | FirmanteItem[];
   creado_en: string;
   actualizado_en: string | null;
@@ -79,11 +80,70 @@ export interface CursoDB {
   modulos?: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  'Abierto': 'bg-emerald-50 text-emerald-600',
-  'Próximamente': 'bg-emerald-50 text-emerald-600',
-  'En curso': 'bg-amber-50 text-amber-600',
-  'Cerrado': 'bg-slate-100 text-slate-500',
+/**
+ * Estado del curso: es el dato que decide si alguien puede inscribirse hoy, así que
+ * es lo único que lleva color fuerte en la tarjeta. Un valor, excluyente, un color.
+ */
+const ESTATUS_META: Record<string, { punto: string; texto: string }> = {
+  'Abierto':      { punto: 'bg-emerald-500', texto: 'text-emerald-700' },
+  'Próximamente': { punto: 'bg-sky-500',     texto: 'text-sky-700' },
+  'En curso':     { punto: 'bg-amber-500',   texto: 'text-amber-700' },
+  'Cerrado':      { punto: 'bg-slate-300',   texto: 'text-slate-500' },
+};
+
+const EstatusIndicador = ({ estatus }: { estatus: string }) => {
+  const meta = ESTATUS_META[estatus] ?? { punto: 'bg-slate-300', texto: 'text-slate-500' };
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold whitespace-nowrap ${meta.texto}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.punto}`} aria-hidden="true" />
+      {estatus}
+    </span>
+  );
+};
+
+const parseExcluyentes = (valor: CursoDB['cursos_excluyentes']): number[] => {
+  try {
+    if (typeof valor === 'string') return JSON.parse(valor) || [];
+    return Array.isArray(valor) ? valor : [];
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Reglas especiales del curso. Son excepciones, no taxonomía: se muestran solo
+ * cuando existen y en forma de marca discreta, no de etiqueta a grito.
+ */
+const AtributosCurso = ({ curso }: { curso: CursoDB }) => {
+  const esInformativo = Boolean(curso.solo_informativo) || Number(curso.solo_informativo) === 1;
+  const esPrivado = Boolean(curso.solo_afiliados) || Number(curso.solo_afiliados) === 1;
+  const excluyentes = parseExcluyentes(curso.cursos_excluyentes);
+
+  if (!esInformativo && !esPrivado && excluyentes.length === 0) return null;
+
+  const marca = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap';
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {esPrivado && (
+        <span className={`${marca} bg-amber-50 text-amber-700`} title="Solo se pueden inscribir afiliados oficiales">
+          <Lock size={10} strokeWidth={2.5} aria-hidden="true" />
+          Solo afiliados
+        </span>
+      )}
+      {esInformativo && (
+        <span className={`${marca} bg-violet-50 text-violet-700`} title="Se publica como afiche; las inscripciones las gestiona un administrador">
+          <Megaphone size={10} strokeWidth={2.5} aria-hidden="true" />
+          Informativo
+        </span>
+      )}
+      {excluyentes.length > 0 && (
+        <span className={`${marca} bg-rose-50 text-rose-700`} title="No se puede cursar junto con otros cursos">
+          <Ban size={10} strokeWidth={2.5} aria-hidden="true" />
+          {excluyentes.length} {excluyentes.length === 1 ? 'excluyente' : 'excluyentes'}
+        </span>
+      )}
+    </div>
+  );
 };
 
 const NIVEL_STYLES: Record<string, string> = {
@@ -202,6 +262,7 @@ const CursosAdminPanel = () => {
     categoria: string;
     estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
     solo_informativo: number;
+    solo_afiliados: number;
     cursos_excluyentes: number[];
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
     firmantes: FirmanteItem[];
@@ -216,6 +277,7 @@ const CursosAdminPanel = () => {
     categoria: 'Taller',
     estatus: 'Abierto',
     solo_informativo: 0,
+    solo_afiliados: 0,
     cursos_excluyentes: [],
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
     firmantes: [],
@@ -380,6 +442,7 @@ const CursosAdminPanel = () => {
         categoria: curso.categoria || 'Taller',
         estatus: (curso.estatus as any) || 'Abierto',
         solo_informativo: curso.solo_informativo ? 1 : 0,
+        solo_afiliados: curso.solo_afiliados ? 1 : 0,
         cursos_excluyentes: parsedExcluyentes,
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
@@ -397,6 +460,7 @@ const CursosAdminPanel = () => {
         categoria: 'Taller',
         estatus: 'Abierto',
         solo_informativo: 0,
+        solo_afiliados: 0,
         cursos_excluyentes: [],
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
@@ -661,55 +725,20 @@ const CursosAdminPanel = () => {
                 className="bg-white border border-slate-200/80 rounded-3xl p-4 shadow-xs hover:border-emerald-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group relative overflow-hidden cursor-pointer"
               >
                 <div className="space-y-3">
-                  {/* Portada del Curso / Banner con Badges */}
+                  {/* Portada del curso */}
                   <div className="relative w-full aspect-[16/9] bg-slate-900/5 rounded-2xl overflow-hidden border border-slate-200/60 shadow-inner flex items-center justify-center">
                     {c.imagen_url ? (
                       <img
                         src={c.imagen_url}
                         alt={c.titulo || c.nombre}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${c.estatus === 'Cerrado' ? 'grayscale opacity-60' : ''}`}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
                         <GraduationCap size={32} className="opacity-40" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Sin Portada</span>
+                        <span className="text-[10px] font-medium opacity-70">Sin portada</span>
                       </div>
                     )}
-
-                    <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 flex-wrap">
-                      {c.categoria && (
-                        <span className="bg-slate-900/80 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
-                          {c.categoria}
-                        </span>
-                      )}
-                      {(Boolean(c.solo_informativo) || Number(c.solo_informativo) === 1) && (
-                        <span className="bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
-                          Informativo
-                        </span>
-                      )}
-                      {(() => {
-                        let excl: number[] = [];
-                        try {
-                          excl = typeof c.cursos_excluyentes === 'string'
-                            ? JSON.parse(c.cursos_excluyentes)
-                            : (Array.isArray(c.cursos_excluyentes) ? c.cursos_excluyentes : []);
-                        } catch { excl = []; }
-                        if (excl.length > 0) {
-                          return (
-                            <span className="bg-amber-500/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20 flex items-center gap-1">
-                              <span>🚫</span> {excl.length} {excl.length === 1 ? 'excluyente' : 'excluyentes'}
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-
-                    <div className="absolute top-2 right-2 z-10">
-                      <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shadow-2xs ${STATUS_STYLES[c.estatus] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                        {c.estatus}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Título e Instructor */}
@@ -724,24 +753,33 @@ const CursosAdminPanel = () => {
 
                   {/* Detalle de Cupos y Fecha */}
                   <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <EstatusIndicador estatus={c.estatus} />
+                      {c.categoria && (
+                        <span className="text-[10px] font-medium text-slate-400 truncate">{c.categoria}</span>
+                      )}
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold">
                       <span className="inline-flex items-center gap-1">
-                        <Calendar size={12} className="text-emerald-600" />
+                        <Calendar size={12} className="text-slate-400" />
                         {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}
                       </span>
                       {c.precio && <span className="font-extrabold text-emerald-700">{c.precio}</span>}
                     </div>
 
+                    <AtributosCurso curso={c} />
+
                     {!(Number(c.solo_informativo) === 1 || c.solo_informativo === true || (c.estatus as string) === 'Solo Informativo') && (
                       isIlimitado ? (
                         <div className="flex items-center justify-between text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
-                          <span>CUPOS ILIMITADOS</span>
+                          <span>Cupos ilimitados</span>
                           <span>{ins} inscritos</span>
                         </div>
                       ) : (
                         <div className="space-y-1">
                           <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                            <span>Cupos Ocupados</span>
+                            <span>Cupos ocupados</span>
                             <span>{ins}/{totales} ({Math.round(pct)}%)</span>
                           </div>
                           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -841,35 +879,15 @@ const CursosAdminPanel = () => {
                       className="hover:bg-slate-50/60 transition-colors cursor-pointer"
                     >
                       <td className="px-4 py-3.5 text-left">
-                        <div className="flex flex-col gap-1 items-start">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-black text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
-                            {(c.solo_informativo === 1 || c.solo_informativo === true) && (
-                              <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 uppercase tracking-wider">Solo Informativo</span>
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <p className="font-bold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <EstatusIndicador estatus={c.estatus} />
+                            {c.categoria && (
+                              <span className="text-[10px] font-medium text-slate-400">{c.categoria}</span>
                             )}
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${STATUS_STYLES[c.estatus] || 'bg-slate-100 text-slate-500'}`}>
-                              {c.estatus}
-                            </span>
-                            {(() => {
-                              let excl: number[] = [];
-                              try {
-                                excl = typeof c.cursos_excluyentes === 'string'
-                                  ? JSON.parse(c.cursos_excluyentes)
-                                  : (Array.isArray(c.cursos_excluyentes) ? c.cursos_excluyentes : []);
-                              } catch { excl = []; }
-                              if (excl.length > 0) {
-                                return (
-                                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 uppercase tracking-wider flex items-center gap-1">
-                                    <span>🚫</span> {excl.length} {excl.length === 1 ? 'excluyente' : 'excluyentes'}
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
                           </div>
-                          {c.categoria && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
-                          )}
+                          <AtributosCurso curso={c} />
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-600 font-bold whitespace-nowrap text-center">{c.instructor_nombre || 'Sin Instructor'}</td>
@@ -1087,6 +1105,32 @@ const CursosAdminPanel = () => {
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Curso privado — solo afiliados oficiales */}
+                <div className="p-4 bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border border-amber-200/80 rounded-2xl space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <span>🔒 Curso privado (Solo Afiliados)</span>
+                        {formData.solo_afiliados === 1 && (
+                          <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Privado</span>
+                        )}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Si lo activas, solo podrán inscribirse las personas <strong>afiliadas oficialmente</strong> (las que aparecen en el Directorio de Miembros). El curso sigue visible en el catálogo público, pero cualquier otra persona verá un aviso de que es exclusivo para afiliados. Tú puedes seguir asignando estudiantes manualmente sin restricción.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.solo_afiliados === 1}
+                        onChange={(e) => setFormData({ ...formData, solo_afiliados: e.target.checked ? 1 : 0 })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-amber-600"></div>
                     </label>
                   </div>
                 </div>
