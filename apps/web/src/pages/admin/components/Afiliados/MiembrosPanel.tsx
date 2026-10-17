@@ -1732,7 +1732,7 @@ export default function MiembrosPanel() {
                         <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">Aprobar CIBIR</span>
                       </div>
                       <p className="text-[11px] font-medium text-emerald-800/80 leading-snug">
-                        {!Boolean(isEditing ? (editForm.cibir_acreditado ?? editForm.cibir_convalidado) : (selected.cibir_acreditado ?? selected.cibir_convalidado))
+                        {!Boolean(isEditing ? editForm.cibir_acreditado : selected.cibir_acreditado)
                           ? '✓ Aprobado en CIBIR (Genera certificado CIBIR de aprobación)'
                           : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
                       </p>
@@ -1740,7 +1740,7 @@ export default function MiembrosPanel() {
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
                       <input
                         type="checkbox"
-                        checked={!Boolean(isEditing ? (editForm.cibir_acreditado ?? editForm.cibir_convalidado) : (selected.cibir_acreditado ?? selected.cibir_convalidado))}
+                        checked={!Boolean(isEditing ? editForm.cibir_acreditado : selected.cibir_acreditado)}
                         onChange={(e) => {
                           const val = e.target.checked ? 0 : 1;
                           if (isEditing) {

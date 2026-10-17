@@ -1153,7 +1153,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">Aprobar CIBIR</span>
                   </div>
                   <p className="text-[11px] font-medium text-emerald-800/80 leading-snug">
-                    {!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado)
+                    {!Boolean(selected.cibir_acreditado)
                       ? '✓ Aprobado en CIBIR (Genera certificado CIBIR de aprobación)'
                       : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
                   </p>
@@ -1161,24 +1161,11 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input
                     type="checkbox"
-                    checked={!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado)}
+                    checked={!Boolean(selected.cibir_acreditado)}
                     onChange={(e) => updateField('cibir_acreditado', e.target.checked ? 0 : 1)}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
-                </label>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <input
-                  type="checkbox"
-                  id="inscripcion_pagada"
-                  checked={!!selected.inscripcion_pagada}
-                  onChange={(e) => updateField('inscripcion_pagada', e.target.checked ? 1 : 0)}
-                  className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500"
-                />
-                <label htmlFor="inscripcion_pagada" className="text-xs font-bold text-slate-600 cursor-pointer">
-                  Cuota de inscripción pagada
                 </label>
               </div>
 
