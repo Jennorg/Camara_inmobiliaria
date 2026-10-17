@@ -22,6 +22,7 @@ interface CursoDB {
   imagen_url: string | null;
   estatus: string;
   solo_informativo?: number | boolean;
+  solo_afiliados?: number | boolean;
   isFlagship?: boolean;
   codigo?: string;
 }
@@ -170,6 +171,33 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         icon: 'info',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#9333ea',
+      });
+      return;
+    }
+
+    // Curso privado: solo afiliados oficiales. El backend es la autoridad final
+    // (valida por correo/cédula contra el padrón), aquí solo evitamos el viaje
+    // al servidor cuando sabemos que el usuario no tiene afiliación.
+    const isSoloAfiliados = !curso.isFlagship && (curso.solo_afiliados === 1 || curso.solo_afiliados === true);
+    if (isSoloAfiliados && !user?.id_afiliado) {
+      Swal.fire({
+        title: 'Curso exclusivo para afiliados',
+        html: `
+          <div class="text-left space-y-3 text-slate-700 text-sm">
+            <p class="font-bold text-[#022c22] text-base">${curso.titulo || curso.nombre}</p>
+            <p>Este curso es <strong>privado</strong>: solo pueden inscribirse las personas afiliadas oficialmente a la Cámara Inmobiliaria del Estado Bolívar.</p>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-semibold">
+              Si ya eres afiliado, inicia sesión con el correo registrado en tu afiliación para poder inscribirte.
+            </div>
+          </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Conocer requisitos',
+        cancelButtonText: 'Entendido',
+        confirmButtonColor: '#d97706',
+      }).then((r) => {
+        if (r.isConfirmed) window.location.href = '/afiliate';
       });
       return;
     }
@@ -356,6 +384,12 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                     Próximamente
                   </div>
                 ) : null}
+                {/* Badge Curso Privado */}
+                {!course.isFlagship && (course.solo_afiliados === 1 || course.solo_afiliados === true) && (
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500 flex items-center gap-1">
+                    <span>🔒</span> Afiliados
+                  </div>
+                )}
                 {/* Badge Enrolled */}
                 {isEnrolled && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10">

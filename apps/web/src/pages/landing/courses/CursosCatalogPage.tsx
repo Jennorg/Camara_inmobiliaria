@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
+import { useAuth } from '@/context/AuthContext'
 import Swal from 'sweetalert2'
 import { CourseSkeletonGrid } from '@/components/Skeletons'
 import Footer from '@/pages/landing/components/Footer'
@@ -17,6 +18,7 @@ interface CursoDB {
   imagen_url: string | null
   estatus: string
   solo_informativo?: number | boolean
+  solo_afiliados?: number | boolean
   instructor_nombre: string | null
   categoria?: string | null
 }
@@ -24,6 +26,7 @@ interface CursoDB {
 /** Catálogo público de cursos/talleres (`/cursos`, `/talleres`). */
 export default function CursosCatalogPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [darkMode, setDarkMode] = useState(false)
   const [cursos, setCursos] = useState<CursoDB[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,6 +65,31 @@ export default function CursosCatalogPage() {
         confirmButtonColor: '#10b981',
       })
       return
+    }
+
+    // Curso privado: solo afiliados oficiales (el backend revalida por correo/cédula).
+    const isSoloAfiliados = curso.solo_afiliados === 1 || curso.solo_afiliados === true;
+    if (isSoloAfiliados && !user?.id_afiliado) {
+      Swal.fire({
+        title: 'Curso exclusivo para afiliados',
+        html: `
+          <div class="text-left space-y-3 text-slate-700 text-sm">
+            <p class="font-bold text-[#022c22] text-base">${curso.titulo || curso.nombre}</p>
+            <p>Este curso es <strong>privado</strong>: solo pueden inscribirse las personas afiliadas oficialmente a la Cámara Inmobiliaria del Estado Bolívar.</p>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-semibold">
+              Si ya eres afiliado, inicia sesión con el correo registrado en tu afiliación para poder inscribirte.
+            </div>
+          </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Conocer requisitos',
+        cancelButtonText: 'Entendido',
+        confirmButtonColor: '#d97706',
+      }).then((r) => {
+        if (r.isConfirmed) window.location.href = '/afiliate';
+      });
+      return;
     }
 
     Swal.fire({
@@ -167,6 +195,11 @@ export default function CursosCatalogPage() {
                 <div className='absolute top-5 left-5 bg-emerald-500 text-[#022c22] px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-lg'>
                   {curso.categoria || curso.nivel_academico || 'Curso'}
                 </div>
+                {(curso.solo_afiliados === 1 || curso.solo_afiliados === true) && (
+                  <div className='absolute top-14 left-5 bg-amber-500 text-white px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1'>
+                    <span>🔒</span> Solo Afiliados
+                  </div>
+                )}
                 {isInformative ? (
                   <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">Solo Informativo</div>
                 ) : (

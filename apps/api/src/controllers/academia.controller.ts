@@ -1390,6 +1390,13 @@ const ensureCursosTableSchema = async (): Promise<void> => {
           // Column already exists
         }
       }
+      if (!tableSql.includes('solo_afiliados')) {
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN solo_afiliados INTEGER NOT NULL DEFAULT 0 CHECK (solo_afiliados IN (0,1))`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
     }
   } catch (err) {
     console.error('ensureCursosTableSchema error:', err)
@@ -1549,6 +1556,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : ''
 
     if ((!reqNombres && !nombreCompleto) || !email) {
       res.status(400).json({ success: false, message: 'Nombres, apellidos y email son requeridos' })
@@ -1561,7 +1569,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo FROM cursos WHERE id_curso = ? LIMIT 1`,
+      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso],
     })
     if (cursoRes.rows.length === 0) {
@@ -1583,8 +1591,39 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
 
+    // ── Curso privado: solo afiliados oficiales (los del directorio de miembros) ──
+    // Mismo criterio que buscarAfiliadosPublic: estatus 'Afiliado', activo y no eliminado.
+    // Se identifica a la persona por email o por cédula/RIF, porque este endpoint es
+    // público y también lo consume el panel del afiliado sin sesión verificada.
+    if (Number(curso.solo_afiliados) === 1) {
+      const afiliadoRes = await db.execute({
+        sql: `SELECT 1
+              FROM afiliados a
+              JOIN personas p ON a.id_persona = p.id
+              LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+              WHERE a.estatus = 'Afiliado'
+                AND a.activo = 1
+                AND a.eliminado_en IS NULL
+                AND p.eliminado_en IS NULL
+                AND (
+                  LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(e.email)) = ?
+                  OR (? != '' AND (p.cedula = ? OR e.rif_numero = ?))
+                )
+              LIMIT 1`,
+        args: [email, email, cleanCed, cleanCed, cleanCed],
+      })
+
+      if (afiliadoRes.rows.length === 0) {
+        res.status(403).json({
+          success: false,
+          code: 'SOLO_AFILIADOS',
+          message: 'Este curso es exclusivo para afiliados de la Cámara Inmobiliaria del Estado Bolívar. Si ya eres afiliado, verifica que el correo o la cédula que ingresaste sean los registrados en tu afiliación.'
+        })
+        return
+      }
+    }
+
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
-    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
     const existing = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, ic.completado 
             FROM inscripciones_cursos ic
@@ -1698,6 +1737,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
  */
 export const adminListCursos = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureCursosTableSchema()
     const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : undefined
     const programaCodigo = typeof req.query?.programaCodigo === 'string' ? req.query.programaCodigo.toUpperCase() : undefined
     const allowedEstatus = new Set(['Abierto', 'Cerrado', 'En curso', 'Solo Informativo'])
@@ -1769,6 +1809,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       banner_url,
       estatus,
       solo_informativo,
+      solo_afiliados,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
@@ -1786,6 +1827,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
     const slug = generateSlug(courseTitle)
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo ? 1 : 0
+    const isSoloAfiliados = solo_afiliados ? 1 : 0
 
     let firmantesStr: string | null = null;
     if (req.body.firmantes) {
@@ -1817,8 +1859,8 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       sql: `INSERT INTO cursos (
               titulo, slug, descripcion, contenido, categoria, modalidad,
               cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
-              estatus, solo_informativo, firmantes, cursos_excluyentes, creado_en, actualizado_en
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              estatus, solo_informativo, solo_afiliados, firmantes, cursos_excluyentes, creado_en, actualizado_en
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
         courseTitle,
@@ -1834,6 +1876,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         banner_url ?? null,
         estatus ?? 'Abierto',
         isSoloInformativo,
+        isSoloAfiliados,
         firmantesStr,
         cursosExcluyentesStr,
         now,
@@ -1914,6 +1957,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       banner_url,
       estatus,
       solo_informativo,
+      solo_afiliados,
       firmantes,
       cursos_excluyentes,
     } = req.body
@@ -1921,6 +1965,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
     const courseTitle = (titulo || nombre || '').trim()
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo !== undefined ? (solo_informativo ? 1 : 0) : null
+    const isSoloAfiliados = solo_afiliados !== undefined ? (solo_afiliados ? 1 : 0) : null
 
     let firmantesStr: string | null = null;
     if (firmantes !== undefined) {
@@ -1956,6 +2001,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
               banner_url = ?,
               estatus = COALESCE(?, estatus),
               solo_informativo = COALESCE(?, solo_informativo),
+              solo_afiliados = COALESCE(?, solo_afiliados),
               firmantes = COALESCE(?, firmantes),
               cursos_excluyentes = COALESCE(?, cursos_excluyentes),
               actualizado_en = ?
@@ -1974,6 +2020,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
         banner_url ?? null,
         estatus ?? null,
         isSoloInformativo,
+        isSoloAfiliados,
         firmantesStr,
         cursosExcluyentesStr,
         now,
