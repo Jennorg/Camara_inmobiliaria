@@ -104,7 +104,7 @@ export async function upsertEstudianteByEmail(params: {
   if (isJuridico) {
     // Entidad Jurídica (Empresa)
     const resE = await db.execute({
-      sql: `SELECT id_empresa FROM empresas WHERE LOWER(email) = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
+      sql: `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
       args: [cleanEmail, docNumero, docNumero]
     });
     if (resE.rows.length > 0) {
@@ -138,7 +138,7 @@ export async function upsertEstudianteByEmail(params: {
   } else {
     // Persona Natural (puede pertenecer o representar a una empresa)
     const resP = await db.execute({
-      sql: `SELECT id FROM personas WHERE LOWER(email) = ? OR (cedula = ? AND ? != '') LIMIT 1`,
+      sql: `SELECT id FROM personas WHERE LOWER(TRIM(email)) = ? OR (cedula = ? AND ? != '') LIMIT 1`,
       args: [cleanEmail, docNumero, docNumero]
     });
     if (resP.rows.length > 0) {
