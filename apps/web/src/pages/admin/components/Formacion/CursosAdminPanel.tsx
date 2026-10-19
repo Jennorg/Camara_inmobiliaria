@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
 import { matchesSearch } from '@/utils/searchUtils';
-import { Calendar, Users, Pencil, Lock, Unlock, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack, Mail, CheckCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -65,6 +65,8 @@ export interface CursoDB {
   precio: string | null;
   estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
   solo_informativo?: number | boolean;
+  solo_afiliados?: number | boolean;
+  requiere_aprobacion?: number | boolean;
   firmantes?: string | FirmanteItem[];
   creado_en: string;
   actualizado_en: string | null;
@@ -75,14 +77,74 @@ export interface CursoDB {
   modalidad?: string | null;
   instructor_cargo?: string | null;
   modulos_lista?: string | null;
+  cursos_excluyentes?: string | number[] | null;
   modulos?: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  'Abierto': 'bg-emerald-50 text-emerald-600',
-  'Próximamente': 'bg-emerald-50 text-emerald-600',
-  'En curso': 'bg-amber-50 text-amber-600',
-  'Cerrado': 'bg-slate-100 text-slate-500',
+/**
+ * Estado del curso: es el dato que decide si alguien puede inscribirse hoy, así que
+ * es lo único que lleva color fuerte en la tarjeta. Un valor, excluyente, un color.
+ */
+const ESTATUS_META: Record<string, { punto: string; texto: string }> = {
+  'Abierto':      { punto: 'bg-emerald-500', texto: 'text-emerald-700' },
+  'Próximamente': { punto: 'bg-sky-500',     texto: 'text-sky-700' },
+  'En curso':     { punto: 'bg-amber-500',   texto: 'text-amber-700' },
+  'Cerrado':      { punto: 'bg-slate-300',   texto: 'text-slate-500' },
+};
+
+const EstatusIndicador = ({ estatus }: { estatus: string }) => {
+  const meta = ESTATUS_META[estatus] ?? { punto: 'bg-slate-300', texto: 'text-slate-500' };
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold whitespace-nowrap ${meta.texto}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.punto}`} aria-hidden="true" />
+      {estatus}
+    </span>
+  );
+};
+
+const parseExcluyentes = (valor: CursoDB['cursos_excluyentes']): number[] => {
+  try {
+    if (typeof valor === 'string') return JSON.parse(valor) || [];
+    return Array.isArray(valor) ? valor : [];
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Reglas especiales del curso. Son excepciones, no taxonomía: se muestran solo
+ * cuando existen y en forma de marca discreta, no de etiqueta a grito.
+ */
+const AtributosCurso = ({ curso }: { curso: CursoDB }) => {
+  const esInformativo = Boolean(curso.solo_informativo) || Number(curso.solo_informativo) === 1;
+  const esPrivado = Boolean(curso.solo_afiliados) || Number(curso.solo_afiliados) === 1;
+  const excluyentes = parseExcluyentes(curso.cursos_excluyentes);
+
+  if (!esInformativo && !esPrivado && excluyentes.length === 0) return null;
+
+  const marca = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap';
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {esPrivado && (
+        <span className={`${marca} bg-amber-50 text-amber-700`} title="Solo se pueden inscribir afiliados oficiales">
+          <Lock size={10} strokeWidth={2.5} aria-hidden="true" />
+          Solo afiliados
+        </span>
+      )}
+      {esInformativo && (
+        <span className={`${marca} bg-violet-50 text-violet-700`} title="Se publica como afiche; las inscripciones las gestiona un administrador">
+          <Megaphone size={10} strokeWidth={2.5} aria-hidden="true" />
+          Informativo
+        </span>
+      )}
+      {excluyentes.length > 0 && (
+        <span className={`${marca} bg-rose-50 text-rose-700`} title="No se puede cursar junto con otros cursos">
+          <Ban size={10} strokeWidth={2.5} aria-hidden="true" />
+          {excluyentes.length} {excluyentes.length === 1 ? 'excluyente' : 'excluyentes'}
+        </span>
+      )}
+    </div>
+  );
 };
 
 const NIVEL_STYLES: Record<string, string> = {
@@ -201,6 +263,9 @@ const CursosAdminPanel = () => {
     categoria: string;
     estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
     solo_informativo: number;
+    solo_afiliados: number;
+    requiere_aprobacion: number;
+    cursos_excluyentes: number[];
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
     firmantes: FirmanteItem[];
   }>({
@@ -214,6 +279,9 @@ const CursosAdminPanel = () => {
     categoria: 'Taller',
     estatus: 'Abierto',
     solo_informativo: 0,
+    solo_afiliados: 0,
+    requiere_aprobacion: 0,
+    cursos_excluyentes: [],
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
     firmantes: [],
   });
@@ -353,6 +421,17 @@ const CursosAdminPanel = () => {
       }
     }
 
+    let parsedExcluyentes: number[] = [];
+    if (curso && curso.cursos_excluyentes) {
+      try {
+        parsedExcluyentes = typeof curso.cursos_excluyentes === 'string'
+          ? JSON.parse(curso.cursos_excluyentes)
+          : (Array.isArray(curso.cursos_excluyentes) ? curso.cursos_excluyentes : []);
+      } catch {
+        parsedExcluyentes = [];
+      }
+    }
+
     if (curso) {
       setEditingId(curso.id_curso);
       setFormData({
@@ -366,6 +445,9 @@ const CursosAdminPanel = () => {
         categoria: curso.categoria || 'Taller',
         estatus: (curso.estatus as any) || 'Abierto',
         solo_informativo: curso.solo_informativo ? 1 : 0,
+        solo_afiliados: curso.solo_afiliados ? 1 : 0,
+        requiere_aprobacion: curso.requiere_aprobacion ? 1 : 0,
+        cursos_excluyentes: parsedExcluyentes,
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
       });
@@ -382,6 +464,9 @@ const CursosAdminPanel = () => {
         categoria: 'Taller',
         estatus: 'Abierto',
         solo_informativo: 0,
+        solo_afiliados: 0,
+        requiere_aprobacion: 0,
+        cursos_excluyentes: [],
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
       });
@@ -645,39 +730,20 @@ const CursosAdminPanel = () => {
                 className="bg-white border border-slate-200/80 rounded-3xl p-4 shadow-xs hover:border-emerald-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group relative overflow-hidden cursor-pointer"
               >
                 <div className="space-y-3">
-                  {/* Portada del Curso / Banner con Badges */}
+                  {/* Portada del curso */}
                   <div className="relative w-full aspect-[16/9] bg-slate-900/5 rounded-2xl overflow-hidden border border-slate-200/60 shadow-inner flex items-center justify-center">
                     {c.imagen_url ? (
                       <img
                         src={c.imagen_url}
                         alt={c.titulo || c.nombre}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${c.estatus === 'Cerrado' ? 'grayscale opacity-60' : ''}`}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
                         <GraduationCap size={32} className="opacity-40" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Sin Portada</span>
+                        <span className="text-[10px] font-medium opacity-70">Sin portada</span>
                       </div>
                     )}
-
-                    <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10 flex-wrap">
-                      {c.categoria && (
-                        <span className="bg-slate-900/80 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
-                          {c.categoria}
-                        </span>
-                      )}
-                      {(Boolean(c.solo_informativo) || Number(c.solo_informativo) === 1) && (
-                        <span className="bg-purple-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
-                          Informativo
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="absolute top-2 right-2 z-10">
-                      <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shadow-2xs ${STATUS_STYLES[c.estatus] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                        {c.estatus}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Título e Instructor */}
@@ -692,24 +758,33 @@ const CursosAdminPanel = () => {
 
                   {/* Detalle de Cupos y Fecha */}
                   <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <EstatusIndicador estatus={c.estatus} />
+                      {c.categoria && (
+                        <span className="text-[10px] font-medium text-slate-400 truncate">{c.categoria}</span>
+                      )}
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold">
                       <span className="inline-flex items-center gap-1">
-                        <Calendar size={12} className="text-emerald-600" />
+                        <Calendar size={12} className="text-slate-400" />
                         {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}
                       </span>
                       {c.precio && <span className="font-extrabold text-emerald-700">{c.precio}</span>}
                     </div>
 
+                    <AtributosCurso curso={c} />
+
                     {!(Number(c.solo_informativo) === 1 || c.solo_informativo === true || (c.estatus as string) === 'Solo Informativo') && (
                       isIlimitado ? (
                         <div className="flex items-center justify-between text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
-                          <span>CUPOS ILIMITADOS</span>
+                          <span>Cupos ilimitados</span>
                           <span>{ins} inscritos</span>
                         </div>
                       ) : (
                         <div className="space-y-1">
                           <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
-                            <span>Cupos Ocupados</span>
+                            <span>Cupos ocupados</span>
                             <span>{ins}/{totales} ({Math.round(pct)}%)</span>
                           </div>
                           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -809,19 +884,15 @@ const CursosAdminPanel = () => {
                       className="hover:bg-slate-50/60 transition-colors cursor-pointer"
                     >
                       <td className="px-4 py-3.5 text-left">
-                        <div className="flex flex-col gap-1 items-start">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-black text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
-                            {(c.solo_informativo === 1 || c.solo_informativo === true) && (
-                              <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 uppercase tracking-wider">Solo Informativo</span>
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <p className="font-bold text-slate-800 text-xs leading-tight">{c.titulo || c.nombre}</p>
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <EstatusIndicador estatus={c.estatus} />
+                            {c.categoria && (
+                              <span className="text-[10px] font-medium text-slate-400">{c.categoria}</span>
                             )}
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${STATUS_STYLES[c.estatus] || 'bg-slate-100 text-slate-500'}`}>
-                              {c.estatus}
-                            </span>
                           </div>
-                          {c.categoria && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">{c.categoria}</span>
-                          )}
+                          <AtributosCurso curso={c} />
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-xs text-slate-600 font-bold whitespace-nowrap text-center">{c.instructor_nombre || 'Sin Instructor'}</td>
@@ -1043,6 +1114,53 @@ const CursosAdminPanel = () => {
                   </div>
                 </div>
 
+                {/* Curso privado — solo afiliados oficiales */}
+                <div className="p-4 bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border border-amber-200/80 rounded-2xl space-y-2 shadow-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                        <span>🔒 Curso privado (Solo Afiliados)</span>
+                        {formData.solo_afiliados === 1 && (
+                          <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Privado</span>
+                        )}
+                      </h5>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Si lo activas, solo podrán inscribirse las personas <strong>afiliadas oficialmente</strong> (las que aparecen en el Directorio de Miembros). El curso sigue visible en el catálogo público, pero cualquier otra persona verá un aviso de que es exclusivo para afiliados. Tú puedes seguir asignando estudiantes manualmente sin restricción.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.solo_afiliados === 1}
+                        onChange={(e) => setFormData({ ...formData, solo_afiliados: e.target.checked ? 1 : 0 })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-amber-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Aprobación manual de inscritos */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-extrabold text-slate-800">Aprobar inscritos manualmente</h5>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Desactivado (por defecto), quien se inscribe queda admitido de inmediato. Si lo activas, cada inscripción queda <strong>pendiente</strong> hasta que la valides o rechaces desde la lista de inscritos.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.requiere_aprobacion === 1}
+                        onChange={(e) => setFormData({ ...formData, requiere_aprobacion: e.target.checked ? 1 : 0 })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo de Cupos</label>
@@ -1081,6 +1199,83 @@ const CursosAdminPanel = () => {
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
                     value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({ ...formData, fecha_inicio: e.target.value })}
                   />
+                </div>
+
+                {/* Sección de Cursos Mutuamente Excluyentes */}
+                <div className="p-4 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-3 shadow-xs">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                        <span>🚫 Cursos Excluyentes (Incompatibilidad)</span>
+                        {formData.cursos_excluyentes.length > 0 && (
+                          <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">
+                            {formData.cursos_excluyentes.length} {formData.cursos_excluyentes.length === 1 ? 'curso' : 'cursos'}
+                          </span>
+                        )}
+                      </h5>
+                      <p className="text-[11px] text-amber-800/80 font-medium leading-relaxed mt-0.5">
+                        Si un estudiante está inscrito en este curso, <strong>no podrá inscribirse en los cursos que selecciones aquí</strong>. Es de <strong>un solo sentido</strong>: para que también aplique al revés, edita el otro curso y selecciona este. Puedes seleccionar más de un curso.
+                      </p>
+                    </div>
+                    {formData.cursos_excluyentes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, cursos_excluyentes: [] })}
+                        className="text-[10px] text-amber-700 hover:text-amber-900 underline font-bold shrink-0"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {cursos.filter(c => c.id_curso !== editingId).length === 0 ? (
+                      <p className="text-[11px] text-slate-400 italic">No hay otros cursos disponibles para vincular en este momento.</p>
+                    ) : (
+                      cursos.filter(c => c.id_curso !== editingId).map(other => {
+                        const isSelected = formData.cursos_excluyentes.includes(other.id_curso);
+                        return (
+                          <label
+                            key={other.id_curso}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-amber-100/90 border-amber-400 shadow-xs'
+                                : 'bg-white/80 border-gray-200 hover:border-amber-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const updated = e.target.checked
+                                    ? [...formData.cursos_excluyentes, other.id_curso]
+                                    : formData.cursos_excluyentes.filter(id => id !== other.id_curso);
+                                  setFormData({ ...formData, cursos_excluyentes: updated });
+                                }}
+                                className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500 shrink-0"
+                              />
+                              <div className="truncate">
+                                <p className="text-xs font-bold text-slate-800 truncate">
+                                  {other.titulo || other.nombre}
+                                </p>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                  <span>{other.categoria || 'Curso'}</span>
+                                  <span>•</span>
+                                  <span>{other.estatus}</span>
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded-md shrink-0">
+                                Excluyente
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3 border-t border-gray-100 pt-4">
@@ -1759,8 +1954,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
     const prefix = rawCed.includes('-') ? rawCed.split('-')[0].toUpperCase() : 'V';
     const numCed = rawCed.includes('-') ? rawCed.split('-')[1] : rawCed.replace(/\D/g, '');
 
-    const nombre = r.estudiante_nombres || (r.estudiante_nombre ? (r.estudiante_nombre.trim().split(/\s+/).length > 1 ? r.estudiante_nombre.trim().split(/\s+/).slice(0, -1).join(' ') : r.estudiante_nombre.trim()) : '');
-    const apellido = r.estudiante_apellidos || (r.estudiante_nombre && r.estudiante_nombre.trim().split(/\s+/).length > 1 ? r.estudiante_nombre.trim().split(/\s+/).slice(-1)[0] : '');
+    const nombre = r.estudiante_nombres || r.estudiante_nombre || '';
+    const apellido = r.estudiante_apellidos || '';
 
     setEditFormData({
       nombre,
@@ -1896,7 +2091,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         r.estudiante_email || 'Sin correo',
         r.estudiante_telefono || 'Sin teléfono',
         new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-        r.completado === 1 ? 'Completado' : r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : (r.estatus || 'Registrado')
+        r.completado === 1 ? 'Completado' : !requiereAprobacion ? 'Inscrito' : r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : (r.estatus || 'Registrado')
       ]);
 
       const HEADER_COLOR: [number, number, number] = [4, 120, 87];
@@ -2113,6 +2308,48 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   }, [curso.id_curso, token]);
 
   const [processingActionId, setProcessingActionId] = useState<{ id: number; action: string } | null>(null);
+  const requiereAprobacion = Number(curso.requiere_aprobacion) === 1;
+  // La API no devuelve cupos_disponibles: se calcula con los inscritos activos de la lista
+  const cuposTotales = getSafeNumber(curso.cupos_totales, 0);
+  const cuposOcupados = rows.filter(r => r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado').length;
+  // Estado del último correo de confirmación por inscripción
+  type CorreoEstado = 'previo' | 'enviando' | 'enviado' | 'aceptado' | 'entregado' | 'demorado' | 'rebotado' | 'error';
+  const [correoEstado, setCorreoEstado] = useState<Record<number, CorreoEstado>>({});
+  const montado = useRef(true);
+  // En StrictMode el efecto se monta, desmonta y vuelve a montar: hay que re-marcar como montado
+  useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
+
+  const handleEnviarConfirmacion = async (id: number, email: string | null) => {
+    if (correoEstado[id] === 'enviando') return;
+    const setEstado = (e: CorreoEstado) => montado.current && setCorreoEstado(prev => ({ ...prev, [id]: e }));
+    setEstado('enviando');
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/reenviar-confirmacion`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo enviar el correo');
+      setEstado('enviado');
+      // Resend solo acepta el envío; la entrega real se consulta por su id (hasta ~20 s)
+      const emailId = json.data?.emailId;
+      for (let i = 0; emailId && i < 8 && montado.current; i++) {
+        await new Promise(r => setTimeout(r, 2500));
+        const st = await fetch(`${API_URL}/api/academia/correos/${emailId}/estado`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).catch(() => null);
+        if (st?.data?.verificable === false) break;
+        const ev = st?.data?.estado as string | undefined;
+        if (ev === 'delivered' || ev === 'opened' || ev === 'clicked') { setEstado('entregado'); return; }
+        if (ev === 'bounced' || ev === 'complained' || ev === 'failed' || ev === 'suppressed') { setEstado('rebotado'); return; }
+        if (ev === 'delivery_delayed') setEstado('demorado');
+      }
+      // Resend lo aceptó pero no se pudo confirmar la entrega (key sin permiso de lectura o sin respuesta)
+      if (emailId) setCorreoEstado(prev => (prev[id] === 'enviado' && montado.current ? { ...prev, [id]: 'aceptado' } : prev));
+    } catch (e: any) {
+      setEstado('error');
+      Swal.fire('Error', e?.message || `No se pudo enviar el correo a ${email || 'el participante'}`, 'error');
+    }
+  };
 
   const procesar = async (id: number, action: 'aprobar' | 'rechazar' | 'completar') => {
     if (processingActionId) return;
@@ -2515,7 +2752,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               <div className="flex flex-col">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
                 <span className="text-sm font-bold text-slate-700 tabular-nums">
-                  {getSafeNumber(curso.cupos_disponibles, 0)} <span className="text-slate-300 font-medium">/ {getSafeNumber(curso.cupos_totales, 0) >= 999999 ? '∞' : getSafeNumber(curso.cupos_totales, 0)}</span>
+                  {cuposTotales >= 999999 ? '∞' : Math.max(0, cuposTotales - cuposOcupados)} <span className="text-slate-300 font-medium">/ {cuposTotales >= 999999 ? '∞' : cuposTotales}</span>
                 </span>
               </div>
               <div className="w-px h-8 bg-gray-100 mx-1" />
@@ -2734,7 +2971,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     { id: 'email', label: 'Correo', pad: 'px-4' },
                     { id: 'telefono', label: 'Teléfono', pad: 'px-4' },
                     { id: 'fecha', label: 'Fecha Registro', pad: 'px-4' },
-                    { id: 'estatus', label: 'Estatus', pad: 'px-4' },
+                    ...(requiereAprobacion ? [{ id: 'estatus', label: 'Estatus', pad: 'px-4' }] : []),
                   ].map(col => {
                     const isActive = sortField === col.id;
                     return (
@@ -2766,6 +3003,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               <tbody className="divide-y divide-gray-50">
                 {filteredRows.map(r => {
                   const isSelected = selectedIds.includes(r.id_inscripcion);
+                  // Sin acción en esta sesión, se muestra el último envío guardado en la BD
+                  const correoSt: CorreoEstado | undefined = correoEstado[r.id_inscripcion] ?? (r.correo_confirmacion_enviado_en ? 'previo' : undefined);
                   return (
                     <tr
                       key={r.id_inscripcion}
@@ -2792,6 +3031,20 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-xs font-semibold text-slate-600 truncate max-w-[220px] block" title={r.estudiante_email || ''}>{r.estudiante_email || 'Sin correo'}</span>
+                        {correoSt && (
+                          <span className={`mt-1 inline-flex items-center gap-1 text-[10px] font-bold ${{
+                            previo: 'text-slate-500', enviando: 'text-slate-400', enviado: 'text-blue-500', aceptado: 'text-blue-600', entregado: 'text-emerald-600',
+                            demorado: 'text-amber-600', rebotado: 'text-red-500', error: 'text-red-500',
+                          }[correoSt]}`}>
+                            {correoSt === 'enviando' && <Loader2 size={11} className="animate-spin" />}
+                            {correoSt === 'entregado' && <CheckCheck size={11} />}
+                            {{
+                              previo: `Enviado el ${new Date(r.correo_confirmacion_enviado_en).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
+                              enviando: 'Enviando…', enviado: 'Enviado · confirmando entrega…', aceptado: 'Enviado', entregado: 'Entregado',
+                              demorado: 'Entrega demorada', rebotado: 'No se pudo entregar', error: 'Falló el envío',
+                            }[correoSt]}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">{r.estudiante_telefono || 'Sin teléfono'}</span>
@@ -2799,7 +3052,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <td className="px-4 py-4 text-xs font-bold text-slate-500 tabular-nums whitespace-nowrap">
                         {new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4">
+                      {requiereAprobacion && <td className="px-6 py-4">
                         {r.completado === 1 ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Completado
@@ -2816,7 +3069,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                             {r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : r.estatus}
                           </span>
                         )}
-                      </td>
+                      </td>}
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-transform transform translate-x-2 group-hover:translate-x-0">
                           {(() => {
@@ -2829,7 +3082,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                             return (
                               <>
-                                {r.estatus === 'Preinscrito' && (
+                                {requiereAprobacion && r.estatus === 'Preinscrito' && (
                                   <>
                                     <button
                                       type="button"
@@ -2863,7 +3116,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     </button>
                                   </>
                                 )}
-                                {r.estatus === 'Inscrito' && r.completado !== 1 && (
+                                {r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (requiereAprobacion ? r.estatus === 'Inscrito' : true) && r.completado !== 1 && (
                                   <>
                                     <button
                                       type="button"
@@ -2883,6 +3136,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                         </>
                                       )}
                                     </button>
+                                    {requiereAprobacion && (
                                     <button
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'rechazar')}
@@ -2898,12 +3152,13 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                         <span>Revocar</span>
                                       )}
                                     </button>
+                                    )}
                                   </>
                                 )}
                                 {r.completado === 1 && (
                                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
                                 )}
-                                {(r.estatus === 'Inscrito' || r.completado === 1) && (
+                                {(r.estatus === 'Inscrito' || r.completado === 1 || (!requiereAprobacion && r.estatus === 'Preinscrito')) && (
                                   <a
                                     href={`/comprobante/${encodeURIComponent(r.codigo_validacion || `CIV-${String(r.id_inscripcion).padStart(5, '0')}-${String(curso.id_curso || '0').padStart(3, '0')}`)}`}
                                     target="_blank"
@@ -2913,6 +3168,17 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                   >
                                     <Award size={13} />
                                   </a>
+                                )}
+                                {r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (
+                                  <button
+                                    type="button"
+                                    disabled={isRowDisabled || !r.estudiante_email || correoEstado[r.id_inscripcion] === 'enviando'}
+                                    onClick={() => handleEnviarConfirmacion(r.id_inscripcion, r.estudiante_email)}
+                                    className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200/60 cursor-pointer shrink-0 disabled:opacity-50 disabled:pointer-events-none"
+                                    title={r.estudiante_email ? `Enviar correo de confirmación a ${r.estudiante_email}` : 'El participante no tiene correo'}
+                                  >
+                                    {correoEstado[r.id_inscripcion] === 'enviando' ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
+                                  </button>
                                 )}
                                 <button
                                   type="button"

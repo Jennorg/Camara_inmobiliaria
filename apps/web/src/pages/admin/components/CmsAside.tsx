@@ -287,7 +287,10 @@ async function fetchPreinscripcionesCountData(token: string, signal?: AbortSigna
   if (!res.ok) return 0
   const json = await res.json()
   if (json.success && Array.isArray(json.data)) {
-    return json.data.length
+    const pendingProgramas = json.data.filter((r: any) =>
+      r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0 && !r.id_curso
+    )
+    return pendingProgramas.length
   }
   return 0
 }

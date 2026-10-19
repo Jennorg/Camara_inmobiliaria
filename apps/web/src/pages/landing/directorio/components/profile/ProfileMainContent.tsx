@@ -7,7 +7,7 @@ interface ProfileMainContentProps {
 }
 
 export const ProfileMainContent = ({ afiliado }: ProfileMainContentProps) => {
-  const isCibir = !!afiliado.cibir_convalidado;
+  const isCibir = !!afiliado.cibir_acreditado;
   const progressPercent = isCibir ? 100 : 60;
 
   return (

@@ -56,8 +56,7 @@ export interface Afiliado {
   codigo?: string | null;
   tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
-  cibir_convalidado: number;
-  inscripcion_pagada: number;
+  cibir_acreditado: number;
   notas?: string | null;
   redes_sociales?: Record<string, any> | null;
   fecha_registro: string;
@@ -83,9 +82,7 @@ export interface AfiliadoDTO {
   codigo: string | null;
   tipo_afiliado: 'Natural' | 'Corporativo' | 'Agente' | 'Agente Corporativo';
   estatus: EstatusAfiliado;
-  cibir_convalidado: number;
   cibir_acreditado?: number;
-  inscripcion_pagada: number;
   notas: string | null;
   redes_sociales: Record<string, any> | null;
   fecha_registro: string;

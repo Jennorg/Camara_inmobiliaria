@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GraduationCap, ArrowRight, ChevronRight } from 'lucide-react';
 import { SkeletonCard } from '@/components/Skeleton';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
@@ -22,6 +22,7 @@ interface CursoDB {
   imagen_url: string | null;
   estatus: string;
   solo_informativo?: number | boolean;
+  solo_afiliados?: number | boolean;
   isFlagship?: boolean;
   codigo?: string;
 }
@@ -83,6 +84,41 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
   const [loading, setLoading] = useState(true);
   const { user, token } = useAuth(); // Para obtener info básica y prellenar modal
 
+  const applyInscripciones = useCallback((allInscripciones: any[]) => {
+    // 1. Cursos aprobados/completados (permiten reinscripción y renovación)
+    const approved = allInscripciones.filter((c: any) => {
+      return c.estatus_academico === 'Aprobado' || Number(c.completado) === 1 || c.estatus === 'Aprobado';
+    });
+    setApprovedCodes(approved.filter((c: any) => c.programa_codigo).map((c: any) => c.programa_codigo));
+    setApprovedCourseIds(approved.filter((c: any) => c.id_curso).map((c: any) => c.id_curso));
+
+    // 2. Cursos activamente en curso o pendientes de evaluación
+    const activeInscripciones = allInscripciones.filter((c: any) => {
+      const isFinished = c.estatus_academico === 'Aprobado' || Number(c.completado) === 1 || c.estatus === 'Aprobado' || c.estatus === 'Rechazado' || c.estatus === 'Cancelado';
+      return !isFinished;
+    });
+
+    const codes = activeInscripciones
+      .filter((c: any) => c.programa_codigo)
+      .map((c: any) => c.programa_codigo);
+    const ids = activeInscripciones
+      .filter((c: any) => c.id_curso)
+      .map((c: any) => c.id_curso);
+    setEnrolledCodes(codes);
+    setEnrolledCourseIds(ids);
+  }, []);
+
+  const refreshInscripciones = useCallback(() => {
+    if (!token) return;
+    apiFetch(`${API_URL}/api/afiliados/me/cursos`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(inscripcionesJson => {
+      if (inscripcionesJson?.success && Array.isArray(inscripcionesJson.data)) {
+        applyInscripciones(inscripcionesJson.data);
+      }
+    }).catch(console.error);
+  }, [token, applyInscripciones]);
+
   useEffect(() => {
     let active = true;
     // 1. Fetch catálogo
@@ -105,29 +141,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         }
         
         if (inscripcionesJson.success && inscripcionesJson.data) {
-          const allInscripciones = inscripcionesJson.data;
-
-          // 1. Cursos aprobados/completados (permiten reinscripción y renovación)
-          const approved = allInscripciones.filter((c: any) => {
-            return c.estatus_academico === 'Aprobado' || Number(c.completado) === 1 || c.estatus === 'Aprobado';
-          });
-          setApprovedCodes(approved.filter((c: any) => c.programa_codigo).map((c: any) => c.programa_codigo));
-          setApprovedCourseIds(approved.filter((c: any) => c.id_curso).map((c: any) => c.id_curso));
-
-          // 2. Cursos activamente en curso o pendientes de evaluación
-          const activeInscripciones = allInscripciones.filter((c: any) => {
-            const isFinished = c.estatus_academico === 'Aprobado' || Number(c.completado) === 1 || c.estatus === 'Aprobado' || c.estatus === 'Rechazado' || c.estatus === 'Cancelado';
-            return !isFinished;
-          });
-
-          const codes = activeInscripciones
-            .filter((c: any) => c.programa_codigo)
-            .map((c: any) => c.programa_codigo);
-          const ids = activeInscripciones
-            .filter((c: any) => c.id_curso)
-            .map((c: any) => c.id_curso);
-          setEnrolledCodes(codes);
-          setEnrolledCourseIds(ids);
+          applyInscripciones(inscripcionesJson.data);
         }
       })
       .catch(() => {
@@ -137,7 +151,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [limit, token]);
+  }, [limit, token, applyInscripciones]);
 
   const handleInscribir = (curso: CursoDB) => {
     const isInformative = !curso.isFlagship && (curso.solo_informativo === 1 || curso.solo_informativo === true || curso.estatus === 'Solo Informativo');
@@ -157,6 +171,33 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         icon: 'info',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#9333ea',
+      });
+      return;
+    }
+
+    // Curso privado: solo afiliados oficiales. El backend es la autoridad final
+    // (valida por correo/cédula contra el padrón), aquí solo evitamos el viaje
+    // al servidor cuando sabemos que el usuario no tiene afiliación.
+    const isSoloAfiliados = !curso.isFlagship && (curso.solo_afiliados === 1 || curso.solo_afiliados === true);
+    if (isSoloAfiliados && !user?.id_afiliado) {
+      Swal.fire({
+        title: 'Curso exclusivo para afiliados',
+        html: `
+          <div class="text-left space-y-3 text-slate-700 text-sm">
+            <p class="font-bold text-[#022c22] text-base">${curso.titulo || curso.nombre}</p>
+            <p>Este curso es <strong>privado</strong>: solo pueden inscribirse las personas afiliadas oficialmente a la Cámara Inmobiliaria del Estado Bolívar.</p>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-semibold">
+              Si ya eres afiliado, inicia sesión con el correo registrado en tu afiliación para poder inscribirte.
+            </div>
+          </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Conocer requisitos',
+        cancelButtonText: 'Entendido',
+        confirmButtonColor: '#d97706',
+      }).then((r) => {
+        if (r.isConfirmed) window.location.href = '/afiliate';
       });
       return;
     }
@@ -190,23 +231,44 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then(json => {
-        if (json.success) {
-          if (json.data?.token) {
-            window.location.href = `/cursos/verificar?token=${json.data.token}`;
-            return;
+      .then(async res => {
+        const json = await res.json().catch(() => ({}));
+        if (json && typeof json.message === 'string') {
+          if (json.success) {
+            if (json.data?.token) {
+              window.location.href = `/cursos/verificar?token=${json.data.token}`;
+              return;
+            }
+
+            // Actualización reactiva inmediata en la interfaz
+            if (curso.isFlagship && curso.codigo) {
+              setEnrolledCodes(prev => Array.from(new Set([...prev, curso.codigo!])));
+            } else if (curso.id_curso) {
+              setEnrolledCourseIds(prev => Array.from(new Set([...prev, curso.id_curso])));
+            }
+            refreshInscripciones();
+
+            Swal.fire(isApprovedCourse ? '¡Solicitud de renovación enviada!' : '¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success');
+          } else {
+            Swal.fire('Atención', json.message, 'warning');
           }
-          Swal.fire(isApprovedCourse ? '¡Solicitud de renovación enviada!' : '¡Solicitud enviada!', json.message || 'Te contactaremos pronto.', 'success');
-        } else {
-          Swal.fire('Atención', json.message || 'Hubo un error al procesar tu solicitud.', 'warning');
+          return;
         }
+
+        if (!res.ok) {
+          throw new Error(`Error en el servidor (${res.status})`);
+        }
+
+        if (curso.isFlagship && curso.codigo) {
+          setEnrolledCodes(prev => Array.from(new Set([...prev, curso.codigo!])));
+        } else if (curso.id_curso) {
+          setEnrolledCourseIds(prev => Array.from(new Set([...prev, curso.id_curso])));
+        }
+        refreshInscripciones();
+        Swal.fire('¡Solicitud enviada!', 'Te contactaremos pronto.', 'success');
       })
-      .catch(() => {
-        Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+      .catch((err) => {
+        Swal.fire('Error', err?.message || 'No se pudo conectar con el servidor.', 'error');
       });
     };
 
@@ -322,6 +384,12 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                     Próximamente
                   </div>
                 ) : null}
+                {/* Badge Curso Privado */}
+                {!course.isFlagship && (course.solo_afiliados === 1 || course.solo_afiliados === true) && (
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500 flex items-center gap-1">
+                    <span>🔒</span> Afiliados
+                  </div>
+                )}
                 {/* Badge Enrolled */}
                 {isEnrolled && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10">

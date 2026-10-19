@@ -15,6 +15,8 @@ import {
   adminRechazarPreinscripcion,
   adminCompletarCursoEstudiante,
   adminAprobarModulo,
+  adminReenviarConfirmacionCurso,
+  adminEstadoCorreo,
   academiaAdminGuards,
   adminRemitirACibir,
   adminCambiarEtapaInscripcion,
@@ -67,6 +69,12 @@ router.patch('/inscripciones/:id/agendar-entrevista', adminAgendarEntrevista)
 
 // PATCH /api/academia/inscripciones/:id/finalizar-entrevista
 router.patch('/inscripciones/:id/finalizar-entrevista', adminFinalizarEntrevista)
+
+// POST /api/academia/inscripciones/:id/reenviar-confirmacion
+router.post('/inscripciones/:id/reenviar-confirmacion', adminReenviarConfirmacionCurso)
+
+// GET /api/academia/correos/:emailId/estado
+router.get('/correos/:emailId/estado', adminEstadoCorreo)
 
 // PATCH /api/academia/inscripciones/:id/aprobar-directo
 router.patch('/inscripciones/:id/aprobar-directo', adminAprobarModulo)

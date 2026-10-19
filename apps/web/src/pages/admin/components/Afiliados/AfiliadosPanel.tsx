@@ -1201,7 +1201,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">Aprobar CIBIR</span>
                   </div>
                   <p className="text-[11px] font-medium text-emerald-800/80 leading-snug">
-                    {!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado)
+                    {!Boolean(selected.cibir_acreditado)
                       ? '✓ Aprobado en CIBIR (Genera certificado CIBIR de aprobación)'
                       : '✗ Acreditado por convalidación (Exonerado / Sin certificado CIBIR)'}
                   </p>
@@ -1209,7 +1209,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input
                     type="checkbox"
-                    checked={!Boolean(selected.cibir_acreditado ?? selected.cibir_convalidado)}
+                    checked={!Boolean(selected.cibir_acreditado)}
                     onChange={(e) => updateField('cibir_acreditado', e.target.checked ? 0 : 1)}
                     className="sr-only peer"
                   />

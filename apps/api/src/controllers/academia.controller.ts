@@ -21,6 +21,7 @@ import {
   notificarAdminNuevaPreinscripcion,
   enviarCorreoAprobacionEstudiante,
   enviarCorreoSetPasswordEstudiante,
+  obtenerEstadoCorreo,
   enviarCorreoResultadoEntrevista,
   enviarCorreoInvitacionCibir,
   enviarCorreoRechazo,
@@ -105,7 +106,7 @@ export async function upsertEstudianteByEmail(params: {
   if (isJuridico) {
     // Entidad Jurídica (Empresa)
     const resE = await db.execute({
-      sql: `SELECT id_empresa FROM empresas WHERE LOWER(email) = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
+      sql: `SELECT id_empresa FROM empresas WHERE LOWER(TRIM(email)) = ? OR (rif_numero = ? AND ? != '') LIMIT 1`,
       args: [cleanEmail, docNumero, docNumero]
     });
     if (resE.rows.length > 0) {
@@ -139,13 +140,13 @@ export async function upsertEstudianteByEmail(params: {
   } else {
     // Persona Natural (puede pertenecer o representar a una empresa)
     const resP = await db.execute({
-      sql: `SELECT id FROM personas WHERE LOWER(email) = ? OR (cedula = ? AND ? != '') LIMIT 1`,
+      sql: `SELECT id FROM personas WHERE LOWER(TRIM(email)) = ? OR (cedula = ? AND ? != '') LIMIT 1`,
       args: [cleanEmail, docNumero, docNumero]
     });
     if (resP.rows.length > 0) {
       idPersona = resP.rows[0].id as number;
-      const parsedNombres = nombres || (params.nombreCompleto ? (params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(0, -1).join(' ') : params.nombreCompleto.trim()) : null);
-      const parsedApellidos = apellidos || (params.nombreCompleto && params.nombreCompleto.trim().split(/\s+/).length > 1 ? params.nombreCompleto.trim().split(/\s+/).slice(-1)[0] : null);
+      const parsedNombres = (nombres && nombres.trim()) || (params.nombreCompleto ? params.nombreCompleto.trim() : null);
+      const parsedApellidos = (apellidos && apellidos.trim()) || null;
 
       await db.execute({
         sql: `UPDATE personas SET 
@@ -175,7 +176,7 @@ export async function upsertEstudianteByEmail(params: {
       const finalCedula = docNumero || `TEMP-V-${Date.now()}`;
       const insP = await db.execute({
         sql: `INSERT INTO personas (nombres, apellidos, cedula_tipo, cedula, email, telefono, nivel_academico, profesion) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [toTitleCase(nombres || params.nombreCompleto) || '', toTitleCase(apellidos) || '', docTipo, finalCedula, cleanEmail, telefono || null, nivelProfesional || null, profesion || null]
+        args: [toTitleCase(nombres || params.nombreCompleto || '') || '', toTitleCase(apellidos || '') || '', docTipo, finalCedula, cleanEmail, telefono || null, nivelProfesional || null, profesion || null]
       });
       idPersona = insP.rows[0].id as number;
     }
@@ -241,6 +242,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   esCorredorInmobiliario?: boolean | string | null
   razonSocial?: string | null
   representanteLegal?: string | null
+  representanteLegalNombres?: string | null
+  representanteLegalApellidos?: string | null
   cedulaRepresentante?: string | null
   emailRepresentante?: string | null
   empresaTelefono?: string | null
@@ -250,18 +253,13 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   const {
     nombreCompleto, nombres, apellidos, cedulaRif, email, telefono, programaCodigo,
     tipoAfiliado, nivelProfesional, profesion, esCorredorInmobiliario,
-    razonSocial, representanteLegal, cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa,
+    razonSocial, representanteLegal, representanteLegalNombres, representanteLegalApellidos,
+    cedulaRepresentante, emailRepresentante, empresaTelefono, id_empresa,
     aprobadoPorEmpresa
   } = params
 
-  let finalNombres = nombres;
-  let finalApellidos = apellidos;
-  if (!finalNombres && nombreCompleto) {
-    const parts = nombreCompleto.trim().split(' ');
-    const mid = Math.ceil(parts.length / 2);
-    finalNombres = parts.slice(0, mid).join(' ');
-    finalApellidos = parts.length > 1 ? parts.slice(mid).join(' ') : '';
-  }
+  const finalNombres = (nombres && nombres.trim()) || (nombreCompleto ? nombreCompleto.trim() : null);
+  const finalApellidos = (apellidos && apellidos.trim()) || null;
 
   const expiracion = new Date()
   expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
@@ -272,11 +270,8 @@ export async function crearVerificacionPreinscripcionPrograma(params: {
   const cleanedCedulaRif = (cedulaRif || '').replace(/\D/g, '')
   const cleanedCedulaRep = (cedulaRepresentante || '').replace(/\D/g, '')
 
-  const repNombre = representanteLegal || ''
-  const repParts = repNombre.trim().split(' ')
-  const repMid = Math.ceil(repParts.length / 2)
-  const repNombres = repParts.slice(0, repMid).join(' ')
-  const repApellidos = repParts.length > 1 ? repParts.slice(repMid).join(' ') : ''
+  const repNombres = (representanteLegalNombres && representanteLegalNombres.trim()) || (representanteLegal ? representanteLegal.trim() : null);
+  const repApellidos = (representanteLegalApellidos && representanteLegalApellidos.trim()) || null;
 
   await db.execute({
     sql: `DELETE FROM tokens_accion 
@@ -324,6 +319,10 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
   try {
     const programaCodigo = normalizeProgramaCodigo(req.body?.programaCodigo)
     const nombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
+    const reqNombres = typeof req.body?.nombres === 'string' ? req.body.nombres.trim() : null
+    const reqApellidos = typeof req.body?.apellidos === 'string' ? req.body.apellidos.trim() : null
+    const reqRepNombres = typeof req.body?.representanteLegalNombres === 'string' ? req.body.representanteLegalNombres.trim() : null
+    const reqRepApellidos = typeof req.body?.representanteLegalApellidos === 'string' ? req.body.representanteLegalApellidos.trim() : null
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
@@ -338,8 +337,8 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       res.status(400).json({ success: false, message: 'programaCodigo inválido. Use PADI/PEGI/PREANI/CIBIR/AFILIACION.' })
       return
     }
-    if (!nombreCompleto || !email) {
-      res.status(400).json({ success: false, message: 'nombreCompleto y email son requeridos' })
+    if ((!reqNombres && !nombreCompleto) || !email) {
+      res.status(400).json({ success: false, message: 'Nombres, apellidos y email son requeridos' })
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -556,13 +555,12 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       return
     }
 
-    const nombreParts = nombreCompleto.trim().split(' ')
-    const mid = Math.ceil(nombreParts.length / 2)
-    const nombres = isCorporativo ? null : nombreParts.slice(0, mid).join(' ')
-    const apellidos = isCorporativo ? null : (nombreParts.length > 1 ? nombreParts.slice(mid).join(' ') : '')
+    const nombres = isCorporativo ? null : (reqNombres || (nombreCompleto ? nombreCompleto.trim() : null))
+    const apellidos = isCorporativo ? null : (reqApellidos || null)
+    const finalNombreDisplay = isCorporativo ? (razonSocial || '') : [nombres, apellidos].filter(Boolean).join(' ')
 
     const { token } = await crearVerificacionPreinscripcionPrograma({
-      nombreCompleto,
+      nombreCompleto: finalNombreDisplay,
       nombres,
       apellidos,
       cedulaRif,
@@ -575,6 +573,8 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
       esCorredorInmobiliario,
       razonSocial,
       representanteLegal,
+      representanteLegalNombres: reqRepNombres,
+      representanteLegalApellidos: reqRepApellidos,
       cedulaRepresentante,
       emailRepresentante,
       empresaTelefono,
@@ -583,7 +583,7 @@ export const publicPreinscribirProgramaPrincipal = async (req: Request, res: Res
 
     if (env.NODE_ENV !== 'development') {
       await enviarCorreoConfirmacionPreinscripcionPrograma({
-        nombre: nombreCompleto,
+        nombre: finalNombreDisplay,
         emailOriginal: email,
         programaCodigo,
         token,
@@ -1377,17 +1377,68 @@ const ensureCursosTableSchema = async (): Promise<void> => {
       await db.execute('CREATE INDEX IF NOT EXISTS idx_cursos_activos ON cursos(eliminado_en) WHERE eliminado_en IS NULL')
       await db.execute('PRAGMA foreign_keys = ON')
       console.log('[Schema Migration] Successfully upgraded cursos table schema.')
-    } else if (!tableSql.includes('solo_informativo')) {
-      try {
-        await db.execute(`ALTER TABLE cursos ADD COLUMN solo_informativo INTEGER DEFAULT 0`)
-      } catch (_e) {
-        // Column already exists
+    } else {
+      if (!tableSql.includes('solo_informativo')) {
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN solo_informativo INTEGER DEFAULT 0`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
+      if (!tableSql.includes('cursos_excluyentes')) {
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN cursos_excluyentes TEXT DEFAULT '[]'`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
+      if (!tableSql.includes('solo_afiliados')) {
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN solo_afiliados INTEGER NOT NULL DEFAULT 0 CHECK (solo_afiliados IN (0,1))`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
+      if (!tableSql.includes('requiere_aprobacion')) {
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN requiere_aprobacion INTEGER NOT NULL DEFAULT 0 CHECK (requiere_aprobacion IN (0,1))`)
+        } catch (_e) {
+          // Column already exists
+        }
       }
     }
   } catch (err) {
     console.error('ensureCursosTableSchema error:', err)
   }
   cursosSchemaEnsured = true
+}
+
+/**
+ * IDs de los cursos que bloquean la inscripción en `idCurso`: aquellos que lo listan en su
+ * propio cursos_excluyentes. La exclusión es unilateral; para que sea mutua, ambos cursos
+ * deben listarse entre sí.
+ */
+export const getCursosExcluyentesIds = async (idCurso: number): Promise<number[]> => {
+  try {
+    const res = await db.execute({
+      sql: `SELECT id_curso, cursos_excluyentes FROM cursos WHERE eliminado_en IS NULL AND id_curso != ?`,
+      args: [idCurso],
+    })
+    const bloqueantes: number[] = []
+    for (const row of res.rows as any[]) {
+      let list: unknown[] = []
+      try {
+        list = typeof row.cursos_excluyentes === 'string' ? JSON.parse(row.cursos_excluyentes) : []
+      } catch {
+        list = []
+      }
+      if (Array.isArray(list) && list.map(Number).includes(idCurso)) bloqueantes.push(Number(row.id_curso))
+    }
+    return bloqueantes
+  } catch (err) {
+    console.error('getCursosExcluyentesIds error:', err)
+    return []
+  }
 }
 
 /**
@@ -1433,13 +1484,16 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
 
+    const reqNombres = typeof req.body?.nombres === 'string' ? req.body.nombres.trim() : null
+    const reqApellidos = typeof req.body?.apellidos === 'string' ? req.body.apellidos.trim() : null
     const nombreCompleto = typeof req.body?.nombreCompleto === 'string' ? req.body.nombreCompleto.trim() : ''
     const cedulaRif = typeof req.body?.cedulaRif === 'string' ? req.body.cedulaRif.trim() : null
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
     const telefono = typeof req.body?.telefono === 'string' ? req.body.telefono.trim() : null
+    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : ''
 
-    if (!nombreCompleto || !email) {
-      res.status(400).json({ success: false, message: 'nombreCompleto y email son requeridos' })
+    if ((!reqNombres && !nombreCompleto) || !email) {
+      res.status(400).json({ success: false, message: 'Nombres, apellidos y email son requeridos' })
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1449,7 +1503,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, nombre, estatus, solo_informativo FROM cursos WHERE id_curso = ? LIMIT 1`,
+      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso],
     })
     if (cursoRes.rows.length === 0) {
@@ -1471,8 +1525,39 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
 
+    // ── Curso privado: solo afiliados oficiales (los del directorio de miembros) ──
+    // Mismo criterio que buscarAfiliadosPublic: estatus 'Afiliado', activo y no eliminado.
+    // Se identifica a la persona por email o por cédula/RIF, porque este endpoint es
+    // público y también lo consume el panel del afiliado sin sesión verificada.
+    if (Number(curso.solo_afiliados) === 1) {
+      const afiliadoRes = await db.execute({
+        sql: `SELECT 1
+              FROM afiliados a
+              JOIN personas p ON a.id_persona = p.id
+              LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+              WHERE a.estatus = 'Afiliado'
+                AND a.activo = 1
+                AND a.eliminado_en IS NULL
+                AND p.eliminado_en IS NULL
+                AND (
+                  LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(e.email)) = ?
+                  OR (? != '' AND (p.cedula = ? OR e.rif_numero = ?))
+                )
+              LIMIT 1`,
+        args: [email, email, cleanCed, cleanCed, cleanCed],
+      })
+
+      if (afiliadoRes.rows.length === 0) {
+        res.status(403).json({
+          success: false,
+          code: 'SOLO_AFILIADOS',
+          message: 'Este curso es exclusivo para afiliados de la Cámara Inmobiliaria del Estado Bolívar. Si ya eres afiliado, verifica que el correo o la cédula que ingresaste sean los registrados en tu afiliación.'
+        })
+        return
+      }
+    }
+
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
-    const cleanCed = cedulaRif ? String(cedulaRif).replace(/\D/g, '') : '';
     const existing = await db.execute({
       sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, ic.completado 
             FROM inscripciones_cursos ic
@@ -1509,9 +1594,43 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       }
     }
 
+    // Verificar cursos mutuamente excluyentes
+    const excluyentesIds = await getCursosExcluyentesIds(idCurso)
+    if (excluyentesIds.length > 0) {
+      const placeholders = excluyentesIds.map(() => '?').join(',')
+      const conflictQuery = await db.execute({
+        sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, c.titulo, c.id_curso
+              FROM inscripciones_cursos ic
+              JOIN cursos c ON ic.id_curso = c.id_curso
+              JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+              LEFT JOIN personas p ON e.id_persona = p.id
+              LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+              WHERE ic.id_curso IN (${placeholders})
+                AND (
+                  LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ? 
+                  OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+                )
+                AND ic.estatus NOT IN ('Rechazado', 'Cancelado')
+                AND (ic.estatus_academico IS NULL OR ic.estatus_academico NOT IN ('Reprobado', 'Retirado'))
+              LIMIT 1`,
+        args: [...excluyentesIds, email, email, cleanCed, cleanCed, cleanCed],
+      })
+
+      if (conflictQuery.rows.length > 0) {
+        const conflict = conflictQuery.rows[0] as any
+        res.status(409).json({
+          success: false,
+          message: `No es posible procesar tu inscripción: ya te encuentras registrado/preinscrito en el curso "${conflict.titulo}". Ese curso no permite inscribirse también en este.`
+        })
+        return
+      }
+    }
+
     // Upsert estudiante por email o cédula/RIF
     const { id_estudiante } = await upsertEstudianteByEmail({
-      nombreCompleto,
+      nombreCompleto: nombreCompleto || [reqNombres, reqApellidos].filter(Boolean).join(' '),
+      nombres: reqNombres,
+      apellidos: reqApellidos,
       cedulaRif,
       email,
       telefono,
@@ -1519,19 +1638,21 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     })
 
     const now = new Date().toISOString()
+    // Sin aprobación manual el inscrito queda admitido de inmediato
+    const estatusInscripcion = Number(curso.requiere_aprobacion) === 1 ? 'Preinscrito' : 'Inscrito'
     const result = await db.execute({
       sql: `INSERT INTO inscripciones_cursos
               (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, estatus_academico, completado, fecha_inscripcion, creado_en, actualizado_en)
-            VALUES (?, ?, NULL, 'curso', 'Preinscrito', 'Inscrito', 0, ?, ?, ?)
+            VALUES (?, ?, NULL, 'curso', ?, 'Inscrito', 0, ?, ?, ?)
             ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
-              estatus = 'Preinscrito',
+              estatus = excluded.estatus,
               estatus_academico = 'Inscrito',
               completado = 0,
               tipo_inscripcion = 'curso',
               fecha_inscripcion = excluded.fecha_inscripcion,
               actualizado_en = excluded.actualizado_en
             RETURNING *`,
-      args: [id_estudiante, idCurso, now, now, now],
+      args: [id_estudiante, idCurso, estatusInscripcion, now, now, now],
     })
 
     res.status(201).json({
@@ -1552,6 +1673,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
  */
 export const adminListCursos = async (req: Request, res: Response): Promise<void> => {
   try {
+    await ensureCursosTableSchema()
     const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : undefined
     const programaCodigo = typeof req.query?.programaCodigo === 'string' ? req.query.programaCodigo.toUpperCase() : undefined
     const allowedEstatus = new Set(['Abierto', 'Cerrado', 'En curso', 'Solo Informativo'])
@@ -1623,6 +1745,8 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       banner_url,
       estatus,
       solo_informativo,
+      solo_afiliados,
+      requiere_aprobacion,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
@@ -1640,6 +1764,8 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
     const slug = generateSlug(courseTitle)
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo ? 1 : 0
+    const isSoloAfiliados = solo_afiliados ? 1 : 0
+    const isRequiereAprobacion = requiere_aprobacion ? 1 : 0
 
     let firmantesStr: string | null = null;
     if (req.body.firmantes) {
@@ -1653,12 +1779,26 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       }
     }
 
+    let cursosExcluyentesStr = '[]'
+    let targetExcluyentesIds: number[] = []
+    if (req.body.cursos_excluyentes) {
+      try {
+        const raw = req.body.cursos_excluyentes
+        targetExcluyentesIds = (Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []))
+          .map(Number)
+          .filter((n: number) => Number.isFinite(n))
+        cursosExcluyentesStr = JSON.stringify(targetExcluyentesIds)
+      } catch {
+        cursosExcluyentesStr = '[]'
+      }
+    }
+
     const result = await db.execute({
       sql: `INSERT INTO cursos (
               titulo, slug, descripcion, contenido, categoria, modalidad,
               cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
-              estatus, solo_informativo, firmantes, creado_en, actualizado_en
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              estatus, solo_informativo, solo_afiliados, requiere_aprobacion, firmantes, cursos_excluyentes, creado_en, actualizado_en
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
         courseTitle,
@@ -1674,14 +1814,17 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         banner_url ?? null,
         estatus ?? 'Abierto',
         isSoloInformativo,
+        isSoloAfiliados,
+        isRequiereAprobacion,
         firmantesStr,
+        cursosExcluyentesStr,
         now,
         now,
       ],
     })
 
     const courseId = Number(result.rows[0].id_curso)
-    
+
     // Parse modules if any
     const modulosList = Array.isArray(req.body.modulos) ? req.body.modulos : []
     if (modulosList.length === 0) {
@@ -1749,16 +1892,36 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       banner_url,
       estatus,
       solo_informativo,
+      solo_afiliados,
+      requiere_aprobacion,
       firmantes,
+      cursos_excluyentes,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo !== undefined ? (solo_informativo ? 1 : 0) : null
+    const isSoloAfiliados = solo_afiliados !== undefined ? (solo_afiliados ? 1 : 0) : null
+    const isRequiereAprobacion = requiere_aprobacion !== undefined ? (requiere_aprobacion ? 1 : 0) : null
 
     let firmantesStr: string | null = null;
     if (firmantes !== undefined) {
       firmantesStr = Array.isArray(firmantes) ? JSON.stringify(firmantes) : (typeof firmantes === 'string' ? firmantes : null);
+    }
+
+    let cursosExcluyentesStr: string | null = null
+    let targetExcluyentesIds: number[] | null = null
+    if (cursos_excluyentes !== undefined) {
+      try {
+        const raw = cursos_excluyentes
+        targetExcluyentesIds = (Array.isArray(raw) ? raw : (typeof raw === 'string' ? JSON.parse(raw) : []))
+          .map(Number)
+          .filter((n: number) => Number.isFinite(n) && n !== id)
+        cursosExcluyentesStr = JSON.stringify(targetExcluyentesIds)
+      } catch {
+        cursosExcluyentesStr = '[]'
+        targetExcluyentesIds = []
+      }
     }
 
     const result = await db.execute({
@@ -1775,7 +1938,10 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
               banner_url = ?,
               estatus = COALESCE(?, estatus),
               solo_informativo = COALESCE(?, solo_informativo),
+              solo_afiliados = COALESCE(?, solo_afiliados),
+              requiere_aprobacion = COALESCE(?, requiere_aprobacion),
               firmantes = COALESCE(?, firmantes),
+              cursos_excluyentes = COALESCE(?, cursos_excluyentes),
               actualizado_en = ?
             WHERE id_curso = ?
             RETURNING *`,
@@ -1792,7 +1958,10 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
         banner_url ?? null,
         estatus ?? null,
         isSoloInformativo,
+        isSoloAfiliados,
+        isRequiereAprobacion,
         firmantesStr,
+        cursosExcluyentesStr,
         now,
         id,
       ],
@@ -2291,6 +2460,38 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
       }
     }
 
+    // Validar exclusión mutua entre cursos
+    const excluyentesIds = await getCursosExcluyentesIds(idCurso)
+    if (excluyentesIds.length > 0) {
+      const placeholders = excluyentesIds.map(() => '?').join(',')
+      const conflictQuery = await db.execute({
+        sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, c.titulo, c.id_curso
+              FROM inscripciones_cursos ic
+              JOIN cursos c ON ic.id_curso = c.id_curso
+              JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+              LEFT JOIN personas p ON e.id_persona = p.id
+              LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+              WHERE ic.id_curso IN (${placeholders})
+                AND (
+                  LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(emp.email)) = ? 
+                  OR (? != '' AND (p.cedula = ? OR emp.rif_numero = ?))
+                )
+                AND ic.estatus NOT IN ('Rechazado', 'Cancelado')
+                AND (ic.estatus_academico IS NULL OR ic.estatus_academico NOT IN ('Reprobado', 'Retirado'))
+              LIMIT 1`,
+        args: [...excluyentesIds, cleanEmail, cleanEmail, cleanCed, cleanCed, cleanCed],
+      })
+
+      if (conflictQuery.rows.length > 0) {
+        const conflict = conflictQuery.rows[0] as any
+        res.status(409).json({
+          success: false,
+          message: `No es posible asignar al estudiante: ya se encuentra registrado en el curso excluyente "${conflict.titulo}". Estos cursos no permiten doble inscripción.`
+        })
+        return
+      }
+    }
+
     const { id_estudiante } = await upsertEstudianteByEmail({
       nombreCompleto,
       nombres: nombres || null,
@@ -2630,7 +2831,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -2760,7 +2961,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -2935,7 +3136,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3024,10 +3225,14 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
       }
     }
 
-    // Enviar correo de bienvenida/invitación de acceso (mismo correo que botón Invitar del panel)
+    // Correo de inscripción aprobada; sin token si el usuario ya tenía contraseña
     try {
-      const { enviarCorreoOnboardingMasivo } = await import('../lib/email.js')
-      await enviarCorreoOnboardingMasivo(row.nombre_completo, row.email, tokenToUse)
+      await enviarCorreoSetPasswordEstudiante({
+        nombre: row.nombre_completo,
+        emailOriginal: row.email,
+        programaCodigo: row.programa_codigo || 'Curso',
+        token: shouldSendToken ? tokenToUse : undefined
+      })
     } catch (err) {
       console.error('Error enviando correo de acceso directo:', err)
     }
@@ -3295,13 +3500,8 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
     const cedulaNum = (cedulaRif || '').replace(/\D/g, '')
 
     if (idPersona) {
-      let nombres = reqNombres
-      let apellidos = reqApellidos
-      if (!nombres && !apellidos && nombreCompleto) {
-        const parts = (nombreCompleto || '').trim().split(/\s+/)
-        nombres = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0] || ''
-        apellidos = parts.length > 1 ? parts.slice(-1)[0] : ''
-      }
+      const nombres = reqNombres || (nombreCompleto ? nombreCompleto.trim() : null)
+      const apellidos = reqApellidos || null
 
       await db.execute({
         sql: `UPDATE personas SET
@@ -3351,6 +3551,110 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
 
 
 /**
+ * POST /api/academia/inscripciones/:id/reenviar-confirmacion
+ * Envía (o reenvía) al inscrito el correo de confirmación de su inscripción al curso.
+ * Devuelve el id del correo en Resend para consultar su entrega.
+ */
+export const adminReenviarConfirmacionCurso = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, message: 'id inválido' })
+      return
+    }
+
+    const r = await db.execute({
+      sql: `SELECT ic.estatus,
+                   COALESCE(c.titulo, ic.programa_codigo) AS titulo,
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) AS nombre_completo,
+                   LOWER(TRIM(COALESCE(p.email, emp.email))) AS email
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            LEFT JOIN cursos c ON c.id_curso = ic.id_curso
+            WHERE ic.id_inscripcion = ?`,
+      args: [id],
+    })
+    const row = r.rows[0] as any
+    if (!row) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada' })
+      return
+    }
+    if (!row.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+      res.status(400).json({ success: false, message: 'El participante no tiene un correo válido.' })
+      return
+    }
+    if (row.estatus === 'Rechazado' || row.estatus === 'Cancelado') {
+      res.status(400).json({ success: false, message: 'La inscripción no está activa.' })
+      return
+    }
+
+    // Token de acceso solo si aún no ha creado su contraseña
+    const now = new Date().toISOString()
+    let token: string | undefined
+    const userRes = await db.execute({ sql: `SELECT id FROM users WHERE email = ?`, args: [row.email] })
+    if (userRes.rows.length === 0) {
+      await db.execute({
+        sql: `INSERT INTO users (email, password_hash, roles) VALUES (?, ?, '["estudiante"]')`,
+        args: [row.email, await bcrypt.hash(randomUUID(), 10)],
+      })
+      token = randomUUID()
+    } else {
+      const pend = await db.execute({
+        sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+        args: [row.email, now],
+      })
+      if (pend.rows.length > 0) token = randomUUID()
+    }
+    if (token) {
+      const expiracion = new Date()
+      expiracion.setDate(expiracion.getDate() + 30)
+      await db.execute({ sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`, args: [row.email] })
+      await db.execute({
+        sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion) VALUES (?, 'reset_password', ?, 0, ?)`,
+        args: [sha256(token), row.email, expiracion.toISOString()],
+      })
+    }
+
+    const data = await enviarCorreoSetPasswordEstudiante({
+      nombre: row.nombre_completo,
+      emailOriginal: row.email,
+      programaCodigo: row.titulo || 'Curso',
+      token,
+    })
+    const enviadoEn = new Date().toISOString()
+    await db.execute({
+      sql: `UPDATE inscripciones_cursos SET correo_confirmacion_enviado_en = ?, correo_confirmacion_id = ? WHERE id_inscripcion = ?`,
+      args: [enviadoEn, data?.id ?? null, id],
+    })
+    res.json({ success: true, message: `Correo enviado a ${row.email}`, data: { emailId: data?.id ?? null, email: row.email, enviadoEn } })
+  } catch (error) {
+    console.error('adminReenviarConfirmacionCurso:', error)
+    res.status(500).json({ success: false, message: 'No se pudo enviar el correo' })
+  }
+}
+
+/**
+ * GET /api/academia/correos/:emailId/estado
+ * Último evento de entrega de un correo (Resend): sent, delivered, bounced, etc.
+ */
+export const adminEstadoCorreo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const estado = await obtenerEstadoCorreo(String(req.params.emailId))
+    res.json({ success: true, data: { estado, verificable: true } })
+  } catch (error) {
+    // La key de Resend es solo de envío: no puede leer el estado, y no es un fallo del servidor
+    if (String((error as Error)?.message).includes('restricted_api_key')) {
+      res.json({ success: true, data: { estado: null, verificable: false } })
+      return
+    }
+    console.error('adminEstadoCorreo:', error)
+    res.status(500).json({ success: false, message: 'No se pudo consultar el estado del correo' })
+  }
+}
+
+/**
  * PATCH /api/academia/inscripciones/:id/completar
  * Marca un curso como completado por el estudiante.
  */
@@ -3364,7 +3668,10 @@ export const adminCompletarCursoEstudiante = async (req: Request, res: Response)
     const result = await db.execute({
       sql: `UPDATE inscripciones_cursos
             SET completado=1, actualizado_en=?
-            WHERE id_inscripcion=? AND estatus='Inscrito'
+            WHERE id_inscripcion=? AND (
+              estatus='Inscrito'
+              OR (estatus='Preinscrito' AND id_curso IN (SELECT id_curso FROM cursos WHERE requiere_aprobacion = 0))
+            )
             RETURNING *`,
       args: [new Date().toISOString(), id],
     })
@@ -3523,7 +3830,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3618,7 +3925,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
         }
 
         // Si se cambia a la etapa 4 (CIBIR), notificar por correo de invitación CIBIR
-        if (etapa === 4) {
+        if (etapa === 4 && row.programa_codigo === 'AFILIACION') {
           try {
             await enviarCorreoInvitacionCibir({
               nombre: row.nombre_completo,
@@ -3635,7 +3942,8 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
               emailOriginal: row.email,
               resultado: 'Aprobado',
               programaCodigo: row.programa_codigo || 'Curso',
-              token: shouldSendToken ? tokenToUse : undefined
+              token: shouldSendToken ? tokenToUse : undefined,
+              sinEntrevista: true
             })
           } catch (mailErr) {
             console.error('Error enviando correo de aprobación en cambio de etapa:', mailErr)

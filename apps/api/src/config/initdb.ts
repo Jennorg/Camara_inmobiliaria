@@ -239,11 +239,14 @@ const statements = [
     modalidad         TEXT,
     estatus           TEXT        DEFAULT 'Abierto',
     solo_informativo  INTEGER     DEFAULT 0,
+    solo_afiliados    INTEGER     NOT NULL DEFAULT 0 CHECK (solo_afiliados IN (0,1)),
+    requiere_aprobacion INTEGER   NOT NULL DEFAULT 0 CHECK (requiere_aprobacion IN (0,1)),
     orden             INTEGER     DEFAULT 0,
     imagen_url        TEXT,
     banner_url        TEXT,
     cupos_totales     INTEGER,
     firmantes         TEXT,
+    cursos_excluyentes TEXT       DEFAULT '[]',
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en    TEXT,
     eliminado_en      TEXT
@@ -804,6 +807,24 @@ async function run() {
     } catch (e) {
       // Ignorar si la columna ya existe
     }
+    // Migración: asegurar que exista cursos_excluyentes en cursos
+    try {
+      await db.execute(`ALTER TABLE cursos ADD COLUMN cursos_excluyentes TEXT DEFAULT '[]'`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: asegurar que exista solo_afiliados en cursos (curso privado)
+    try {
+      await db.execute(`ALTER TABLE cursos ADD COLUMN solo_afiliados INTEGER NOT NULL DEFAULT 0 CHECK (solo_afiliados IN (0,1))`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: curso con aprobación manual de inscritos (0 = inscripción directa)
+    try {
+      await db.execute(`ALTER TABLE cursos ADD COLUMN requiere_aprobacion INTEGER NOT NULL DEFAULT 0 CHECK (requiere_aprobacion IN (0,1))`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
     // Migración: asegurar que exista firmantes_snapshot en certificados
     try {
       await db.execute(`ALTER TABLE certificados ADD COLUMN firmantes_snapshot TEXT`)
@@ -852,6 +873,14 @@ async function run() {
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_insc_edicion_cibir_edicion  ON inscripciones_edicion_cibir(id_edicion)`)
     } catch (e) {
       console.warn('Error asegurando tablas ediciones_cibir:', e)
+    }
+    // Migración: registro del último correo de confirmación enviado al inscrito
+    for (const col of ['correo_confirmacion_enviado_en TEXT', 'correo_confirmacion_id TEXT']) {
+      try {
+        await db.execute(`ALTER TABLE inscripciones_cursos ADD COLUMN ${col}`)
+      } catch (e) {
+        // Ignorar si la columna ya existe
+      }
     }
     // personas: normalizar nombres y apellidos a Title Case
     const personasRows = await db.execute(`SELECT id, nombres, apellidos FROM personas`)

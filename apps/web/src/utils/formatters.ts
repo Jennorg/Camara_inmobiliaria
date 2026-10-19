@@ -115,6 +115,23 @@ export const formatNombreCard = (
 };
 
 /**
+ * Nombre que lleva el certificado de afiliación.
+ * - Corporativo: el titular es la empresa, se conserva la razón social completa.
+ * - Resto: solo primer nombre y primer apellido (se usan las columnas separadas,
+ *   porque con un único string no se puede distinguir "dos nombres + un apellido"
+ *   de "un nombre + dos apellidos").
+ */
+export const nombreCertificadoAfiliacion = (d: {
+  tipo_afiliado?: string | null;
+  nombre_completo?: string | null;
+  nombres?: string | null;
+  apellidos?: string | null;
+}): string => {
+  if (d.tipo_afiliado === 'Corporativo') return (d.nombre_completo || '').trim();
+  return formatNombreCard(d.nombres, d.apellidos) || formatNombreCard(d.nombre_completo) || '';
+};
+
+/**
  * Obtiene las iniciales del primer nombre y primer apellido.
  */
 export const getInitials = (

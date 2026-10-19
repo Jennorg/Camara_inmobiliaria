@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto'
 import { db } from './db.js'
 import { enviarCorreoComprobanteGraduacion } from './email.js'
 import { env } from '../config/env.js'
+import { formatNombreCard } from './formatters.js'
 
 export function nuevoCodigoValidacion(): string {
   return `CIV-${randomBytes(6).toString('hex').toUpperCase()}`
@@ -138,7 +139,9 @@ export async function emitirComprobanteSiCompleto(
     const meta = await db.execute({
       sql: `
         SELECT
-          COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) AS nombre,
+          p.nombres AS persona_nombres,
+          p.apellidos AS persona_apellidos,
+          emp.razon_social AS empresa_nombre,
           COALESCE(p.email, emp.email) AS email,
           COALESCE(
             c.titulo,
@@ -159,13 +162,16 @@ export async function emitirComprobanteSiCompleto(
       args: [idInscripcion],
     })
     const m = meta.rows[0] as unknown as {
-      nombre: string
+      persona_nombres: string | null
+      persona_apellidos: string | null
+      empresa_nombre: string | null
       email: string
       titulo_formacion: string
     } | undefined
     if (m?.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email)) {
       await enviarCorreoComprobanteGraduacion({
-        nombre: m.nombre || 'Estudiante',
+        // Persona: primer nombre y primer apellido. Empresa: razón social completa.
+        nombre: (m.persona_nombres ? formatNombreCard(m.persona_nombres, m.persona_apellidos) : m.empresa_nombre) || 'Estudiante',
         emailEstudiante: m.email.trim().toLowerCase(),
         tituloFormacion: m.titulo_formacion || 'Formación académica',
         codigoValidacion: activeCodigo,

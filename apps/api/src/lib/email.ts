@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '../config/env.js';
+import { formatNombreCard } from './formatters.js';
 
 const resend = new Resend(env.RESEND_API_KEY);
 
@@ -27,32 +28,33 @@ async function sendResendEmail(params: any) {
   return await resend.emails.send(params)
 }
 
-/**
- * Wrapper para enviar correos por lote con Resend.
- */
-async function sendResendEmailBatch(emails: any[]) {
-  if (env.NODE_ENV === 'development') {
-    console.log('--- [MOCK EMAIL BATCH] ---')
-    console.log(`Cantidad: ${emails.length} correos`)
-    for (const email of emails) {
-      console.log(`  Para: ${email.to} | Asunto: ${email.subject}`)
-    }
-    console.log('---------------------------')
-    return { data: emails.map((_, i) => ({ id: `mock-batch-id-${i}` })), error: null }
-  }
-
-  if (!env.RESEND_API_KEY || env.RESEND_API_KEY === 're_123') {
-    console.warn('[EMAIL] No hay una API KEY de Resend válida configurada.')
-    return { data: null, error: { message: 'Missing API Key' } }
-  }
-
-  return await resend.batch.send(emails)
+/** Último evento de entrega en Resend (sent, delivered, bounced…). En desarrollo devuelve 'delivered'. */
+export const obtenerEstadoCorreo = async (emailId: string): Promise<string | null> => {
+  if (env.NODE_ENV === 'development') return 'delivered'
+  const { data, error } = await resend.emails.get(emailId)
+  if (error) throw new Error(JSON.stringify(error))
+  return data?.last_event ?? null
 }
+
+export const escapeHtml = (t: string) =>
+  t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+// shortcut: razón social detectada por sufijo legal (C.A., S.A., S.R.L.), upgrade pasando el tipo de entidad desde el llamador
+const SUFIJO_EMPRESA = /\b(c\.?\s?a\.?|s\.?\s?a\.?|s\.?r\.?\s?l\.?|c\.?\s?r\.?\s?l\.?)$/i
+
+/** Saludo: primer nombre + primer apellido; las razones sociales se dejan completas. */
+const nombreSaludo = (nombre?: string | null) => {
+  const t = (nombre || '').trim()
+  return SUFIJO_EMPRESA.test(t) ? t : formatNombreCard(t) || 'estimado(a)'
+}
+
+/** Código interno de programa → texto legible (PADI, PEGI, CIBIR… son siglas conocidas y se dejan). */
+const nombrePrograma = (codigo: string) => (codigo === 'AFILIACION' ? 'Afiliación' : codigo)
 
 const logoUrl = (env.B2_PUBLIC_URL_BASE || 'https://files-supa.s3.us-east-005.backblazeb2.com/').replace(/\/$/, '') + '/public-docs/Logo.png';
 
 /** Template base profesional */
-const renderEmailTemplate = (content: string, title?: string) => `
+export const renderEmailTemplate = (content: string, title?: string) => `
   <!DOCTYPE html>
   <html>
     <head>
@@ -108,15 +110,16 @@ const renderEmailTemplate = (content: string, title?: string) => `
 `;
 
 /** Correo de verificación de dirección (registro CIBIR) */
-export const enviarCorreoVerificacion = async (nombre: string, emailOriginal: string, token: string) => {
-  const enlaceVerificacion = `${env.APP_URL}/cibir/verificar?token=${token}`
+export const enviarCorreoVerificacion = async (nombreCompleto: string, emailOriginal: string, token: string) => {
+  const nombre = nombreSaludo(nombreCompleto)
+  const enlaceVerificacion = `${env.APP_URL}/cursos/verificar?token=${token}`
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
-    subject: 'Confirma tu registro en la Cámara Inmobiliaria (CIBIR)',
+    subject: 'Confirma tu solicitud de afiliación — Cámara Inmobiliaria',
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
-      <p>Has solicitado preinscribirte al curso <strong>CIBIR</strong> de la Cámara Inmobiliaria del Estado Bolívar.</p>
+      <p>Has solicitado tu afiliación a la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>.</p>
       <p>Para confirmar tu correo electrónico (<em>${emailOriginal}</em>) y continuar con tu proceso, haz clic en el siguiente botón:</p>
       <div style="text-align: center; margin: 40px 0;">
         <a href="${enlaceVerificacion}" class="btn">Confirmar Correo Electrónico</a>
@@ -124,7 +127,7 @@ export const enviarCorreoVerificacion = async (nombre: string, emailOriginal: st
       <div class="divider"></div>
       <p style="font-size: 14px; color: #6b7280;">Si el botón no funciona, puedes copiar y pegar este enlace en tu navegador:</p>
       <p style="font-size: 12px; color: #3b82f6; word-break: break-all;">${enlaceVerificacion}</p>
-    `, 'Verificación de Registro')
+    `, 'Solicitud de Afiliación')
   })
   if (error) { console.error('enviarCorreoVerificacion:', error); throw error }
   return data
@@ -137,7 +140,8 @@ export const enviarCorreoInvitacionCorporativa = async (params: {
   nombreEmpresa: string,
   token: string
 }) => {
-  const { nombre, emailOriginal, nombreEmpresa, token } = params
+  const { emailOriginal, nombreEmpresa, token } = params
+  const nombre = nombreSaludo(params.nombre)
   const enlaceVerificacion = `${env.APP_URL}/cursos/verificar?token=${token}`
 
   const { data, error } = await sendResendEmail({
@@ -170,11 +174,12 @@ export const enviarCorreoConfirmacionPreinscripcionPrograma = async (params: {
   programaCodigo: string
   token: string
 }) => {
-  const { nombre, emailOriginal, programaCodigo, token } = params
+  const { emailOriginal, programaCodigo, token } = params
+  const nombre = nombreSaludo(params.nombre)
   const enlace = `${env.APP_URL.replace(/\/$/, '')}/cursos/verificar?token=${token}`
 
   const esAfiliacion = programaCodigo === 'AFILIACION'
-  const accion = esAfiliacion ? 'tu afiliación a la' : `preinscribirte al programa <strong>${programaCodigo}</strong> de la`
+  const accion = esAfiliacion ? 'tu afiliación a la' : `preinscribirte al programa <strong>${nombrePrograma(programaCodigo)}</strong> de la`
   const subject = esAfiliacion ? 'Confirma tu solicitud de afiliación' : `Confirma tu preinscripción — ${programaCodigo}`
 
   const { data, error } = await sendResendEmail({
@@ -302,16 +307,18 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
   programaCodigo: string
   token?: string
 }) => {
-  const { nombre, emailOriginal, programaCodigo, token } = params
+  const { emailOriginal, token } = params
+  const nombre = nombreSaludo(params.nombre)
+  const programa = nombrePrograma(params.programaCodigo)
   const enlaceSetup = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
 
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
-    subject: `Continúa tu inscripción — ${programaCodigo}`,
+    subject: `Inscripción confirmada — ${programa}`,
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
-      <p>Tu preinscrpción ha sido aprobada con éxito para el programa <strong>${programaCodigo}</strong>.</p>
+      <p>Tu inscripción en <strong>${programa}</strong> ha sido confirmada con éxito.</p>
       <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
         <p style="margin-top: 0; font-weight: 700; color: #065f46;">${token ? 'Siguiente Paso: Crea tu contraseña' : 'Acceso al Portal'}</p>
         <p>${token ? 'Para acceder a tu panel de formación y completar tu registro, por favor establece tu contraseña segura:' : 'Ya puedes ingresar a tu panel personal para gestionar tu formación:'}</p>
@@ -319,7 +326,7 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
           <a href="${enlaceSetup}" class="btn">${token ? 'Establecer mi Contraseña' : 'Ir a mi Panel'}</a>
         </div>
       </div>
-      <p style="font-size: 13px; color: #6b7280;">${token ? 'Una vez creada, podrás entrar al sistema.' : 'Ingresa con tu correo electrónico y contraseña registrada.'} Un administrador se pondrá en contacto contigo para los siguientes pasos.</p>
+      <p style="font-size: 13px; color: #6b7280;">${token ? 'Una vez creada, podrás entrar al sistema.' : 'Ingresa con tu correo electrónico y contraseña registrada.'}</p>
     `, 'Formación')
   })
   if (error) { console.error('enviarCorreoSetPasswordEstudiante:', error); throw error }
@@ -335,7 +342,9 @@ export const enviarCorreoAprobacionEstudiante = async (params: {
   entrevistaLugar: string
   token?: string
 }) => {
-  const { nombre, emailOriginal, programaCodigo, entrevistaFecha, entrevistaHora, entrevistaLugar, token } = params
+  const { emailOriginal, entrevistaFecha, entrevistaHora, entrevistaLugar, token } = params
+  const nombre = nombreSaludo(params.nombre)
+  const programaCodigo = nombrePrograma(params.programaCodigo)
   const enlaceSetup = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : null
 
   const { data, error } = await sendResendEmail({
@@ -365,7 +374,8 @@ export const enviarCorreoInvitacionCibir = async (params: {
   emailOriginal: string
   token?: string
 }) => {
-  const { nombre, emailOriginal, token } = params
+  const { emailOriginal, token } = params
+  const nombre = nombreSaludo(params.nombre)
   const enlacePortal = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
 
   const { data, error } = await sendResendEmail({
@@ -401,8 +411,12 @@ export const enviarCorreoResultadoEntrevista = async (params: {
   resultado: 'Aprobado' | 'Parcial' | 'Rechazado'
   programaCodigo: string
   token?: string
+  /** Aprobación por cambio manual de etapa: no menciona entrevista */
+  sinEntrevista?: boolean
 }) => {
-  const { nombre, emailOriginal, resultado, programaCodigo, token } = params
+  const { emailOriginal, resultado, token, sinEntrevista } = params
+  const nombre = nombreSaludo(params.nombre)
+  const programaCodigo = nombrePrograma(params.programaCodigo)
   const enlacePortal = token ? `${env.APP_URL}/establecer-contrasena?token=${token}` : `${env.APP_URL}/panel`
   const esAprobado = resultado === 'Aprobado' || resultado === 'Parcial'
 
@@ -412,7 +426,7 @@ export const enviarCorreoResultadoEntrevista = async (params: {
     subject: esAprobado ? `¡Bienvenido al sistema! — ${programaCodigo}` : `Resultado de tu solicitud — ${programaCodigo}`,
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">${esAprobado ? '¡Felicidades!' : 'Información sobre tu solicitud'}</h2>
-      <p>Hola, ${nombre}. Tras la entrevista realizada para el programa <strong>${programaCodigo}</strong>, tu resultado es: <span style="font-weight: 800; color: ${esAprobado ? '#10b981' : '#ef4444'};">${resultado === 'Parcial' ? 'Aprobado Parcial' : resultado}</span>.</p>
+      <p>Hola, ${nombre}. ${sinEntrevista ? `Tu solicitud para el programa <strong>${programaCodigo}</strong> ha avanzado de etapa. Resultado:` : `Tras la entrevista realizada para el programa <strong>${programaCodigo}</strong>, tu resultado es:`} <span style="font-weight: 800; color: ${esAprobado ? '#10b981' : '#ef4444'};">${resultado === 'Parcial' ? 'Aprobado Parcial' : resultado}</span>.</p>
       
       ${esAprobado ? `
         <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
@@ -440,7 +454,9 @@ export const enviarCorreoRechazo = async (params: {
   programaCodigo: string
   motivo?: string | null
 }) => {
-  const { nombre, emailOriginal, programaCodigo, motivo } = params
+  const { emailOriginal, motivo } = params
+  const nombre = nombreSaludo(params.nombre)
+  const programaCodigo = nombrePrograma(params.programaCodigo)
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
@@ -448,7 +464,7 @@ export const enviarCorreoRechazo = async (params: {
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">Información sobre tu solicitud</h2>
       <p>Hola, <strong>${nombre}</strong>.</p>
-      <p>Te informamos que tu solicitud para el programa/afiliación <strong>${programaCodigo}</strong> no ha sido aprobada en esta ocasión.</p>
+      <p>Te informamos que tu solicitud ${params.programaCodigo === 'AFILIACION' ? 'de <strong>afiliación</strong>' : `para el programa <strong>${programaCodigo}</strong>`} no ha sido aprobada en esta ocasión.</p>
       ${motivo ? `
         <div style="background-color: #f9fafb; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; margin: 24px 0;">
           <p style="margin-top: 0; font-weight: 700; color: #374151; font-size: 14px;">Motivo o comentarios de la administración:</p>
@@ -465,7 +481,8 @@ export const enviarCorreoRechazo = async (params: {
 }
 
 /** Correo de Onboarding Masivo para afiliados existentes */
-export const enviarCorreoOnboardingMasivo = async (nombre: string, emailOriginal: string, token: string) => {
+export const enviarCorreoOnboardingMasivo = async (nombreCompleto: string, emailOriginal: string, token: string) => {
+  const nombre = nombreSaludo(nombreCompleto)
   const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${token}`
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
@@ -494,48 +511,6 @@ export const enviarCorreoOnboardingMasivo = async (nombre: string, emailOriginal
     `, 'Mejora Continua')
   })
   if (error) { console.error('enviarCorreoOnboardingMasivo:', error); throw error }
-  return data
-}
-
-/** Envia correos de Onboarding Masivo en lote (Batch) */
-export const enviarCorreoOnboardingMasivoBatch = async (
-  destinatarios: Array<{ nombre: string; emailDestino: string; token: string }>
-) => {
-  const emails = destinatarios.map(d => {
-    const enlaceSetup = `${env.APP_URL}/establecer-contrasena?token=${d.token}`
-    return {
-      from: DEFAULT_FROM,
-      to: d.emailDestino,
-      subject: 'Acceso a tu nuevo Portal — Cámara Inmobiliaria de Bolívar',
-      html: renderEmailTemplate(`
-        <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Estimado(a), ${d.nombre}!</h2>
-        <p>En la <strong>Cámara Inmobiliaria del Estado Bolívar</strong>, nos mantenemos en un proceso de mejora continua para ofrecerle las mejores herramientas y servicios que fortalezcan su ejercicio profesional.</p>
-        
-        <p>Como parte de esta evolución, nos complace informarle que ya tiene a su disposición nuestro nuevo <strong>Portal Digital</strong>. Dado que usted ya es un miembro activo y valorado de nuestra Cámara, hemos pre-configurado su cuenta para que pueda acceder de forma inmediata.</p>
-        
-        <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
-          <p style="margin-top: 0; font-weight: 700; color: #065f46;">Activa tu acceso como Afiliado</p>
-          <p>Para comenzar a utilizar el sistema, gestionar sus certificados y acceder a contenido exclusivo, solo debe establecer su contraseña de seguridad haciendo clic en el siguiente botón:</p>
-          <div style="text-align: center; margin-top: 24px;">
-            <a href="${enlaceSetup}" class="btn">Activar mi Acceso</a>
-          </div>
-        </div>
-        
-        <p style="font-size: 14px; color: #6b7280;">
-          Su nombre de usuario será su correo electrónico: <strong>${d.emailDestino}</strong>. Este enlace de activación es personal y garantiza la seguridad de su cuenta.
-        </p>
-        
-        <div class="divider"></div>
-        <p style="font-size: 13px; color: #94a3b8; text-align: center;">Es un honor contar con su participación en esta nueva etapa tecnológica de nuestra institución.</p>
-      `, 'Mejora Continua')
-    }
-  })
-
-  const { data, error } = await sendResendEmailBatch(emails)
-  if (error) {
-    console.error('enviarCorreoOnboardingMasivoBatch:', error)
-    throw error
-  }
   return data
 }
 
@@ -575,33 +550,6 @@ export const notificarAdminNuevaPreinscripcion = async (params: {
   })
 }
 
-export const notificarAdminNuevaAfiliacion = async (params: {
-  nombre: string
-  email: string
-  cedulaRif: string
-  telefono: string
-}) => {
-  const { nombre, email, cedulaRif, telefono } = params
-  await sendResendEmail({
-    from: DEFAULT_FROM,
-    to: env.ADMIN_EMAIL,
-    subject: `NUEVA SOLICITUD: Afiliación (CIBIR)`,
-    html: renderEmailTemplate(`
-      <h2 style="margin-top: 0; color: #047857; font-size: 20px;">Nueva Solicitud de Afiliación</h2>
-      <p>Un candidato ha verificado su correo y completado la preinscripción CIBIR:</p>
-      <div style="background-color: #f0fdf4; border-radius: 12px; padding: 20px; border: 1px solid #d1fae5;">
-        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-          <tr><td style="padding: 6px 0; color: #065f46; width: 100px;">Nombre:</td><td style="font-weight: 700;">${nombre}</td></tr>
-          <tr><td style="padding: 6px 0; color: #065f46;">Email:</td><td style="font-weight: 700;">${email}</td></tr>
-          <tr><td style="padding: 6px 0; color: #065f46;">Cédula/RIF:</td><td style="font-weight: 700;">${cedulaRif}</td></tr>
-          <tr><td style="padding: 6px 0; color: #065f46;">Teléfono:</td><td style="font-weight: 700;">${telefono}</td></tr>
-        </table>
-      </div>
-      <p style="font-size: 13px; color: #6b7280; margin-top: 20px;">El candidato ya se encuentra en fase de <strong>Preinscripción</strong> en el panel administrativo.</p>
-    `, 'Notificación Admin')
-  })
-}
-
 /**
  * Notifica a un afiliado independiente que fue vinculado como Agente Corporativo.
  */
@@ -610,7 +558,8 @@ export const enviarCorreoVinculacionCorporativa = async (params: {
   emailOriginal: string
   nombreEmpresa: string
 }) => {
-  const { nombre, emailOriginal, nombreEmpresa } = params
+  const { emailOriginal, nombreEmpresa } = params
+  const nombre = nombreSaludo(params.nombre)
   const enlacePanel = `${env.APP_URL}/panel`
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
