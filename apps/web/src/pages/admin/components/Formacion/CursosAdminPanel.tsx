@@ -2309,6 +2309,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
   const [processingActionId, setProcessingActionId] = useState<{ id: number; action: string } | null>(null);
   const requiereAprobacion = Number(curso.requiere_aprobacion) === 1;
+  // La API no devuelve cupos_disponibles: se calcula con los inscritos activos de la lista
+  const cuposTotales = getSafeNumber(curso.cupos_totales, 0);
+  const cuposOcupados = rows.filter(r => r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado').length;
   // Estado del último correo de confirmación por inscripción
   type CorreoEstado = 'enviando' | 'enviado' | 'entregado' | 'demorado' | 'rebotado' | 'error';
   const [correoEstado, setCorreoEstado] = useState<Record<number, CorreoEstado>>({});
@@ -2745,7 +2748,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               <div className="flex flex-col">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
                 <span className="text-sm font-bold text-slate-700 tabular-nums">
-                  {getSafeNumber(curso.cupos_disponibles, 0)} <span className="text-slate-300 font-medium">/ {getSafeNumber(curso.cupos_totales, 0) >= 999999 ? '∞' : getSafeNumber(curso.cupos_totales, 0)}</span>
+                  {cuposTotales >= 999999 ? '∞' : Math.max(0, cuposTotales - cuposOcupados)} <span className="text-slate-300 font-medium">/ {cuposTotales >= 999999 ? '∞' : cuposTotales}</span>
                 </span>
               </div>
               <div className="w-px h-8 bg-gray-100 mx-1" />
