@@ -560,6 +560,14 @@ async function run() {
     } catch (e) {
       // Ignorar si la columna ya existe
     }
+    // Migración: registro del último correo de confirmación enviado al inscrito
+    for (const col of ['correo_confirmacion_enviado_en TEXT', 'correo_confirmacion_id TEXT']) {
+      try {
+        await db.execute(`ALTER TABLE inscripciones_cursos ADD COLUMN ${col}`)
+      } catch (e) {
+        // Ignorar si la columna ya existe
+      }
+    }
     // personas: normalizar nombres y apellidos a Title Case
     const personasRows = await db.execute(`SELECT id, nombres, apellidos FROM personas`)
     for (const p of personasRows.rows) {

@@ -2313,10 +2313,11 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   const cuposTotales = getSafeNumber(curso.cupos_totales, 0);
   const cuposOcupados = rows.filter(r => r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado').length;
   // Estado del último correo de confirmación por inscripción
-  type CorreoEstado = 'enviando' | 'enviado' | 'entregado' | 'demorado' | 'rebotado' | 'error';
+  type CorreoEstado = 'previo' | 'enviando' | 'enviado' | 'aceptado' | 'entregado' | 'demorado' | 'rebotado' | 'error';
   const [correoEstado, setCorreoEstado] = useState<Record<number, CorreoEstado>>({});
   const montado = useRef(true);
-  useEffect(() => () => { montado.current = false; }, []);
+  // En StrictMode el efecto se monta, desmonta y vuelve a montar: hay que re-marcar como montado
+  useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
 
   const handleEnviarConfirmacion = async (id: number, email: string | null) => {
     if (correoEstado[id] === 'enviando') return;
@@ -2336,11 +2337,14 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         await new Promise(r => setTimeout(r, 2500));
         const st = await fetch(`${API_URL}/api/academia/correos/${emailId}/estado`, { headers: { Authorization: `Bearer ${token}` } })
           .then(r => r.json()).catch(() => null);
+        if (st?.data?.verificable === false) break;
         const ev = st?.data?.estado as string | undefined;
         if (ev === 'delivered' || ev === 'opened' || ev === 'clicked') { setEstado('entregado'); return; }
         if (ev === 'bounced' || ev === 'complained' || ev === 'failed' || ev === 'suppressed') { setEstado('rebotado'); return; }
         if (ev === 'delivery_delayed') setEstado('demorado');
       }
+      // Resend lo aceptó pero no se pudo confirmar la entrega (key sin permiso de lectura o sin respuesta)
+      if (emailId) setCorreoEstado(prev => (prev[id] === 'enviado' && montado.current ? { ...prev, [id]: 'aceptado' } : prev));
     } catch (e: any) {
       setEstado('error');
       Swal.fire('Error', e?.message || `No se pudo enviar el correo a ${email || 'el participante'}`, 'error');
@@ -2999,6 +3003,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               <tbody className="divide-y divide-gray-50">
                 {filteredRows.map(r => {
                   const isSelected = selectedIds.includes(r.id_inscripcion);
+                  // Sin acción en esta sesión, se muestra el último envío guardado en la BD
+                  const correoSt: CorreoEstado | undefined = correoEstado[r.id_inscripcion] ?? (r.correo_confirmacion_enviado_en ? 'previo' : undefined);
                   return (
                     <tr
                       key={r.id_inscripcion}
@@ -3025,17 +3031,18 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-xs font-semibold text-slate-600 truncate max-w-[220px] block" title={r.estudiante_email || ''}>{r.estudiante_email || 'Sin correo'}</span>
-                        {correoEstado[r.id_inscripcion] && (
+                        {correoSt && (
                           <span className={`mt-1 inline-flex items-center gap-1 text-[10px] font-bold ${{
-                            enviando: 'text-slate-400', enviado: 'text-blue-500', entregado: 'text-emerald-600',
+                            previo: 'text-slate-500', enviando: 'text-slate-400', enviado: 'text-blue-500', aceptado: 'text-blue-600', entregado: 'text-emerald-600',
                             demorado: 'text-amber-600', rebotado: 'text-red-500', error: 'text-red-500',
-                          }[correoEstado[r.id_inscripcion]]}`}>
-                            {correoEstado[r.id_inscripcion] === 'enviando' && <Loader2 size={11} className="animate-spin" />}
-                            {correoEstado[r.id_inscripcion] === 'entregado' && <CheckCheck size={11} />}
+                          }[correoSt]}`}>
+                            {correoSt === 'enviando' && <Loader2 size={11} className="animate-spin" />}
+                            {correoSt === 'entregado' && <CheckCheck size={11} />}
                             {{
-                              enviando: 'Enviando…', enviado: 'Enviado · confirmando entrega…', entregado: 'Entregado',
+                              previo: `Enviado el ${new Date(r.correo_confirmacion_enviado_en).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
+                              enviando: 'Enviando…', enviado: 'Enviado · confirmando entrega…', aceptado: 'Enviado', entregado: 'Entregado',
                               demorado: 'Entrega demorada', rebotado: 'No se pudo entregar', error: 'Falló el envío',
-                            }[correoEstado[r.id_inscripcion]]}
+                            }[correoSt]}
                           </span>
                         )}
                       </td>

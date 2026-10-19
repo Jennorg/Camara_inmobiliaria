@@ -3687,7 +3687,12 @@ export const adminReenviarConfirmacionCurso = async (req: Request, res: Response
       programaCodigo: row.titulo || 'Curso',
       token,
     })
-    res.json({ success: true, message: `Correo enviado a ${row.email}`, data: { emailId: data?.id ?? null, email: row.email } })
+    const enviadoEn = new Date().toISOString()
+    await db.execute({
+      sql: `UPDATE inscripciones_cursos SET correo_confirmacion_enviado_en = ?, correo_confirmacion_id = ? WHERE id_inscripcion = ?`,
+      args: [enviadoEn, data?.id ?? null, id],
+    })
+    res.json({ success: true, message: `Correo enviado a ${row.email}`, data: { emailId: data?.id ?? null, email: row.email, enviadoEn } })
   } catch (error) {
     console.error('adminReenviarConfirmacionCurso:', error)
     res.status(500).json({ success: false, message: 'No se pudo enviar el correo' })
@@ -3701,8 +3706,13 @@ export const adminReenviarConfirmacionCurso = async (req: Request, res: Response
 export const adminEstadoCorreo = async (req: Request, res: Response): Promise<void> => {
   try {
     const estado = await obtenerEstadoCorreo(String(req.params.emailId))
-    res.json({ success: true, data: { estado } })
+    res.json({ success: true, data: { estado, verificable: true } })
   } catch (error) {
+    // La key de Resend es solo de envío: no puede leer el estado, y no es un fallo del servidor
+    if (String((error as Error)?.message).includes('restricted_api_key')) {
+      res.json({ success: true, data: { estado: null, verificable: false } })
+      return
+    }
     console.error('adminEstadoCorreo:', error)
     res.status(500).json({ success: false, message: 'No se pudo consultar el estado del correo' })
   }
