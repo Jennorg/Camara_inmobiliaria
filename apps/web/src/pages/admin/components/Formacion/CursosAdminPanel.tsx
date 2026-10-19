@@ -1206,7 +1206,7 @@ const CursosAdminPanel = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h5 className="text-xs font-black text-amber-900 flex items-center gap-1.5">
-                        <span>🚫 Cursos Mutuamente Excluyentes (Incompatibilidad)</span>
+                        <span>🚫 Cursos Excluyentes (Incompatibilidad)</span>
                         {formData.cursos_excluyentes.length > 0 && (
                           <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">
                             {formData.cursos_excluyentes.length} {formData.cursos_excluyentes.length === 1 ? 'curso' : 'cursos'}
@@ -1214,7 +1214,7 @@ const CursosAdminPanel = () => {
                         )}
                       </h5>
                       <p className="text-[11px] text-amber-800/80 font-medium leading-relaxed mt-0.5">
-                        Si un estudiante se inscribe en este curso, <strong>no podrá inscribirse en ninguno de los cursos que selecciones aquí</strong> (y viceversa). Puedes seleccionar más de un curso.
+                        Si un estudiante está inscrito en este curso, <strong>no podrá inscribirse en los cursos que selecciones aquí</strong>. Es de <strong>un solo sentido</strong>: para que también aplique al revés, edita el otro curso y selecciona este. Puedes seleccionar más de un curso.
                       </p>
                     </div>
                     {formData.cursos_excluyentes.length > 0 && (

@@ -1413,105 +1413,30 @@ const ensureCursosTableSchema = async (): Promise<void> => {
 }
 
 /**
- * Obtiene todos los IDs de cursos que son mutuamente excluyentes con el curso dado.
- * Revisa tanto los excluyentes configurados en el propio curso como aquellos cursos
- * que configuran a este curso en su lista de exclusiones (reciprocidad garantizada).
+ * IDs de los cursos que bloquean la inscripción en `idCurso`: aquellos que lo listan en su
+ * propio cursos_excluyentes. La exclusión es unilateral; para que sea mutua, ambos cursos
+ * deben listarse entre sí.
  */
 export const getCursosExcluyentesIds = async (idCurso: number): Promise<number[]> => {
   try {
     const res = await db.execute({
-      sql: `SELECT id_curso, cursos_excluyentes FROM cursos WHERE eliminado_en IS NULL`,
-      args: [],
+      sql: `SELECT id_curso, cursos_excluyentes FROM cursos WHERE eliminado_en IS NULL AND id_curso != ?`,
+      args: [idCurso],
     })
-    const excluyentesSet = new Set<number>()
-
+    const bloqueantes: number[] = []
     for (const row of res.rows as any[]) {
-      let list: number[] = []
+      let list: unknown[] = []
       try {
-        if (typeof row.cursos_excluyentes === 'string') {
-          list = JSON.parse(row.cursos_excluyentes)
-        } else if (Array.isArray(row.cursos_excluyentes)) {
-          list = row.cursos_excluyentes
-        }
+        list = typeof row.cursos_excluyentes === 'string' ? JSON.parse(row.cursos_excluyentes) : []
       } catch {
         list = []
       }
-      const currentId = Number(row.id_curso)
-      if (currentId === idCurso) {
-        for (const id of list) {
-          const numId = Number(id)
-          if (Number.isFinite(numId) && numId !== idCurso) excluyentesSet.add(numId)
-        }
-      } else if (list.map(Number).includes(idCurso)) {
-        excluyentesSet.add(currentId)
-      }
+      if (Array.isArray(list) && list.map(Number).includes(idCurso)) bloqueantes.push(Number(row.id_curso))
     }
-
-    return Array.from(excluyentesSet)
+    return bloqueantes
   } catch (err) {
     console.error('getCursosExcluyentesIds error:', err)
     return []
-  }
-}
-
-/**
- * Sincroniza la exclusión bidireccional entre cursos.
- */
-export const syncBidirectionalExclusiones = async (courseId: number, targetExcluyentesIds: number[]): Promise<void> => {
-  try {
-    // 1. Para cada ID en targetExcluyentesIds: asegurarse de que su array cursos_excluyentes contenga courseId
-    for (const otherId of targetExcluyentesIds) {
-      if (otherId === courseId) continue
-      const res = await db.execute({
-        sql: `SELECT cursos_excluyentes FROM cursos WHERE id_curso = ? LIMIT 1`,
-        args: [otherId],
-      })
-      if (res.rows.length > 0) {
-        let otherList: number[] = []
-        try {
-          const raw = res.rows[0].cursos_excluyentes
-          otherList = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])
-        } catch {
-          otherList = []
-        }
-        otherList = otherList.map(Number).filter((n: number) => Number.isFinite(n) && n !== otherId)
-        if (!otherList.includes(courseId)) {
-          otherList.push(courseId)
-          await db.execute({
-            sql: `UPDATE cursos SET cursos_excluyentes = ? WHERE id_curso = ?`,
-            args: [JSON.stringify(otherList), otherId],
-          })
-        }
-      }
-    }
-
-    // 2. Para los cursos que antes tenían a courseId pero ya NO están en targetExcluyentesIds, remover courseId
-    const allOther = await db.execute({
-      sql: `SELECT id_curso, cursos_excluyentes FROM cursos WHERE id_curso != ? AND cursos_excluyentes LIKE ?`,
-      args: [courseId, `%${courseId}%`],
-    })
-    for (const row of allOther.rows as any[]) {
-      const oId = Number(row.id_curso)
-      if (!targetExcluyentesIds.includes(oId)) {
-        let oList: number[] = []
-        try {
-          const raw = row.cursos_excluyentes
-          oList = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : [])
-        } catch {
-          oList = []
-        }
-        oList = oList.map(Number).filter((n: number) => Number.isFinite(n))
-        if (oList.includes(courseId)) {
-          oList = oList.filter((id: number) => id !== courseId)
-          await db.execute({
-            sql: `UPDATE cursos SET cursos_excluyentes = ? WHERE id_curso = ?`,
-            args: [JSON.stringify(oList), oId],
-          })
-        }
-      }
-    }
-  } catch (err) {
-    console.error('syncBidirectionalExclusiones error:', err)
   }
 }
 
@@ -1694,7 +1619,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
         const conflict = conflictQuery.rows[0] as any
         res.status(409).json({
           success: false,
-          message: `No es posible procesar tu inscripción: ya te encuentras registrado/preinscrito en el curso "${conflict.titulo}". Estos cursos son mutuamente excluyentes y solo puedes participar en uno de ellos.`
+          message: `No es posible procesar tu inscripción: ya te encuentras registrado/preinscrito en el curso "${conflict.titulo}". Ese curso no permite inscribirse también en este.`
         })
         return
       }
@@ -1899,10 +1824,6 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
 
     const courseId = Number(result.rows[0].id_curso)
 
-    if (targetExcluyentesIds.length > 0) {
-      await syncBidirectionalExclusiones(courseId, targetExcluyentesIds)
-    }
-    
     // Parse modules if any
     const modulosList = Array.isArray(req.body.modulos) ? req.body.modulos : []
     if (modulosList.length === 0) {
@@ -2048,10 +1969,6 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Curso no encontrado' })
       return
-    }
-
-    if (targetExcluyentesIds !== null) {
-      await syncBidirectionalExclusiones(id, targetExcluyentesIds)
     }
 
     // Sync modules if provided
