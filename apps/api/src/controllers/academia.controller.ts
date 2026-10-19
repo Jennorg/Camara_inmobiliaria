@@ -2878,7 +2878,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3008,7 +3008,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3183,7 +3183,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3272,10 +3272,14 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
       }
     }
 
-    // Enviar correo de bienvenida/invitación de acceso (mismo correo que botón Invitar del panel)
+    // Correo de inscripción aprobada; sin token si el usuario ya tenía contraseña
     try {
-      const { enviarCorreoOnboardingMasivo } = await import('../lib/email.js')
-      await enviarCorreoOnboardingMasivo(row.nombre_completo, row.email, tokenToUse)
+      await enviarCorreoSetPasswordEstudiante({
+        nombre: row.nombre_completo,
+        emailOriginal: row.email,
+        programaCodigo: row.programa_codigo || 'Curso',
+        token: shouldSendToken ? tokenToUse : undefined
+      })
     } catch (err) {
       console.error('Error enviando correo de acceso directo:', err)
     }
@@ -3766,7 +3770,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     const currentRes = await db.execute({
       sql: `SELECT ic.*, 
                    COALESCE(p.email, emp.email) as email,
-                   COALESCE(p.nombres || ' ' || p.apellidos, emp.razon_social) as nombre_completo
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3861,7 +3865,7 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
         }
 
         // Si se cambia a la etapa 4 (CIBIR), notificar por correo de invitación CIBIR
-        if (etapa === 4) {
+        if (etapa === 4 && row.programa_codigo === 'AFILIACION') {
           try {
             await enviarCorreoInvitacionCibir({
               nombre: row.nombre_completo,
@@ -3878,7 +3882,8 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
               emailOriginal: row.email,
               resultado: 'Aprobado',
               programaCodigo: row.programa_codigo || 'Curso',
-              token: shouldSendToken ? tokenToUse : undefined
+              token: shouldSendToken ? tokenToUse : undefined,
+              sinEntrevista: true
             })
           } catch (mailErr) {
             console.error('Error enviando correo de aprobación en cambio de etapa:', mailErr)

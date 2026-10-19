@@ -1,6 +1,7 @@
 import { db } from '../lib/db.js';
 import { Resend } from 'resend';
 import { env } from '../config/env.js';
+import { escapeHtml, renderEmailTemplate } from '../lib/email.js';
 
 /**
  * Tipos de canales soportados por el sistema.
@@ -94,7 +95,7 @@ class EmailChannel implements NotificationChannel {
         from: this.DEFAULT_FROM,
         to: email,
         subject: params.emailConfig?.subject || params.title,
-        html: params.message, // Aquí se podría usar un template más complejo
+        html: renderEmailTemplate(`<p>${escapeHtml(params.message)}</p>`, escapeHtml(params.title)),
       });
 
       if (error) {
