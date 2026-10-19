@@ -28,6 +28,14 @@ async function sendResendEmail(params: any) {
   return await resend.emails.send(params)
 }
 
+/** Último evento de entrega en Resend (sent, delivered, bounced…). En desarrollo devuelve 'delivered'. */
+export const obtenerEstadoCorreo = async (emailId: string): Promise<string | null> => {
+  if (env.NODE_ENV === 'development') return 'delivered'
+  const { data, error } = await resend.emails.get(emailId)
+  if (error) throw new Error(JSON.stringify(error))
+  return data?.last_event ?? null
+}
+
 export const escapeHtml = (t: string) =>
   t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -307,10 +315,10 @@ export const enviarCorreoSetPasswordEstudiante = async (params: {
   const { data, error } = await sendResendEmail({
     from: DEFAULT_FROM,
     to: emailOriginal,
-    subject: `Inscripción aprobada — ${programa}`,
+    subject: `Inscripción confirmada — ${programa}`,
     html: renderEmailTemplate(`
       <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
-      <p>Tu inscripción en <strong>${programa}</strong> ha sido aprobada con éxito.</p>
+      <p>Tu inscripción en <strong>${programa}</strong> ha sido confirmada con éxito.</p>
       <div style="background-color: #f0fdf4; border-radius: 16px; padding: 24px; margin: 32px 0;">
         <p style="margin-top: 0; font-weight: 700; color: #065f46;">${token ? 'Siguiente Paso: Crea tu contraseña' : 'Acceso al Portal'}</p>
         <p>${token ? 'Para acceder a tu panel de formación y completar tu registro, por favor establece tu contraseña segura:' : 'Ya puedes ingresar a tu panel personal para gestionar tu formación:'}</p>

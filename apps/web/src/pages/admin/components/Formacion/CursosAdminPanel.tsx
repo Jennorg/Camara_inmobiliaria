@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { formatNombreCard } from '@/utils/formatters';
 import { matchesSearch } from '@/utils/searchUtils';
-import { Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack } from 'lucide-react';
+import { Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack, Mail, CheckCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -66,6 +66,7 @@ export interface CursoDB {
   estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
   solo_informativo?: number | boolean;
   solo_afiliados?: number | boolean;
+  requiere_aprobacion?: number | boolean;
   firmantes?: string | FirmanteItem[];
   creado_en: string;
   actualizado_en: string | null;
@@ -263,6 +264,7 @@ const CursosAdminPanel = () => {
     estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
     solo_informativo: number;
     solo_afiliados: number;
+    requiere_aprobacion: number;
     cursos_excluyentes: number[];
     modulos: { nombre_modulo: string; id_profesor: number | null; profesor?: string | null; orden: number }[];
     firmantes: FirmanteItem[];
@@ -278,6 +280,7 @@ const CursosAdminPanel = () => {
     estatus: 'Abierto',
     solo_informativo: 0,
     solo_afiliados: 0,
+    requiere_aprobacion: 0,
     cursos_excluyentes: [],
     modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
     firmantes: [],
@@ -443,6 +446,7 @@ const CursosAdminPanel = () => {
         estatus: (curso.estatus as any) || 'Abierto',
         solo_informativo: curso.solo_informativo ? 1 : 0,
         solo_afiliados: curso.solo_afiliados ? 1 : 0,
+        requiere_aprobacion: curso.requiere_aprobacion ? 1 : 0,
         cursos_excluyentes: parsedExcluyentes,
         modulos: curso.modulos || [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
@@ -461,6 +465,7 @@ const CursosAdminPanel = () => {
         estatus: 'Abierto',
         solo_informativo: 0,
         solo_afiliados: 0,
+        requiere_aprobacion: 0,
         cursos_excluyentes: [],
         modulos: [{ nombre_modulo: 'Módulo General', id_profesor: null, orden: 0 }],
         firmantes: parsedFirmantes,
@@ -1131,6 +1136,27 @@ const CursosAdminPanel = () => {
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-amber-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Aprobación manual de inscritos */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h5 className="text-xs font-extrabold text-slate-800">Aprobar inscritos manualmente</h5>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Desactivado (por defecto), quien se inscribe queda admitido de inmediato. Si lo activas, cada inscripción queda <strong>pendiente</strong> hasta que la valides o rechaces desde la lista de inscritos.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formData.requiere_aprobacion === 1}
+                        onChange={(e) => setFormData({ ...formData, requiere_aprobacion: e.target.checked ? 1 : 0 })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
                     </label>
                   </div>
                 </div>
@@ -2065,7 +2091,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         r.estudiante_email || 'Sin correo',
         r.estudiante_telefono || 'Sin teléfono',
         new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-        r.completado === 1 ? 'Completado' : r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : (r.estatus || 'Registrado')
+        r.completado === 1 ? 'Completado' : !requiereAprobacion ? 'Inscrito' : r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : (r.estatus || 'Registrado')
       ]);
 
       const HEADER_COLOR: [number, number, number] = [4, 120, 87];
@@ -2282,6 +2308,41 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
   }, [curso.id_curso, token]);
 
   const [processingActionId, setProcessingActionId] = useState<{ id: number; action: string } | null>(null);
+  const requiereAprobacion = Number(curso.requiere_aprobacion) === 1;
+  // Estado del último correo de confirmación por inscripción
+  type CorreoEstado = 'enviando' | 'enviado' | 'entregado' | 'demorado' | 'rebotado' | 'error';
+  const [correoEstado, setCorreoEstado] = useState<Record<number, CorreoEstado>>({});
+  const montado = useRef(true);
+  useEffect(() => () => { montado.current = false; }, []);
+
+  const handleEnviarConfirmacion = async (id: number, email: string | null) => {
+    if (correoEstado[id] === 'enviando') return;
+    const setEstado = (e: CorreoEstado) => montado.current && setCorreoEstado(prev => ({ ...prev, [id]: e }));
+    setEstado('enviando');
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}/reenviar-confirmacion`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo enviar el correo');
+      setEstado('enviado');
+      // Resend solo acepta el envío; la entrega real se consulta por su id (hasta ~20 s)
+      const emailId = json.data?.emailId;
+      for (let i = 0; emailId && i < 8 && montado.current; i++) {
+        await new Promise(r => setTimeout(r, 2500));
+        const st = await fetch(`${API_URL}/api/academia/correos/${emailId}/estado`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).catch(() => null);
+        const ev = st?.data?.estado as string | undefined;
+        if (ev === 'delivered' || ev === 'opened' || ev === 'clicked') { setEstado('entregado'); return; }
+        if (ev === 'bounced' || ev === 'complained' || ev === 'failed' || ev === 'suppressed') { setEstado('rebotado'); return; }
+        if (ev === 'delivery_delayed') setEstado('demorado');
+      }
+    } catch (e: any) {
+      setEstado('error');
+      Swal.fire('Error', e?.message || `No se pudo enviar el correo a ${email || 'el participante'}`, 'error');
+    }
+  };
 
   const procesar = async (id: number, action: 'aprobar' | 'rechazar' | 'completar') => {
     if (processingActionId) return;
@@ -2903,7 +2964,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     { id: 'email', label: 'Correo', pad: 'px-4' },
                     { id: 'telefono', label: 'Teléfono', pad: 'px-4' },
                     { id: 'fecha', label: 'Fecha Registro', pad: 'px-4' },
-                    { id: 'estatus', label: 'Estatus', pad: 'px-4' },
+                    ...(requiereAprobacion ? [{ id: 'estatus', label: 'Estatus', pad: 'px-4' }] : []),
                   ].map(col => {
                     const isActive = sortField === col.id;
                     return (
@@ -2961,6 +3022,19 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-xs font-semibold text-slate-600 truncate max-w-[220px] block" title={r.estudiante_email || ''}>{r.estudiante_email || 'Sin correo'}</span>
+                        {correoEstado[r.id_inscripcion] && (
+                          <span className={`mt-1 inline-flex items-center gap-1 text-[10px] font-bold ${{
+                            enviando: 'text-slate-400', enviado: 'text-blue-500', entregado: 'text-emerald-600',
+                            demorado: 'text-amber-600', rebotado: 'text-red-500', error: 'text-red-500',
+                          }[correoEstado[r.id_inscripcion]]}`}>
+                            {correoEstado[r.id_inscripcion] === 'enviando' && <Loader2 size={11} className="animate-spin" />}
+                            {correoEstado[r.id_inscripcion] === 'entregado' && <CheckCheck size={11} />}
+                            {{
+                              enviando: 'Enviando…', enviado: 'Enviado · confirmando entrega…', entregado: 'Entregado',
+                              demorado: 'Entrega demorada', rebotado: 'No se pudo entregar', error: 'Falló el envío',
+                            }[correoEstado[r.id_inscripcion]]}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">{r.estudiante_telefono || 'Sin teléfono'}</span>
@@ -2968,7 +3042,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <td className="px-4 py-4 text-xs font-bold text-slate-500 tabular-nums whitespace-nowrap">
                         {new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="px-6 py-4">
+                      {requiereAprobacion && <td className="px-6 py-4">
                         {r.completado === 1 ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Completado
@@ -2985,7 +3059,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                             {r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : r.estatus}
                           </span>
                         )}
-                      </td>
+                      </td>}
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 items-center opacity-0 group-hover:opacity-100 transition-transform transform translate-x-2 group-hover:translate-x-0">
                           {(() => {
@@ -2998,7 +3072,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                             return (
                               <>
-                                {r.estatus === 'Preinscrito' && (
+                                {requiereAprobacion && r.estatus === 'Preinscrito' && (
                                   <>
                                     <button
                                       type="button"
@@ -3032,7 +3106,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     </button>
                                   </>
                                 )}
-                                {r.estatus === 'Inscrito' && r.completado !== 1 && (
+                                {r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (requiereAprobacion ? r.estatus === 'Inscrito' : true) && r.completado !== 1 && (
                                   <>
                                     <button
                                       type="button"
@@ -3052,6 +3126,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                         </>
                                       )}
                                     </button>
+                                    {requiereAprobacion && (
                                     <button
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'rechazar')}
@@ -3067,12 +3142,13 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                         <span>Revocar</span>
                                       )}
                                     </button>
+                                    )}
                                   </>
                                 )}
                                 {r.completado === 1 && (
                                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
                                 )}
-                                {(r.estatus === 'Inscrito' || r.completado === 1) && (
+                                {(r.estatus === 'Inscrito' || r.completado === 1 || (!requiereAprobacion && r.estatus === 'Preinscrito')) && (
                                   <a
                                     href={`/comprobante/${encodeURIComponent(r.codigo_validacion || `CIV-${String(r.id_inscripcion).padStart(5, '0')}-${String(curso.id_curso || '0').padStart(3, '0')}`)}`}
                                     target="_blank"
@@ -3082,6 +3158,17 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                   >
                                     <Award size={13} />
                                   </a>
+                                )}
+                                {r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (
+                                  <button
+                                    type="button"
+                                    disabled={isRowDisabled || !r.estudiante_email || correoEstado[r.id_inscripcion] === 'enviando'}
+                                    onClick={() => handleEnviarConfirmacion(r.id_inscripcion, r.estudiante_email)}
+                                    className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200/60 cursor-pointer shrink-0 disabled:opacity-50 disabled:pointer-events-none"
+                                    title={r.estudiante_email ? `Enviar correo de confirmación a ${r.estudiante_email}` : 'El participante no tiene correo'}
+                                  >
+                                    {correoEstado[r.id_inscripcion] === 'enviando' ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
+                                  </button>
                                 )}
                                 <button
                                   type="button"

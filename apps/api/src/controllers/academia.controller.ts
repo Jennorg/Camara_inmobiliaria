@@ -21,6 +21,7 @@ import {
   notificarAdminNuevaPreinscripcion,
   enviarCorreoAprobacionEstudiante,
   enviarCorreoSetPasswordEstudiante,
+  obtenerEstadoCorreo,
   enviarCorreoResultadoEntrevista,
   enviarCorreoInvitacionCibir,
   enviarCorreoRechazo,
@@ -1397,6 +1398,13 @@ const ensureCursosTableSchema = async (): Promise<void> => {
           // Column already exists
         }
       }
+      if (!tableSql.includes('requiere_aprobacion')) {
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN requiere_aprobacion INTEGER NOT NULL DEFAULT 0 CHECK (requiere_aprobacion IN (0,1))`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
     }
   } catch (err) {
     console.error('ensureCursosTableSchema error:', err)
@@ -1569,7 +1577,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados FROM cursos WHERE id_curso = ? LIMIT 1`,
+      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso],
     })
     if (cursoRes.rows.length === 0) {
@@ -1704,19 +1712,21 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     })
 
     const now = new Date().toISOString()
+    // Sin aprobación manual el inscrito queda admitido de inmediato
+    const estatusInscripcion = Number(curso.requiere_aprobacion) === 1 ? 'Preinscrito' : 'Inscrito'
     const result = await db.execute({
       sql: `INSERT INTO inscripciones_cursos
               (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, estatus_academico, completado, fecha_inscripcion, creado_en, actualizado_en)
-            VALUES (?, ?, NULL, 'curso', 'Preinscrito', 'Inscrito', 0, ?, ?, ?)
+            VALUES (?, ?, NULL, 'curso', ?, 'Inscrito', 0, ?, ?, ?)
             ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
-              estatus = 'Preinscrito',
+              estatus = excluded.estatus,
               estatus_academico = 'Inscrito',
               completado = 0,
               tipo_inscripcion = 'curso',
               fecha_inscripcion = excluded.fecha_inscripcion,
               actualizado_en = excluded.actualizado_en
             RETURNING *`,
-      args: [id_estudiante, idCurso, now, now, now],
+      args: [id_estudiante, idCurso, estatusInscripcion, now, now, now],
     })
 
     res.status(201).json({
@@ -1810,6 +1820,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       estatus,
       solo_informativo,
       solo_afiliados,
+      requiere_aprobacion,
     } = req.body
 
     const courseTitle = (titulo || nombre || '').trim()
@@ -1828,6 +1839,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo ? 1 : 0
     const isSoloAfiliados = solo_afiliados ? 1 : 0
+    const isRequiereAprobacion = requiere_aprobacion ? 1 : 0
 
     let firmantesStr: string | null = null;
     if (req.body.firmantes) {
@@ -1859,8 +1871,8 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       sql: `INSERT INTO cursos (
               titulo, slug, descripcion, contenido, categoria, modalidad,
               cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
-              estatus, solo_informativo, solo_afiliados, firmantes, cursos_excluyentes, creado_en, actualizado_en
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              estatus, solo_informativo, solo_afiliados, requiere_aprobacion, firmantes, cursos_excluyentes, creado_en, actualizado_en
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
         courseTitle,
@@ -1877,6 +1889,7 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         estatus ?? 'Abierto',
         isSoloInformativo,
         isSoloAfiliados,
+        isRequiereAprobacion,
         firmantesStr,
         cursosExcluyentesStr,
         now,
@@ -1958,6 +1971,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       estatus,
       solo_informativo,
       solo_afiliados,
+      requiere_aprobacion,
       firmantes,
       cursos_excluyentes,
     } = req.body
@@ -1966,6 +1980,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo !== undefined ? (solo_informativo ? 1 : 0) : null
     const isSoloAfiliados = solo_afiliados !== undefined ? (solo_afiliados ? 1 : 0) : null
+    const isRequiereAprobacion = requiere_aprobacion !== undefined ? (requiere_aprobacion ? 1 : 0) : null
 
     let firmantesStr: string | null = null;
     if (firmantes !== undefined) {
@@ -2002,6 +2017,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
               estatus = COALESCE(?, estatus),
               solo_informativo = COALESCE(?, solo_informativo),
               solo_afiliados = COALESCE(?, solo_afiliados),
+              requiere_aprobacion = COALESCE(?, requiere_aprobacion),
               firmantes = COALESCE(?, firmantes),
               cursos_excluyentes = COALESCE(?, cursos_excluyentes),
               actualizado_en = ?
@@ -2021,6 +2037,7 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
         estatus ?? null,
         isSoloInformativo,
         isSoloAfiliados,
+        isRequiereAprobacion,
         firmantesStr,
         cursosExcluyentesStr,
         now,
@@ -3598,6 +3615,100 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
 
 
 /**
+ * POST /api/academia/inscripciones/:id/reenviar-confirmacion
+ * Envía (o reenvía) al inscrito el correo de confirmación de su inscripción al curso.
+ * Devuelve el id del correo en Resend para consultar su entrega.
+ */
+export const adminReenviarConfirmacionCurso = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, message: 'id inválido' })
+      return
+    }
+
+    const r = await db.execute({
+      sql: `SELECT ic.estatus,
+                   COALESCE(c.titulo, ic.programa_codigo) AS titulo,
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) AS nombre_completo,
+                   LOWER(TRIM(COALESCE(p.email, emp.email))) AS email
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
+            LEFT JOIN cursos c ON c.id_curso = ic.id_curso
+            WHERE ic.id_inscripcion = ?`,
+      args: [id],
+    })
+    const row = r.rows[0] as any
+    if (!row) {
+      res.status(404).json({ success: false, message: 'Inscripción no encontrada' })
+      return
+    }
+    if (!row.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+      res.status(400).json({ success: false, message: 'El participante no tiene un correo válido.' })
+      return
+    }
+    if (row.estatus === 'Rechazado' || row.estatus === 'Cancelado') {
+      res.status(400).json({ success: false, message: 'La inscripción no está activa.' })
+      return
+    }
+
+    // Token de acceso solo si aún no ha creado su contraseña
+    const now = new Date().toISOString()
+    let token: string | undefined
+    const userRes = await db.execute({ sql: `SELECT id FROM users WHERE email = ?`, args: [row.email] })
+    if (userRes.rows.length === 0) {
+      await db.execute({
+        sql: `INSERT INTO users (email, password_hash, roles) VALUES (?, ?, '["estudiante"]')`,
+        args: [row.email, await bcrypt.hash(randomUUID(), 10)],
+      })
+      token = randomUUID()
+    } else {
+      const pend = await db.execute({
+        sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+        args: [row.email, now],
+      })
+      if (pend.rows.length > 0) token = randomUUID()
+    }
+    if (token) {
+      const expiracion = new Date()
+      expiracion.setDate(expiracion.getDate() + 30)
+      await db.execute({ sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`, args: [row.email] })
+      await db.execute({
+        sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion) VALUES (?, 'reset_password', ?, 0, ?)`,
+        args: [sha256(token), row.email, expiracion.toISOString()],
+      })
+    }
+
+    const data = await enviarCorreoSetPasswordEstudiante({
+      nombre: row.nombre_completo,
+      emailOriginal: row.email,
+      programaCodigo: row.titulo || 'Curso',
+      token,
+    })
+    res.json({ success: true, message: `Correo enviado a ${row.email}`, data: { emailId: data?.id ?? null, email: row.email } })
+  } catch (error) {
+    console.error('adminReenviarConfirmacionCurso:', error)
+    res.status(500).json({ success: false, message: 'No se pudo enviar el correo' })
+  }
+}
+
+/**
+ * GET /api/academia/correos/:emailId/estado
+ * Último evento de entrega de un correo (Resend): sent, delivered, bounced, etc.
+ */
+export const adminEstadoCorreo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const estado = await obtenerEstadoCorreo(String(req.params.emailId))
+    res.json({ success: true, data: { estado } })
+  } catch (error) {
+    console.error('adminEstadoCorreo:', error)
+    res.status(500).json({ success: false, message: 'No se pudo consultar el estado del correo' })
+  }
+}
+
+/**
  * PATCH /api/academia/inscripciones/:id/completar
  * Marca un curso como completado por el estudiante.
  */
@@ -3611,7 +3722,10 @@ export const adminCompletarCursoEstudiante = async (req: Request, res: Response)
     const result = await db.execute({
       sql: `UPDATE inscripciones_cursos
             SET completado=1, actualizado_en=?
-            WHERE id_inscripcion=? AND estatus='Inscrito'
+            WHERE id_inscripcion=? AND (
+              estatus='Inscrito'
+              OR (estatus='Preinscrito' AND id_curso IN (SELECT id_curso FROM cursos WHERE requiere_aprobacion = 0))
+            )
             RETURNING *`,
       args: [new Date().toISOString(), id],
     })

@@ -203,6 +203,7 @@ const statements = [
     estatus           TEXT        DEFAULT 'Abierto',
     solo_informativo  INTEGER     DEFAULT 0,
     solo_afiliados    INTEGER     NOT NULL DEFAULT 0 CHECK (solo_afiliados IN (0,1)),
+    requiere_aprobacion INTEGER   NOT NULL DEFAULT 0 CHECK (requiere_aprobacion IN (0,1)),
     orden             INTEGER     DEFAULT 0,
     imagen_url        TEXT,
     banner_url        TEXT,
@@ -538,6 +539,12 @@ async function run() {
     // Migración: asegurar que exista solo_afiliados en cursos (curso privado)
     try {
       await db.execute(`ALTER TABLE cursos ADD COLUMN solo_afiliados INTEGER NOT NULL DEFAULT 0 CHECK (solo_afiliados IN (0,1))`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
+    // Migración: curso con aprobación manual de inscritos (0 = inscripción directa)
+    try {
+      await db.execute(`ALTER TABLE cursos ADD COLUMN requiere_aprobacion INTEGER NOT NULL DEFAULT 0 CHECK (requiere_aprobacion IN (0,1))`)
     } catch (e) {
       // Ignorar si la columna ya existe
     }
