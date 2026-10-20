@@ -1502,8 +1502,10 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion FROM cursos WHERE id_curso = ? LIMIT 1`,
-      args: [idCurso],
+      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion, cupos_totales,
+                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus IN ('Inscrito', 'Pagado')) AS inscritos
+            FROM cursos WHERE id_curso = ? LIMIT 1`,
+      args: [idCurso, idCurso],
     })
     if (cursoRes.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Curso no encontrado' })
@@ -1521,6 +1523,13 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     if (curso.estatus !== 'Abierto' && curso.estatus !== 'Próximamente') {
       res.status(400).json({ success: false, message: 'El curso no está disponible para inscripciones' })
+      return
+    }
+
+    // Cupos: mismo criterio que la asignación manual (999999 = sin límite)
+    const cuposTotales = Number(curso.cupos_totales) || 0
+    if (cuposTotales > 0 && cuposTotales < 999999 && Number(curso.inscritos) >= cuposTotales) {
+      res.status(400).json({ success: false, message: 'No hay cupos disponibles' })
       return
     }
 
