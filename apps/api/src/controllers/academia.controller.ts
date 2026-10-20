@@ -1503,7 +1503,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
       sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion, cupos_totales,
-                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus IN ('Inscrito', 'Pagado')) AS inscritos
+                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus NOT IN ('Rechazado', 'Cancelado')) AS inscritos
             FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso, idCurso],
     })
@@ -2397,7 +2397,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     // validar curso abierto y cupos
     const cursoRes = await db.execute({
       sql: `SELECT id_curso, cupos_totales, estatus, solo_informativo,
-                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus IN ('Inscrito', 'Pagado')) as inscritos
+                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus NOT IN ('Rechazado', 'Cancelado')) as inscritos
             FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso, idCurso],
     })
