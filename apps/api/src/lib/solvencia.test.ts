@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcularMeses, type PagoCubierto } from './solvencia.js'
+import { calcularMeses, resumenDeuda, type PagoCubierto } from './solvencia.js'
 
 const pago = (periodo: string, estatus = 'Verificado', meses = 1): PagoCubierto => ({
   id_pago: 1, numero_recibo: 'REC-1', estatus, periodo, meses_cubiertos: meses, monto_usd_equivalente: 5, fecha_pago: '2026-01-01',
@@ -29,5 +29,19 @@ describe('calcularMeses', () => {
   it('pagos por adelantado extienden la línea y rechazados no cuentan', () => {
     expect(estados('2026-10', '2026-10', [pago('2026-10', 'Verificado', 3), pago('2026-10', 'Rechazado')]))
       .toEqual(['2026-10:pagado', '2026-11:adelantado', '2026-12:adelantado'])
+  })
+})
+
+describe('resumenDeuda', () => {
+  const cfg = { diaVencimiento: 5, diasAvisoPrevio: 3, frecuenciaMoraDias: 7, mesesGracia: 2 }
+  const meses = calcularMeses('2026-07', '2026-10', [pago('2026-07')])
+  it('antes del vencimiento el mes en curso no es deuda', () => {
+    expect(resumenDeuda(meses, '2026-10-05', 5, cfg)).toEqual({ mesesDeuda: 2, montoUsd: 10, mesMasAntiguo: '2026-08', bloqueado: false })
+  })
+  it('pasado el vencimiento el mes en curso suma y supera la gracia', () => {
+    expect(resumenDeuda(meses, '2026-10-06', 5, cfg)).toEqual({ mesesDeuda: 3, montoUsd: 15, mesMasAntiguo: '2026-08', bloqueado: true })
+  })
+  it('al día no debe nada', () => {
+    expect(resumenDeuda(calcularMeses('2026-10', '2026-10', [pago('2026-10')]), '2026-10-20', 5, cfg).mesesDeuda).toBe(0)
   })
 })

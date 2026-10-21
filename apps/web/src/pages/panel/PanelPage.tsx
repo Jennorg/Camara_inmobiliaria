@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import DashboardSidebar from '@/pages/landing/afiliado/components/DashboardSidebar';
 import DashboardHeader from '@/pages/landing/afiliado/components/DashboardHeader';
-import WidgetFinanciero from '@/pages/landing/afiliado/components/WidgetFinanciero';
+import WidgetReportarPago from '@/pages/landing/afiliado/components/WidgetReportarPago';
 import WidgetNotificaciones from '@/pages/landing/afiliado/components/WidgetNotificaciones';
 import WidgetAcademico from '@/pages/landing/afiliado/components/WidgetAcademico';
 import WidgetMisCursos from '@/pages/landing/afiliado/components/WidgetMisCursos';
@@ -136,6 +136,8 @@ const PanelPage = () => {
 
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
   const [preinscripcionesCount, setPreinscripcionesCount] = useState(0);
+  // Cambia tras reportar un pago para recargar la línea de tiempo de solvencia
+  const [versionSolvencia, setVersionSolvencia] = useState(0);
   const [agentesCorpTab, setAgentesCorpTab] = useState<'agentes' | 'pendientes' | 'links' | 'vincular' | 'solicitudes'>('agentes');
 
   useEffect(() => {
@@ -479,12 +481,18 @@ const PanelPage = () => {
     if (activeTab === 'Estado de Cuenta y Solvencias') {
       const idAfiliado = user?.id_afiliado || afiliado?.id_afiliado;
       return (
-        <div className="col-span-1 lg:col-span-3">
-          <div className="max-w-xl bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="col-span-1 lg:col-span-3 grid grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr] gap-6 items-start">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
             <h2 className="text-lg font-black text-slate-900">Estado de cuenta y solvencia</h2>
             <p className="text-xs text-slate-500 font-medium">Tus mensualidades mes a mes: pagadas, en revisión y pendientes.</p>
-            {idAfiliado ? <LineaTiempoSolvencia idAfiliado={idAfiliado} /> : null}
+            {idAfiliado ? <LineaTiempoSolvencia key={versionSolvencia} idAfiliado={idAfiliado} /> : null}
           </div>
+          {idAfiliado ? (
+            <div id="reportar-pago" className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4 scroll-mt-24">
+              <h2 className="text-lg font-black text-slate-900">Reportar pago</h2>
+              <WidgetReportarPago idAfiliado={idAfiliado} onReportado={() => setVersionSolvencia(v => v + 1)} />
+            </div>
+          ) : null}
         </div>
       );
     }

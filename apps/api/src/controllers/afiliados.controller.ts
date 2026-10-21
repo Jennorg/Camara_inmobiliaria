@@ -146,6 +146,10 @@ export const getMisCursos = async (req: Request, res: Response): Promise<void> =
           ic.estatus_academico,
           ic.completado,
           ic.creado_en as fecha_inscripcion,
+          ic.reserva_vence_en,
+          ic.monto_usd,
+          (SELECT pg.estatus FROM pagos pg WHERE pg.id_inscripcion_curso = ic.id_inscripcion AND pg.eliminado_en IS NULL
+            ORDER BY pg.estatus = 'Verificado' DESC, pg.estatus = 'Pendiente' DESC LIMIT 1) as pago_estatus,
           cu.titulo as curso_nombre,
           cu.categoria as nivel_academico,
           cu.imagen_url,

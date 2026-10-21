@@ -23,11 +23,27 @@ interface FilaSolvencia {
   solvente: boolean
   meses_deuda: number
   deuda_usd: number
+  bloqueado: boolean
   celdas: (EstadoMes | null)[]
 }
 
+interface ConfigCobranza {
+  diaVencimiento: number
+  diasAvisoPrevio: number
+  frecuenciaMoraDias: number
+  mesesGracia: number
+}
+
+const CAMPOS_COBRANZA: { key: keyof ConfigCobranza; label: string; min: number; max: number }[] = [
+  { key: 'diaVencimiento', label: 'Día de vencimiento', min: 1, max: 28 },
+  { key: 'diasAvisoPrevio', label: 'Aviso previo (días antes)', min: 0, max: 20 },
+  { key: 'frecuenciaMoraDias', label: 'Repetir aviso de mora cada (días)', min: 1, max: 60 },
+  { key: 'mesesGracia', label: 'Meses de gracia antes de bloquear', min: 0, max: 24 },
+]
+
 interface Resumen {
   inicio: string
+  cobranza: ConfigCobranza
   mes_actual: string
   anio: number
   monto_mensual: number
@@ -64,12 +80,14 @@ export default function SolvenciaPanel() {
   const [soloMora, setSoloMora] = useState(false)
   const [abierto, setAbierto] = useState<number | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
 
   const cargar = useCallback(async () => {
     try {
       const r = await apiFetch<{ data: Resumen }>(`${API_URL}/api/pagos/admin/solvencia?anio=${anio}`, { headers: authHeaders })
       setData(r.data)
       setInicio(r.data.inicio)
+      setCobranza(r.data.cobranza)
     } catch (e: any) {
       Swal.fire('Error', e.message, 'error')
     }
@@ -92,13 +110,13 @@ export default function SolvenciaPanel() {
     return (data?.afiliados ?? []).filter(a => (!soloMora || !a.solvente) && (!busqueda.trim() || coincide(a)))
   }, [data, busqueda, criterio, soloMora])
 
-  const guardarInicio = async () => {
+  const guardarConfig = async (cambios: { inicio?: string; cobranza?: ConfigCobranza }) => {
     setGuardando(true)
     try {
       await apiFetch(`${API_URL}/api/pagos/admin/solvencia/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ inicio }),
+        body: JSON.stringify(cambios),
       })
       await cargar()
     } catch (e: any) {
@@ -128,12 +146,40 @@ export default function SolvenciaPanel() {
             <input type="month" value={inicio} onChange={e => setInicio(e.target.value)}
               className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </label>
-          <button type="button" onClick={guardarInicio} disabled={guardando || !inicio || inicio === data.inicio}
+          <button type="button" onClick={() => guardarConfig({ inicio })} disabled={guardando || !inicio || inicio === data.inicio}
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none cursor-pointer">
             {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>
+
+      {cobranza && (
+        <details className="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+          <summary className="cursor-pointer text-xs font-black uppercase tracking-wider text-slate-600">
+            Calendario de cobranza · vence el día {data.cobranza.diaVencimiento} · bloqueo tras {data.cobranza.mesesGracia} meses de deuda
+          </summary>
+          <form
+            className="mt-3 flex flex-wrap items-end gap-3"
+            onSubmit={e => { e.preventDefault(); guardarConfig({ cobranza }) }}
+          >
+            {CAMPOS_COBRANZA.map(c => (
+              <label key={c.key} className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">{c.label}</span>
+                <input
+                  type="number" inputMode="numeric" min={c.min} max={c.max} step={1} required
+                  value={cobranza[c.key]}
+                  onChange={e => setCobranza({ ...cobranza, [c.key]: e.currentTarget.valueAsNumber })}
+                  className="w-28 px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </label>
+            ))}
+            <button type="submit" disabled={guardando}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-40 cursor-pointer">
+              {guardando ? 'Guardando…' : 'Guardar calendario'}
+            </button>
+          </form>
+        </details>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center rounded-xl border border-slate-200 bg-white">
@@ -208,6 +254,7 @@ export default function SolvenciaPanel() {
                   ))}
                   <td className={`px-3 py-2 text-right text-xs font-bold tabular-nums ${a.solvente ? 'text-emerald-600' : 'text-red-600'}`}>
                     {a.solvente ? 'Solvente' : `$${a.deuda_usd.toFixed(2)}`}
+                    {a.bloqueado && <span className="block text-[9px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
                 </tr>
                 {abierto === a.id_afiliado && (
@@ -220,7 +267,7 @@ export default function SolvenciaPanel() {
       </div>
 
       <p className="text-xs text-slate-500 font-medium">
-        Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso no cuenta como deuda hasta que termina. Los afiliados sin historial importado deben desde el mes indicado arriba.
+        Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso cuenta como deuda a partir del día {data.cobranza.diaVencimiento + 1}. Con más de {data.cobranza.mesesGracia} meses de deuda se bloquean el carnet, la constancia de solvencia y los certificados. Los afiliados sin historial importado deben desde el mes indicado arriba.
       </p>
     </div>
   )

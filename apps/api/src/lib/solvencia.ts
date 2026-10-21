@@ -63,3 +63,40 @@ export function calcularMeses(desde: string, hoy: string, pagos: PagoCubierto[],
   }
   return meses
 }
+
+export interface ConfigCobranza {
+  /** Día del mes (1-28) en que vence la mensualidad del mes */
+  diaVencimiento: number
+  /** Días antes del vencimiento en que sale el recordatorio */
+  diasAvisoPrevio: number
+  /** Cada cuántos días se repite el aviso de mora */
+  frecuenciaMoraDias: number
+  /** Meses de deuda tolerados antes de bloquear carnet, constancia y certificados */
+  mesesGracia: number
+}
+
+export const CONFIG_COBRANZA_DEFECTO: ConfigCobranza = { diaVencimiento: 5, diasAvisoPrevio: 3, frecuenciaMoraDias: 7, mesesGracia: 2 }
+
+export interface ResumenDeuda {
+  mesesDeuda: number
+  montoUsd: number
+  /** Mes impago más antiguo (YYYY-MM) o null si está al día */
+  mesMasAntiguo: string | null
+  bloqueado: boolean
+}
+
+/**
+ * Deuda vencida a la fecha `hoy` (YYYY-MM-DD): los meses anteriores sin pagar y, pasado el día de
+ * vencimiento, también el mes en curso. Bloquea cuando la deuda supera los meses de gracia.
+ */
+export function resumenDeuda(meses: MesSolvencia[], hoy: string, montoMensual: number, cfg: ConfigCobranza): ResumenDeuda {
+  const mesHoy = hoy.slice(0, 7)
+  const vencioMesActual = Number(hoy.slice(8, 10)) > cfg.diaVencimiento
+  const impagos = meses.filter(m => m.estado === 'deuda' || (m.estado === 'por_pagar' && m.periodo === mesHoy && vencioMesActual))
+  return {
+    mesesDeuda: impagos.length,
+    montoUsd: impagos.length * montoMensual,
+    mesMasAntiguo: impagos[0]?.periodo ?? null,
+    bloqueado: impagos.length > cfg.mesesGracia,
+  }
+}
