@@ -12,7 +12,12 @@ import {
   sincronizarTasasEnVivo,
   actualizarTasaManual,
   resetTasaManual,
-  getHistorialTasas
+  getHistorialTasas,
+  getIngresosPorConcepto,
+  getCierreCajaController,
+  cerrarCajaController,
+  getCuentasPorCobrar,
+  exportarXlsx
 } from '../controllers/finanzas.controller.js';
 
 const router = Router();
@@ -28,6 +33,13 @@ router.post('/movimientos', crearMovimiento);
 router.put('/movimientos/:id', actualizarMovimiento);
 router.patch('/movimientos/:id/anular', anularMovimiento);
 router.delete('/movimientos/:id', eliminarMovimiento);
+
+// ── Reportes de control ──
+router.get('/ingresos-por-concepto', getIngresosPorConcepto);
+router.get('/cierre-caja', getCierreCajaController);
+router.post('/cierre-caja', cerrarCajaController);
+router.get('/cuentas-por-cobrar', getCuentasPorCobrar);
+router.get('/export/:reporte.xlsx', exportarXlsx);
 
 // ── Rutas de referencias y tasas de cambio ──
 router.get('/referencias', getTasasReferencias);

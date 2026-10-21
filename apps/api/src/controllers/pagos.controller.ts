@@ -117,7 +117,7 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
               FROM inscripciones_cursos ic
               JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
               JOIN afiliados a ON a.id_afiliado = ?
-              WHERE ic.id_inscripcion = ?
+              WHERE ic.id_inscripcion = ? AND ic.id_curso IS NOT NULL
                 AND (e.id_persona = a.id_persona OR (a.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa))`,
         args: [Number(id_afiliado), Number(id_inscripcion_curso)]
       });

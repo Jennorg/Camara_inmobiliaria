@@ -1,9 +1,13 @@
 import { Request, Response } from 'express';
 import { finanzasService, FiltrosFinanzas } from '../services/finanzas.service.js';
 import { tasasService } from '../services/tasas.service.js';
+import { cerrarCaja, cuentasPorCobrar, getCierreCaja, ingresosPorConcepto } from '../services/reportes.service.js';
+import { hoyCaracas } from '../services/cobranza.service.js';
+import { ETIQUETA_CONCEPTO } from '../lib/conceptos.js';
+import XLSX from 'xlsx';
 
 function parseFiltros(req: Request): FiltrosFinanzas {
-  const { anio, mes, fechaInicio, fechaFin, search, categoria, tipo } = req.query;
+  const { anio, mes, fechaInicio, fechaFin, search, categoria, tipo, concepto, metodo, cajero } = req.query;
   return {
     anio: anio ? parseInt(String(anio), 10) : undefined,
     mes: mes ? parseInt(String(mes), 10) : undefined,
@@ -11,7 +15,10 @@ function parseFiltros(req: Request): FiltrosFinanzas {
     fechaFin: fechaFin ? String(fechaFin) : undefined,
     search: search ? String(search) : undefined,
     categoria: categoria ? String(categoria) : undefined,
-    tipo: tipo === 'ingreso' || tipo === 'egreso' ? tipo : undefined
+    tipo: tipo === 'ingreso' || tipo === 'egreso' ? tipo : undefined,
+    concepto: concepto ? String(concepto) : undefined,
+    metodo: metodo ? String(metodo) : undefined,
+    cajero: cajero ? String(cajero) : undefined
   };
 }
 
@@ -236,3 +243,103 @@ export async function getHistorialTasas(req: Request, res: Response) {
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reportes de control: ingresos por concepto, cierre de caja, cuentas por cobrar, Excel
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Responde con el status de los errores de negocio (`status`) o 500. */
+function responderError(res: Response, error: unknown, contexto: string) {
+  const status = (error as { status?: number }).status
+  if (status) return res.status(status).json({ success: false, message: (error as Error).message })
+  console.error(`${contexto}:`, error)
+  return res.status(500).json({ success: false, message: `Error en ${contexto}` })
+}
+
+const anioDe = (req: Request) => Number(req.query.anio) || new Date().getFullYear()
+
+export async function getIngresosPorConcepto(req: Request, res: Response) {
+  try {
+    return res.json({ success: true, data: await ingresosPorConcepto(anioDe(req)) });
+  } catch (error) {
+    return responderError(res, error, 'ingresos por concepto');
+  }
+}
+
+export async function getCierreCajaController(req: Request, res: Response) {
+  try {
+    return res.json({ success: true, data: await getCierreCaja(String(req.query.fecha ?? hoyCaracas())) });
+  } catch (error) {
+    return responderError(res, error, 'cierre de caja');
+  }
+}
+
+export async function cerrarCajaController(req: Request, res: Response) {
+  try {
+    const { fecha, observaciones } = req.body ?? {};
+    return res.status(201).json({ success: true, data: await cerrarCaja(String(fecha ?? hoyCaracas()), req.user!.id, typeof observaciones === 'string' ? observaciones : null) });
+  } catch (error) {
+    return responderError(res, error, 'cierre de caja');
+  }
+}
+
+export async function getCuentasPorCobrar(_req: Request, res: Response) {
+  try {
+    return res.json({ success: true, data: await cuentasPorCobrar() });
+  } catch (error) {
+    return responderError(res, error, 'cuentas por cobrar');
+  }
+}
+
+/** Filas con encabezados en español para cada reporte exportable. */
+async function filasReporte(reporte: string, req: Request): Promise<Record<string, unknown>[] | null> {
+  const filtros = parseFiltros(req);
+  if (reporte === 'libro-ventas') {
+    const { items } = await finanzasService.getLibroVentas(filtros);
+    return items.map(i => ({
+      Fecha: i.fecha.slice(0, 10), Documento: i.documento, Cliente: i.cliente, 'RIF/C.I.': i.rif_cedula,
+      Concepto: i.concepto, Categoría: ETIQUETA_CONCEPTO[i.concepto_reporte], Método: i.metodo_pago, Moneda: i.moneda,
+      'Monto original': i.monto_original, 'Tasa BCV': i.tasa_bcv || null, 'Monto USD': i.monto_usd, Referencia: i.referencia, Cajero: i.cajero,
+    }));
+  }
+  if (reporte === 'libro-compras') {
+    const { items } = await finanzasService.getLibroCompras(filtros);
+    return items.map((i: any) => ({
+      Fecha: i.fecha.slice(0, 10), Factura: i.nro_factura_documento, 'N° control': i.nro_control_fiscal, Proveedor: i.proveedor,
+      'RIF/C.I.': i.rif_cedula, Concepto: i.concepto, Categoría: i.categoria, Exento: i.monto_exento, Base: i.base_imponible,
+      'IVA %': i.alicuota_iva, IVA: i.monto_iva, 'Total USD': i.monto_usd_equivalente, Método: i.metodo_pago, Estatus: i.estatus,
+    }));
+  }
+  if (reporte === 'ingresos-por-concepto') {
+    const r = await ingresosPorConcepto(anioDe(req));
+    const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const fila = (nombre: string, meses: number[], total: number) =>
+      ({ Concepto: nombre, ...Object.fromEntries(MESES.map((m, i) => [m, meses[i]])), Total: total });
+    return [...r.conceptos.map(c => fila(c.etiqueta, c.meses, c.total)), fila('TOTAL', r.totalesMes, r.total)];
+  }
+  if (reporte === 'cuentas-por-cobrar') {
+    const r = await cuentasPorCobrar();
+    return r.filas.map(f => ({
+      Tipo: f.tipo === 'curso' ? 'Curso' : 'Mensualidad', 'N° afiliado': f.codigo, Nombre: f.nombre, 'C.I./RIF': f.identificacion,
+      Correo: f.email, Detalle: f.detalle, 'Monto USD': f.monto_usd, 'Días vencido': f.dias, Antigüedad: f.tramo,
+    }));
+  }
+  return null;
+}
+
+/** GET /api/finanzas/export/:reporte.xlsx — mismos filtros que el reporte en pantalla */
+export async function exportarXlsx(req: Request, res: Response) {
+  try {
+    const reporte = String(req.params.reporte);
+    const filas = await filasReporte(reporte, req);
+    if (!filas) return res.status(404).json({ success: false, message: 'Reporte no disponible' });
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, XLSX.utils.json_to_sheet(filas), reporte.slice(0, 31));
+    const buffer = XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${reporte}-${hoyCaracas()}.xlsx"`);
+    return res.send(buffer);
+  } catch (error) {
+    return responderError(res, error, 'exportación a Excel');
+  }
+}

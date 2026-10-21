@@ -108,7 +108,7 @@ async function confirmarInscripcionPagada(idInscripcion: number) {
                 ELSE 'Pagado' END,
               reserva_vence_en = NULL,
               actualizado_en = ?
-          WHERE id_inscripcion = ? AND estatus IN ('Preinscrito', 'Entrevista', 'Inscrito')`,
+          WHERE id_inscripcion = ? AND id_curso IS NOT NULL AND estatus IN ('Preinscrito', 'Entrevista', 'Inscrito')`,
     args: [new Date().toISOString(), idInscripcion]
   });
 }
@@ -344,7 +344,9 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
       args: [params.id_inscripcion_curso]
     });
     const insc = r.rows[0] as any;
-    if (insc && !Number(insc.ocupa) && !esCupoIlimitado(insc.cupos_totales) && Number(insc.ocupados) >= Number(insc.cupos_totales)) {
+    // Las inscripciones a programas (CIBIR, PREANI…) no son cursos: se cobran con su propio concepto
+    if (!insc) throw new Error('La inscripción indicada no es de un curso');
+    if (!Number(insc.ocupa) && !esCupoIlimitado(insc.cupos_totales) && Number(insc.ocupados) >= Number(insc.cupos_totales)) {
       throw new Error('La reserva de esta inscripción venció y el curso ya no tiene cupos disponibles');
     }
   }

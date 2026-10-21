@@ -1,5 +1,6 @@
 import { db } from '../lib/db.js';
 import { SQL_JOIN_PAGADOR } from './pagos.service.js';
+import { conceptoReporte, type ConceptoReporte } from '../lib/conceptos.js';
 
 export interface FiltrosFinanzas {
   anio?: number;
@@ -9,6 +10,10 @@ export interface FiltrosFinanzas {
   search?: string;
   categoria?: string;
   tipo?: 'ingreso' | 'egreso';
+  /** Libro de ventas: concepto de reporte, método de pago y cajero (email de quien registró) */
+  concepto?: string;
+  metodo?: string;
+  cajero?: string;
 }
 
 export interface MovimientoInput {
@@ -84,6 +89,8 @@ export interface ItemVenta {
   alicuota_iva: number;
   monto_iva: number;
   referencia: string | null;
+  concepto_reporte: ConceptoReporte;
+  cajero: string | null;
 }
 
 export const finanzasService = {
@@ -240,6 +247,8 @@ export const finanzasService = {
         p.numero_recibo,
         p.fecha_pago as fecha,
         p.tipo_concepto,
+        p.codigo_arancel,
+        u_reg.email as cajero,
         p.descripcion_concepto as concepto,
         p.metodo_pago,
         p.moneda,
@@ -261,6 +270,7 @@ export const finanzasService = {
         emp.rif_numero as rif_numero_empresa
       FROM pagos p
       ${SQL_JOIN_PAGADOR}
+      LEFT JOIN users u_reg ON u_reg.id = p.registrado_por
       WHERE p.estatus = 'Verificado'
         AND p.eliminado_en IS NULL
         AND ${dateCond.sql}
@@ -314,14 +324,17 @@ export const finanzasService = {
         monto_exento: montoUsd,
         alicuota_iva: 0,
         monto_iva: 0,
-        referencia: r.referencia ? String(r.referencia) : null
+        referencia: r.referencia ? String(r.referencia) : null,
+        concepto_reporte: conceptoReporte(r.tipo_concepto, r.codigo_arancel),
+        cajero: r.cajero ? String(r.cajero) : null
       };
     });
 
     // Ingresos manuales no vinculados a pagos
     const dateCondManual = buildDateCondition('m.fecha', filtros);
     const manualesRes = await db.execute({
-      sql: `SELECT * FROM movimientos_financieros m 
+      sql: `SELECT m.*, u.email AS cajero FROM movimientos_financieros m
+            LEFT JOIN users u ON u.id = m.registrado_por
             WHERE m.tipo = 'ingreso' 
               AND m.estatus != 'anulado' 
               AND m.id_pago IS NULL 
@@ -352,15 +365,21 @@ export const finanzasService = {
         monto_exento: Number(m.monto_exento || 0),
         alicuota_iva: Number(m.alicuota_iva || 0),
         monto_iva: Number(m.monto_iva || 0),
-        referencia: m.referencia_pago ? String(m.referencia_pago) : null
+        referencia: m.referencia_pago ? String(m.referencia_pago) : null,
+        concepto_reporte: 'otros',
+        cajero: m.cajero ? String(m.cajero) : null
       });
     }
 
     // Filtrar por búsqueda si se especificó
-    let filtrados = itemsVentas;
+    let filtrados = itemsVentas.filter(i =>
+      (!filtros.concepto || i.concepto_reporte === filtros.concepto) &&
+      (!filtros.metodo || i.metodo_pago === filtros.metodo) &&
+      (!filtros.cajero || i.cajero === filtros.cajero)
+    );
     if (filtros.search) {
       const q = filtros.search.toLowerCase();
-      filtrados = itemsVentas.filter((i: any) => 
+      filtrados = filtrados.filter((i: any) => 
         i.cliente.toLowerCase().includes(q) ||
         i.documento.toLowerCase().includes(q) ||
         i.concepto.toLowerCase().includes(q) ||

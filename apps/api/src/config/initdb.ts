@@ -419,6 +419,15 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_afiliado ON pagos(id_afiliado)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_inscripcion ON pagos(id_inscripcion_curso)`,
+  // Cierres de caja diarios (foto de los totales al cerrar)
+  `CREATE TABLE IF NOT EXISTS cierres_caja (
+    id_cierre     INTEGER PRIMARY KEY,
+    fecha         TEXT    NOT NULL UNIQUE,
+    id_user       INTEGER REFERENCES users(id),
+    totales_json  TEXT    NOT NULL,
+    observaciones TEXT,
+    creado_en     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
   // Constancias de solvencia (una por afiliado y mes, verificables por código)
   `CREATE TABLE IF NOT EXISTS constancias_solvencia (
     id_constancia     INTEGER PRIMARY KEY,
