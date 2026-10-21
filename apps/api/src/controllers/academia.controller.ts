@@ -5,6 +5,7 @@ import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
+import { asegurarCohortes } from '../services/cohortes.service.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 const generateSlug = (str: string) => {
@@ -2198,6 +2199,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
 
 export const adminListPreinscripciones = async (req: Request, res: Response): Promise<void> => {
   try {
+    await asegurarCohortes()
     // Auto-curación: si hay inscripciones de 'AFILIACION' o 'CIBIR' como 'Preinscrito'/'Entrevista' pero el afiliado ya está como 'Afiliado' o 'Rechazado',
     // actualizamos la inscripción correspondientemente.
     try {
@@ -2333,8 +2335,11 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           entr.lugar as entrevista_lugar,
           entr.estatus as entrevista_estatus,
           COALESCE(af.optar_acreditacion, 0) as apto_acreditacion,
-          COALESCE(af.cibir_acreditado, 0) as cibir_acreditado
+          COALESCE(af.cibir_acreditado, 0) as cibir_acreditado,
+          coh.numero as cohorte_numero,
+          coh.nombre as cohorte_nombre
         FROM inscripciones_cursos ic
+        LEFT JOIN cohortes coh ON coh.id_cohorte = ic.id_cohorte
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
         LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa

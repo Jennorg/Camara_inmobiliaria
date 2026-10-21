@@ -435,6 +435,8 @@ export interface CertificadoProgramaRenderData {
   programaCodigo: string;
   urlVerificacion: string;
   cedula?: string | null;
+  /** Nombre de la cohorte del participante (p. ej. "Cohorte 2"); si no hay, no se dibuja */
+  cohorteNombre?: string | null;
   firmantes?: Array<{
     nombre: string;
     cargo: string;
@@ -684,6 +686,15 @@ export async function renderCertificadoProgramaCanvas(
     ctx.fillText(`POR HABER PARTICIPADO EN EL ${data.programaOCurso.toUpperCase()}`, 500, 420);
   }
   ctx.letterSpacing = '0px';
+
+  // Cohorte (hueco libre entre el texto de aprobación y el QR/firmas)
+  if (data.cohorteNombre) {
+    ctx.fillStyle = '#0f5431';
+    ctx.font = '800 11px Montserrat, sans-serif';
+    ctx.letterSpacing = '2.2px';
+    ctx.fillText(data.cohorteNombre.toUpperCase(), 500, 462);
+    ctx.letterSpacing = '0px';
+  }
 
   // 10. Pie de Página: Firmas y QR Central
   const firmantesList = (data.firmantes && data.firmantes.length > 0)

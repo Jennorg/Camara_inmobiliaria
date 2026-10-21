@@ -28,6 +28,8 @@ export interface CertificadoProgramaViewProps {
   vigente: boolean
   cedula?: string | null
   firmantes?: Firmante[]
+  /** Nombre de la cohorte del participante (p. ej. "Cohorte 2"); si no hay, no se muestra nada */
+  cohorteNombre?: string | null
 }
 
 const PROGRAM_INFO: Record<string, { abbr: string; title: string }> = {
@@ -60,6 +62,7 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
   urlVerificacion,
   qrDataUrl,
   vigente,
+  cohorteNombre,
   cedula,
   firmantes,
 }) => {
@@ -265,6 +268,9 @@ const CertificadoProgramaView: React.FC<CertificadoProgramaViewProps> = ({
                 `POR HABER PARTICIPADO EN EL ${programaOCurso.toUpperCase()}`
               )}
             </p>
+            {cohorteNombre && (
+              <p className="mt-3 text-[#0f5431] font-extrabold text-[11px] tracking-[0.2em] uppercase">{cohorteNombre}</p>
+            )}
           </div>
 
           {/* Pie de Página: Firmas, QR y Fecha */}

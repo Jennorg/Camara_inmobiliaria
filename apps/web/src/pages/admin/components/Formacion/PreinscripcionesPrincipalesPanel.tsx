@@ -54,7 +54,13 @@ type Row = {
   num_modulos?: number
   modulos_aprobados?: number
   num_documentos?: number
+  id_cohorte?: number | null
+  cohorte_numero?: number | null
+  cohorte_nombre?: string | null
 }
+
+type Cohorte = { id_cohorte: number; programa_codigo: 'CIBIR' | 'PREANI' | 'PEGI' | 'PADI'; numero: number; nombre: string; estado: 'Abierta' | 'Cerrada'; inscritos: number }
+const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
 
 export default function PreinscripcionesPrincipalesPanel({
   initialPrograma = 'Todos'
@@ -98,6 +104,91 @@ export default function PreinscripcionesPrincipalesPanel({
     if (token) h.Authorization = `Bearer ${token}`
     return h
   }, [token])
+
+  // Cohortes: lista, filtro ('todas' | 'sin' | id) y acciones
+  const [cohortes, setCohortes] = useState<Cohorte[]>([])
+  const [cohorteFiltro, setCohorteFiltro] = useState<'todas' | 'sin' | number>('todas')
+  const [savingCohorte, setSavingCohorte] = useState(false)
+
+  const fetchCohortes = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes`, { headers: { ...authHeaders } })
+      const json = await res.json()
+      if (res.ok && json.success) setCohortes(json.data)
+    } catch { /* el panel sigue funcionando sin cohortes */ }
+  }, [authHeaders])
+  useEffect(() => { fetchCohortes() }, [fetchCohortes])
+  useEffect(() => { setCohorteFiltro('todas') }, [programa])
+
+  const cohortesDelPrograma = useMemo(
+    () => cohortes.filter(c => c.programa_codigo === programa),
+    [cohortes, programa]
+  )
+  const cohorteActiva = typeof cohorteFiltro === 'number' ? cohortes.find(c => c.id_cohorte === cohorteFiltro) : undefined
+
+  const mostrarError = (e: unknown, fallback: string) =>
+    Swal.fire({ title: 'Error', text: e instanceof Error ? e.message : fallback, icon: 'error', confirmButtonColor: '#dc2626' })
+
+  const cambiarCohorte = async (r: Row, valor: string) => {
+    setSavingCohorte(true)
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${r.id_inscripcion}/cohorte`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ id_cohorte: valor === '' ? null : Number(valor) }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la cohorte')
+      const destino = cohortes.find(c => c.id_cohorte === Number(valor))
+      setSelected(prev => prev && prev.id_inscripcion === r.id_inscripcion
+        ? { ...prev, id_cohorte: destino?.id_cohorte ?? null, cohorte_numero: destino?.numero ?? null, cohorte_nombre: destino?.nombre ?? null }
+        : prev)
+      await Promise.all([fetchData(true), fetchCohortes()])
+    } catch (e) {
+      mostrarError(e, 'No se pudo cambiar la cohorte')
+    } finally {
+      setSavingCohorte(false)
+    }
+  }
+
+  const nuevaCohorte = async () => {
+    if (!PROGRAMAS_CON_COHORTE.includes(programa)) return
+    const abierta = cohortesDelPrograma.find(c => c.estado === 'Abierta')
+    const r = await Swal.fire({
+      title: `Nueva cohorte de ${programa}`,
+      html: abierta
+        ? `Se cerrará la <b>${abierta.nombre}</b> y las nuevas inscripciones entrarán a la nueva cohorte.`
+        : 'Las nuevas inscripciones entrarán a esta cohorte.',
+      input: 'text', inputLabel: 'Nombre (opcional)', inputPlaceholder: `Cohorte ${(cohortesDelPrograma.at(-1)?.numero ?? 0) + 1}`,
+      showCancelButton: true, confirmButtonText: 'Crear', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!r.isConfirmed) return
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ programa_codigo: programa, nombre: r.value || undefined }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo crear la cohorte')
+      await fetchCohortes()
+      setCohorteFiltro(json.data.id_cohorte)
+    } catch (e) {
+      mostrarError(e, 'No se pudo crear la cohorte')
+    }
+  }
+
+  const exportarCohorte = async (c: Cohorte) => {
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes/${c.id_cohorte}/inscritos.xlsx`, { headers: { ...authHeaders } })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || 'No se pudo generar el Excel')
+      const url = URL.createObjectURL(await res.blob())
+      Object.assign(document.createElement('a'), { href: url, download: `${c.programa_codigo}-cohorte-${c.numero}.xlsx` }).click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      mostrarError(e, 'No se pudo generar el Excel')
+    }
+  }
 
   const [showModalAgendar, setShowModalAgendar] = useState(false)
   const [showModalFinalizar, setShowModalFinalizar] = useState(false)
@@ -750,14 +841,16 @@ export default function PreinscripcionesPrincipalesPanel({
   //  - ACREDITACION: lista de preinscritos pendientes que SÍ optan por acreditación.
   //  - CIBIR: quienes NO optaron por acreditación.
   const programaRows = useMemo(() => {
+    let base = rows
     if (programa === 'ACREDITACION') {
-      return rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
+      base = rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
+    } else if (programa === 'CIBIR') {
+      base = rows.filter(r => !r.apto_acreditacion)
     }
-    if (programa === 'CIBIR') {
-      return rows.filter(r => !r.apto_acreditacion)
-    }
-    return rows
-  }, [rows, programa])
+    if (cohorteFiltro === 'sin') return base.filter(r => !r.id_cohorte)
+    if (typeof cohorteFiltro === 'number') return base.filter(r => r.id_cohorte === cohorteFiltro)
+    return base
+  }, [rows, programa, cohorteFiltro])
 
   const counts = useMemo(() => {
     const base = programaRows
@@ -913,6 +1006,33 @@ export default function PreinscripcionesPrincipalesPanel({
 
           </div>
 
+          {PROGRAMAS_CON_COHORTE.includes(programa) && (
+            <div className="flex gap-2">
+              <select
+                aria-label="Filtrar por cohorte"
+                value={String(cohorteFiltro)}
+                onChange={e => setCohorteFiltro(e.target.value === 'todas' || e.target.value === 'sin' ? e.target.value : Number(e.target.value))}
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold"
+              >
+                <option value="todas">Todas las cohortes</option>
+                {cohortesDelPrograma.map(c => (
+                  <option key={c.id_cohorte} value={c.id_cohorte}>{c.nombre} · {c.inscritos}{c.estado === 'Abierta' ? ' · abierta' : ''}</option>
+                ))}
+                <option value="sin">Sin cohorte</option>
+              </select>
+              {cohorteActiva && (
+                <button type="button" onClick={() => exportarCohorte(cohorteActiva)} title={`Descargar ${cohorteActiva.nombre} en Excel`}
+                  className="px-2.5 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 cursor-pointer">
+                  Excel
+                </button>
+              )}
+              <button type="button" onClick={nuevaCohorte} title="Abrir una nueva cohorte"
+                className="px-2.5 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer">
+                + Cohorte
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-1.5 mt-1">
             {(['Todos', 'Pendiente', 'Sin Expediente', 'Entrevista', 'Inscripción', 'Rechazado'] as const).map(f => (
               <button
@@ -971,6 +1091,11 @@ export default function PreinscripcionesPrincipalesPanel({
                       'Agente Indep.'
                     ) : r.programa_codigo}
                   </span>
+                  {r.cohorte_numero && (
+                    <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Cohorte {r.cohorte_numero}
+                    </span>
+                  )}
                   <span className="text-xs text-slate-400 font-medium">
                     <span>Cédula:</span> {r.estudiante_cedula || 'S/N'}
                   </span>
@@ -1034,6 +1159,23 @@ export default function PreinscripcionesPrincipalesPanel({
                 </span>
               </div>
             </div>
+
+            {PROGRAMAS_CON_COHORTE.includes(selected.programa_codigo) && (
+              <label className="bg-white rounded-2xl px-4 py-3 border border-gray-100 flex items-center gap-3 flex-wrap mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cohorte</span>
+                <select
+                  value={selected.id_cohorte ?? ''}
+                  disabled={savingCohorte}
+                  onChange={e => cambiarCohorte(selected, e.target.value)}
+                  className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-700 text-xs font-bold disabled:opacity-60"
+                >
+                  <option value="">Sin cohorte</option>
+                  {cohortes.filter(c => c.programa_codigo === selected.programa_codigo).map(c => (
+                    <option key={c.id_cohorte} value={c.id_cohorte}>{c.nombre}{c.estado === 'Abierta' ? ' (abierta)' : ''}</option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {/* Stepper de Progreso */}
             {(selected.programa_codigo === 'AFILIACION' || selected.afiliado_estatus === '5_CIBIR') && (() => {
