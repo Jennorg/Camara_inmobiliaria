@@ -37,6 +37,7 @@ import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrar
 import ModalCursosPorCobrar from '@/pages/admin/components/Finance/ModalCursosPorCobrar'
 import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
+import { CierreCaja, CuentasPorCobrar, IngresosPorConcepto, descargarXlsx } from './ReportesControl'
 import type { PagoDTO } from '@/types/pagos'
 import { BinanceIcon } from '@/components/icons/BinanceIcon'
 import type { 
@@ -47,7 +48,10 @@ import type {
   TxStatus 
 } from '@/types/finanzas'
 
-type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra' | 'tasas_referencias' | 'solvencia'
+type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra' | 'tasas_referencias' | 'solvencia' | 'ingresos_concepto' | 'cierre_caja' | 'cuentas_cobrar'
+
+/** Conceptos del libro de ventas (los mismos que agrupa la API) */
+const CONCEPTOS_VENTA: Record<string, string> = { mensualidad: 'Mensualidades', afiliacion: 'Afiliación', cibir: 'CIBIR', preani: 'PREANI', pegi: 'PEGI', padi: 'PADI', curso: 'Cursos', otros: 'Otros' }
 
 const CATEGORIAS: Record<string, { label: string; color: string }> = {
   afiliacion:           { label: 'Afiliación',                  color: '#059669' },
@@ -101,6 +105,8 @@ export default function FinancePanel() {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth() + 1)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filtroConcepto, setFiltroConcepto] = useState('')
+  const [filtroMetodo, setFiltroMetodo] = useState('')
 
   // Datos
   const [resumen, setResumen] = useState<ResumenFinancieroDTO | null>(null)
@@ -172,6 +178,8 @@ export default function FinancePanel() {
       params.append('anio', String(selectedYear))
       if (selectedMonth) params.append('mes', String(selectedMonth))
       if (searchQuery) params.append('search', searchQuery)
+      if (filtroConcepto) params.append('concepto', filtroConcepto)
+      if (filtroMetodo) params.append('metodo', filtroMetodo)
 
       const res = await fetch(`${API_URL}/api/finanzas/libro-ventas?${params.toString()}`, {
         headers: authHeaders
@@ -183,7 +191,7 @@ export default function FinancePanel() {
     } catch (err: any) {
       console.error(err)
     }
-  }, [selectedYear, selectedMonth, searchQuery, authHeaders])
+  }, [selectedYear, selectedMonth, searchQuery, filtroConcepto, filtroMetodo, authHeaders])
 
   // Cargar Libro de Compras
   const fetchLibroCompras = useCallback(async () => {
@@ -327,36 +335,6 @@ export default function FinancePanel() {
     }
   }
 
-  // Exportar a CSV / Excel
-  const handleExportCSV = (tipo: 'ventas' | 'compras') => {
-    let csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
-    if (tipo === 'ventas') {
-      csvContent += 'Fecha,Documento,Cliente,RIF_CI,Concepto,Metodo_Pago,Exento_USD,Base_USD,IVA_USD,Total_USD\n'
-      libroVentas.forEach(item => {
-        csvContent += `"${item.fecha}","${item.documento}","${item.cliente}","${item.rif_cedula}","${item.concepto.replace(/"/g, '""')}","${item.metodo_pago}",${item.monto_exento},${item.base_imponible},${item.monto_iva},${item.monto_usd}\n`
-      })
-      const encodedUri = encodeURI(csvContent)
-      const link = document.createElement('a')
-      link.setAttribute('href', encodedUri)
-      link.setAttribute('download', `Libro_Ventas_${selectedYear}_${selectedMonth || 'Anual'}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } else {
-      csvContent += 'Fecha,Nro_Factura,Nro_Control,Proveedor,RIF,Concepto,Categoria,Exento_USD,Base_USD,Alicuota_IVA,IVA_USD,Total_USD,Metodo_Pago,Referencia\n'
-      libroCompras.forEach(item => {
-        csvContent += `"${item.fecha}","${item.nro_factura_documento}","${item.nro_control_fiscal || ''}","${item.proveedor}","${item.rif_cedula}","${item.concepto.replace(/"/g, '""')}","${item.categoria}",${item.monto_exento},${item.base_imponible},${item.alicuota_iva},${item.monto_iva},${item.monto_usd_equivalente},"${item.metodo_pago}","${item.referencia_pago || ''}"\n`
-      })
-      const encodedUri = encodeURI(csvContent)
-      const link = document.createElement('a')
-      link.setAttribute('href', encodedUri)
-      link.setAttribute('download', `Libro_Compras_${selectedYear}_${selectedMonth || 'Anual'}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
-  }
-
   return (
     <div className="p-4 sm:p-6 w-full overflow-y-auto h-full space-y-6">
       {/* Header Superior */}
@@ -468,6 +446,22 @@ export default function FinancePanel() {
             <CalendarClock size={13} className="text-emerald-600" />
             Solvencia
           </button>
+          {([
+            ['ingresos_concepto', 'Ingresos por concepto', TrendingUp],
+            ['cierre_caja', 'Cierre de caja', Receipt],
+            ['cuentas_cobrar', 'Cuentas por cobrar', AlertCircle],
+          ] as const).map(([key, label, Icon]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                tab === key ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Icon size={13} className="text-emerald-600" />
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Cotizaciones Ticker Rápido */}
@@ -739,6 +733,22 @@ export default function FinancePanel() {
                   className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
+              <select aria-label="Filtrar por concepto" value={filtroConcepto} onChange={e => setFiltroConcepto(e.target.value)}
+                className="py-1.5 px-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">Todos los conceptos</option>
+                {Object.entries(CONCEPTOS_VENTA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <select aria-label="Filtrar por método de pago" value={filtroMetodo} onChange={e => setFiltroMetodo(e.target.value)}
+                className="py-1.5 px-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">Todos los métodos</option>
+                <option value="efectivo_usd">Efectivo USD</option>
+                <option value="efectivo_bs">Efectivo Bs</option>
+                <option value="pago_movil">Pago Móvil</option>
+                <option value="transferencia_bs">Transferencia Bs</option>
+                <option value="zelle">Zelle</option>
+                <option value="binance_usdt">Binance USDT</option>
+                <option value="pos_debito">Punto de venta</option>
+              </select>
 
               <button
                 onClick={() => handleExportPDF('ventas')}
@@ -748,11 +758,11 @@ export default function FinancePanel() {
                 PDF
               </button>
               <button
-                onClick={() => handleExportCSV('ventas')}
+                onClick={() => descargarXlsx('libro-ventas', { anio: selectedYear, mes: selectedMonth, search: searchQuery, concepto: filtroConcepto, metodo: filtroMetodo }, authHeaders)}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 <FileSpreadsheet size={13} className="text-emerald-600" />
-                Excel / CSV
+                Excel
               </button>
             </div>
           </div>
@@ -868,11 +878,11 @@ export default function FinancePanel() {
                 PDF
               </button>
               <button
-                onClick={() => handleExportCSV('compras')}
+                onClick={() => descargarXlsx('libro-compras', { anio: selectedYear, mes: selectedMonth, search: searchQuery }, authHeaders)}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 <FileSpreadsheet size={13} className="text-emerald-600" />
-                Excel / CSV
+                Excel
               </button>
               <button
                 onClick={() => setModalGastoOpen(true)}
@@ -993,6 +1003,9 @@ export default function FinancePanel() {
 
       {/* ── TAB 4: TASAS DE REFERENCIA & CONVERSOR ── */}
       {tab === 'solvencia' && <SolvenciaPanel />}
+      {tab === 'ingresos_concepto' && <IngresosPorConcepto anio={selectedYear} />}
+      {tab === 'cierre_caja' && <CierreCaja />}
+      {tab === 'cuentas_cobrar' && <CuentasPorCobrar />}
 
       {tab === 'tasas_referencias' && (
         <ReferenciasTasasPanel />
