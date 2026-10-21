@@ -17,6 +17,7 @@ import {
   adminDeleteCuenta,
   adminUpdateArancel
 } from '../controllers/pagos.controller.js';
+import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia } from '../controllers/solvencia.controller.js';
 
 const router = Router();
 const adminRoles: UserRole[] = ['admin', 'super_admin', 'asistente', 'administrativo', 'personal_admin'];
@@ -28,9 +29,12 @@ router.get('/arancel-formalizacion/:idAfiliado', getArancelFormalizacion);
 router.get('/recibo/:reciboIdOrCode', getRecibo);
 router.post('/reportar', requireAuth, reportarPago);
 router.get('/afiliado/:idAfiliado', requireAuth, getPagosByAfiliado);
+router.get('/solvencia/afiliado/:idAfiliado', requireAuth, getSolvenciaAfiliado);
 
 // ── Rutas administrativas ──
 router.get('/admin', requireAuth, requireRole(...adminRoles), adminListPagos);
+router.get('/admin/solvencia', requireAuth, requireRole(...adminRoles), adminResumenSolvencia);
+router.put('/admin/solvencia/config', requireAuth, requireRole(...adminRoles), adminSetInicioSolvencia);
 router.post('/admin/cobro-taquilla', requireAuth, requireRole(...adminRoles), adminCobroTaquilla);
 router.patch('/admin/:id/verificar', requireAuth, requireRole(...adminRoles), adminVerificarPago);
 router.patch('/admin/:id/rechazar', requireAuth, requireRole(...adminRoles), adminRechazarPago);

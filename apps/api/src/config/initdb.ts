@@ -882,6 +882,23 @@ async function run() {
         // Ignorar si la columna ya existe
       }
     }
+    // Historial de solvencia importado de listados externos (sin recibos): un mes por afiliado
+    await db.execute(`CREATE TABLE IF NOT EXISTS solvencia_historial (
+      id_afiliado  INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+      periodo      TEXT    NOT NULL,
+      estado       TEXT    NOT NULL CHECK (estado IN ('pagado', 'no_afiliado')),
+      fuente       TEXT,
+      importado_en TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+      PRIMARY KEY (id_afiliado, periodo)
+    )`)
+    // Migración: mes que cubre cada pago de mensualidad (línea de tiempo de solvencia)
+    for (const col of ['periodo TEXT', 'meses_cubiertos INTEGER NOT NULL DEFAULT 1']) {
+      try {
+        await db.execute(`ALTER TABLE pagos ADD COLUMN ${col}`)
+      } catch (e) {
+        // Ignorar si la columna ya existe
+      }
+    }
     // personas: normalizar nombres y apellidos a Title Case
     const personasRows = await db.execute(`SELECT id, nombres, apellidos FROM personas`)
     for (const p of personasRows.rows) {

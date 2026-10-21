@@ -40,6 +40,9 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   const [notas, setNotas] = useState<string>('Recibido en taquilla de sede administrativa');
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingAranceles, setLoadingAranceles] = useState<boolean>(false);
+  // Mes que cubre la mensualidad (AAAA-MM) y cuántos meses seguidos paga
+  const [periodo, setPeriodo] = useState<string>(new Date().toISOString().slice(0, 7));
+  const [mesesCubiertos, setMesesCubiertos] = useState<number>(1);
 
   // Cargar tasas dinámicas y aranceles configurados al abrir
   useEffect(() => {
@@ -135,6 +138,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       handleMontoUSDChange(30);
       setNotas('Arancel Curso de Inducción CIBIR');
     } else if (c === 'mensualidad') {
+      setMesesCubiertos(1);
       handleMontoUSDChange(5);
       setNotas('Cuota mensual de membresía');
     }
@@ -155,7 +159,9 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       } else if (tipoConcepto === 'curso_cibir') {
         descConcepto = 'Arancel Curso de Inducción en Bienes Raíces (CIBIR)';
       } else if (tipoConcepto === 'mensualidad') {
-        descConcepto = 'Cuota Mensual de Membresía Gremial';
+        descConcepto = mesesCubiertos > 1
+          ? `Cuotas Mensuales de Membresía Gremial (${mesesCubiertos} meses desde ${periodo})`
+          : `Cuota Mensual de Membresía Gremial (${periodo})`;
       }
 
       const payload = {
@@ -170,7 +176,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         tasa_bcv: finalTasa,
         banco_origen: bancoOrigen || null,
         referencia: referencia || `TAQ-${Date.now().toString().slice(-6)}`,
-        notas: notas || null
+        notas: notas || null,
+        ...(tipoConcepto === 'mensualidad' ? { periodo, meses_cubiertos: mesesCubiertos } : {})
       };
 
       const res = await fetch(`${API_URL}/api/pagos/admin/cobro-taquilla`, {
@@ -282,6 +289,36 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 <span className="text-[10px] opacity-70">Solvencia</span>
               </button>
             </div>
+
+            {tipoConcepto === 'mensualidad' && (
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <label className="space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Mes que cubre</span>
+                  <input
+                    type="month"
+                    required
+                    value={periodo}
+                    onChange={e => setPeriodo(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Meses pagados</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={mesesCubiertos}
+                    onChange={e => {
+                      const n = Math.min(24, Math.max(1, Math.trunc(Number(e.target.value)) || 1));
+                      setMesesCubiertos(n);
+                      handleMontoUSDChange(5 * n);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Método de Pago */}

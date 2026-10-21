@@ -22,6 +22,9 @@ export interface RegistrarCobroTaquillaParams {
   telefono_origen?: string | null;
   registrado_por: number;
   notas?: string | null;
+  /** Mes que cubre una mensualidad (YYYY-MM) y cuántos meses seguidos cubre */
+  periodo?: string | null;
+  meses_cubiertos?: number | null;
 }
 
 export interface ReportarPagoDigitalParams {
@@ -43,6 +46,26 @@ export interface ReportarPagoDigitalParams {
   comprobante_url?: string | null;
   registrado_por: number;
   notas?: string | null;
+  /** Mes que cubre una mensualidad (YYYY-MM) y cuántos meses seguidos cubre */
+  periodo?: string | null;
+  meses_cubiertos?: number | null;
+}
+
+const PERIODO_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/**
+ * [periodo, meses_cubiertos] a guardar en el pago. La mensualidad lleva el mes elegido
+ * (por defecto el actual); la formalización cubre su primera mensualidad, el mes del pago.
+ */
+function periodoArgs(
+  params: { tipo_concepto: string; periodo?: string | null; meses_cubiertos?: number | null },
+  now: string
+): [string | null, number] {
+  if (params.tipo_concepto === 'formalizacion_afiliacion') return [now.slice(0, 7), 1];
+  if (params.tipo_concepto !== 'mensualidad') return [null, 1];
+  const periodo = params.periodo && PERIODO_RE.test(params.periodo) ? params.periodo : now.slice(0, 7);
+  const meses = Math.min(24, Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1)));
+  return [periodo, meses];
 }
 
 /**
@@ -235,14 +258,16 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
             monto, monto_usd_equivalente, tasa_bcv, banco_origen,
             banco_destino, referencia, titular_origen, telefono_origen,
             comprobante_url, estatus, origen_registro, registrado_por,
-            verificado_por, fecha_pago, fecha_verificacion, notas, creado_en
+            verificado_por, fecha_pago, fecha_verificacion, notas, creado_en,
+            periodo, meses_cubiertos
           ) VALUES (
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             NULL, 'Verificado', 'admin', ?,
-            ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?,
+            ?, ?
           ) RETURNING *`,
     args: [
       numeroRecibo,
@@ -266,7 +291,8 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
       now, // fecha_pago
       now, // fecha_verificacion
       params.notas || null,
-      now
+      now,
+      ...periodoArgs(params, now)
     ]
   });
 
@@ -308,14 +334,16 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
             monto, monto_usd_equivalente, tasa_bcv, banco_origen,
             banco_destino, referencia, titular_origen, telefono_origen,
             comprobante_url, estatus, origen_registro, registrado_por,
-            verificado_por, fecha_pago, fecha_verificacion, notas, creado_en
+            verificado_por, fecha_pago, fecha_verificacion, notas, creado_en,
+            periodo, meses_cubiertos
           ) VALUES (
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, ?, ?, ?,
             ?, 'Pendiente', 'afiliado', ?,
-            NULL, ?, NULL, ?, ?
+            NULL, ?, NULL, ?, ?,
+            ?, ?
           ) RETURNING *`,
     args: [
       numeroRecibo,
@@ -338,7 +366,8 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
       params.registrado_por,
       now, // fecha_pago
       params.notas || null,
-      now
+      now,
+      ...periodoArgs(params, now)
     ]
   });
 

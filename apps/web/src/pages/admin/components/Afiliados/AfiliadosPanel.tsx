@@ -3,6 +3,7 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif, formatDateLatina } from '@/utils/formatters'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
+import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia'
 import { FileText, ExternalLink, Download, Award, GraduationCap, FileDown, ClipboardList, Calendar, ShieldCheck, CreditCard, Check, CheckCircle, ChevronDown, ShieldAlert, BadgeCheck, Search, X, Building2, Landmark, Banknote, DollarSign } from 'lucide-react'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import EstablecerAccesoAfiliado from '@/pages/admin/components/Users/EstablecerAccesoAfiliado'
@@ -1292,6 +1293,17 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   </div>
                 );
               })()}
+
+              {/* Línea de tiempo de solvencia mensual */}
+              {selected.estatus === 'Afiliado' && (
+                <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800">Solvencia mensual</span>
+                  </div>
+                  <LineaTiempoSolvencia idAfiliado={selected.id_afiliado} />
+                </div>
+              )}
 
               {(['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) || (selected.tipo_afiliado === 'Agente Corporativo' && selected.estatus === '2_EXPEDIENTE')) && (
                 <div className="flex gap-2 pt-2 border-t border-slate-50">

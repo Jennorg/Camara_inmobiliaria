@@ -316,3 +316,10 @@ export const isAsistente  = (user: JwtPayload): boolean =>
   hasRole(user, 'personal_administrativo')
 export const isStaff      = (user: JwtPayload): boolean => isAdmin(user) || isAsistente(user)
 export const isAfiliado   = (user: JwtPayload): boolean => hasRole(user, 'afiliado')
+
+/** El personal administrativo accede a cualquier afiliado; el resto, solo al suyo (afiliados.id_user). */
+export const puedeAccederAfiliado = async (user: JwtPayload, idAfiliado: number): Promise<boolean> => {
+  if (isStaff(user)) return true
+  const r = await db.execute({ sql: `SELECT 1 FROM afiliados WHERE id_afiliado = ? AND id_user = ? AND eliminado_en IS NULL`, args: [idAfiliado, user.id] })
+  return r.rows.length > 0
+}

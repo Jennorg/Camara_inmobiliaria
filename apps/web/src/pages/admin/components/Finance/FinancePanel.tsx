@@ -18,6 +18,7 @@ import {
   FileText, 
   TrendingUp, 
   TrendingDown, 
+  CalendarClock,
   Building2, 
   RefreshCw, 
   Filter, 
@@ -25,6 +26,7 @@ import {
   CreditCard,
   Ban
 } from 'lucide-react'
+import SolvenciaPanel from './SolvenciaPanel'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
@@ -43,7 +45,7 @@ import type {
   TxStatus 
 } from '@/types/finanzas'
 
-type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra' | 'tasas_referencias'
+type FinanceTab = 'dashboard' | 'libro_venta' | 'libro_compra' | 'tasas_referencias' | 'solvencia'
 
 const CATEGORIAS: Record<string, { label: string; color: string }> = {
   afiliacion:           { label: 'Afiliación',                  color: '#059669' },
@@ -434,6 +436,17 @@ export default function FinancePanel() {
           >
             <DollarSign size={13} className="text-emerald-600" />
             Tasas & Conversor
+          </button>
+          <button
+            onClick={() => setTab('solvencia')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              tab === 'solvencia'
+                ? 'bg-white text-emerald-800 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <CalendarClock size={13} className="text-emerald-600" />
+            Solvencia
           </button>
         </div>
 
@@ -962,6 +975,8 @@ export default function FinancePanel() {
       )}
 
       {/* ── TAB 4: TASAS DE REFERENCIA & CONVERSOR ── */}
+      {tab === 'solvencia' && <SolvenciaPanel />}
+
       {tab === 'tasas_referencias' && (
         <ReferenciasTasasPanel />
       )}

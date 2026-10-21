@@ -60,6 +60,7 @@ import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
 import SEO from '@/components/SEO';
 
 import { useAuth } from '@/context/AuthContext';
+import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia';
 import { API_URL } from '@/config/env';
 import { apiFetch } from '@/lib/apiClient';
 import { formatNombreCard } from '@/utils/formatters';
@@ -68,7 +69,7 @@ import { formatNombreCard } from '@/utils/formatters';
 
 const NAV_AFILIADO = [
   { icon: FolderSearch, label: 'Mi Expediente' },
-  // { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
+  { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
   { icon: GraduationCap, label: 'Catálogo Académico' },
   { icon: Award, label: 'Mis Certificados' },
   // { icon: Gavel, label: 'Sistema de Denuncias' },
@@ -283,7 +284,8 @@ const PanelPage = () => {
     // Base de navegación pública o afiliada
     if (isConsideredAfiliado) {
       // Acceso completo para Naturales y Corporativos (y admins)
-      baseItems = [...NAV_AFILIADO];
+      // La solvencia es por afiliación: un admin sin afiliado propio no la tiene
+      baseItems = NAV_AFILIADO.filter(i => i.label !== 'Estado de Cuenta y Solvencias' || !!(user?.id_afiliado || afiliado?.id_afiliado));
     } else if (isEstudiante && (!user?.roles || user.roles.length <= 1)) {
       // Exclusivo estudiante
       baseItems = [
@@ -472,6 +474,18 @@ const PanelPage = () => {
             </>
           )}
         </>
+      );
+    }
+    if (activeTab === 'Estado de Cuenta y Solvencias') {
+      const idAfiliado = user?.id_afiliado || afiliado?.id_afiliado;
+      return (
+        <div className="col-span-1 lg:col-span-3">
+          <div className="max-w-xl bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
+            <h2 className="text-lg font-black text-slate-900">Estado de cuenta y solvencia</h2>
+            <p className="text-xs text-slate-500 font-medium">Tus mensualidades mes a mes: pagadas, en revisión y pendientes.</p>
+            {idAfiliado ? <LineaTiempoSolvencia idAfiliado={idAfiliado} /> : null}
+          </div>
+        </div>
       );
     }
     if (activeTab === 'Mi Expediente') return <div className="col-span-1 lg:col-span-3"><WidgetExpediente /></div>;

@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest'
+import { calcularMeses, type PagoCubierto } from './solvencia.js'
+
+const pago = (periodo: string, estatus = 'Verificado', meses = 1): PagoCubierto => ({
+  id_pago: 1, numero_recibo: 'REC-1', estatus, periodo, meses_cubiertos: meses, monto_usd_equivalente: 5, fecha_pago: '2026-01-01',
+})
+const estados = (d: string, h: string, p: PagoCubierto[], hist: Parameters<typeof calcularMeses>[3] = []) => calcularMeses(d, h, p, hist).map(m => `${m.periodo}:${m.estado}`)
+
+describe('calcularMeses', () => {
+  it('meses anteriores sin pago son deuda y el actual está por pagar', () => {
+    expect(estados('2026-08', '2026-10', [pago('2026-08')])).toEqual(['2026-08:pagado', '2026-09:deuda', '2026-10:por_pagar'])
+  })
+  it('un pago pendiente queda en revisión y un pago de varios meses cubre todos', () => {
+    expect(estados('2026-08', '2026-10', [pago('2026-08', 'Pendiente'), pago('2026-09', 'Verificado', 2)]))
+      .toEqual(['2026-08:en_revision', '2026-09:pagado', '2026-10:pagado'])
+  })
+  it('el historial importado marca pagado, oculta los meses sin afiliación y el pago real prevalece', () => {
+    const historial = [
+      ...['2026-06', '2026-07'].map(periodo => ({ periodo, estado: 'no_afiliado' as const })),
+      ...['2026-08', '2026-09'].map(periodo => ({ periodo, estado: 'pagado' as const })),
+    ]
+    expect(estados('2026-06', '2026-10', [], historial)).toEqual(['2026-08:pagado', '2026-09:pagado', '2026-10:por_pagar'])
+    expect(calcularMeses('2026-08', '2026-10', [pago('2026-08')], historial)[0].historico).toBeUndefined()
+  })
+  it('un mes sin registro entre pagos históricos es deuda', () => {
+    const historial = ['2026-01', '2026-03'].map(periodo => ({ periodo, estado: 'pagado' as const }))
+    expect(estados('2026-01', '2026-03', [], historial)).toEqual(['2026-01:pagado', '2026-02:deuda', '2026-03:pagado'])
+  })
+  it('pagos por adelantado extienden la línea y rechazados no cuentan', () => {
+    expect(estados('2026-10', '2026-10', [pago('2026-10', 'Verificado', 3), pago('2026-10', 'Rechazado')]))
+      .toEqual(['2026-10:pagado', '2026-11:adelantado', '2026-12:adelantado'])
+  })
+})

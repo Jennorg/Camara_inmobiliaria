@@ -1,3 +1,4 @@
+import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js';
 import { Request, Response } from 'express';
 import { db } from '../lib/db.js';
 import * as pagosService from '../services/pagos.service.js';
@@ -90,7 +91,9 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
       titular_origen,
       telefono_origen,
       comprobante_url,
-      notas
+      notas,
+      periodo,
+      meses_cubiertos
     } = req.body;
 
     if (!id_afiliado || !metodo_pago || !monto || !referencia) {
@@ -98,6 +101,11 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
         success: false,
         message: 'Faltan campos obligatorios (id_afiliado, metodo_pago, monto, referencia)'
       });
+      return;
+    }
+
+    if (!(await puedeAccederAfiliado(req.user!, Number(id_afiliado)))) {
+      res.status(403).json({ success: false, message: 'No puedes reportar pagos de otro afiliado' });
       return;
     }
 
@@ -119,7 +127,9 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
       telefono_origen,
       comprobante_url,
       registrado_por: userId,
-      notas
+      notas,
+      periodo,
+      meses_cubiertos
     });
 
     res.status(201).json({
@@ -142,6 +152,10 @@ export const getPagosByAfiliado = async (req: Request, res: Response): Promise<v
     const idAfiliado = Number(req.params.idAfiliado);
     if (!Number.isFinite(idAfiliado)) {
       res.status(400).json({ success: false, message: 'ID de afiliado inválido' });
+      return;
+    }
+    if (!(await puedeAccederAfiliado(req.user!, idAfiliado))) {
+      res.status(403).json({ success: false, message: 'No puedes consultar los pagos de otro afiliado' });
       return;
     }
 
@@ -299,7 +313,9 @@ export const adminCobroTaquilla = async (req: Request, res: Response): Promise<v
       referencia,
       titular_origen,
       telefono_origen,
-      notas
+      notas,
+      periodo,
+      meses_cubiertos
     } = req.body;
 
     if (!id_afiliado || !metodo_pago || !monto) {
@@ -327,7 +343,9 @@ export const adminCobroTaquilla = async (req: Request, res: Response): Promise<v
       titular_origen,
       telefono_origen,
       registrado_por: adminId,
-      notas
+      notas,
+      periodo,
+      meses_cubiertos
     });
 
     res.status(201).json({
