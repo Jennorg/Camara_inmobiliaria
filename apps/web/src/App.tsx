@@ -28,6 +28,7 @@ import VerificarPreinscripcionProgramaPage from '@/pages/landing/courses/Verific
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
 import LobbyPage from '@/pages/lobby/LobbyPage'
 import ComprobantePublicoPage from '@/pages/comprobante/ComprobantePublicoPage'
+import ConstanciaSolvenciaPage from '@/pages/comprobante/ConstanciaSolvenciaPage'
 import CertificadoAfiliacionPage from '@/pages/comprobante/CertificadoAfiliacionPage'
 import MarcoLegalPage from '@/pages/landing/marco-legal/MarcoLegalPage'
 import RequisitosPage from '@/pages/landing/afiliado/RequisitosPage'
@@ -80,6 +81,7 @@ function AppRoutes() {
           <Route path='/requisitos'    element={<Navigate to='/afiliate' replace />} />
           <Route path='/beneficios'    element={<Navigate to='/#afiliados' replace />} />
           <Route path='/comprobante/:codigo' element={<ComprobantePublicoPage />} />
+          <Route path='/constancia-solvencia/:codigo' element={<ConstanciaSolvenciaPage />} />
           <Route path='/comprobante/afiliacion/:id' element={<CertificadoAfiliacionPage />} />
           <Route path='/denuncias' element={<DenunciasPublicPage />} />
           <Route path='/tribunal-etica' element={<Navigate to='/denuncias' replace />} />

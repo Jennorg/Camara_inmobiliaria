@@ -76,6 +76,8 @@ export interface Afiliado {
 export interface AfiliadoDTO {
   // ── afiliados ──
   id_afiliado: number;
+  /** Mora por encima de los meses de gracia: carnet, constancia y certificados bloqueados */
+  bloqueado_por_mora?: boolean;
   id_persona: number;
   id_empresa: number | null;
   id_user: number | null;

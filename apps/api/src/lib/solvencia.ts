@@ -82,6 +82,8 @@ export interface ResumenDeuda {
   montoUsd: number
   /** Mes impago más antiguo (YYYY-MM) o null si está al día */
   mesMasAntiguo: string | null
+  /** Meses vencidos sin pago verificado (incluye los reportados en revisión) */
+  mesesSinVerificar: number
   bloqueado: boolean
 }
 
@@ -101,6 +103,7 @@ export function resumenDeuda(meses: MesSolvencia[], hoy: string, montoMensual: n
     mesesDeuda: impagos.length,
     montoUsd: impagos.length * montoMensual,
     mesMasAntiguo: impagos[0]?.periodo ?? null,
+    mesesSinVerificar: sinVerificar.length,
     bloqueado: sinVerificar.length > cfg.mesesGracia,
   }
 }

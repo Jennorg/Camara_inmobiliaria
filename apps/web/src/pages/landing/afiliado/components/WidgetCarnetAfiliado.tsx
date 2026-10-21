@@ -286,6 +286,10 @@ export default function WidgetCarnetAfiliado({
 
   const handleDownload = async () => {
     if (!afiliado || !afiliado?.codigo) return;
+    if (afiliado.bloqueado_por_mora) {
+      toast.error('Tu carnet está bloqueado por mensualidades pendientes. Reporta tu pago en Estado de Cuenta; se desbloquea al verificarse.');
+      return;
+    }
     setExporting(true);
 
     try {

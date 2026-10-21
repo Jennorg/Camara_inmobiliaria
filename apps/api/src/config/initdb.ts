@@ -419,6 +419,16 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_afiliado ON pagos(id_afiliado)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_inscripcion ON pagos(id_inscripcion_curso)`,
+  // Constancias de solvencia (una por afiliado y mes, verificables por código)
+  `CREATE TABLE IF NOT EXISTS constancias_solvencia (
+    id_constancia     INTEGER PRIMARY KEY,
+    codigo_validacion TEXT    NOT NULL UNIQUE,
+    id_afiliado       INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    periodo           TEXT    NOT NULL,
+    emitida_en        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    valida_hasta      TEXT    NOT NULL,
+    UNIQUE (id_afiliado, periodo)
+  )`,
   // Avisos de cobranza enviados (el UNIQUE diario evita duplicados si el cron se reintenta)
   `CREATE TABLE IF NOT EXISTS avisos_cobranza (
     id_aviso     INTEGER PRIMARY KEY,

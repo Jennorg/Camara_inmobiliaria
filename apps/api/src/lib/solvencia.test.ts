@@ -36,14 +36,14 @@ describe('resumenDeuda', () => {
   const cfg = { diaVencimiento: 5, diasAvisoPrevio: 3, frecuenciaMoraDias: 7, mesesGracia: 2 }
   const meses = calcularMeses('2026-07', '2026-10', [pago('2026-07')])
   it('antes del vencimiento el mes en curso no es deuda', () => {
-    expect(resumenDeuda(meses, '2026-10-05', 5, cfg)).toEqual({ mesesDeuda: 2, montoUsd: 10, mesMasAntiguo: '2026-08', bloqueado: false })
+    expect(resumenDeuda(meses, '2026-10-05', 5, cfg)).toEqual({ mesesDeuda: 2, montoUsd: 10, mesMasAntiguo: '2026-08', mesesSinVerificar: 2, bloqueado: false })
   })
   it('pasado el vencimiento el mes en curso suma y supera la gracia', () => {
-    expect(resumenDeuda(meses, '2026-10-06', 5, cfg)).toEqual({ mesesDeuda: 3, montoUsd: 15, mesMasAntiguo: '2026-08', bloqueado: true })
+    expect(resumenDeuda(meses, '2026-10-06', 5, cfg)).toEqual({ mesesDeuda: 3, montoUsd: 15, mesMasAntiguo: '2026-08', mesesSinVerificar: 3, bloqueado: true })
   })
   it('un pago en revisión deja de ser deuda pero no levanta el bloqueo hasta verificarse', () => {
     const conReporte = calcularMeses('2026-07', '2026-10', [pago('2026-07'), pago('2026-08', 'Pendiente', 3)])
-    expect(resumenDeuda(conReporte, '2026-10-06', 5, cfg)).toEqual({ mesesDeuda: 0, montoUsd: 0, mesMasAntiguo: null, bloqueado: true })
+    expect(resumenDeuda(conReporte, '2026-10-06', 5, cfg)).toEqual({ mesesDeuda: 0, montoUsd: 0, mesMasAntiguo: null, mesesSinVerificar: 3, bloqueado: true })
   })
   it('al día no debe nada', () => {
     expect(resumenDeuda(calcularMeses('2026-10', '2026-10', [pago('2026-10')]), '2026-10-20', 5, cfg).mesesDeuda).toBe(0)

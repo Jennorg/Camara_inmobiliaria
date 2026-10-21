@@ -18,7 +18,7 @@ import {
   adminUpdateArancel,
   adminCursosPorCobrar
 } from '../controllers/pagos.controller.js';
-import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia, adminEnviarRecordatorio } from '../controllers/solvencia.controller.js';
+import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia, adminEnviarRecordatorio, emitirConstancia } from '../controllers/solvencia.controller.js';
 
 const router = Router();
 const adminRoles: UserRole[] = ['admin', 'super_admin', 'asistente', 'administrativo', 'personal_admin'];
@@ -31,6 +31,7 @@ router.get('/recibo/:reciboIdOrCode', requireAuth, getRecibo);
 router.post('/reportar', requireAuth, reportarPago);
 router.get('/afiliado/:idAfiliado', requireAuth, getPagosByAfiliado);
 router.get('/solvencia/afiliado/:idAfiliado', requireAuth, getSolvenciaAfiliado);
+router.post('/constancia-solvencia', requireAuth, emitirConstancia);
 
 // ── Rutas administrativas ──
 router.get('/admin', requireAuth, requireRole(...adminRoles), adminListPagos);

@@ -37,6 +37,7 @@ import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
 import { autoAsignarEdicionCibir } from '../services/cibir.service.js';
 import { reportarPagoDigital } from '../services/pagos.service.js';
+import { estadoBloqueo } from '../services/cobranza.service.js';
 
 /**
  * GET /api/afiliados/:id
@@ -114,6 +115,15 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
       `,
       args: [userEmail, userEmail, userEmail, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null],
     })
+
+    // Afiliado oficial con mora por encima de la gracia: certificados bloqueados hasta verificar el pago
+    if (idAfiliado != null) {
+      const bloqueo = await estadoBloqueo(Number(idAfiliado))
+      if (bloqueo.bloqueado) {
+        res.json({ success: true, data: [], bloqueado_por_mora: true, deuda: { meses: bloqueo.mesesDeuda, monto_usd: bloqueo.montoUsd } })
+        return
+      }
+    }
 
     res.json({ success: true, data: result.rows })
   } catch (error) {
@@ -284,6 +294,9 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
       return
     }
 
+    const esPersonal = isStaff(req.user!)
+    const bloqueo = await estadoBloqueo(Number(id))
+
     // Asegurar sincronización del certificado CIBIR
     await ensureCibirCertificate(Number(id))
 
@@ -422,7 +435,10 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
         empresa_twitter: afiliado.empresa_twitter || parsedEmpresaRedes.twitter || '',
         empresa_tiktok: afiliado.empresa_tiktok || parsedEmpresaRedes.tiktok || '',
         documentos: docsResult.rows,
-        certificados: certsResult.rows
+        // Con mora por encima de la gracia el propio afiliado no recibe sus certificados (el personal sí)
+        certificados: bloqueo.bloqueado && !esPersonal ? [] : certsResult.rows,
+        bloqueado_por_mora: bloqueo.bloqueado,
+        deuda_mora: bloqueo.bloqueado ? { meses: bloqueo.mesesDeuda, monto_usd: bloqueo.montoUsd } : null,
       }
     })
   } catch (error) {

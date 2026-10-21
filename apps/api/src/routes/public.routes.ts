@@ -15,6 +15,7 @@ import {
 } from '../controllers/academia.controller.js';
 import { getPaginaBySlug, publicListNormativas } from '../controllers/cms.controller.js';
 import { publicGetComprobanteByCodigo } from '../controllers/certificados.controller.js';
+import { publicVerificarConstancia } from '../controllers/solvencia.controller.js';
 import { presignUpload, directUpload } from '../controllers/uploads.controller.js';
 
 const router = Router();
@@ -55,6 +56,7 @@ router.get('/paginas/:slug', getPaginaBySlug);
 
 // GET /api/public/comprobantes/:codigo — verificación de comprobante digital
 router.get('/comprobantes/:codigo', publicGetComprobanteByCodigo);
+router.get('/constancias-solvencia/:codigo', publicVerificarConstancia);
 
 // ── Invitaciones Corporativas (Pública) ─────────────────────────────────
 // GET /api/public/invitaciones/:token — Valida y retorna info de la empresa

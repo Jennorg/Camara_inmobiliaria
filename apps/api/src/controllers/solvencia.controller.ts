@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { db } from '../lib/db.js'
 import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js'
-import { calcularSolvencias, enviarRecordatorioManual, setConfigSolvencia } from '../services/cobranza.service.js'
+import { calcularSolvencias, emitirConstanciaSolvencia, enviarRecordatorioManual, setConfigSolvencia, verificarConstanciaSolvencia } from '../services/cobranza.service.js'
 
 /** GET /api/pagos/solvencia/afiliado/:idAfiliado — admin, o el propio afiliado */
 export const getSolvenciaAfiliado = async (req: Request, res: Response): Promise<void> => {
@@ -110,5 +110,49 @@ export const adminEnviarRecordatorio = async (req: Request, res: Response): Prom
   } catch (error) {
     console.error('adminEnviarRecordatorio:', error)
     res.status(500).json({ success: false, message: 'No se pudo enviar el recordatorio' })
+  }
+}
+
+/** POST /api/pagos/constancia-solvencia — { id_afiliado } (el propio afiliado o el personal) */
+export const emitirConstancia = async (req: Request, res: Response): Promise<void> => {
+  const idAfiliado = Number(req.body?.id_afiliado)
+  if (!Number.isInteger(idAfiliado)) {
+    res.status(400).json({ success: false, message: 'id_afiliado inválido' })
+    return
+  }
+  try {
+    if (!(await puedeAccederAfiliado(req.user!, idAfiliado))) {
+      res.status(403).json({ success: false, message: 'No puedes emitir la constancia de otro afiliado' })
+      return
+    }
+    res.json({ success: true, data: await emitirConstanciaSolvencia(idAfiliado) })
+  } catch (error) {
+    const status = (error as { status?: number }).status
+    if (status) {
+      res.status(status).json({ success: false, message: (error as Error).message })
+      return
+    }
+    console.error('emitirConstancia:', error)
+    res.status(500).json({ success: false, message: 'No se pudo emitir la constancia' })
+  }
+}
+
+/** GET /api/public/constancias-solvencia/:codigo — verificación pública (sin auth) */
+export const publicVerificarConstancia = async (req: Request, res: Response): Promise<void> => {
+  const codigo = String(req.params.codigo ?? '').trim().toUpperCase()
+  if (!/^SOL-[0-9A-F]{12}$/.test(codigo)) {
+    res.status(400).json({ success: false, message: 'Código de constancia inválido' })
+    return
+  }
+  try {
+    const data = await verificarConstanciaSolvencia(codigo)
+    if (!data) {
+      res.status(404).json({ success: false, message: 'No existe una constancia con ese código' })
+      return
+    }
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('publicVerificarConstancia:', error)
+    res.status(500).json({ success: false, message: 'Error al verificar la constancia' })
   }
 }

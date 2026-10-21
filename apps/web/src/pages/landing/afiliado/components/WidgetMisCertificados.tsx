@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Award, Copy, ExternalLink } from 'lucide-react'
+import { Award, Copy, ExternalLink, Lock } from 'lucide-react'
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
@@ -26,6 +26,7 @@ const WidgetMisCertificados: React.FC = () => {
   const [rows, setRows] = useState<CertRow[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [bloqueo, setBloqueo] = useState<{ meses: number; monto_usd: number } | null>(null)
 
   const [afiliadoData, setAfiliadoData] = useState<any | null>(null)
   const [loadingAfi, setLoadingAfi] = useState(false)
@@ -44,7 +45,10 @@ const WidgetMisCertificados: React.FC = () => {
     })
       .then((j) => {
         if (!active) return
-        if (j.success && Array.isArray(j.data)) setRows(j.data)
+        if (j.success && Array.isArray(j.data)) {
+          setRows(j.data)
+          setBloqueo(j.bloqueado_por_mora ? j.deuda : null)
+        }
         else setFetchError(typeof j.message === 'string' ? j.message : 'No se pudieron cargar los certificados.')
       })
       .catch(() => {
@@ -107,8 +111,21 @@ const WidgetMisCertificados: React.FC = () => {
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{fetchError}</p>
       )}
 
+      {bloqueo && (
+        <div role="status" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+          <div className="text-xs">
+            <p className="font-bold">Tus certificados están bloqueados por mensualidades pendientes.</p>
+            <p className="mt-0.5 opacity-80">
+              {bloqueo.meses > 0 ? `Debes ${bloqueo.meses} ${bloqueo.meses === 1 ? 'mes' : 'meses'} ($${Number(bloqueo.monto_usd).toFixed(2)}). ` : ''}
+              Reporta tu pago en "Estado de Cuenta y Solvencias": se desbloquean cuando Finanzas lo verifique.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Sección Certificado de Afiliación Gremial */}
-      {mostrarWidget && (
+      {mostrarWidget && !bloqueo && (
         <div className="mb-6 rounded-2xl border-2 border-emerald-200/80 bg-emerald-50/40 p-5 sm:p-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0">

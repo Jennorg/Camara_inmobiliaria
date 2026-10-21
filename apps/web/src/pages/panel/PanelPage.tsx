@@ -62,6 +62,7 @@ import SEO from '@/components/SEO';
 import { useAuth } from '@/context/AuthContext';
 import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia';
 import BannerMora from '@/components/BannerMora';
+import BotonConstanciaSolvencia from '@/components/BotonConstanciaSolvencia';
 import { API_URL } from '@/config/env';
 import { apiFetch } from '@/lib/apiClient';
 import { formatNombreCard } from '@/utils/formatters';
@@ -486,6 +487,7 @@ const PanelPage = () => {
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
             <h2 className="text-lg font-black text-slate-900">Estado de cuenta y solvencia</h2>
             <p className="text-xs text-slate-500 font-medium">Tus mensualidades mes a mes: pagadas, en revisión y pendientes.</p>
+            {idAfiliado && isAfiliadoActivo ? <BotonConstanciaSolvencia idAfiliado={idAfiliado} /> : null}
             {idAfiliado ? <LineaTiempoSolvencia key={versionSolvencia} idAfiliado={idAfiliado} /> : null}
           </div>
           {idAfiliado ? (

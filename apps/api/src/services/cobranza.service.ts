@@ -1,6 +1,7 @@
 import { db } from '../lib/db.js'
 import { enviarCorreosLote, type CorreoSimple } from '../lib/email.js'
 import { env } from '../config/env.js'
+import { nuevoCodigoValidacion } from '../lib/certificados.js'
 import {
   avisoDelDia,
   calcularMeses,
@@ -290,4 +291,95 @@ export async function enviarRecordatorioManual(idAfiliado?: number) {
   const { cobranza, hoy, montoMensual, solvencias } = await calcularSolvencias(idAfiliado ? [idAfiliado] : undefined)
   const morosos = [...solvencias.values()].filter(s => s.mesesDeuda > 0).map(s => ({ s, tipo: 'manual' as const }))
   return { morosos: morosos.length, ...(await enviarAvisos(morosos, cobranza, montoMensual, hoy)) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bloqueo por mora y constancia de solvencia
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Estado de bloqueo de un afiliado oficial. Solo bloquea a afiliados con estatus 'Afiliado':
+ * aspirantes y estudiantes sin afiliación nunca pierden sus documentos.
+ */
+export async function estadoBloqueo(idAfiliado: number) {
+  const af = await db.execute({ sql: `SELECT estatus FROM afiliados WHERE id_afiliado = ? AND eliminado_en IS NULL`, args: [idAfiliado] })
+  if (af.rows[0]?.estatus !== 'Afiliado') return { bloqueado: false, mesesDeuda: 0, montoUsd: 0 }
+  const { solvencias } = await calcularSolvencias([idAfiliado])
+  const s = solvencias.get(idAfiliado)
+  return { bloqueado: !!s?.bloqueado, mesesDeuda: s?.mesesDeuda ?? 0, montoUsd: s?.montoUsd ?? 0 }
+}
+
+let tablaConstanciasLista = false
+async function asegurarTablaConstancias() {
+  if (tablaConstanciasLista) return
+  await db.execute(`CREATE TABLE IF NOT EXISTS constancias_solvencia (
+    id_constancia     INTEGER PRIMARY KEY,
+    codigo_validacion TEXT    NOT NULL UNIQUE,
+    id_afiliado       INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    periodo           TEXT    NOT NULL,
+    emitida_en        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    valida_hasta      TEXT    NOT NULL,
+    UNIQUE (id_afiliado, periodo)
+  )`)
+  tablaConstanciasLista = true
+}
+
+/** Último día (YYYY-MM-DD) del mes de `ymd`. */
+const finDeMes = (ymd: string) => {
+  const [y, m] = ymd.split('-').map(Number)
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
+}
+
+/**
+ * Emite (o devuelve la ya emitida este mes) la constancia de solvencia. Exige estar al día con
+ * todos los meses vencidos verificados por Finanzas; vale hasta fin de mes.
+ * Lanza Error con `status` 404/409 si no corresponde emitirla.
+ */
+export async function emitirConstanciaSolvencia(idAfiliado: number) {
+  await asegurarTablaConstancias()
+  const af = await db.execute({ sql: `SELECT estatus, activo FROM afiliados WHERE id_afiliado = ? AND eliminado_en IS NULL`, args: [idAfiliado] })
+  const afiliado = af.rows[0] as any
+  const fallo = (status: number, message: string) => Object.assign(new Error(message), { status })
+  if (!afiliado) throw fallo(404, 'Afiliado no encontrado')
+  if (afiliado.estatus !== 'Afiliado' || Number(afiliado.activo) !== 1) throw fallo(409, 'Solo los afiliados activos pueden emitir la constancia de solvencia')
+
+  const { solvencias, hoy } = await calcularSolvencias([idAfiliado])
+  const s = solvencias.get(idAfiliado)!
+  if (s.mesesSinVerificar > 0) {
+    throw fallo(409, s.mesesDeuda > 0
+      ? `Tienes ${s.mesesDeuda} ${s.mesesDeuda === 1 ? 'mensualidad pendiente' : 'mensualidades pendientes'}: ponte al día para emitir la constancia`
+      : 'Tu pago está en revisión: podrás emitir la constancia cuando Finanzas lo verifique')
+  }
+
+  const periodo = hoy.slice(0, 7)
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO constancias_solvencia (codigo_validacion, id_afiliado, periodo, valida_hasta) VALUES (?, ?, ?, ?)`,
+    args: [nuevoCodigoValidacion().replace(/^CIV-/, 'SOL-'), idAfiliado, periodo, finDeMes(hoy)],
+  })
+  const r = await db.execute({ sql: `SELECT * FROM constancias_solvencia WHERE id_afiliado = ? AND periodo = ?`, args: [idAfiliado, periodo] })
+  return r.rows[0]
+}
+
+/** Datos públicos de una constancia por su código (sin auth). La cédula se muestra parcial. */
+export async function verificarConstanciaSolvencia(codigo: string) {
+  await asegurarTablaConstancias()
+  const r = await db.execute({
+    sql: `SELECT cs.codigo_validacion, cs.emitida_en, cs.valida_hasta, a.codigo AS codigo_afiliado, a.tipo_afiliado,
+                 COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), e.razon_social) AS titular,
+                 COALESCE(p.cedula, e.rif_numero) AS identificacion
+          FROM constancias_solvencia cs
+          JOIN afiliados a ON a.id_afiliado = cs.id_afiliado
+          LEFT JOIN personas p ON p.id = a.id_persona
+          LEFT JOIN empresas e ON e.id_empresa = a.id_empresa
+          WHERE cs.codigo_validacion = ?`,
+    args: [codigo],
+  })
+  const c = r.rows[0] as any
+  if (!c) return null
+  const ident = String(c.identificacion ?? '')
+  return {
+    ...c,
+    identificacion: ident.length > 3 ? `${'•'.repeat(ident.length - 3)}${ident.slice(-3)}` : ident,
+    vigente: hoyCaracas() <= String(c.valida_hasta),
+  }
 }
