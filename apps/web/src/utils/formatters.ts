@@ -378,3 +378,12 @@ export const numeroAOrdinalEdicion = (n: number): string => {
   return `${n}ª Edición`;
 };
 
+
+/** Texto del precio de un curso: "Gratis", "$40" o "Afiliados $30 · Público $50" (NULL o 0 = gratis). */
+export const formatPrecioCurso = (c: { precio_afiliado_usd?: number | null; precio_publico_usd?: number | null }): string => {
+  const usd = (n: number) => (n > 0 ? `$${n.toFixed(n % 1 ? 2 : 0)}` : 'Gratis');
+  const afiliado = Number(c.precio_afiliado_usd) || 0;
+  const publico = Number(c.precio_publico_usd) || 0;
+  if (afiliado === publico) return usd(publico);
+  return `Afiliados ${usd(afiliado)} · Público ${usd(publico)}`;
+};

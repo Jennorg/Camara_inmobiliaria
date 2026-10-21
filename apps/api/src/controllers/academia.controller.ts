@@ -52,6 +52,25 @@ function normalizeProgramaCodigo(value: unknown): string | null {
   return MAIN_PROGRAM_CODES.has(code) ? code : null
 }
 
+/**
+ * Precio en USD de un curso: '' o null → null (sin precio); número ≥ 0 → ese número.
+ * Devuelve `undefined` si no vino en el body (no tocar) y lanza si es inválido.
+ */
+function parsePrecioUsd(value: unknown, campo: string): number | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${campo} debe ser un monto en USD mayor o igual a 0`)
+  return Math.round(n * 100) / 100
+}
+
+function parseHorasReserva(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  const n = Number(value)
+  if (!Number.isInteger(n) || n < 1 || n > 720) throw new Error('horas_reserva debe ser un entero entre 1 y 720')
+  return n
+}
+
 function normalizeNivelProfesional(value: unknown): 'Bachiller' | 'TSU' | 'Nivel Profesional' | 'Postgrado' | null {
   if (typeof value !== 'string') return null
   const cleaned = value.trim()
@@ -1406,6 +1425,14 @@ const ensureCursosTableSchema = async (): Promise<void> => {
           // Column already exists
         }
       }
+      for (const col of ['precio_afiliado_usd REAL', 'precio_publico_usd REAL', 'horas_reserva INTEGER NOT NULL DEFAULT 48']) {
+        if (tableSql.includes(col.split(' ')[0])) continue
+        try {
+          await db.execute(`ALTER TABLE cursos ADD COLUMN ${col}`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
     }
   } catch (err) {
     console.error('ensureCursosTableSchema error:', err)
@@ -1761,6 +1788,16 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       return
     }
 
+    let precioAfiliado: number | null | undefined, precioPublico: number | null | undefined, horasReserva: number | undefined
+    try {
+      precioAfiliado = parsePrecioUsd(req.body.precio_afiliado_usd, 'precio_afiliado_usd')
+      precioPublico = parsePrecioUsd(req.body.precio_publico_usd, 'precio_publico_usd')
+      horasReserva = parseHorasReserva(req.body.horas_reserva)
+    } catch (e) {
+      res.status(400).json({ success: false, message: (e as Error).message })
+      return
+    }
+
     const slug = generateSlug(courseTitle)
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo ? 1 : 0
@@ -1797,8 +1834,9 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
       sql: `INSERT INTO cursos (
               titulo, slug, descripcion, contenido, categoria, modalidad,
               cupos_totales, fecha_inicio, fecha_fin, imagen_url, banner_url,
-              estatus, solo_informativo, solo_afiliados, requiere_aprobacion, firmantes, cursos_excluyentes, creado_en, actualizado_en
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              estatus, solo_informativo, solo_afiliados, requiere_aprobacion, firmantes, cursos_excluyentes, creado_en, actualizado_en,
+              precio_afiliado_usd, precio_publico_usd, horas_reserva
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *`,
       args: [
         courseTitle,
@@ -1820,6 +1858,9 @@ export const adminCreateCurso = async (req: Request, res: Response): Promise<voi
         cursosExcluyentesStr,
         now,
         now,
+        precioAfiliado ?? null,
+        precioPublico ?? null,
+        horasReserva ?? 48,
       ],
     })
 
@@ -1898,6 +1939,16 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
       cursos_excluyentes,
     } = req.body
 
+    let precioAfiliado: number | null | undefined, precioPublico: number | null | undefined, horasReserva: number | undefined
+    try {
+      precioAfiliado = parsePrecioUsd(req.body.precio_afiliado_usd, 'precio_afiliado_usd')
+      precioPublico = parsePrecioUsd(req.body.precio_publico_usd, 'precio_publico_usd')
+      horasReserva = parseHorasReserva(req.body.horas_reserva)
+    } catch (e) {
+      res.status(400).json({ success: false, message: (e as Error).message })
+      return
+    }
+
     const courseTitle = (titulo || nombre || '').trim()
     const now = new Date().toISOString()
     const isSoloInformativo = solo_informativo !== undefined ? (solo_informativo ? 1 : 0) : null
@@ -1942,6 +1993,9 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
               requiere_aprobacion = COALESCE(?, requiere_aprobacion),
               firmantes = COALESCE(?, firmantes),
               cursos_excluyentes = COALESCE(?, cursos_excluyentes),
+              precio_afiliado_usd = CASE WHEN ? THEN ? ELSE precio_afiliado_usd END,
+              precio_publico_usd = CASE WHEN ? THEN ? ELSE precio_publico_usd END,
+              horas_reserva = COALESCE(?, horas_reserva),
               actualizado_en = ?
             WHERE id_curso = ?
             RETURNING *`,
@@ -1962,6 +2016,10 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
         isRequiereAprobacion,
         firmantesStr,
         cursosExcluyentesStr,
+        // Los precios se pueden vaciar (null), así que se distingue "no vino" de "vino vacío"
+        precioAfiliado !== undefined ? 1 : 0, precioAfiliado ?? null,
+        precioPublico !== undefined ? 1 : 0, precioPublico ?? null,
+        horasReserva ?? null,
         now,
         id,
       ],

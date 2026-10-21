@@ -3,7 +3,7 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
-import { formatNombreCard } from '@/utils/formatters';
+import { formatNombreCard, formatPrecioCurso } from '@/utils/formatters';
 import { matchesSearch } from '@/utils/searchUtils';
 import { Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack, Mail, CheckCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -62,7 +62,9 @@ export interface CursoDB {
   cupos_disponibles: number;
   fecha_inicio: string | null;
   fecha_fin: string | null;
-  precio: string | null;
+  precio_afiliado_usd?: number | null;
+  precio_publico_usd?: number | null;
+  horas_reserva?: number;
   estatus: 'Abierto' | 'Cerrado' | 'En curso' | 'Próximamente';
   solo_informativo?: number | boolean;
   solo_afiliados?: number | boolean;
@@ -257,7 +259,10 @@ const CursosAdminPanel = () => {
     descripcion: string;
     imagen_url: string;
     cupos_totales: number;
-    precio: string;
+    precio_afiliado_usd: string;
+    precio_publico_usd: string;
+    mismo_precio: boolean;
+    horas_reserva: number;
     fecha_inicio: string;
     id_instructor: number;
     categoria: string;
@@ -273,7 +278,10 @@ const CursosAdminPanel = () => {
     descripcion: '',
     imagen_url: '',
     cupos_totales: 30,
-    precio: '0',
+    precio_afiliado_usd: '',
+    precio_publico_usd: '',
+    mismo_precio: true,
+    horas_reserva: 48,
     fecha_inicio: '',
     id_instructor: 1,
     categoria: 'Taller',
@@ -439,7 +447,10 @@ const CursosAdminPanel = () => {
         descripcion: curso.descripcion || '',
         imagen_url: curso.imagen_url || '',
         cupos_totales: curso.cupos_totales,
-        precio: curso.precio === 'Gratis' ? '0' : curso.precio?.replace('$', '').trim() || '0',
+        precio_afiliado_usd: curso.precio_afiliado_usd ? String(curso.precio_afiliado_usd) : '',
+        precio_publico_usd: curso.precio_publico_usd ? String(curso.precio_publico_usd) : '',
+        mismo_precio: (Number(curso.precio_afiliado_usd) || 0) === (Number(curso.precio_publico_usd) || 0),
+        horas_reserva: curso.horas_reserva || 48,
         fecha_inicio: curso.fecha_inicio || '',
         id_instructor: curso.id_instructor || 1,
         categoria: curso.categoria || 'Taller',
@@ -458,7 +469,10 @@ const CursosAdminPanel = () => {
         descripcion: '',
         imagen_url: '',
         cupos_totales: 30,
-        precio: '0',
+        precio_afiliado_usd: '',
+        precio_publico_usd: '',
+        mismo_precio: true,
+        horas_reserva: 48,
         fecha_inicio: '',
         id_instructor: 1,
         categoria: 'Taller',
@@ -613,11 +627,14 @@ const CursosAdminPanel = () => {
       const url = editingId ? `${API_URL}/api/academia/cursos/${editingId}` : `${API_URL}/api/academia/cursos`;
       const method = editingId ? 'PUT' : 'POST';
 
-      const finalPrice = Number(formData.precio) === 0 ? 'Gratis' : `$${formData.precio}`;
+      // Vacío = 0 = gratis; con "mismo precio" el público paga lo mismo que el afiliado
+      const precioAfiliado = Number(formData.precio_afiliado_usd) || 0;
+      const { mismo_precio, ...datosCurso } = formData;
       const payload = {
-        ...formData,
+        ...datosCurso,
         titulo: formData.nombre,
-        precio: finalPrice,
+        precio_afiliado_usd: precioAfiliado,
+        precio_publico_usd: mismo_precio ? precioAfiliado : Number(formData.precio_publico_usd) || 0,
         nivel_academico: 'Libre'
       };
 
@@ -770,7 +787,7 @@ const CursosAdminPanel = () => {
                         <Calendar size={12} className="text-slate-400" />
                         {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}
                       </span>
-                      {c.precio && <span className="font-extrabold text-emerald-700">{c.precio}</span>}
+                      <span className="font-extrabold text-emerald-700">{formatPrecioCurso(c)}</span>
                     </div>
 
                     <AtributosCurso curso={c} />
@@ -1191,6 +1208,52 @@ const CursosAdminPanel = () => {
                       />
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.mismo_precio}
+                      onChange={(e) => setFormData({ ...formData, mismo_precio: e.target.checked })}
+                      className="accent-emerald-600"
+                    />
+                    Mismo precio para afiliados y público general
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="precio_afiliado_usd" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                        {formData.mismo_precio ? 'Precio (USD)' : 'Precio Afiliados (USD)'}
+                      </label>
+                      <input id="precio_afiliado_usd" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0 = Gratis"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
+                        value={formData.precio_afiliado_usd}
+                        onChange={e => setFormData({ ...formData, precio_afiliado_usd: e.target.value })}
+                      />
+                    </div>
+                    {!formData.mismo_precio && (
+                      <div>
+                        <label htmlFor="precio_publico_usd" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Precio Público (USD)</label>
+                        <input id="precio_publico_usd" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0 = Gratis"
+                          className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
+                          value={formData.precio_publico_usd}
+                          onChange={e => setFormData({ ...formData, precio_publico_usd: e.target.value })}
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label htmlFor="horas_reserva" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Reserva de cupo (horas)</label>
+                      <input id="horas_reserva" type="number" min="1" max="720" step="1" required
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
+                        value={formData.horas_reserva}
+                        onChange={e => {
+                          const val = e.currentTarget.valueAsNumber;
+                          setFormData({ ...formData, horas_reserva: Number.isFinite(val) ? val : 48 });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400">En cursos de pago, la preinscripción aparta el cupo durante estas horas mientras se reporta o verifica el pago.</p>
                 </div>
 
                 <div>

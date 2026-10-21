@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
+import { formatPrecioCurso } from '@/utils/formatters'
 import { useAuth } from '@/context/AuthContext'
 import Swal from 'sweetalert2'
 import { CourseSkeletonGrid } from '@/components/Skeletons'
@@ -14,7 +15,8 @@ interface CursoDB {
   nombre: string
   titulo?: string
   nivel_academico: string | null
-  precio: string | null
+  precio_afiliado_usd?: number | null
+  precio_publico_usd?: number | null
   imagen_url: string | null
   estatus: string
   solo_informativo?: number | boolean
@@ -223,6 +225,9 @@ export default function CursosCatalogPage() {
               </div>
               <div className='p-6 sm:p-8 flex-1 flex flex-col justify-between space-y-4'>
                 <h3 className={`font-black text-xl leading-[1.2] transition-colors min-h-[3rem] ${darkMode ? 'text-white group-hover:text-emerald-400' : 'text-[#022c22] group-hover:text-emerald-600'}`}>{curso.titulo || curso.nombre}</h3>
+                {!isInformative && (
+                  <p className={`text-sm font-black tabular-nums ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>{formatPrecioCurso(curso)}</p>
+                )}
                 <div className='pt-2 mt-auto'>
                   {curso.estatus === 'Cerrado' ? (
                     <div className="w-full text-center text-xs font-black uppercase bg-red-100 text-red-700 py-3 rounded-2xl">

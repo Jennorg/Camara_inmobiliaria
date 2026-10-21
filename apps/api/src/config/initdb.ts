@@ -245,6 +245,9 @@ const statements = [
     imagen_url        TEXT,
     banner_url        TEXT,
     cupos_totales     INTEGER,
+    precio_afiliado_usd REAL,
+    precio_publico_usd  REAL,
+    horas_reserva     INTEGER     NOT NULL DEFAULT 48,
     firmantes         TEXT,
     cursos_excluyentes TEXT       DEFAULT '[]',
     creado_en         TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
@@ -899,6 +902,14 @@ async function run() {
         // Ignorar si la columna ya existe
       }
     }
+    // Migración: precios de cursos (afiliado / público, NULL o 0 = gratis) y horas de reserva de cupo
+    for (const col of ['precio_afiliado_usd REAL', 'precio_publico_usd REAL', 'horas_reserva INTEGER NOT NULL DEFAULT 48']) {
+      try {
+        await db.execute(`ALTER TABLE cursos ADD COLUMN ${col}`)
+      } catch (e) {
+        // Ignorar si la columna ya existe
+      }
+    }
     // personas: normalizar nombres y apellidos a Title Case
     const personasRows = await db.execute(`SELECT id, nombres, apellidos FROM personas`)
     for (const p of personasRows.rows) {
@@ -990,6 +1001,10 @@ async function run() {
     { codigo: 'inscripcion_agente', nombre: 'Inscripción Agente Corporativo', descripcion: 'Cuota de formalización de agente corporativo', monto_usd: 25.00, categoria: 'afiliacion' },
     { codigo: 'mensualidad_base', nombre: 'Mensualidad Gremial Base', descripcion: 'Cuota mensual de solvencia gremial', monto_usd: 5.00, categoria: 'mensualidad' },
     { codigo: 'curso_cibir', nombre: 'Curso de Inducción CIBIR', descripcion: 'Arancel de formación del Curso de Iniciación en Bienes Raíces (CIBIR)', monto_usd: 30.00, categoria: 'formacion' },
+    // Monto 0 = "Consultar" hasta que el admin lo fije en Finanzas → Aranceles
+    { codigo: 'programa_preani', nombre: 'Programa PREANI', descripcion: 'Arancel del programa PREANI', monto_usd: 0, categoria: 'formacion' },
+    { codigo: 'programa_pegi', nombre: 'Programa PEGI', descripcion: 'Arancel del programa PEGI', monto_usd: 0, categoria: 'formacion' },
+    { codigo: 'programa_padi', nombre: 'Programa PADI', descripcion: 'Arancel del programa PADI', monto_usd: 0, categoria: 'formacion' },
   ]
 
   for (const ar of arancelesIniciales) {

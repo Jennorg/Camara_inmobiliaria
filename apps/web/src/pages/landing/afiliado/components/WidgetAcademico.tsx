@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
 import Swal from 'sweetalert2';
 import { apiFetch } from '@/lib/apiClient';
+import { formatPrecioCurso } from '@/utils/formatters';
 
 import cibirCatalog from '@/assets/cibir_catalog.webp';
 import preaniCatalog from '@/assets/preani_catalog.webp';
@@ -19,6 +20,8 @@ interface CursoDB {
   nivel_academico: string | null;
   categoria?: string | null;
   precio: string | null;
+  precio_afiliado_usd?: number | null;
+  precio_publico_usd?: number | null;
   imagen_url: string | null;
   estatus: string;
   solo_informativo?: number | boolean;
@@ -26,6 +29,14 @@ interface CursoDB {
   isFlagship?: boolean;
   codigo?: string;
 }
+
+/** Código del arancel (Finanzas → Aranceles) que fija el precio de cada programa emblemático. */
+const ARANCEL_PROGRAMA: Record<string, string> = {
+  PREANI: 'programa_preani',
+  PEGI: 'programa_pegi',
+  PADI: 'programa_padi',
+  CIBIR: 'curso_cibir',
+};
 
 const FLAGSHIP_PROGRAMS: CursoDB[] = [
   { 
@@ -123,6 +134,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
     let active = true;
     // 1. Fetch catálogo
     const fetchCatalogo = apiFetch(`${API_URL}/api/public/cursos`);
+    const fetchAranceles = apiFetch(`${API_URL}/api/pagos/aranceles`).catch(() => ({ success: false, data: [] }));
     
     // 2. Fetch inscripciones del usuario si está logueado
     const fetchInscripciones = token 
@@ -131,12 +143,19 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
         })
       : Promise.resolve({ success: true, data: [] });
 
-    Promise.all([fetchCatalogo, fetchInscripciones])
-      .then(([catalogoJson, inscripcionesJson]) => {
+    Promise.all([fetchCatalogo, fetchInscripciones, fetchAranceles])
+      .then(([catalogoJson, inscripcionesJson, arancelesJson]) => {
         if (!active) return;
         if (catalogoJson.success) {
           const dynamicCourses = catalogoJson.data;
-          const combined = [...FLAGSHIP_PROGRAMS, ...dynamicCourses];
+          const montos = new Map<string, number>(
+            (arancelesJson?.data ?? []).map((a: { codigo: string; monto_usd: number }) => [a.codigo, Number(a.monto_usd)])
+          );
+          const programas = FLAGSHIP_PROGRAMS.map(p => {
+            const monto = montos.get(ARANCEL_PROGRAMA[p.codigo!]) ?? 0;
+            return monto > 0 ? { ...p, precio: `$${monto}` } : p;
+          });
+          const combined = [...programas, ...dynamicCourses];
           setCourses(limit > 0 ? combined.slice(0, limit) : combined);
         }
         
@@ -413,6 +432,11 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 >
                   {course.titulo || course.nombre}
                 </h4>
+                {(course.isFlagship || !(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo')) && (
+                  <p className="mt-1 text-[11px] font-bold tabular-nums text-slate-500">
+                    {course.isFlagship ? course.precio : formatPrecioCurso(course)}
+                  </p>
+                )}
                 {!isEnrolled && (
                   <div
                     className="mt-3 flex items-center text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-transform -translate-x-2 group-hover:translate-x-0"
