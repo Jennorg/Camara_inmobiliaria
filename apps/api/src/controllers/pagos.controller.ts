@@ -186,7 +186,8 @@ export const getRecibo = async (req: Request, res: Response): Promise<void> => {
     const param = Array.isArray(rawParam) ? rawParam[0] : rawParam;
     const recibo = await pagosService.getReciboDetalle(param as string);
 
-    if (!recibo) {
+    // Mismo 404 para "no existe" y "no es tuyo": no revela qué números de recibo existen.
+    if (!recibo || !(await puedeAccederAfiliado(req.user!, Number(recibo.id_afiliado)))) {
       res.status(404).json({ success: false, message: 'Recibo no encontrado' });
       return;
     }

@@ -547,7 +547,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
           }}
           afiliadoId={selectedCobroAfiliado.id_afiliado}
           afiliadoNombre={selectedCobroAfiliado.nombre_completo}
-          afiliadoTipo={selectedCobroAfiliado.tipo_afiliado}
+          afiliadoTipo={selectedCobroAfiliado.tipo_afiliado ?? undefined}
           conceptoDefault="curso_cibir"
           idEdicionCibir={edicion.id_edicion}
           authHeaders={headers}

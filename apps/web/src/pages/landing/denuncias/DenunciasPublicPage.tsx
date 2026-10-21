@@ -576,12 +576,15 @@ export default function DenunciasPublicPage() {
                   </p>
 
                   <FileUpload
-                    onUploadComplete={(url, file) => {
-                      setDocumentos(prev => [...prev, { nombre_archivo: file.name, url }])
-                      toast.success(`Archivo "${file.name}" adjuntado.`)
+                    label="Adjuntar documento"
+                    onUploadSuccess={(url, nombre = 'documento') => {
+                      setDocumentos(prev => [...prev, { nombre_archivo: nombre, url }])
+                      toast.success(`Archivo "${nombre}" adjuntado.`)
                     }}
+                    // Los adjuntos ya quedaron en la lista; limpiar el input no los quita.
+                    onClear={() => {}}
                     accept="application/pdf,image/*"
-                    category="denuncias"
+                    folder="denuncias"
                   />
 
                   {documentos.length > 0 && (

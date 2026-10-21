@@ -479,13 +479,12 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
 
           {/* Adjuntar Factura / Comprobante */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">
-              Comprobante o Factura Digital (PDF o Imagen)
-            </label>
             <FileUpload
-              onUploadComplete={(url) => setComprobanteUrl(url)}
+              label="Comprobante o Factura Digital (PDF o Imagen)"
+              onUploadSuccess={(url) => setComprobanteUrl(url)}
+              onClear={() => setComprobanteUrl('')}
               accept="application/pdf,image/*"
-              category="finanzas"
+              folder="finanzas"
             />
             {comprobanteUrl && (
               <p className="text-xs text-emerald-600 font-medium mt-1">

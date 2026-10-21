@@ -489,7 +489,6 @@ const PanelPage = () => {
       );
     }
     if (activeTab === 'Mi Expediente') return <div className="col-span-1 lg:col-span-3"><WidgetExpediente /></div>;
-    if (activeTab === 'Estado de Cuenta y Solvencias') return <Section label="Estado de Cuenta" />;
     if (activeTab === 'Catálogo Académico') return <div className="col-span-1 lg:col-span-3"><WidgetAcademico limit={0} /></div>;
     if (activeTab === 'Mis Certificados') {
       return (

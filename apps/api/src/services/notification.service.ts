@@ -145,13 +145,13 @@ export class NotificationService {
   }
 
   /**
-   * Envía una notificación a todos los usuarios administradores (roles 'admin' o 'super_admin').
+   * Envía una notificación a los usuarios con alguno de `roles` (por defecto 'admin' o 'super_admin').
    */
-  static async notifyAdmins(params: Omit<NotificationParams, 'userId'>): Promise<void> {
+  static async notifyAdmins({ roles: destinatarios = ['admin', 'super_admin'], ...params }: Omit<NotificationParams, 'userId'> & { roles?: string[] }): Promise<void> {
     try {
       const res = await db.execute({
-        sql: `SELECT id, roles FROM users WHERE roles LIKE '%admin%' OR roles LIKE '%super_admin%'`,
-        args: []
+        sql: `SELECT id, roles FROM users WHERE ${destinatarios.map(() => 'roles LIKE ?').join(' OR ')}`,
+        args: destinatarios.map(r => `%${r}%`)
       });
 
       for (const row of res.rows) {
@@ -168,7 +168,7 @@ export class NotificationService {
             roles = [rawRoles];
           }
         }
-        if (roles.includes('admin') || roles.includes('super_admin')) {
+        if (roles.some(r => destinatarios.includes(r))) {
           await this.notify({
             ...params,
             userId: row.id as number

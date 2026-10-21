@@ -36,6 +36,7 @@ import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestion
 import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrarGasto'
 import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
+import type { PagoDTO } from '@/types/pagos'
 import { BinanceIcon } from '@/components/icons/BinanceIcon'
 import type { 
   ResumenFinancieroDTO, 
@@ -113,8 +114,18 @@ export default function FinancePanel() {
   const [modalArancelesOpen, setModalArancelesOpen] = useState(false)
   
   // Visor de Recibo Digital
-  const [selectedReciboId, setSelectedReciboId] = useState<number | string | null>(null)
-  const [reciboModalOpen, setReciboModalOpen] = useState(false)
+  const [reciboPago, setReciboPago] = useState<PagoDTO | null>(null)
+
+  const abrirRecibo = async (idPago: number | string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/pagos/recibo/${idPago}`, { headers: authHeaders })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cargar el recibo')
+      setReciboPago(json.data)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo cargar el recibo')
+    }
+  }
 
   // Cotizaciones para Ticker de Referencia
   const [tasasTicker, setTasasTicker] = useState<{ bcv: number; usdt: number } | null>(null)
@@ -785,10 +796,7 @@ export default function FinancePanel() {
                         <td className="py-3 px-4 text-center">
                           {item.id_pago ? (
                             <button
-                              onClick={() => {
-                                setSelectedReciboId(item.id_pago)
-                                setReciboModalOpen(true)
-                              }}
+                              onClick={() => abrirRecibo(item.id_pago!)}
                               title="Ver Recibo Digital Oficial"
                               className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors inline-flex items-center gap-1 text-[10px] font-bold"
                             >
@@ -1003,9 +1011,8 @@ export default function FinancePanel() {
       />
 
       <ReciboDigitalModal
-        isOpen={reciboModalOpen}
-        onClose={() => setReciboModalOpen(false)}
-        reciboIdOrCode={selectedReciboId}
+        pago={reciboPago}
+        onClose={() => setReciboPago(null)}
       />
     </div>
   )

@@ -26,7 +26,7 @@ const adminRoles: UserRole[] = ['admin', 'super_admin', 'asistente', 'administra
 router.get('/cuentas', getCuentas);
 router.get('/aranceles', getArancelesController);
 router.get('/arancel-formalizacion/:idAfiliado', getArancelFormalizacion);
-router.get('/recibo/:reciboIdOrCode', getRecibo);
+router.get('/recibo/:reciboIdOrCode', requireAuth, getRecibo);
 router.post('/reportar', requireAuth, reportarPago);
 router.get('/afiliado/:idAfiliado', requireAuth, getPagosByAfiliado);
 router.get('/solvencia/afiliado/:idAfiliado', requireAuth, getSolvenciaAfiliado);

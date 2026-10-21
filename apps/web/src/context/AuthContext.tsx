@@ -132,6 +132,8 @@ export interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null
   token: string | null
+  /** `{ Authorization: Bearer … }` listo para `fetch` (vacío sin sesión). */
+  authHeaders: Record<string, string>
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -455,8 +457,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isImpersonatingVal = Boolean(originalAdmin && user && user.id !== originalAdmin.id)
 
+  const authHeaders = useMemo((): Record<string, string> => (token ? { Authorization: `Bearer ${token}` } : {}), [token])
+
   const value = useMemo(() => ({
-    user, token, isLoading, login, logout,
+    user, token, authHeaders, isLoading, login, logout,
     hasRole,
     isAdmin: isAdminVal,
     isSuperAdmin: isSuperAdminVal,
@@ -469,7 +473,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     impersonateUser,
     stopImpersonation
   }), [
-    user, token, isLoading, login, logout,
+    user, token, authHeaders, isLoading, login, logout,
     hasRole, isAdminVal, isSuperAdminVal, isAsistenteVal,
     isAfiliadoVal, isEstudianteVal, refreshUser,
     isImpersonatingVal, originalAdmin, impersonateUser, stopImpersonation

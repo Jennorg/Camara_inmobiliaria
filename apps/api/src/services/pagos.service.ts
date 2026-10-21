@@ -4,6 +4,9 @@ import { NotificationService } from './notification.service.js';
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 
+/** Roles que verifican pagos (mismos que protegen /api/pagos/admin y /api/finanzas). */
+export const ROLES_FINANZAS = ['admin', 'super_admin', 'asistente', 'administrativo', 'personal_admin'];
+
 export interface RegistrarCobroTaquillaParams {
   id_afiliado: number;
   id_inscripcion_curso?: number | null;
@@ -92,6 +95,21 @@ export async function generarNumeroRecibo(): Promise<string> {
   }
 
   return `${prefix}${nextCorrelativo.toString().padStart(4, '0')}`;
+}
+
+/**
+ * Ejecuta un INSERT con un número de recibo nuevo. Si dos cobros simultáneos obtienen el mismo
+ * correlativo, el UNIQUE de `numero_recibo` rechaza uno y aquí se reintenta con el siguiente.
+ */
+export async function conNumeroRecibo<T>(insertar: (numeroRecibo: string) => Promise<T>, intentos = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await insertar(await generarNumeroRecibo());
+    } catch (err) {
+      const msg = String((err as Error)?.message ?? err);
+      if (i >= intentos || !/UNIQUE/i.test(msg) || !msg.includes('numero_recibo')) throw err;
+    }
+  }
 }
 
 /**
@@ -249,9 +267,8 @@ export async function formalizarAfiliado(idAfiliado: number, idPago?: number) {
  */
 export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParams) {
   const now = new Date().toISOString();
-  const numeroRecibo = await generarNumeroRecibo();
 
-  const insertRes = await db.execute({
+  const insertRes = await conNumeroRecibo(numeroRecibo => db.execute({
     sql: `INSERT INTO pagos (
             numero_recibo, id_afiliado, id_inscripcion_curso, id_edicion_cibir,
             tipo_concepto, descripcion_concepto, metodo_pago, moneda,
@@ -294,7 +311,7 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
       now,
       ...periodoArgs(params, now)
     ]
-  });
+  }));
 
   const pagoCreado = insertRes.rows[0] as any;
 
@@ -325,9 +342,8 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
  */
 export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
   const now = new Date().toISOString();
-  const numeroRecibo = await generarNumeroRecibo();
 
-  const insertRes = await db.execute({
+  const insertRes = await conNumeroRecibo(numeroRecibo => db.execute({
     sql: `INSERT INTO pagos (
             numero_recibo, id_afiliado, id_inscripcion_curso, id_edicion_cibir,
             tipo_concepto, descripcion_concepto, metodo_pago, moneda,
@@ -369,9 +385,10 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
       now,
       ...periodoArgs(params, now)
     ]
-  });
+  }));
 
   const pagoCreado = insertRes.rows[0] as any;
+  const numeroRecibo = pagoCreado.numero_recibo as string;
 
   // Notificar a los administradores
   try {
@@ -386,6 +403,7 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
     const nombre = afRes.rows[0]?.nombre || 'Aspirante';
 
     NotificationService.notifyAdmins({
+      roles: ROLES_FINANZAS,
       title: `Nuevo Pago Reportado: ${numeroRecibo}`,
       message: `${nombre} ha reportado un pago de ${params.monto} ${params.moneda} (${params.metodo_pago.toUpperCase()}, Ref: ${params.referencia}) por concepto de ${params.descripcion_concepto}.`,
       type: 'PAGO_REGISTRADO',

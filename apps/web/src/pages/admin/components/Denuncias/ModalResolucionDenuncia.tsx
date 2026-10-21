@@ -194,13 +194,12 @@ export default function ModalResolucionDenuncia({
 
           {/* Adjuntar Acta Oficial Firmada */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Acta de Resolución Firmada (PDF)
-            </label>
             <FileUpload
-              onUploadComplete={(url) => setActaUrl(url)}
+              label="Acta de Resolución Firmada (PDF)"
+              onUploadSuccess={(url) => setActaUrl(url)}
+              onClear={() => setActaUrl('')}
               accept="application/pdf"
-              category="denuncias"
+              folder="denuncias"
             />
             {actaUrl && (
               <p className="text-xs text-emerald-600 font-medium mt-1">
