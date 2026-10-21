@@ -7,6 +7,7 @@ import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
 import { formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
+import CohortesNavegador, { type Cohorte } from './CohortesNavegador'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -59,7 +60,6 @@ type Row = {
   cohorte_nombre?: string | null
 }
 
-type Cohorte = { id_cohorte: number; programa_codigo: 'CIBIR' | 'PREANI' | 'PEGI' | 'PADI'; numero: number; nombre: string; estado: 'Abierta' | 'Cerrada'; inscritos: number }
 const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
 
 export default function PreinscripcionesPrincipalesPanel({
@@ -107,7 +107,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
   // Cohortes: lista, filtro ('todas' | 'sin' | id) y acciones
   const [cohortes, setCohortes] = useState<Cohorte[]>([])
-  const [cohorteFiltro, setCohorteFiltro] = useState<'todas' | 'sin' | number>('todas')
+  const [cohorteFiltro, setCohorteFiltro] = useState<number | null>(null)
   const [savingCohorte, setSavingCohorte] = useState(false)
 
   const fetchCohortes = useCallback(async () => {
@@ -118,13 +118,17 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch { /* el panel sigue funcionando sin cohortes */ }
   }, [authHeaders])
   useEffect(() => { fetchCohortes() }, [fetchCohortes])
-  useEffect(() => { setCohorteFiltro('todas') }, [programa])
+  useEffect(() => { setCohorteFiltro(null) }, [programa])
 
   const cohortesDelPrograma = useMemo(
     () => cohortes.filter(c => c.programa_codigo === programa),
     [cohortes, programa]
   )
-  const cohorteActiva = typeof cohorteFiltro === 'number' ? cohortes.find(c => c.id_cohorte === cohorteFiltro) : undefined
+  const seleccionarCohorte = (id: number | null) => {
+    setCohorteFiltro(id)
+    setUiEstatus('Todos') // una cohorte cerrada no tiene "pendientes": mostrar a todos, no el filtro por defecto
+    setSelected(null)
+  }
 
   const mostrarError = (e: unknown, fallback: string) =>
     Swal.fire({ title: 'Error', text: e instanceof Error ? e.message : fallback, icon: 'error', confirmButtonColor: '#dc2626' })
@@ -172,7 +176,7 @@ export default function PreinscripcionesPrincipalesPanel({
       const json = await res.json()
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo crear la cohorte')
       await fetchCohortes()
-      setCohorteFiltro(json.data.id_cohorte)
+      seleccionarCohorte(json.data.id_cohorte)
     } catch (e) {
       mostrarError(e, 'No se pudo crear la cohorte')
     }
@@ -225,7 +229,10 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const qs = new URLSearchParams()
       qs.set('estatus', 'Todos')
-      if (programa !== 'Todos') {
+      if (cohorteFiltro !== null) {
+        // Los miembros se piden por cohorte: no todos se guardan con el mismo código de programa
+        qs.set('cohorteId', String(cohorteFiltro))
+      } else if (programa !== 'Todos') {
         // Tanto ACREDITACION como CIBIR se mapean a 'AFILIACION' en la API
         if (programa === 'ACREDITACION' || programa === 'CIBIR') {
           qs.set('programaCodigo', 'AFILIACION')
@@ -262,7 +269,7 @@ export default function PreinscripcionesPrincipalesPanel({
     } finally {
       if (!isSilent) setLoading(false)
     }
-  }, [programa, authHeaders, fetchDocumentos])
+  }, [programa, cohorteFiltro, authHeaders, fetchDocumentos])
 
   const fetchModulos = useCallback(async (idInscripcion: number) => {
     setLoadingModulos(true)
@@ -841,15 +848,14 @@ export default function PreinscripcionesPrincipalesPanel({
   //  - ACREDITACION: lista de preinscritos pendientes que SÍ optan por acreditación.
   //  - CIBIR: quienes NO optaron por acreditación.
   const programaRows = useMemo(() => {
-    let base = rows
+    if (cohorteFiltro !== null) return rows // el servidor ya trajo solo los de esa cohorte
     if (programa === 'ACREDITACION') {
-      base = rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
-    } else if (programa === 'CIBIR') {
-      base = rows.filter(r => !r.apto_acreditacion)
+      return rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
     }
-    if (cohorteFiltro === 'sin') return base.filter(r => !r.id_cohorte)
-    if (typeof cohorteFiltro === 'number') return base.filter(r => r.id_cohorte === cohorteFiltro)
-    return base
+    if (programa === 'CIBIR') {
+      return rows.filter(r => !r.apto_acreditacion)
+    }
+    return rows
   }, [rows, programa, cohorteFiltro])
 
   const counts = useMemo(() => {
@@ -943,6 +949,19 @@ export default function PreinscripcionesPrincipalesPanel({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
+      {PROGRAMAS_CON_COHORTE.includes(programa) && (
+        <div className={selected ? 'hidden sm:block' : ''}>
+          <CohortesNavegador
+            programa={programa}
+            cohortes={cohortesDelPrograma}
+            seleccion={cohorteFiltro}
+            onSeleccionar={seleccionarCohorte}
+            onNueva={nuevaCohorte}
+            onExportar={exportarCohorte}
+          />
+        </div>
+      )}
+      <div className="relative flex-1 min-h-0">
       <div className="grid grid-cols-1 sm:grid-cols-[340px_1fr] grid-rows-1 h-full w-full overflow-hidden absolute inset-0">
       {/* Listado lateral */}
       <div className={['flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0', selected ? 'hidden sm:flex' : 'flex'].join(' ')}>
@@ -1006,33 +1025,6 @@ export default function PreinscripcionesPrincipalesPanel({
 
           </div>
 
-          {PROGRAMAS_CON_COHORTE.includes(programa) && (
-            <div className="flex gap-2">
-              <select
-                aria-label="Filtrar por cohorte"
-                value={String(cohorteFiltro)}
-                onChange={e => setCohorteFiltro(e.target.value === 'todas' || e.target.value === 'sin' ? e.target.value : Number(e.target.value))}
-                className="flex-1 min-w-0 px-2 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold"
-              >
-                <option value="todas">Todas las cohortes</option>
-                {cohortesDelPrograma.map(c => (
-                  <option key={c.id_cohorte} value={c.id_cohorte}>{c.nombre} · {c.inscritos}{c.estado === 'Abierta' ? ' · abierta' : ''}</option>
-                ))}
-                <option value="sin">Sin cohorte</option>
-              </select>
-              {cohorteActiva && (
-                <button type="button" onClick={() => exportarCohorte(cohorteActiva)} title={`Descargar ${cohorteActiva.nombre} en Excel`}
-                  className="px-2.5 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 cursor-pointer">
-                  Excel
-                </button>
-              )}
-              <button type="button" onClick={nuevaCohorte} title="Abrir una nueva cohorte"
-                className="px-2.5 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100 cursor-pointer">
-                + Cohorte
-              </button>
-            </div>
-          )}
-
           <div className="flex flex-wrap gap-1.5 mt-1">
             {(['Todos', 'Pendiente', 'Sin Expediente', 'Entrevista', 'Inscripción', 'Rechazado'] as const).map(f => (
               <button
@@ -1058,7 +1050,11 @@ export default function PreinscripcionesPrincipalesPanel({
           ) : error ? (
             <div className="p-4 text-center text-xs text-red-500 mt-10">{error}</div>
           ) : filteredRows.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400 mt-10">No hay registros.</div>
+            <div role="status" className="p-4 text-center text-xs text-slate-400 mt-10">
+              {cohorteFiltro !== null && programaRows.length === 0
+                ? 'Esta cohorte aún no tiene inscritos. Si está abierta, las nuevas inscripciones del programa entrarán aquí.'
+                : 'No hay registros.'}
+            </div>
           ) : (
             filteredRows.map(r => (
               <button
@@ -1877,6 +1873,7 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
         </div>
       )}
+    </div>
     </div>
   </div>
 )

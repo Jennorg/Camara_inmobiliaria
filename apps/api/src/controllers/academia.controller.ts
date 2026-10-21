@@ -2236,6 +2236,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     }
     const programaCodigo = normalizeProgramaCodigo(req.query?.programaCodigo)
     const cursoId = req.query?.cursoId ? Number(req.query.cursoId) : null
+    // Los miembros de una cohorte se piden por la cohorte, sin importar con qué código de programa se guardó cada inscripción
+    const cohorteId = /^\d+$/.test(String(req.query?.cohorteId ?? '')) ? Number(req.query.cohorteId) : null
     const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : 'Todos'
     const allowedStatus = new Set(['Todos', 'Preinscrito', 'Entrevista', 'Inscrito', 'Rechazado', 'Cancelado'])
     if (!allowedStatus.has(estatus)) {
@@ -2247,7 +2249,10 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const baseWhere: string[] = []
     const countArgs: any[] = []
 
-    if (onlyCursos) {
+    if (cohorteId) {
+      baseWhere.push('ic.id_cohorte = ?')
+      countArgs.push(cohorteId)
+    } else if (onlyCursos) {
       // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR
       baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND (ic.programa_codigo <> 'AFILIACION' OR af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') OR af.cibir_acreditado = 1)))")
     } else if (cursoId) {

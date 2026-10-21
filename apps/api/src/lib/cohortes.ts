@@ -5,6 +5,44 @@ export const PROGRAMAS_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI'] as const
 export type ProgramaCohorte = (typeof PROGRAMAS_COHORTE)[number]
 export const esProgramaCohorte = (v: unknown): v is ProgramaCohorte => PROGRAMAS_COHORTE.includes(v as ProgramaCohorte)
 
+/** Etapas en que puede estar un inscrito de una cohorte, para resumir cada cohorte de un vistazo. */
+export const ETAPAS = ['cursando', 'completado', 'admitido', 'entrevista', 'pendiente', 'sin_expediente', 'rechazado'] as const
+export type Etapa = (typeof ETAPAS)[number]
+
+/**
+ * Etapa de una inscripción: rechazada/cancelada; admitida (cursando el CIBIR si el afiliado está en 5_CIBIR,
+ * completada si ya terminó); en entrevista; o preinscrita (pendiente de revisión, o sin expediente aún).
+ */
+export function etapaDe(i: { estatus: string; completado: unknown; afiliado: string | null; documentos: number }): Etapa {
+  if (i.estatus === 'Rechazado' || i.estatus === 'Cancelado') return 'rechazado'
+  if (i.estatus === 'Inscrito' || i.estatus === 'Pagado') {
+    if (i.afiliado === '5_CIBIR') return 'cursando'
+    return Number(i.completado) === 1 ? 'completado' : 'admitido'
+  }
+  if (i.estatus === 'Entrevista') return 'entrevista'
+  return i.documentos > 0 ? 'pendiente' : 'sin_expediente'
+}
+
+/** Cuántos inscritos hay en cada etapa, por cohorte. */
+export async function etapasPorCohorte(client: Client): Promise<Map<number, Record<Etapa, number>>> {
+  const r = await client.execute(`
+    SELECT ic.id_cohorte, ic.estatus, ic.completado,
+           (SELECT a.estatus FROM afiliados a
+             WHERE (e.id_persona IS NOT NULL AND a.id_persona = e.id_persona)
+                OR (e.id_empresa IS NOT NULL AND a.id_empresa = e.id_empresa) LIMIT 1) AS afiliado,
+           (SELECT COUNT(*) FROM documentos d
+             WHERE d.entidad_tipo = 'estudiante' AND d.entidad_id = ic.id_estudiante AND d.eliminado_en IS NULL) AS documentos
+    FROM inscripciones_cursos ic JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+    WHERE ic.id_cohorte IS NOT NULL`)
+  const porCohorte = new Map<number, Record<Etapa, number>>()
+  for (const f of r.rows as any[]) {
+    const cuenta = porCohorte.get(Number(f.id_cohorte)) ?? Object.fromEntries(ETAPAS.map(e => [e, 0])) as Record<Etapa, number>
+    cuenta[etapaDe({ estatus: String(f.estatus), completado: f.completado, afiliado: f.afiliado ?? null, documentos: Number(f.documentos) })]++
+    porCohorte.set(Number(f.id_cohorte), cuenta)
+  }
+  return porCohorte
+}
+
 /** Subconsulta SQL: la cohorte abierta de un programa (a lo sumo una, lo garantiza un índice único). */
 const abierta = (programa: string) =>
   `(SELECT id_cohorte FROM cohortes WHERE programa_codigo = ${programa} AND estado = 'Abierta' ORDER BY numero DESC LIMIT 1)`

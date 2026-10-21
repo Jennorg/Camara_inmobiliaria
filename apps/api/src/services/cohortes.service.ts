@@ -1,5 +1,5 @@
 import { db } from '../lib/db.js'
-import { asegurarEsquemaCohortes, esProgramaCohorte, type ProgramaCohorte } from '../lib/cohortes.js'
+import { asegurarEsquemaCohortes, esProgramaCohorte, etapasPorCohorte, ETAPAS, type ProgramaCohorte } from '../lib/cohortes.js'
 
 /** Error de negocio con código HTTP para que el controller lo traduzca. */
 const fallo = (status: number, message: string) => Object.assign(new Error(message), { status })
@@ -15,14 +15,18 @@ const hoyCaracas = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Ame
 export async function listarCohortes(programa?: string) {
   await asegurarCohortes()
   if (programa && !esProgramaCohorte(programa)) throw fallo(400, 'programa inválido')
-  const r = await db.execute({
-    sql: `SELECT c.*, COUNT(ic.id_inscripcion) AS inscritos
-          FROM cohortes c LEFT JOIN inscripciones_cursos ic ON ic.id_cohorte = c.id_cohorte
-          WHERE (? IS NULL OR c.programa_codigo = ?)
-          GROUP BY c.id_cohorte ORDER BY c.programa_codigo, c.numero`,
-    args: [programa ?? null, programa ?? null],
-  })
-  return r.rows
+  const [r, etapas] = await Promise.all([
+    db.execute({
+      sql: `SELECT c.*, COUNT(ic.id_inscripcion) AS inscritos
+            FROM cohortes c LEFT JOIN inscripciones_cursos ic ON ic.id_cohorte = c.id_cohorte
+            WHERE (? IS NULL OR c.programa_codigo = ?)
+            GROUP BY c.id_cohorte ORDER BY c.programa_codigo, c.numero`,
+      args: [programa ?? null, programa ?? null],
+    }),
+    etapasPorCohorte(db),
+  ])
+  const vacio = Object.fromEntries(ETAPAS.map(e => [e, 0]))
+  return r.rows.map(c => ({ ...c, etapas: etapas.get(Number(c.id_cohorte)) ?? vacio }))
 }
 
 /** Abre la siguiente cohorte del programa y cierra la que estaba abierta, en una sola transacción. */
