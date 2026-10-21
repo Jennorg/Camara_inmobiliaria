@@ -5,6 +5,7 @@ import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
+import { esCupoIlimitado, precioCurso, sqlOcupaCupo, venceReserva } from '../lib/cursos-pago.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 const generateSlug = (str: string) => {
@@ -50,6 +51,30 @@ function normalizeProgramaCodigo(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const code = value.trim().toUpperCase()
   return MAIN_PROGRAM_CODES.has(code) ? code : null
+}
+
+/**
+ * ¿La persona es afiliada oficial (estatus 'Afiliado', activa)? Se identifica por email o cédula/RIF
+ * porque los endpoints de preinscripción son públicos (también los usa el panel sin sesión verificada).
+ */
+async function esAfiliadoOficial(email: string, cleanCed: string): Promise<boolean> {
+  const r = await db.execute({
+    sql: `SELECT 1
+          FROM afiliados a
+          JOIN personas p ON a.id_persona = p.id
+          LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+          WHERE a.estatus = 'Afiliado'
+            AND a.activo = 1
+            AND a.eliminado_en IS NULL
+            AND p.eliminado_en IS NULL
+            AND (
+              LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(e.email)) = ?
+              OR (? != '' AND (p.cedula = ? OR e.rif_numero = ?))
+            )
+          LIMIT 1`,
+    args: [email, email, cleanCed, cleanCed, cleanCed],
+  })
+  return r.rows.length > 0
 }
 
 /**
@@ -1433,6 +1458,13 @@ const ensureCursosTableSchema = async (): Promise<void> => {
           // Column already exists
         }
       }
+      for (const col of ['reserva_vence_en TEXT', 'monto_usd REAL']) {
+        try {
+          await db.execute(`ALTER TABLE inscripciones_cursos ADD COLUMN ${col}`)
+        } catch (_e) {
+          // Column already exists
+        }
+      }
     }
   } catch (err) {
     console.error('ensureCursosTableSchema error:', err)
@@ -1530,7 +1562,10 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar que el curso exista y esté Abierto o Próximamente
     const cursoRes = await db.execute({
-      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion FROM cursos WHERE id_curso = ? LIMIT 1`,
+      sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion,
+                   cupos_totales, precio_afiliado_usd, precio_publico_usd, horas_reserva,
+                   (SELECT COUNT(*) FROM inscripciones_cursos ic WHERE ic.id_curso = cursos.id_curso AND ${sqlOcupaCupo('ic')}) AS ocupados
+            FROM cursos WHERE id_curso = ? LIMIT 1`,
       args: [idCurso],
     })
     if (cursoRes.rows.length === 0) {
@@ -1552,29 +1587,18 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       return
     }
 
+    if (!esCupoIlimitado(curso.cupos_totales) && Number(curso.ocupados) >= Number(curso.cupos_totales)) {
+      res.status(409).json({ success: false, code: 'SIN_CUPOS', message: 'No quedan cupos disponibles para este curso.' })
+      return
+    }
+
     // ── Curso privado: solo afiliados oficiales (los del directorio de miembros) ──
     // Mismo criterio que buscarAfiliadosPublic: estatus 'Afiliado', activo y no eliminado.
     // Se identifica a la persona por email o por cédula/RIF, porque este endpoint es
     // público y también lo consume el panel del afiliado sin sesión verificada.
+    const esAfiliado = await esAfiliadoOficial(email, cleanCed)
     if (Number(curso.solo_afiliados) === 1) {
-      const afiliadoRes = await db.execute({
-        sql: `SELECT 1
-              FROM afiliados a
-              JOIN personas p ON a.id_persona = p.id
-              LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
-              WHERE a.estatus = 'Afiliado'
-                AND a.activo = 1
-                AND a.eliminado_en IS NULL
-                AND p.eliminado_en IS NULL
-                AND (
-                  LOWER(TRIM(p.email)) = ? OR LOWER(TRIM(e.email)) = ?
-                  OR (? != '' AND (p.cedula = ? OR e.rif_numero = ?))
-                )
-              LIMIT 1`,
-        args: [email, email, cleanCed, cleanCed, cleanCed],
-      })
-
-      if (afiliadoRes.rows.length === 0) {
+      if (!esAfiliado) {
         res.status(403).json({
           success: false,
           code: 'SOLO_AFILIADOS',
@@ -1586,7 +1610,8 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
 
     // Verificar si ya tiene una inscripción a este curso (por email o cédula/RIF)
     const existing = await db.execute({
-      sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, ic.completado 
+      sql: `SELECT ic.id_inscripcion, ic.estatus, ic.estatus_academico, ic.completado, ic.reserva_vence_en,
+                   ${sqlOcupaCupo('ic')} AS ocupa_cupo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -1606,8 +1631,13 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
                            prev.estatus === 'Cancelado' || 
                            prev.estatus === 'Aprobado' ||
                            Number(prev.completado) === 1 ||
-                           ['Aprobado', 'Reprobado', 'Retirado'].includes(prev.estatus_academico);
+                           ['Aprobado', 'Reprobado', 'Retirado'].includes(prev.estatus_academico) ||
+                           Number(prev.ocupa_cupo) === 0; // reserva vencida sin pago: puede volver a reservar
       if (!isFinalState) {
+        if (prev.estatus === 'Preinscrito' && prev.reserva_vence_en) {
+          res.status(409).json({ success: false, message: 'Ya tienes un cupo reservado en este curso. Completa el pago para confirmar tu inscripción.' })
+          return
+        }
         if (prev.estatus === 'Preinscrito') {
           res.status(409).json({ success: false, message: 'Ya has enviado una solicitud de preinscripción para este curso y se encuentra pendiente de aprobación.' })
           return
@@ -1665,26 +1695,38 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     })
 
     const now = new Date().toISOString()
-    // Sin aprobación manual el inscrito queda admitido de inmediato
-    const estatusInscripcion = Number(curso.requiere_aprobacion) === 1 ? 'Preinscrito' : 'Inscrito'
+    // Curso de pago: queda preinscrito con el cupo reservado hasta que se pague (precio congelado al reservar).
+    // Curso gratis: sin aprobación manual el inscrito queda admitido de inmediato.
+    const montoUsd = precioCurso(curso, esAfiliado)
+    const reservaVence = montoUsd > 0 ? venceReserva(new Date(), Number(curso.horas_reserva) || 48) : null
+    const estatusInscripcion = montoUsd > 0 || Number(curso.requiere_aprobacion) === 1 ? 'Preinscrito' : 'Inscrito'
     const result = await db.execute({
       sql: `INSERT INTO inscripciones_cursos
-              (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, estatus_academico, completado, fecha_inscripcion, creado_en, actualizado_en)
-            VALUES (?, ?, NULL, 'curso', ?, 'Inscrito', 0, ?, ?, ?)
+              (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, estatus_academico, completado, fecha_inscripcion, creado_en, actualizado_en,
+               reserva_vence_en, monto_usd)
+            VALUES (?, ?, NULL, 'curso', ?, 'Inscrito', 0, ?, ?, ?, ?, ?)
             ON CONFLICT (id_estudiante, id_curso) DO UPDATE SET
               estatus = excluded.estatus,
               estatus_academico = 'Inscrito',
               completado = 0,
               tipo_inscripcion = 'curso',
               fecha_inscripcion = excluded.fecha_inscripcion,
-              actualizado_en = excluded.actualizado_en
+              actualizado_en = excluded.actualizado_en,
+              reserva_vence_en = excluded.reserva_vence_en,
+              monto_usd = excluded.monto_usd
             RETURNING *`,
-      args: [id_estudiante, idCurso, estatusInscripcion, now, now, now],
+      args: [id_estudiante, idCurso, estatusInscripcion, now, now, now, reservaVence, montoUsd > 0 ? montoUsd : null],
     })
+
+    const message = reservaVence
+      ? `Cupo reservado. Monto a pagar: $${montoUsd.toFixed(2)}${esAfiliado ? ' (precio de afiliado)' : ''}. ` +
+        `La reserva vence el ${new Date(reservaVence).toLocaleString('es-VE', { timeZone: 'America/Caracas', dateStyle: 'medium', timeStyle: 'short' })}: ` +
+        `paga en la taquilla de la Cámara${esAfiliado ? ' o reporta tu pago desde tu panel' : ''} antes de esa fecha para conservar el cupo.`
+      : 'Inscripción procesada. Pronto nos pondremos en contacto.'
 
     res.status(201).json({
       success: true,
-      message: 'Inscripción procesada. Pronto nos pondremos en contacto.',
+      message,
       data: result.rows[0],
     })
   } catch (error) {
@@ -2457,9 +2499,9 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     // validar curso abierto y cupos
     const cursoRes = await db.execute({
       sql: `SELECT id_curso, cupos_totales, estatus, solo_informativo,
-                   (SELECT COUNT(*) FROM inscripciones_cursos WHERE id_curso = ? AND estatus IN ('Inscrito', 'Pagado')) as inscritos
+                   (SELECT COUNT(*) FROM inscripciones_cursos ic WHERE ic.id_curso = cursos.id_curso AND ${sqlOcupaCupo('ic')}) as inscritos
             FROM cursos WHERE id_curso = ? LIMIT 1`,
-      args: [idCurso, idCurso],
+      args: [idCurso],
     })
     const curso = cursoRes.rows[0] as any
     if (!curso) {

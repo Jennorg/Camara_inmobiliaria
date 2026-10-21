@@ -1,17 +1,23 @@
 import { db } from '../lib/db.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { NotificationService } from './notification.service.js';
+import { esCupoIlimitado, sqlOcupaCupo } from '../lib/cursos-pago.js';
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 
 /** Roles que verifican pagos (mismos que protegen /api/pagos/admin y /api/finanzas). */
 export const ROLES_FINANZAS = ['admin', 'super_admin', 'asistente', 'administrativo', 'personal_admin'];
 
+export type TipoConcepto = 'formalizacion_afiliacion' | 'curso_cibir' | 'mensualidad' | 'curso' | 'programa' | 'otro';
+
 export interface RegistrarCobroTaquillaParams {
-  id_afiliado: number;
+  /** Pagador: un afiliado o, en cursos, un estudiante sin afiliación (al menos uno). */
+  id_afiliado?: number | null;
+  id_estudiante?: number | null;
   id_inscripcion_curso?: number | null;
   id_edicion_cibir?: number | null;
-  tipo_concepto: 'formalizacion_afiliacion' | 'curso_cibir' | 'mensualidad' | 'curso' | 'otro';
+  tipo_concepto: TipoConcepto;
+  codigo_arancel?: string | null;
   descripcion_concepto: string;
   metodo_pago: 'efectivo_usd' | 'efectivo_bs' | 'pago_movil' | 'transferencia_bs' | 'zelle' | 'pos_debito' | 'binance_usdt' | 'otro';
   moneda: 'USD' | 'VES';
@@ -34,7 +40,8 @@ export interface ReportarPagoDigitalParams {
   id_afiliado: number;
   id_inscripcion_curso?: number | null;
   id_edicion_cibir?: number | null;
-  tipo_concepto: 'formalizacion_afiliacion' | 'curso_cibir' | 'mensualidad' | 'curso' | 'otro';
+  tipo_concepto: TipoConcepto;
+  codigo_arancel?: string | null;
   descripcion_concepto: string;
   metodo_pago: 'pago_movil' | 'transferencia_bs' | 'zelle' | 'binance_usdt' | 'otro';
   moneda: 'USD' | 'VES';
@@ -69,6 +76,53 @@ function periodoArgs(
   const periodo = params.periodo && PERIODO_RE.test(params.periodo) ? params.periodo : now.slice(0, 7);
   const meses = Math.min(24, Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1)));
   return [periodo, meses];
+}
+
+/** Arancel que identifica el concepto en los reportes cuando quien cobra no lo indica. */
+function codigoArancelPorDefecto(tipo: TipoConcepto): string | null {
+  if (tipo === 'mensualidad') return 'mensualidad_base';
+  if (tipo === 'curso_cibir') return 'curso_cibir';
+  return null;
+}
+
+/**
+ * JOINs que resuelven los datos del pagador (alias `per` / `emp`) tanto si el pago es de un
+ * afiliado como de un estudiante sin afiliación. Requiere `pagos p`.
+ */
+export const SQL_JOIN_PAGADOR = `
+    LEFT JOIN afiliados a ON p.id_afiliado = a.id_afiliado
+    LEFT JOIN estudiantes est ON p.id_estudiante = est.id_estudiante
+    LEFT JOIN personas per ON per.id = COALESCE(a.id_persona, est.id_persona)
+    LEFT JOIN empresas emp ON emp.id_empresa = COALESCE(a.id_empresa, est.id_empresa)`;
+
+/**
+ * Un pago verificado de un curso confirma la inscripción: pasa a 'Pagado' y deja de tener reserva.
+ * Si el curso exige aprobación manual, el pago solo asegura el cupo y la aprobación sigue pendiente.
+ */
+async function confirmarInscripcionPagada(idInscripcion: number) {
+  await db.execute({
+    sql: `UPDATE inscripciones_cursos
+          SET estatus = CASE
+                WHEN (SELECT requiere_aprobacion FROM cursos c WHERE c.id_curso = inscripciones_cursos.id_curso) = 1
+                     AND estatus IN ('Preinscrito', 'Entrevista') THEN estatus
+                ELSE 'Pagado' END,
+              reserva_vence_en = NULL,
+              actualizado_en = ?
+          WHERE id_inscripcion = ? AND estatus IN ('Preinscrito', 'Entrevista', 'Inscrito')`,
+    args: [new Date().toISOString(), idInscripcion]
+  });
+}
+
+/** Al rechazar un pago: si la reserva ya venció y no queda otro pago por verificar, se libera el cupo. */
+async function liberarReservaVencida(idInscripcion: number) {
+  await db.execute({
+    sql: `UPDATE inscripciones_cursos
+          SET estatus = 'Cancelado', nota_admin = COALESCE(nota_admin || ' · ', '') || 'Reserva vencida sin pago verificado', actualizado_en = ?
+          WHERE id_inscripcion = ? AND estatus = 'Preinscrito'
+            AND reserva_vence_en IS NOT NULL AND reserva_vence_en <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+            AND NOT EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_inscripcion_curso = ? AND pg.estatus = 'Pendiente' AND pg.eliminado_en IS NULL)`,
+    args: [new Date().toISOString(), idInscripcion, idInscripcion]
+  });
 }
 
 /**
@@ -268,6 +322,33 @@ export async function formalizarAfiliado(idAfiliado: number, idPago?: number) {
 export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParams) {
   const now = new Date().toISOString();
 
+  // El cobro de un curso al público general se asocia al estudiante de la inscripción
+  if (params.id_inscripcion_curso && !params.id_afiliado && !params.id_estudiante) {
+    const insc = await db.execute({
+      sql: `SELECT id_estudiante FROM inscripciones_cursos WHERE id_inscripcion = ?`,
+      args: [params.id_inscripcion_curso]
+    });
+    params = { ...params, id_estudiante: insc.rows[0] ? Number(insc.rows[0].id_estudiante) : null };
+  }
+  if (!params.id_afiliado && !params.id_estudiante) {
+    throw new Error('El cobro necesita un afiliado o una inscripción de curso');
+  }
+
+  // Una reserva vencida ya liberó su cupo: solo se cobra si el curso aún tiene lugar
+  if (params.id_inscripcion_curso) {
+    const r = await db.execute({
+      sql: `SELECT ${sqlOcupaCupo('ic')} AS ocupa, c.cupos_totales,
+                   (SELECT COUNT(*) FROM inscripciones_cursos o WHERE o.id_curso = ic.id_curso AND ${sqlOcupaCupo('o')}) AS ocupados
+            FROM inscripciones_cursos ic JOIN cursos c ON c.id_curso = ic.id_curso
+            WHERE ic.id_inscripcion = ?`,
+      args: [params.id_inscripcion_curso]
+    });
+    const insc = r.rows[0] as any;
+    if (insc && !Number(insc.ocupa) && !esCupoIlimitado(insc.cupos_totales) && Number(insc.ocupados) >= Number(insc.cupos_totales)) {
+      throw new Error('La reserva de esta inscripción venció y el curso ya no tiene cupos disponibles');
+    }
+  }
+
   const insertRes = await conNumeroRecibo(numeroRecibo => db.execute({
     sql: `INSERT INTO pagos (
             numero_recibo, id_afiliado, id_inscripcion_curso, id_edicion_cibir,
@@ -276,7 +357,7 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
             banco_destino, referencia, titular_origen, telefono_origen,
             comprobante_url, estatus, origen_registro, registrado_por,
             verificado_por, fecha_pago, fecha_verificacion, notas, creado_en,
-            periodo, meses_cubiertos
+            periodo, meses_cubiertos, id_estudiante, codigo_arancel
           ) VALUES (
             ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -284,11 +365,11 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
             ?, ?, ?, ?,
             NULL, 'Verificado', 'admin', ?,
             ?, ?, ?, ?, ?,
-            ?, ?
+            ?, ?, ?, ?
           ) RETURNING *`,
     args: [
       numeroRecibo,
-      params.id_afiliado,
+      params.id_afiliado ?? null,
       params.id_inscripcion_curso || null,
       params.id_edicion_cibir || null,
       params.tipo_concepto,
@@ -309,15 +390,21 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
       now, // fecha_verificacion
       params.notas || null,
       now,
-      ...periodoArgs(params, now)
+      ...periodoArgs(params, now),
+      params.id_estudiante ?? null,
+      params.codigo_arancel ?? codigoArancelPorDefecto(params.tipo_concepto)
     ]
   }));
 
   const pagoCreado = insertRes.rows[0] as any;
 
   // Si es formalización de afiliación, activar automáticamente
-  if (params.tipo_concepto === 'formalizacion_afiliacion') {
+  if (params.tipo_concepto === 'formalizacion_afiliacion' && params.id_afiliado) {
     await formalizarAfiliado(params.id_afiliado, pagoCreado.id_pago);
+  }
+
+  if (params.id_inscripcion_curso) {
+    await confirmarInscripcionPagada(params.id_inscripcion_curso);
   }
 
   // Si es cobro de curso CIBIR
@@ -327,7 +414,7 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
         sql: `UPDATE inscripciones_edicion_cibir 
               SET actualizado_en = ? 
               WHERE id_edicion = ? AND id_afiliado = ?`,
-        args: [now, params.id_edicion_cibir, params.id_afiliado]
+        args: [now, params.id_edicion_cibir, params.id_afiliado ?? null]
       });
     } catch (errCibir) {
       console.error('[PagosService] Error vinculando pago a edicion CIBIR:', errCibir);
@@ -351,7 +438,7 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
             banco_destino, referencia, titular_origen, telefono_origen,
             comprobante_url, estatus, origen_registro, registrado_por,
             verificado_por, fecha_pago, fecha_verificacion, notas, creado_en,
-            periodo, meses_cubiertos
+            periodo, meses_cubiertos, id_estudiante, codigo_arancel
           ) VALUES (
             ?, ?, ?, ?,
             ?, ?, ?, ?,
@@ -359,11 +446,11 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
             ?, ?, ?, ?,
             ?, 'Pendiente', 'afiliado', ?,
             NULL, ?, NULL, ?, ?,
-            ?, ?
+            ?, ?, ?, ?
           ) RETURNING *`,
     args: [
       numeroRecibo,
-      params.id_afiliado,
+      params.id_afiliado ?? null,
       params.id_inscripcion_curso || null,
       params.id_edicion_cibir || null,
       params.tipo_concepto,
@@ -383,7 +470,9 @@ export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
       now, // fecha_pago
       params.notas || null,
       now,
-      ...periodoArgs(params, now)
+      ...periodoArgs(params, now),
+      null, // id_estudiante: el reporte en línea es solo de afiliados
+      params.codigo_arancel ?? codigoArancelPorDefecto(params.tipo_concepto)
     ]
   }));
 
@@ -462,6 +551,10 @@ export async function verificarPagoDigital(idPago: number, adminUserId: number) 
     await formalizarAfiliado(pago.id_afiliado, pago.id_pago);
   }
 
+  if (pago.id_inscripcion_curso) {
+    await confirmarInscripcionPagada(Number(pago.id_inscripcion_curso));
+  }
+
   // Notificar al usuario que su pago fue verificado
   try {
     NotificationService.notify({
@@ -508,6 +601,10 @@ export async function rechazarPagoDigital(idPago: number, motivoRechazo: string,
 
   const pagoActualizado = updateRes.rows[0] as any;
 
+  if (pago.id_inscripcion_curso) {
+    await liberarReservaVencida(Number(pago.id_inscripcion_curso));
+  }
+
   // Notificar al usuario del rechazo
   try {
     NotificationService.notify({
@@ -538,12 +635,10 @@ export async function getReciboDetalle(idPagoOrNumeroRecibo: number | string) {
            COALESCE(per.nombres || ' ' || per.apellidos, emp.razon_social) as pagador_nombre,
            COALESCE(per.cedula, emp.rif_numero) as pagador_identificacion,
            COALESCE(per.email, emp.email) as pagador_email,
-           COALESCE(per.telefono_principal, emp.telefono_principal) as pagador_telefono,
+           COALESCE(per.telefono, emp.telefono) as pagador_telefono,
            u_admin.email as admin_verificador_email
     FROM pagos p
-    JOIN afiliados a ON p.id_afiliado = a.id_afiliado
-    LEFT JOIN personas per ON a.id_persona = per.id
-    LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
+    ${SQL_JOIN_PAGADOR}
     LEFT JOIN users u_admin ON p.verificado_por = u_admin.id
     WHERE ${isNumber ? 'p.id_pago = ?' : 'p.numero_recibo = ?'}
     LIMIT 1

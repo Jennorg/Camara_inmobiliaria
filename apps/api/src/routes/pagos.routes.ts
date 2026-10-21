@@ -15,7 +15,8 @@ import {
   adminCreateCuenta,
   adminUpdateCuenta,
   adminDeleteCuenta,
-  adminUpdateArancel
+  adminUpdateArancel,
+  adminCursosPorCobrar
 } from '../controllers/pagos.controller.js';
 import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia } from '../controllers/solvencia.controller.js';
 
@@ -35,6 +36,7 @@ router.get('/solvencia/afiliado/:idAfiliado', requireAuth, getSolvenciaAfiliado)
 router.get('/admin', requireAuth, requireRole(...adminRoles), adminListPagos);
 router.get('/admin/solvencia', requireAuth, requireRole(...adminRoles), adminResumenSolvencia);
 router.put('/admin/solvencia/config', requireAuth, requireRole(...adminRoles), adminSetInicioSolvencia);
+router.get('/admin/cursos-por-cobrar', requireAuth, requireRole(...adminRoles), adminCursosPorCobrar);
 router.post('/admin/cobro-taquilla', requireAuth, requireRole(...adminRoles), adminCobroTaquilla);
 router.patch('/admin/:id/verificar', requireAuth, requireRole(...adminRoles), adminVerificarPago);
 router.patch('/admin/:id/rechazar', requireAuth, requireRole(...adminRoles), adminRechazarPago);

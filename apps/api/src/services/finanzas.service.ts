@@ -1,4 +1,5 @@
 import { db } from '../lib/db.js';
+import { SQL_JOIN_PAGADOR } from './pagos.service.js';
 
 export interface FiltrosFinanzas {
   anio?: number;
@@ -259,9 +260,7 @@ export const finanzasService = {
         emp.rif_tipo as rif_tipo_empresa,
         emp.rif_numero as rif_numero_empresa
       FROM pagos p
-      LEFT JOIN afiliados a ON p.id_afiliado = a.id_afiliado
-      LEFT JOIN personas per ON a.id_persona = per.id
-      LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
+      ${SQL_JOIN_PAGADOR}
       WHERE p.estatus = 'Verificado'
         AND p.eliminado_en IS NULL
         AND ${dateCond.sql}

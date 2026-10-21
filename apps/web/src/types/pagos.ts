@@ -13,6 +13,7 @@ export type TipoConceptoPago =
   | 'curso_cibir'
   | 'mensualidad'
   | 'curso'
+  | 'programa'
   | 'otro';
 
 export type EstatusPago = 'Pendiente' | 'Verificado' | 'Rechazado' | 'Anulado';
@@ -20,7 +21,8 @@ export type EstatusPago = 'Pendiente' | 'Verificado' | 'Rechazado' | 'Anulado';
 export interface PagoDTO {
   id_pago: number;
   numero_recibo: string;
-  id_afiliado: number;
+  id_afiliado: number | null;
+  id_estudiante?: number | null;
   id_inscripcion_curso?: number | null;
   id_edicion_cibir?: number | null;
   tipo_concepto: TipoConceptoPago;

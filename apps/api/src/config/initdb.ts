@@ -381,10 +381,14 @@ const statements = [
   `CREATE TABLE IF NOT EXISTS pagos (
     id_pago               INTEGER PRIMARY KEY AUTOINCREMENT,
     numero_recibo         TEXT UNIQUE NOT NULL,
-    id_afiliado           INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    -- Pagador: un afiliado o, en cursos cobrados en taquilla, un estudiante sin afiliación.
+    -- RESTRICT: borrar un afiliado no debe borrar ventas del libro.
+    id_afiliado           INTEGER REFERENCES afiliados(id_afiliado) ON DELETE RESTRICT,
+    id_estudiante         INTEGER REFERENCES estudiantes(id_estudiante) ON DELETE RESTRICT,
     id_inscripcion_curso  INTEGER REFERENCES inscripciones_cursos(id_inscripcion) ON DELETE SET NULL,
     id_edicion_cibir      INTEGER REFERENCES ediciones_cibir(id_edicion) ON DELETE SET NULL,
-    tipo_concepto         TEXT NOT NULL CHECK (tipo_concepto IN ('formalizacion_afiliacion', 'curso_cibir', 'mensualidad', 'curso', 'otro')),
+    tipo_concepto         TEXT NOT NULL CHECK (tipo_concepto IN ('formalizacion_afiliacion', 'curso_cibir', 'mensualidad', 'curso', 'programa', 'otro')),
+    codigo_arancel        TEXT,
     descripcion_concepto  TEXT NOT NULL,
     metodo_pago           TEXT NOT NULL CHECK (metodo_pago IN (
                             'efectivo_usd', 'efectivo_bs', 'pago_movil',
@@ -410,7 +414,8 @@ const statements = [
     notas                 TEXT,
     creado_en             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     actualizado_en        TEXT,
-    eliminado_en          TEXT
+    eliminado_en          TEXT,
+    CHECK (id_afiliado IS NOT NULL OR id_estudiante IS NOT NULL)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_afiliado ON pagos(id_afiliado)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_estatus ON pagos(estatus)`,
@@ -906,6 +911,14 @@ async function run() {
     for (const col of ['precio_afiliado_usd REAL', 'precio_publico_usd REAL', 'horas_reserva INTEGER NOT NULL DEFAULT 48']) {
       try {
         await db.execute(`ALTER TABLE cursos ADD COLUMN ${col}`)
+      } catch (e) {
+        // Ignorar si la columna ya existe
+      }
+    }
+    // Migración: reserva de cupo en cursos de pago (vence y precio congelado al reservar)
+    for (const col of ['reserva_vence_en TEXT', 'monto_usd REAL']) {
+      try {
+        await db.execute(`ALTER TABLE inscripciones_cursos ADD COLUMN ${col}`)
       } catch (e) {
         // Ignorar si la columna ya existe
       }

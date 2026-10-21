@@ -34,6 +34,7 @@ import Swal from 'sweetalert2'
 import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/ModalGestionCuentasBancarias'
 import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
 import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrarGasto'
+import ModalCursosPorCobrar from '@/pages/admin/components/Finance/ModalCursosPorCobrar'
 import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
 import type { PagoDTO } from '@/types/pagos'
@@ -110,6 +111,7 @@ export default function FinancePanel() {
 
   // Modales
   const [modalGastoOpen, setModalGastoOpen] = useState(false)
+  const [modalCursosOpen, setModalCursosOpen] = useState(false)
   const [modalCuentasOpen, setModalCuentasOpen] = useState(false)
   const [modalArancelesOpen, setModalArancelesOpen] = useState(false)
   
@@ -389,6 +391,13 @@ export default function FinancePanel() {
           >
             <DollarSign size={14} className="text-emerald-600" />
             Aranceles
+          </button>
+          <button
+            onClick={() => setModalCursosOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm"
+          >
+            <Receipt size={14} className="text-emerald-600" />
+            Cobrar Curso
           </button>
           <button
             onClick={() => setModalGastoOpen(true)}
@@ -1007,6 +1016,17 @@ export default function FinancePanel() {
         isOpen={modalArancelesOpen}
         open={modalArancelesOpen}
         onClose={() => setModalArancelesOpen(false)}
+        authHeaders={authHeaders}
+      />
+
+      <ModalCursosPorCobrar
+        open={modalCursosOpen}
+        onClose={() => setModalCursosOpen(false)}
+        onCobrado={(pago) => {
+          setModalCursosOpen(false)
+          setReciboPago(pago)
+          fetchLibroVentas()
+        }}
         authHeaders={authHeaders}
       />
 

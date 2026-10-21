@@ -2,6 +2,7 @@ import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js';
 import { Request, Response } from 'express';
 import { db } from '../lib/db.js';
 import * as pagosService from '../services/pagos.service.js';
+import { precioCurso } from '../lib/cursos-pago.js';
 
 // ============================================================
 // PÚBLICO / USUARIO AUTENTICADO
@@ -109,11 +110,34 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    if (id_inscripcion_curso) {
+      // La inscripción debe ser del propio afiliado (su persona o su empresa) y seguir activa
+      const insc = await db.execute({
+        sql: `SELECT ic.estatus
+              FROM inscripciones_cursos ic
+              JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+              JOIN afiliados a ON a.id_afiliado = ?
+              WHERE ic.id_inscripcion = ?
+                AND (e.id_persona = a.id_persona OR (a.id_empresa IS NOT NULL AND e.id_empresa = a.id_empresa))`,
+        args: [Number(id_afiliado), Number(id_inscripcion_curso)]
+      });
+      const estatus = insc.rows[0]?.estatus as string | undefined;
+      if (!estatus) {
+        res.status(403).json({ success: false, message: 'La inscripción no pertenece a este afiliado' });
+        return;
+      }
+      if (!['Preinscrito', 'Entrevista', 'Inscrito'].includes(estatus)) {
+        res.status(409).json({ success: false, message: `La inscripción está "${estatus}" y no admite pagos` });
+        return;
+      }
+    }
+
     const pago = await pagosService.reportarPagoDigital({
       id_afiliado: Number(id_afiliado),
       id_inscripcion_curso: id_inscripcion_curso ? Number(id_inscripcion_curso) : null,
       id_edicion_cibir: id_edicion_cibir ? Number(id_edicion_cibir) : null,
       tipo_concepto: tipo_concepto || 'formalizacion_afiliacion',
+      codigo_arancel: req.body.codigo_arancel || null,
       descripcion_concepto: descripcion_concepto || 'Formalización de Inscripción y Membresía Gremial',
       metodo_pago,
       moneda: moneda || 'USD',
@@ -242,9 +266,7 @@ export const adminListPagos = async (req: Request, res: Response): Promise<void>
     const countRes = await db.execute({
       sql: `SELECT COUNT(*) as total 
             FROM pagos p
-            JOIN afiliados a ON p.id_afiliado = a.id_afiliado
-            LEFT JOIN personas per ON a.id_persona = per.id
-            LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
+            ${pagosService.SQL_JOIN_PAGADOR}
             WHERE ${whereClause}`,
       args
     });
@@ -261,9 +283,7 @@ export const adminListPagos = async (req: Request, res: Response): Promise<void>
                    COALESCE(per.email, emp.email) as pagador_email,
                    u_admin.email as admin_verificador_email
             FROM pagos p
-            JOIN afiliados a ON p.id_afiliado = a.id_afiliado
-            LEFT JOIN personas per ON a.id_persona = per.id
-            LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
+            ${pagosService.SQL_JOIN_PAGADOR}
             LEFT JOIN users u_admin ON p.verificado_por = u_admin.id
             WHERE ${whereClause}
             ORDER BY p.id_pago DESC
@@ -287,6 +307,58 @@ export const adminListPagos = async (req: Request, res: Response): Promise<void>
 };
 
 /**
+ * GET /api/pagos/admin/cursos-por-cobrar?q=
+ * Inscripciones a cursos de pago sin pago verificado, para cobrarlas en taquilla.
+ * `precio_actual` se recalcula según la afiliación real de la persona: si difiere de `monto_usd`
+ * (el precio congelado al reservar), la caja debe revisarlo antes de cobrar.
+ */
+export const adminCursosPorCobrar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const term = `%${q}%`;
+    const r = await db.execute({
+      sql: `SELECT ic.id_inscripcion, ic.id_estudiante, ic.estatus, ic.reserva_vence_en, ic.monto_usd,
+                   c.id_curso, c.titulo AS curso, c.precio_afiliado_usd, c.precio_publico_usd,
+                   COALESCE(per.nombres || ' ' || per.apellidos, emp.razon_social) AS nombre,
+                   COALESCE(per.cedula, emp.rif_numero) AS identificacion,
+                   COALESCE(per.email, emp.email) AS email,
+                   (SELECT a.id_afiliado FROM afiliados a
+                     WHERE a.estatus = 'Afiliado' AND a.activo = 1 AND a.eliminado_en IS NULL
+                       AND (a.id_persona = est.id_persona OR (est.id_empresa IS NOT NULL AND a.id_empresa = est.id_empresa))
+                     LIMIT 1) AS id_afiliado,
+                   EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_inscripcion_curso = ic.id_inscripcion
+                            AND pg.estatus = 'Pendiente' AND pg.eliminado_en IS NULL) AS pago_pendiente
+            FROM inscripciones_cursos ic
+            JOIN cursos c ON c.id_curso = ic.id_curso
+            JOIN estudiantes est ON est.id_estudiante = ic.id_estudiante
+            LEFT JOIN personas per ON per.id = est.id_persona
+            LEFT JOIN empresas emp ON emp.id_empresa = est.id_empresa
+            WHERE ic.estatus IN ('Preinscrito', 'Entrevista', 'Inscrito')
+              AND (COALESCE(c.precio_afiliado_usd, 0) > 0 OR COALESCE(c.precio_publico_usd, 0) > 0)
+              AND NOT EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_inscripcion_curso = ic.id_inscripcion
+                               AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL)
+              AND (? = '' OR per.nombres LIKE ? OR per.apellidos LIKE ? OR emp.razon_social LIKE ?
+                   OR per.cedula LIKE ? OR emp.rif_numero LIKE ? OR per.email LIKE ? OR c.titulo LIKE ?)
+            ORDER BY ic.reserva_vence_en IS NULL, ic.reserva_vence_en
+            LIMIT 50`,
+      args: [q, term, term, term, term, term, term, term],
+    });
+    const ahora = new Date().toISOString();
+    res.json({
+      success: true,
+      data: r.rows.map((row: any) => ({
+        ...row,
+        precio_actual: precioCurso(row, row.id_afiliado != null),
+        reserva_vencida: !!row.reserva_vence_en && row.reserva_vence_en <= ahora && !row.pago_pendiente,
+      })),
+    });
+  } catch (error) {
+    console.error('adminCursosPorCobrar error:', error);
+    res.status(500).json({ success: false, message: 'Error al listar cursos por cobrar' });
+  }
+};
+
+/**
  * POST /api/admin/pagos/cobro-taquilla
  * Registrar cobro directo en taquilla/caja (Efectivo USD/Bs, POS, etc.)
  */
@@ -300,9 +372,11 @@ export const adminCobroTaquilla = async (req: Request, res: Response): Promise<v
 
     const {
       id_afiliado,
+      id_estudiante,
       id_inscripcion_curso,
       id_edicion_cibir,
       tipo_concepto,
+      codigo_arancel,
       descripcion_concepto,
       metodo_pago,
       moneda,
@@ -319,16 +393,18 @@ export const adminCobroTaquilla = async (req: Request, res: Response): Promise<v
       meses_cubiertos
     } = req.body;
 
-    if (!id_afiliado || !metodo_pago || !monto) {
+    if (!(id_afiliado || id_estudiante || id_inscripcion_curso) || !metodo_pago || !monto) {
       res.status(400).json({
         success: false,
-        message: 'Campos requeridos: id_afiliado, metodo_pago, monto'
+        message: 'Campos requeridos: id_afiliado (o la inscripción del curso), metodo_pago, monto'
       });
       return;
     }
 
     const pago = await pagosService.registrarCobroTaquilla({
-      id_afiliado: Number(id_afiliado),
+      id_afiliado: id_afiliado ? Number(id_afiliado) : null,
+      id_estudiante: id_estudiante ? Number(id_estudiante) : null,
+      codigo_arancel: codigo_arancel || null,
       id_inscripcion_curso: id_inscripcion_curso ? Number(id_inscripcion_curso) : null,
       id_edicion_cibir: id_edicion_cibir ? Number(id_edicion_cibir) : null,
       tipo_concepto: tipo_concepto || 'formalizacion_afiliacion',

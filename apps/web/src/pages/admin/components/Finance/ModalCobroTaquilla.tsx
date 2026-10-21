@@ -5,15 +5,26 @@ import { API_URL } from '@/config/env';
 import { MetodoPago, TipoConceptoPago, PagoDTO } from '@/types/pagos';
 import Swal from 'sweetalert2';
 
+/** Inscripción a un curso de pago que se cobra en taquilla (puede ser de alguien sin afiliación). */
+export interface CursoPorCobrar {
+  id_inscripcion: number;
+  curso: string;
+  /** Precio congelado al reservar */
+  monto_usd: number | null;
+  /** Precio según la afiliación actual de la persona */
+  precio_actual: number;
+}
+
 interface ModalCobroTaquillaProps {
   open: boolean;
   onClose: () => void;
   onSuccess: (pago: PagoDTO) => void;
-  afiliadoId: number;
+  afiliadoId: number | null;
   afiliadoNombre: string;
   afiliadoTipo?: string;
   conceptoDefault?: TipoConceptoPago;
   idEdicionCibir?: number | null;
+  cursoPorCobrar?: CursoPorCobrar | null;
   authHeaders: Record<string, string>;
 }
 
@@ -26,6 +37,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   afiliadoTipo = 'Natural',
   conceptoDefault = 'formalizacion_afiliacion',
   idEdicionCibir = null,
+  cursoPorCobrar = null,
   authHeaders
 }) => {
   const [tipoConcepto, setTipoConcepto] = useState<TipoConceptoPago>(conceptoDefault);
@@ -91,6 +103,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
               } else if (conceptoDefault === 'mensualidad') {
                 const arMens = aranceles.find((a: any) => a.codigo === 'mensualidad_base');
                 suggestedMonto = arMens ? Number(arMens.monto_usd) : 5;
+              } else if (conceptoDefault === 'curso' && cursoPorCobrar) {
+                suggestedMonto = Number(cursoPorCobrar.monto_usd) || cursoPorCobrar.precio_actual;
               }
 
               setMontoUSD(suggestedMonto);
@@ -101,7 +115,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       })
       .catch(err => console.error('Error cargando aranceles/tasas:', err))
       .finally(() => setLoadingAranceles(false));
-  }, [open, conceptoDefault, afiliadoTipo]);
+  }, [open, conceptoDefault, afiliadoTipo, cursoPorCobrar]);
 
   // Actualizar montos en Bs al cambiar tasa o moneda
   const handleTasaChange = (val: string) => {
@@ -158,6 +172,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         descConcepto = `Formalización de Inscripción ($${(montoUSD - 5).toFixed(2)}) + Primera Mensualidad ($5.00)`;
       } else if (tipoConcepto === 'curso_cibir') {
         descConcepto = 'Arancel Curso de Inducción en Bienes Raíces (CIBIR)';
+      } else if (tipoConcepto === 'curso' && cursoPorCobrar) {
+        descConcepto = `Curso: ${cursoPorCobrar.curso}`;
       } else if (tipoConcepto === 'mensualidad') {
         descConcepto = mesesCubiertos > 1
           ? `Cuotas Mensuales de Membresía Gremial (${mesesCubiertos} meses desde ${periodo})`
@@ -167,6 +183,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       const payload = {
         id_afiliado: afiliadoId,
         id_edicion_cibir: idEdicionCibir,
+        id_inscripcion_curso: cursoPorCobrar?.id_inscripcion ?? null,
         tipo_concepto: tipoConcepto,
         descripcion_concepto: descConcepto,
         metodo_pago: metodoPago,
@@ -228,7 +245,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 Registrar Cobro en Taquilla
               </h3>
               <p className="text-xs font-bold text-slate-500">
-                Aspirante: <span className="text-emerald-700">{afiliadoNombre}</span>
+                Pagador: <span className="text-emerald-700">{afiliadoNombre}</span>
               </p>
             </div>
           </div>
@@ -244,7 +261,18 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           
-          {/* Concepto */}
+          {cursoPorCobrar ? (
+            <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block">Curso</span>
+              <span className="text-sm font-bold text-slate-800">{cursoPorCobrar.curso}</span>
+              {cursoPorCobrar.monto_usd != null && Number(cursoPorCobrar.monto_usd) !== cursoPorCobrar.precio_actual && (
+                <p className="flex items-start gap-1.5 text-[11px] font-semibold text-amber-700">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  Reservó a ${Number(cursoPorCobrar.monto_usd).toFixed(2)}, pero según su afiliación actual le corresponden ${cursoPorCobrar.precio_actual.toFixed(2)}. Verifica su identidad antes de cobrar.
+                </p>
+              )}
+            </div>
+          ) : (
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
               Concepto del Cobro
@@ -320,6 +348,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Método de Pago */}
           <div className="space-y-1">
