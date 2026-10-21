@@ -162,3 +162,41 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
     </section>
   )
 }
+
+/**
+ * Acceso a las cohortes cuando aún no hay un programa elegido (vista "Todos"): resume cada programa y lo abre con un clic,
+ * para que la franja de cohortes se descubra desde la primera pantalla.
+ */
+export function CohortesPorPrograma({ cohortes, onElegir }: { cohortes: Cohorte[]; onElegir: (programa: Cohorte['programa_codigo']) => void }) {
+  const idTitulo = useId()
+  const programas: Cohorte['programa_codigo'][] = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
+  return (
+    <section aria-labelledby={idTitulo} className="border-b border-gray-100 bg-white px-4 py-3">
+      <h3 id={idTitulo} className="mb-2 text-sm font-bold text-slate-800">
+        Cohortes por programa
+      </h3>
+      <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
+        {programas.map(programa => {
+          const delPrograma = cohortes.filter(c => c.programa_codigo === programa)
+          const inscritos = delPrograma.reduce((suma, c) => suma + c.inscritos, 0)
+          const abierta = delPrograma.find(c => c.estado === 'Abierta')
+          return (
+            <button
+              key={programa}
+              type="button"
+              onClick={() => onElegir(programa)}
+              className={`flex min-w-44 flex-1 basis-44 flex-col gap-0.5 rounded-2xl border border-gray-200 bg-white p-3 text-left transition-colors hover:border-gray-300 hover:bg-slate-50 ${FOCO}`}
+            >
+              <span className="text-sm font-bold text-slate-800">{programa}</span>
+              <span className="text-xs text-slate-600">
+                <b className="font-bold tabular-nums text-slate-900">{delPrograma.length}</b> {delPrograma.length === 1 ? 'cohorte' : 'cohortes'} ·{' '}
+                <b className="font-bold tabular-nums text-slate-900">{inscritos}</b> {inscritos === 1 ? 'inscrito' : 'inscritos'}
+              </span>
+              <span className="truncate text-[11px] text-slate-500">{abierta ? `Abierta: ${abierta.nombre}` : 'Sin cohorte abierta'}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}

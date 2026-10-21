@@ -7,7 +7,7 @@ import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
 import { formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
-import CohortesNavegador, { type Cohorte } from './CohortesNavegador'
+import CohortesNavegador, { CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -949,6 +949,11 @@ export default function PreinscripcionesPrincipalesPanel({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
+      {!PROGRAMAS_CON_COHORTE.includes(programa) && cohortes.length > 0 && (
+        <div className={selected ? 'hidden sm:block' : ''}>
+          <CohortesPorPrograma cohortes={cohortes} onElegir={setPrograma} />
+        </div>
+      )}
       {PROGRAMAS_CON_COHORTE.includes(programa) && (
         <div className={selected ? 'hidden sm:block' : ''}>
           <CohortesNavegador
