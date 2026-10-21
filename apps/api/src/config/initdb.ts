@@ -936,6 +936,12 @@ async function run() {
         // Ignorar si la columna ya existe
       }
     }
+    // Migración: logo de marca del afiliado (lo leen las consultas de afiliados; faltaba en bases nuevas)
+    try {
+      await db.execute(`ALTER TABLE afiliados ADD COLUMN marca_logo_url TEXT`)
+    } catch (e) {
+      // Ignorar si la columna ya existe
+    }
     // Migración: reserva de cupo en cursos de pago (vence y precio congelado al reservar)
     for (const col of ['reserva_vence_en TEXT', 'monto_usd REAL']) {
       try {
