@@ -87,16 +87,40 @@ export interface ResumenDeuda {
 
 /**
  * Deuda vencida a la fecha `hoy` (YYYY-MM-DD): los meses anteriores sin pagar y, pasado el día de
- * vencimiento, también el mes en curso. Bloquea cuando la deuda supera los meses de gracia.
+ * vencimiento, también el mes en curso. Un pago reportado (en revisión) deja de contar como deuda,
+ * pero el bloqueo solo se levanta cuando Finanzas lo verifica: bloquea si los meses vencidos sin
+ * pago verificado superan los meses de gracia.
  */
 export function resumenDeuda(meses: MesSolvencia[], hoy: string, montoMensual: number, cfg: ConfigCobranza): ResumenDeuda {
   const mesHoy = hoy.slice(0, 7)
   const vencioMesActual = Number(hoy.slice(8, 10)) > cfg.diaVencimiento
-  const impagos = meses.filter(m => m.estado === 'deuda' || (m.estado === 'por_pagar' && m.periodo === mesHoy && vencioMesActual))
+  const vencido = (m: MesSolvencia) => m.periodo < mesHoy || (m.periodo === mesHoy && vencioMesActual)
+  const impagos = meses.filter(m => vencido(m) && (m.estado === 'deuda' || m.estado === 'por_pagar'))
+  const sinVerificar = meses.filter(m => vencido(m) && (m.estado === 'deuda' || m.estado === 'por_pagar' || m.estado === 'en_revision'))
   return {
     mesesDeuda: impagos.length,
     montoUsd: impagos.length * montoMensual,
     mesMasAntiguo: impagos[0]?.periodo ?? null,
-    bloqueado: impagos.length > cfg.mesesGracia,
+    bloqueado: sinVerificar.length > cfg.mesesGracia,
   }
+}
+
+export type TipoAviso = 'previo' | 'vencimiento' | 'mora'
+
+/**
+ * Qué aviso de cobranza le toca hoy (YYYY-MM-DD) a un afiliado, o null.
+ * Con deuda vencida: aviso de mora, repetido cada `frecuenciaMoraDias` desde el último (`ultimaMora`).
+ * Al día pero con el mes en curso sin pagar: aviso el día del vencimiento y `diasAvisoPrevio` días antes.
+ */
+export function avisoDelDia(hoy: string, cfg: ConfigCobranza, estadoMesActual: EstadoMes | undefined, mesesDeuda: number, ultimaMora: string | null): TipoAviso | null {
+  if (mesesDeuda > 0) {
+    if (!ultimaMora) return 'mora'
+    const dias = (Date.parse(hoy) - Date.parse(ultimaMora)) / 86_400_000
+    return dias >= cfg.frecuenciaMoraDias ? 'mora' : null
+  }
+  if (estadoMesActual !== 'por_pagar') return null
+  const dia = Number(hoy.slice(8, 10))
+  if (dia === cfg.diaVencimiento) return 'vencimiento'
+  if (cfg.diasAvisoPrevio > 0 && dia === cfg.diaVencimiento - cfg.diasAvisoPrevio) return 'previo'
+  return null
 }

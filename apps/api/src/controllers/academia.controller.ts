@@ -26,6 +26,7 @@ import {
   enviarCorreoResultadoEntrevista,
   enviarCorreoInvitacionCibir,
   enviarCorreoRechazo,
+  enviarCorreoReservaCurso,
 } from '../lib/email.js'
 import bcrypt from 'bcryptjs'
 import { NotificationService } from '../services/notification.service.js'
@@ -1717,6 +1718,14 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
             RETURNING *`,
       args: [id_estudiante, idCurso, estatusInscripcion, now, now, now, reservaVence, montoUsd > 0 ? montoUsd : null],
     })
+
+    if (reservaVence) {
+      // No bloquea la respuesta: el mensaje en pantalla ya trae el monto y el vencimiento
+      enviarCorreoReservaCurso({
+        nombre: nombreCompleto || [reqNombres, reqApellidos].filter(Boolean).join(' '),
+        email, curso: curso.titulo, montoUsd, venceEn: reservaVence, esAfiliado,
+      }).catch(e => console.error('enviarCorreoReservaCurso:', e))
+    }
 
     const message = reservaVence
       ? `Cupo reservado. Monto a pagar: $${montoUsd.toFixed(2)}${esAfiliado ? ' (precio de afiliado)' : ''}. ` +

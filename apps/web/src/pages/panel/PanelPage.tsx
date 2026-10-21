@@ -61,6 +61,7 @@ import SEO from '@/components/SEO';
 
 import { useAuth } from '@/context/AuthContext';
 import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia';
+import BannerMora from '@/components/BannerMora';
 import { API_URL } from '@/config/env';
 import { apiFetch } from '@/lib/apiClient';
 import { formatNombreCard } from '@/utils/formatters';
@@ -639,6 +640,10 @@ const PanelPage = () => {
                     ))}
                   </div>
                 </div>
+
+                {isAfiliadoActivo && afiliado?.id_afiliado && activeTab !== 'Estado de Cuenta y Solvencias' && (
+                  <BannerMora key={versionSolvencia} idAfiliado={afiliado.id_afiliado} onIrAPagar={() => setActiveTab('Estado de Cuenta y Solvencias')} />
+                )}
 
                 {/* Content grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-8">

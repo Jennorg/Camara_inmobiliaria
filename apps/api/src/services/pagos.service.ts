@@ -562,7 +562,7 @@ export async function verificarPagoDigital(idPago: number, adminUserId: number) 
       title: `Pago Verificado (${pago.numero_recibo})`,
       message: `Tu pago de ${pago.monto} ${pago.moneda} ha sido verificado satisfactoriamente por la administración.`,
       type: 'PAGO_VERIFICADO',
-      channels: ['IN_APP']
+      channels: ['IN_APP', 'EMAIL']
     }).catch(() => {});
   } catch (e) {
     console.error('[PagosService] Error enviando notificación de verificación al usuario:', e);
@@ -612,7 +612,7 @@ export async function rechazarPagoDigital(idPago: number, motivoRechazo: string,
       title: `Pago No Aprobado (${pago.numero_recibo})`,
       message: `Tu pago no pudo ser verificado. Motivo: ${motivoRechazo}. Por favor revisa y vuelve a reportar el comprobante.`,
       type: 'PAGO_RECHAZADO',
-      channels: ['IN_APP']
+      channels: ['IN_APP', 'EMAIL']
     }).catch(() => {});
   } catch (e) {
     console.error('[PagosService] Error enviando notificación de rechazo:', e);

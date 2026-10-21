@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { db } from '../lib/db.js'
 import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js'
-import { calcularSolvencias, setConfigSolvencia } from '../services/cobranza.service.js'
+import { calcularSolvencias, enviarRecordatorioManual, setConfigSolvencia } from '../services/cobranza.service.js'
 
 /** GET /api/pagos/solvencia/afiliado/:idAfiliado — admin, o el propio afiliado */
 export const getSolvenciaAfiliado = async (req: Request, res: Response): Promise<void> => {
@@ -95,5 +95,20 @@ export const adminSetInicioSolvencia = async (req: Request, res: Response): Prom
     }
     console.error('adminSetInicioSolvencia:', error)
     res.status(500).json({ success: false, message: 'No se pudo guardar la configuración' })
+  }
+}
+
+/** POST /api/pagos/admin/solvencia/recordatorio — { id_afiliado?: number } (sin id: a todos los morosos) */
+export const adminEnviarRecordatorio = async (req: Request, res: Response): Promise<void> => {
+  const id = req.body?.id_afiliado
+  if (id !== undefined && !Number.isInteger(Number(id))) {
+    res.status(400).json({ success: false, message: 'id_afiliado inválido' })
+    return
+  }
+  try {
+    res.json({ success: true, data: await enviarRecordatorioManual(id !== undefined ? Number(id) : undefined) })
+  } catch (error) {
+    console.error('adminEnviarRecordatorio:', error)
+    res.status(500).json({ success: false, message: 'No se pudo enviar el recordatorio' })
   }
 }

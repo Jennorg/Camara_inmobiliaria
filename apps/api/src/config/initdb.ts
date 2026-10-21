@@ -418,6 +418,17 @@ const statements = [
     CHECK (id_afiliado IS NOT NULL OR id_estudiante IS NOT NULL)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_afiliado ON pagos(id_afiliado)`,
+  `CREATE INDEX IF NOT EXISTS idx_pagos_inscripcion ON pagos(id_inscripcion_curso)`,
+  // Avisos de cobranza enviados (el UNIQUE diario evita duplicados si el cron se reintenta)
+  `CREATE TABLE IF NOT EXISTS avisos_cobranza (
+    id_aviso     INTEGER PRIMARY KEY,
+    id_afiliado  INTEGER NOT NULL REFERENCES afiliados(id_afiliado) ON DELETE CASCADE,
+    tipo         TEXT    NOT NULL CHECK (tipo IN ('previo', 'vencimiento', 'mora', 'manual')),
+    periodo      TEXT    NOT NULL,
+    fecha_dia    TEXT    NOT NULL,
+    enviado_en   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    UNIQUE (id_afiliado, tipo, fecha_dia)
+  )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_estatus ON pagos(estatus)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_recibo ON pagos(numero_recibo)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_edicion_cibir ON pagos(id_edicion_cibir)`,

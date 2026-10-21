@@ -110,6 +110,26 @@ export default function SolvenciaPanel() {
     return (data?.afiliados ?? []).filter(a => (!soloMora || !a.solvente) && (!busqueda.trim() || coincide(a)))
   }, [data, busqueda, criterio, soloMora])
 
+  const enviarRecordatorio = async (idAfiliado?: number) => {
+    const ok = await Swal.fire({
+      title: idAfiliado ? 'Enviar recordatorio' : 'Recordatorio a todos los morosos',
+      text: 'Se envía por correo y en la campana del panel. Cada afiliado recibe como máximo uno por día.',
+      icon: 'question', showCancelButton: true, confirmButtonText: 'Enviar', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!ok.isConfirmed) return
+    try {
+      const r = await apiFetch<{ data: { morosos: number; registrados: number; emails: number } }>(`${API_URL}/api/pagos/admin/solvencia/recordatorio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(idAfiliado ? { id_afiliado: idAfiliado } : {}),
+      })
+      const { morosos, registrados, emails } = r.data
+      Swal.fire('Listo', registrados ? `Recordatorio enviado a ${registrados} de ${morosos} (${emails} correos).` : 'Ya se les envió un recordatorio hoy.', 'success')
+    } catch (e: any) {
+      Swal.fire('Error', e.message, 'error')
+    }
+  }
+
   const guardarConfig = async (cambios: { inicio?: string; cobranza?: ConfigCobranza }) => {
     setGuardando(true)
     try {
@@ -217,6 +237,10 @@ export default function SolvenciaPanel() {
             )}
           </div>
         </div>
+        <button type="button" onClick={() => enviarRecordatorio()} disabled={enMora.length === 0}
+          className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[11px] font-black uppercase tracking-wider hover:bg-red-100 disabled:opacity-40 cursor-pointer">
+          Recordar a morosos
+        </button>
         <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
           <input type="checkbox" checked={soloMora} onChange={e => setSoloMora(e.target.checked)} className="accent-emerald-600" />
           Solo en mora
@@ -258,7 +282,15 @@ export default function SolvenciaPanel() {
                   </td>
                 </tr>
                 {abierto === a.id_afiliado && (
-                  <tr><td colSpan={15} className="bg-slate-50/60 px-6 py-4"><LineaTiempoSolvencia idAfiliado={a.id_afiliado} /></td></tr>
+                  <tr><td colSpan={15} className="bg-slate-50/60 px-6 py-4 space-y-3">
+                    {!a.solvente && (
+                      <button type="button" onClick={() => enviarRecordatorio(a.id_afiliado)}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-black uppercase tracking-wider cursor-pointer">
+                        Enviar recordatorio
+                      </button>
+                    )}
+                    <LineaTiempoSolvencia idAfiliado={a.id_afiliado} />
+                  </td></tr>
                 )}
               </Fragment>
             ))}

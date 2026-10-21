@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express'
 import { env } from './config/env.js'
 import { isOriginAllowed, corsMiddleware } from './lib/cors.js'
-import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes, cibirRoutes, pagosRoutes, finanzasRoutes, denunciasRoutes } from './routes/index.js'
+import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes, cibirRoutes, pagosRoutes, finanzasRoutes, denunciasRoutes, cronRoutes } from './routes/index.js'
 
 
 const app = express() // v1.0.3
@@ -49,6 +49,7 @@ app.use('/api/finanzas', finanzasRoutes)
 app.use('/api/denuncias', denunciasRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/analytics', analyticsRoutes)
+app.use('/api/cron', cronRoutes)
 
 // Rutas base
 app.get('/', (req: Request, res: Response) => {

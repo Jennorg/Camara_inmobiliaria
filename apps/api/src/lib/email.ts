@@ -585,3 +585,53 @@ export const enviarCorreoVinculacionCorporativa = async (params: {
   if (error) { console.error('enviarCorreoVinculacionCorporativa:', error) }
   return data
 }
+
+export interface CorreoSimple {
+  to: string
+  subject: string
+  /** Título del encabezado de la plantilla */
+  titulo: string
+  /** Párrafos de texto plano (se escapan) */
+  parrafos: string[]
+}
+
+/**
+ * Envía muchos correos con la API de lotes de Resend (hasta 100 por llamada), para que el cron
+ * no haga una petición por destinatario. Devuelve cuántos se aceptaron.
+ */
+export const enviarCorreosLote = async (correos: CorreoSimple[]): Promise<number> => {
+  const emails = correos.filter(c => c.to).map(c => ({
+    from: DEFAULT_FROM,
+    to: c.to,
+    subject: c.subject,
+    html: renderEmailTemplate(c.parrafos.map(p => `<p>${escapeHtml(p)}</p>`).join(''), escapeHtml(c.titulo)),
+  }))
+  if (!emails.length) return 0
+  if (env.NODE_ENV === 'development') {
+    for (const e of emails) console.log(`--- [MOCK EMAIL LOTE] Para: ${e.to} · ${e.subject}`)
+    return emails.length
+  }
+  if (!env.RESEND_API_KEY || env.RESEND_API_KEY === 're_123') return 0
+  let enviados = 0
+  for (let i = 0; i < emails.length; i += 100) {
+    const { error } = await resend.batch.send(emails.slice(i, i + 100))
+    if (error) console.error('[EMAIL] enviarCorreosLote:', error)
+    else enviados += Math.min(100, emails.length - i)
+  }
+  return enviados
+}
+
+/** Aviso de cupo reservado en un curso de pago (no bloquea la preinscripción si falla). */
+export const enviarCorreoReservaCurso = async (params: { nombre: string; email: string; curso: string; montoUsd: number; venceEn: string; esAfiliado: boolean }) => {
+  const vence = new Date(params.venceEn).toLocaleString('es-VE', { timeZone: 'America/Caracas', dateStyle: 'long', timeStyle: 'short' })
+  return enviarCorreosLote([{
+    to: params.email,
+    subject: `Cupo reservado — ${params.curso}`,
+    titulo: 'Cupo reservado',
+    parrafos: [
+      `Hola, ${nombreSaludo(params.nombre)}.`,
+      `Reservamos tu cupo en "${params.curso}". El monto a pagar es $${params.montoUsd.toFixed(2)}${params.esAfiliado ? ' (precio de afiliado)' : ''}.`,
+      `La reserva vence el ${vence}. Paga antes de esa fecha en la taquilla de la Cámara${params.esAfiliado ? ' o reporta tu pago desde tu panel de afiliado' : ''} para conservar el cupo.`,
+    ],
+  }])
+}
