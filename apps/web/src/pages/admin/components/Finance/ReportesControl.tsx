@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FileSpreadsheet, Loader2, Send } from 'lucide-react'
+import { FileDown, FileSpreadsheet, Loader2, Send } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { toast } from 'sonner'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { dibujarEncabezadoPdf } from '@/utils/pdfEncabezado'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 
@@ -16,8 +20,13 @@ export async function descargarXlsx(reporte: string, params: Record<string, stri
     if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || 'No se pudo generar el Excel')
     const url = URL.createObjectURL(await res.blob())
     const a = Object.assign(document.createElement('a'), { href: url, download: `${reporte}-${hoyCaracas()}.xlsx` })
+    // El enlace debe estar en el documento y el archivo no se libera de inmediato: si no, algunos navegadores cancelan la descarga
+    a.style.display = 'none'
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    toast.success('Excel descargado')
   } catch (e) {
     Swal.fire('Error', e instanceof Error ? e.message : 'No se pudo generar el Excel', 'error')
   }
@@ -53,6 +62,13 @@ const BotonExcel = ({ onClick }: { onClick: () => void }) => (
   </button>
 )
 
+const BotonPdf = ({ onClick }: { onClick: () => void }) => (
+  <button type="button" onClick={onClick}
+    className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm">
+    <FileDown size={13} className="text-emerald-600" aria-hidden="true" /> PDF
+  </button>
+)
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface MatrizConceptos {
@@ -60,6 +76,31 @@ interface MatrizConceptos {
   conceptos: { concepto: string; etiqueta: string; meses: number[]; total: number }[]
   totalesMes: number[]
   total: number
+}
+
+/** PDF apaisado de una matriz concepto × mes, con el encabezado de los demás reportes */
+async function exportarMatrizPdf(titulo: string, data: MatrizConceptos) {
+  try {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+    await dibujarEncabezadoPdf(doc, titulo.toUpperCase(), `Año ${data.anio}`)
+    const monto = (v: number) => (v ? v.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—')
+    autoTable(doc, {
+      head: [['Concepto', ...MESES, 'Total ($)']],
+      body: data.conceptos.map(c => [c.etiqueta, ...c.meses.map(monto), monto(c.total)]),
+      foot: [['Total', ...data.totalesMes.map(monto), monto(data.total)]],
+      startY: 30,
+      styles: { fontSize: 7, cellPadding: 1.5, halign: 'right' },
+      columnStyles: { 0: { cellWidth: 38 } },
+      // La primera columna (concepto) va a la izquierda también en el encabezado y el pie
+      didParseCell: d => { if (d.column.index === 0) d.cell.styles.halign = 'left' },
+      headStyles: { fillColor: [6, 78, 59], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 253, 244], textColor: [6, 78, 59], fontStyle: 'bold' },
+      margin: { left: 14, right: 14 },
+    })
+    doc.save(`${titulo.replace(/\s+/g, '_')}_${data.anio}.pdf`)
+  } catch {
+    toast.error('No se pudo generar el PDF')
+  }
 }
 
 /** Matriz año × concepto por mes: la comparten los ingresos y los egresos. */
@@ -70,7 +111,10 @@ function MatrizPorConcepto({ anio, ruta, titulo, colorTotal, vacio }: { anio: nu
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-bold text-slate-800 text-base">{titulo} · {data.anio} <span className={`${colorTotal} tabular-nums`}>{usd(data.total)}</span></h3>
-        <BotonExcel onClick={() => descargarXlsx(ruta, { anio }, authHeaders)} />
+        <div className="flex items-center gap-2">
+          <BotonPdf onClick={() => exportarMatrizPdf(titulo, data)} />
+          <BotonExcel onClick={() => descargarXlsx(ruta, { anio }, authHeaders)} />
+        </div>
       </div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-xs tabular-nums">

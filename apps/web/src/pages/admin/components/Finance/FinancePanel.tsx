@@ -36,6 +36,7 @@ import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/Modal
 import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
 import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrarGasto'
 import { Skeleton } from '@/components/Skeleton'
+import { dibujarEncabezadoPdf } from '@/utils/pdfEncabezado'
 import Paginacion, { type PaginacionDTO } from '@/pages/admin/components/Finance/Paginacion'
 import ModalRegistrarCobro from '@/pages/admin/components/Finance/ModalRegistrarCobro'
 import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
@@ -112,9 +113,11 @@ const MESES = [
 
 const fmt = (n: number) => `$${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtBs = (n: number) => `Bs. ${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** DD/MM/AAAA. Las marcas de tiempo ISO (UTC) se pasan a la fecha de Caracas; las fechas AAAA-MM-DD no se desplazan. */
 const fmtDate = (s: string) => {
   if (!s) return '-'
-  const [y, m, d] = s.split('-')
+  const dia = s.includes('T') ? new Date(s).toLocaleDateString('en-CA', { timeZone: 'America/Caracas' }) : s.slice(0, 10)
+  const [y, m, d] = dia.split('-')
   if (!d) return s
   return `${d}/${m}/${y}`
 }
@@ -371,16 +374,7 @@ export default function FinancePanel() {
     const mesNombre = selectedMonth ? MESES.find(m => m.num === selectedMonth)?.label : 'Todos'
     const periodoTexto = `Período: ${mesNombre} ${selectedYear}`
 
-    // Encabezado
-    doc.setFillColor(6, 78, 59)
-    doc.rect(0, 0, 280, 24, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`CÁMARA INMOBILIARIA DEL ESTADO BOLÍVAR — ${titulo}`, 14, 12)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`RIF: J-30456789-0 · ${periodoTexto} · Emitido: ${new Date().toLocaleDateString('es-VE')}`, 14, 18)
+    await dibujarEncabezadoPdf(doc, titulo, periodoTexto)
 
     if (esVentas) {
       const rows = (completo as LibroVentaItemDTO[]).map(item => [
