@@ -1,6 +1,7 @@
 import { db } from '../lib/db.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { NotificationService } from './notification.service.js';
+import { mesMasAntiguoImpago } from './cobranza.service.js';
 import { esCupoIlimitado, sqlOcupaCupo } from '../lib/cursos-pago.js';
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -217,6 +218,120 @@ export async function calcularMontoFormalizacion(tipoAfiliado: string = 'Natural
   };
 }
 
+/** Tolerancia (USD) para el redondeo al convertir bolívares con la tasa del día */
+const TOLERANCIA_USD = 0.5;
+
+/**
+ * Monto mínimo que debe cubrir un pago según su concepto (formalización, CIBIR o mensualidades). Devuelve null si el
+ * concepto no tiene un monto fijo por afiliado (cursos, programas, otros).
+ */
+export async function montoEsperadoUsd(params: { tipo_concepto: string; id_afiliado?: number | null; meses_cubiertos?: number | null }): Promise<number | null> {
+  if (!params.id_afiliado) return null;
+  if (params.tipo_concepto === 'formalizacion_afiliacion') {
+    const a = await db.execute({ sql: `SELECT tipo_afiliado FROM afiliados WHERE id_afiliado = ?`, args: [params.id_afiliado] });
+    return (await calcularMontoFormalizacion(String(a.rows[0]?.tipo_afiliado || 'Natural'))).totalUSD;
+  }
+  const aranceles = await getAranceles();
+  const monto = (codigo: string) => Number((aranceles.find((x: any) => x.codigo === codigo) as any)?.monto_usd ?? 0);
+  if (params.tipo_concepto === 'curso_cibir') return monto('curso_cibir') || null;
+  if (params.tipo_concepto === 'mensualidad') {
+    const meses = Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1));
+    return monto('mensualidad_base') * meses || null;
+  }
+  return null;
+}
+
+/** Mensaje de error si el pago no cubre el arancel de su concepto; null si está bien. */
+export async function validarMontoArancel(params: { tipo_concepto: string; id_afiliado?: number | null; meses_cubiertos?: number | null; monto_usd: number }): Promise<{ esperado: number } | null> {
+  const esperado = await montoEsperadoUsd(params);
+  return esperado !== null && params.monto_usd + TOLERANCIA_USD < esperado ? { esperado } : null;
+}
+
+export const MENSAJE_PAGO_CIBIR_REQUERIDO =
+  'No se puede mover a la etapa CIBIR hasta registrar el pago del arancel CIBIR. Regístralo en Finanzas → Registrar cobro (o verifica el pago reportado) y vuelve a intentarlo.';
+
+/**
+ * ¿Hay un pago verificado del arancel CIBIR de esta persona? Se busca por el afiliado, por su estudiante o por el
+ * afiliado vinculado al estudiante (una persona puede tener las tres identidades).
+ */
+export async function pagoCibirRegistrado(params: { idAfiliado?: number | null; idEstudiante?: number | null }): Promise<boolean> {
+  const r = await db.execute({
+    sql: `SELECT 1 FROM pagos pg
+          WHERE pg.tipo_concepto = 'curso_cibir' AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL
+            AND (pg.id_afiliado = ?1
+                 OR pg.id_estudiante = ?2
+                 OR pg.id_afiliado IN (SELECT a.id_afiliado FROM afiliados a JOIN estudiantes e ON (a.id_persona = e.id_persona OR (a.id_empresa IS NOT NULL AND a.id_empresa = e.id_empresa))
+                                       WHERE e.id_estudiante = ?2)
+                 OR pg.id_estudiante IN (SELECT e.id_estudiante FROM estudiantes e JOIN afiliados a ON (a.id_persona = e.id_persona OR (a.id_empresa IS NOT NULL AND a.id_empresa = e.id_empresa))
+                                         WHERE a.id_afiliado = ?1))
+          LIMIT 1`,
+    args: [params.idAfiliado ?? null, params.idEstudiante ?? null],
+  });
+  return r.rows.length > 0;
+}
+
+/** Puede entrar a la etapa CIBIR quien ya está en ella (no se le vuelve a exigir) o tiene el pago del arancel registrado. */
+export async function puedeEntrarACibir(params: { idAfiliado?: number | null; idEstudiante?: number | null }): Promise<boolean> {
+  if (await pagoCibirRegistrado(params)) return true;
+  const r = await db.execute({
+    sql: `SELECT 1 FROM afiliados a
+          WHERE a.estatus = '5_CIBIR'
+            AND (a.id_afiliado = ?1
+                 OR a.id_afiliado IN (SELECT a2.id_afiliado FROM afiliados a2 JOIN estudiantes e ON (a2.id_persona = e.id_persona OR (a2.id_empresa IS NOT NULL AND a2.id_empresa = e.id_empresa))
+                                      WHERE e.id_estudiante = ?2))
+          LIMIT 1`,
+    args: [params.idAfiliado ?? null, params.idEstudiante ?? null],
+  });
+  return r.rows.length > 0;
+}
+
+export type EstadoCobro = 'pagado' | 'por_verificar' | 'pendiente' | 'no_aplica';
+
+/**
+ * Cobros del proceso de afiliación de una persona y en qué estado está cada uno:
+ *  - Formalización (inscripción + primera cuota): pendiente mientras no sea afiliada; al verificarse el pago pasa a Afiliado.
+ *  - CIBIR: pendiente en las etapas 5_CIBIR y 6_INSCRIPCION si no está acreditado ni hay un pago verificado.
+ * El resto de estatus (afiliados, morosos, suspendidos, rechazados) no tiene cobros de ingreso.
+ */
+export async function cobrosAfiliacion(idAfiliado: number) {
+  const [afi, pagos, aranceles] = await Promise.all([
+    db.execute({ sql: `SELECT estatus, tipo_afiliado, cibir_acreditado FROM afiliados WHERE id_afiliado = ?`, args: [idAfiliado] }),
+    db.execute({
+      sql: `SELECT tipo_concepto, estatus FROM pagos
+            WHERE id_afiliado = ? AND tipo_concepto IN ('formalizacion_afiliacion', 'curso_cibir') AND estatus IN ('Verificado', 'Pendiente') AND eliminado_en IS NULL`,
+      args: [idAfiliado],
+    }),
+    getAranceles(),
+  ]);
+  const a = afi.rows[0] as any;
+  if (!a) throw new Error('Afiliado no encontrado');
+  const estadoDePagos = (concepto: string): EstadoCobro | null => {
+    const filas = (pagos.rows as any[]).filter(p => p.tipo_concepto === concepto);
+    if (filas.some(p => p.estatus === 'Verificado')) return 'pagado';
+    return filas.length ? 'por_verificar' : null;
+  };
+  const enProceso = ['1_PREINSCRIPCION', '2_EXPEDIENTE', '3_ENTREVISTA', '4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(String(a.estatus));
+  const formalizacion = await calcularMontoFormalizacion(String(a.tipo_afiliado || 'Natural'));
+  const cibirMonto = Number((aranceles.find((x: any) => x.codigo === 'curso_cibir') as any)?.monto_usd ?? 0);
+
+  return [
+    {
+      concepto: 'formalizacion_afiliacion' as const,
+      etiqueta: 'Formalización de afiliación',
+      detalle: `Cuota de inscripción $${formalizacion.cuotaInscripcion.toFixed(2)} + primera cuota de sostenimiento $${formalizacion.primeraMensualidad.toFixed(2)}`,
+      monto_usd: formalizacion.totalUSD,
+      estado: (enProceso ? (estadoDePagos('formalizacion_afiliacion') ?? 'pendiente') : (estadoDePagos('formalizacion_afiliacion') ?? 'no_aplica')) as EstadoCobro,
+    },
+    {
+      concepto: 'curso_cibir' as const,
+      etiqueta: 'CIBIR',
+      detalle: 'Arancel del Curso de Iniciación en Bienes Raíces',
+      monto_usd: cibirMonto,
+      estado: (estadoDePagos('curso_cibir') ?? (['5_CIBIR', '6_INSCRIPCION'].includes(String(a.estatus)) && Number(a.cibir_acreditado) !== 1 && cibirMonto > 0 ? 'pendiente' : 'no_aplica')) as EstadoCobro,
+    },
+  ];
+}
+
 /**
  * Formaliza a un aspirante en 6_INSCRIPCION a estatus 'Afiliado'
  */
@@ -321,6 +436,11 @@ export async function formalizarAfiliado(idAfiliado: number, idPago?: number) {
  */
 export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParams) {
   const now = new Date().toISOString();
+
+  // Una mensualidad siempre se aplica al mes impago más antiguo, no al mes elegido
+  if (params.tipo_concepto === 'mensualidad' && params.id_afiliado) {
+    params = { ...params, periodo: await mesMasAntiguoImpago(params.id_afiliado) };
+  }
 
   // El cobro de un curso al público general se asocia al estudiante de la inscripción
   if (params.id_inscripcion_curso && !params.id_afiliado && !params.id_estudiante) {
@@ -431,6 +551,11 @@ export async function registrarCobroTaquilla(params: RegistrarCobroTaquillaParam
  */
 export async function reportarPagoDigital(params: ReportarPagoDigitalParams) {
   const now = new Date().toISOString();
+
+  // Una mensualidad siempre se aplica al mes impago más antiguo, no al mes elegido
+  if (params.tipo_concepto === 'mensualidad' && params.id_afiliado) {
+    params = { ...params, periodo: await mesMasAntiguoImpago(params.id_afiliado) };
+  }
 
   const insertRes = await conNumeroRecibo(numeroRecibo => db.execute({
     sql: `INSERT INTO pagos (
@@ -656,4 +781,57 @@ export async function getReciboDetalle(idPagoOrNumeroRecibo: number | string) {
   }
 
   return res.rows[0];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Correcciones del superadmin
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Anula un pago verificado o reportado. Deja de contar en los libros, el dashboard y la solvencia. No revierte efectos
+ * ya aplicados (afiliado formalizado, inscripción a un curso marcada como pagada).
+ */
+export async function anularPago(idPago: number, motivo: string, userId: number, emailUsuario: string) {
+  const r = await db.execute({ sql: `SELECT estatus, numero_recibo, notas FROM pagos WHERE id_pago = ? AND eliminado_en IS NULL`, args: [idPago] });
+  const pago = r.rows[0] as any;
+  if (!pago) throw Object.assign(new Error('Pago no encontrado'), { status: 404 });
+  if (!['Verificado', 'Pendiente'].includes(pago.estatus)) {
+    throw Object.assign(new Error(`El pago ya está "${pago.estatus}" y no se puede anular`), { status: 409 });
+  }
+  const ahora = new Date().toISOString();
+  const u = await db.execute({
+    sql: `UPDATE pagos
+          SET estatus = 'Anulado', motivo_rechazo = ?, actualizado_en = ?,
+              notas = COALESCE(notas || ' | ', '') || ?
+          WHERE id_pago = ? RETURNING *`,
+    args: [motivo, ahora, `Anulado por ${emailUsuario} (usuario ${userId}) el ${ahora.slice(0, 10)}: ${motivo}`, idPago],
+  });
+  return u.rows[0];
+}
+
+/**
+ * Marca (o desmarca) un mes de la solvencia de un afiliado como pagado sin recibo. Va al historial de solvencia, que es
+ * lo que ya leen la línea de tiempo, el bloqueo por mora y los libros. Un mes cubierto por un pago real no se toca aquí:
+ * ese pago se anula.
+ */
+export async function marcarMesSolvencia(idAfiliado: number, periodo: string, pagado: boolean, userId: number) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodo)) throw Object.assign(new Error('periodo debe tener el formato AAAA-MM'), { status: 400 });
+  if (pagado) {
+    await db.execute({
+      sql: `INSERT INTO solvencia_historial (id_afiliado, periodo, estado, fuente) VALUES (?, ?, 'pagado', ?)
+            ON CONFLICT (id_afiliado, periodo) DO UPDATE SET estado = 'pagado', fuente = excluded.fuente, importado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')`,
+      args: [idAfiliado, periodo, `manual:${userId}`],
+    });
+    return;
+  }
+  const real = await db.execute({
+    sql: `SELECT 1 FROM pagos
+          WHERE id_afiliado = ? AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion') AND estatus IN ('Verificado', 'Pendiente')
+            AND eliminado_en IS NULL AND periodo IS NOT NULL AND periodo <= ?
+            AND strftime('%Y-%m', date(periodo || '-01', '+' || (COALESCE(meses_cubiertos, 1) - 1) || ' months')) >= ?
+          LIMIT 1`,
+    args: [idAfiliado, periodo, periodo],
+  });
+  if (real.rows.length) throw Object.assign(new Error('Ese mes está cubierto por un pago con recibo: anula el pago para dejarlo sin pagar'), { status: 409 });
+  await db.execute({ sql: `DELETE FROM solvencia_historial WHERE id_afiliado = ? AND periodo = ? AND estado = 'pagado'`, args: [idAfiliado, periodo] });
 }

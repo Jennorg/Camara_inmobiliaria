@@ -15,6 +15,14 @@ export interface CursoPorCobrar {
   precio_actual: number;
 }
 
+/** Inscripción a un programa (PREANI, PEGI, PADI) cuyo arancel se cobra en taquilla; el pagador es el estudiante. */
+export interface ProgramaPorCobrar {
+  id_estudiante: number;
+  /** Código del arancel (programa_preani, programa_pegi…) */
+  codigo_arancel: string;
+  nombre: string;
+}
+
 interface ModalCobroTaquillaProps {
   open: boolean;
   onClose: () => void;
@@ -25,6 +33,7 @@ interface ModalCobroTaquillaProps {
   conceptoDefault?: TipoConceptoPago;
   idEdicionCibir?: number | null;
   cursoPorCobrar?: CursoPorCobrar | null;
+  programaPorCobrar?: ProgramaPorCobrar | null;
   authHeaders: Record<string, string>;
 }
 
@@ -38,6 +47,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   conceptoDefault = 'formalizacion_afiliacion',
   idEdicionCibir = null,
   cursoPorCobrar = null,
+  programaPorCobrar = null,
   authHeaders
 }) => {
   const [tipoConcepto, setTipoConcepto] = useState<TipoConceptoPago>(conceptoDefault);
@@ -55,12 +65,30 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   // Mes que cubre la mensualidad (AAAA-MM) y cuántos meses seguidos paga
   const [periodo, setPeriodo] = useState<string>(new Date().toISOString().slice(0, 7));
   const [mesesCubiertos, setMesesCubiertos] = useState<number>(1);
+  // La mensualidad se aplica al mes impago más antiguo: el servidor lo decide y aquí se muestra
+  const [mesesDeudaAfiliado, setMesesDeudaAfiliado] = useState<number>(0);
+
+  useEffect(() => {
+    if (!open || !afiliadoId) return;
+    let vivo = true;
+    fetch(`${API_URL}/api/pagos/solvencia/afiliado/${afiliadoId}`, { headers: authHeaders })
+      .then(r => r.json())
+      .then(json => {
+        if (!vivo || !json.success) return;
+        const impago = (json.data.meses as { periodo: string; estado: string }[]).find(m => m.estado === 'deuda')
+          ?? (json.data.meses as { periodo: string; estado: string }[]).find(m => m.estado === 'por_pagar');
+        if (impago) setPeriodo(impago.periodo);
+        setMesesDeudaAfiliado(Number(json.data.meses_deuda) || 0);
+      })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [open, afiliadoId, authHeaders]);
 
   // Cargar tasas dinámicas y aranceles configurados al abrir
   useEffect(() => {
     if (!open) return;
 
-    setTipoConcepto(conceptoDefault);
+    setTipoConcepto(programaPorCobrar ? 'programa' : conceptoDefault);
     setLoadingAranceles(true);
 
     // 1. Cargar tasas activas de referencia
@@ -105,6 +133,10 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 suggestedMonto = arMens ? Number(arMens.monto_usd) : 5;
               } else if (conceptoDefault === 'curso' && cursoPorCobrar) {
                 suggestedMonto = Number(cursoPorCobrar.monto_usd) || cursoPorCobrar.precio_actual;
+              } else if (programaPorCobrar) {
+                // Arancel 0 = "Consultar": la caja escribe el monto
+                const arPrograma = aranceles.find((a: any) => a.codigo === programaPorCobrar.codigo_arancel);
+                suggestedMonto = arPrograma ? Number(arPrograma.monto_usd) : 0;
               }
 
               setMontoUSD(suggestedMonto);
@@ -115,7 +147,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       })
       .catch(err => console.error('Error cargando aranceles/tasas:', err))
       .finally(() => setLoadingAranceles(false));
-  }, [open, conceptoDefault, afiliadoTipo, cursoPorCobrar]);
+  }, [open, conceptoDefault, afiliadoTipo, cursoPorCobrar, programaPorCobrar]);
 
   // Actualizar montos en Bs al cambiar tasa o moneda
   const handleTasaChange = (val: string) => {
@@ -174,6 +206,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         descConcepto = 'Arancel Curso de Inducción en Bienes Raíces (CIBIR)';
       } else if (tipoConcepto === 'curso' && cursoPorCobrar) {
         descConcepto = `Curso: ${cursoPorCobrar.curso}`;
+      } else if (programaPorCobrar) {
+        descConcepto = `Arancel del programa ${programaPorCobrar.nombre}`;
       } else if (tipoConcepto === 'mensualidad') {
         descConcepto = mesesCubiertos > 1
           ? `Cuotas Mensuales de Membresía Gremial (${mesesCubiertos} meses desde ${periodo})`
@@ -184,6 +218,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         id_afiliado: afiliadoId,
         id_edicion_cibir: idEdicionCibir,
         id_inscripcion_curso: cursoPorCobrar?.id_inscripcion ?? null,
+        ...(programaPorCobrar ? { id_estudiante: programaPorCobrar.id_estudiante, codigo_arancel: programaPorCobrar.codigo_arancel } : {}),
         tipo_concepto: tipoConcepto,
         descripcion_concepto: descConcepto,
         metodo_pago: metodoPago,
@@ -197,16 +232,34 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         ...(tipoConcepto === 'mensualidad' ? { periodo, meses_cubiertos: mesesCubiertos } : {})
       };
 
-      const res = await fetch(`${API_URL}/api/pagos/admin/cobro-taquilla`, {
+      const enviarCobro = (autorizado: boolean) => fetch(`${API_URL}/api/pagos/admin/cobro-taquilla`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...authHeaders
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(autorizado ? { ...payload, autorizar_monto_menor: true } : payload)
       });
 
-      const json = await res.json();
+      let res = await enviarCobro(false);
+      let json = await res.json();
+
+      // Un cobro por debajo del arancel solo se registra si la caja lo autoriza de forma explícita
+      if (res.status === 409 && json.code === 'MONTO_MENOR_ARANCEL') {
+        const decision = await Swal.fire({
+          title: 'Monto menor al arancel',
+          text: `Corresponden $${Number(json.esperado).toFixed(2)} y estás cobrando $${finalMontoUSD.toFixed(2)}. ¿Autorizas el cobro por este monto?`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Autorizar y cobrar',
+          cancelButtonText: 'Corregir monto',
+          confirmButtonColor: '#059669'
+        });
+        if (!decision.isConfirmed) return;
+        res = await enviarCobro(true);
+        json = await res.json();
+      }
+
       if (!res.ok || !json.success) {
         throw new Error(json.message || 'Error al procesar cobro');
       }
@@ -261,7 +314,18 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
           
-          {cursoPorCobrar ? (
+          {programaPorCobrar ? (
+            <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block">Programa</span>
+              <span className="text-sm font-bold text-slate-800">{programaPorCobrar.nombre}</span>
+              {montoUSD <= 0 && (
+                <p className="flex items-start gap-1.5 text-[11px] font-semibold text-amber-700">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  Este arancel aún no tiene monto fijado (Finanzas → Aranceles): escribe el monto a cobrar.
+                </p>
+              )}
+            </div>
+          ) : cursoPorCobrar ? (
             <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block">Curso</span>
               <span className="text-sm font-bold text-slate-800">{cursoPorCobrar.curso}</span>
@@ -321,14 +385,19 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             {tipoConcepto === 'mensualidad' && (
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <label className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Mes que cubre</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Desde el mes</span>
                   <input
                     type="month"
-                    required
+                    readOnly
                     value={periodo}
-                    onChange={e => setPeriodo(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    aria-describedby="ayuda-mes-cobro"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 cursor-not-allowed"
                   />
+                  <span id="ayuda-mes-cobro" className="text-[10px] font-medium text-slate-500 block">
+                    {mesesDeudaAfiliado > 0
+                      ? `Se aplica a la deuda más antigua (${mesesDeudaAfiliado} ${mesesDeudaAfiliado === 1 ? 'mes' : 'meses'} en mora).`
+                      : 'Está al día: se aplica al mes pendiente más cercano.'}
+                  </span>
                 </label>
                 <label className="space-y-1">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Meses pagados</span>
@@ -503,7 +572,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Cobrar y Formalizar</span>
+                  <span>{tipoConcepto === 'formalizacion_afiliacion' ? 'Cobrar y Formalizar' : 'Registrar cobro'}</span>
                 </>
               )}
             </button>

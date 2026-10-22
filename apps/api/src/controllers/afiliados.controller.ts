@@ -36,7 +36,8 @@ import { crearVerificacionPreinscripcionPrograma, upsertEstudianteByEmail } from
 import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
 import { autoAsignarEdicionCibir } from '../services/cibir.service.js';
-import { reportarPagoDigital } from '../services/pagos.service.js';
+import { MENSAJE_PAGO_CIBIR_REQUERIDO, puedeEntrarACibir, reportarPagoDigital, validarMontoArancel } from '../services/pagos.service.js';
+import { MENSAJE_SOLO_ADMINISTRACION, pagosElectronicosHabilitados } from '../services/config-pagos.service.js';
 import { estadoBloqueo } from '../services/cobranza.service.js';
 
 /**
@@ -1584,6 +1585,14 @@ export const formalizarInscripcion = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'La referencia y el monto son requeridos' });
     }
 
+    if (!(await pagosElectronicosHabilitados())) {
+      return res.status(403).json({ success: false, code: 'PAGOS_ELECTRONICOS_DESHABILITADOS', message: MENSAJE_SOLO_ADMINISTRACION });
+    }
+    const insuficiente = await validarMontoArancel({ tipo_concepto: 'formalizacion_afiliacion', id_afiliado: Number(requesterId), monto_usd: Number(monto) });
+    if (insuficiente) {
+      return res.status(400).json({ success: false, code: 'MONTO_MENOR_ARANCEL', esperado: insuficiente.esperado, message: `El monto no cubre el arancel: corresponden $${insuficiente.esperado.toFixed(2)}.` });
+    }
+
     const pago = await reportarPagoDigital({
       id_afiliado: Number(requesterId),
       tipo_concepto: 'formalizacion_afiliacion',
@@ -1630,6 +1639,13 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
 
     if (estatus && !allowedStatuses.includes(estatus)) {
       return res.status(400).json({ success: false, message: 'Estado no válido' });
+    }
+
+    // Entrar a la etapa CIBIR exige tener registrado el pago del arancel
+    if (estatus === '5_CIBIR') {
+      if (!(await puedeEntrarACibir({ idAfiliado: Number(id) }))) {
+        return res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO });
+      }
     }
 
     const setParts: string[] = [];
@@ -1733,6 +1749,11 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     // 1. Autorización: Personal administrativo (Staff: admin, super_admin, asistente, secretaria, personal, personal admin) o el propio afiliado
     if (!isStaffMember && requesterId !== Number(id)) {
       return res.status(403).json({ success: false, message: 'No tienes permiso para actualizar este perfil.' });
+    }
+
+    // Entrar a la etapa CIBIR exige tener registrado el pago del arancel
+    if (fields.estatus === '5_CIBIR' && !(await puedeEntrarACibir({ idAfiliado: Number(id) }))) {
+      return res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO });
     }
 
     // Campos permitidos por entidad

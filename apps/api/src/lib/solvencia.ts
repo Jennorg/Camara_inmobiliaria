@@ -14,6 +14,22 @@ export interface PagoCubierto {
 export interface HistorialMes {
   periodo: string
   estado: 'pagado' | 'no_afiliado'
+  /** Marcado a mano por un superadmin: corrige un mes, pero no define desde cuándo se cuenta la deuda */
+  manual?: boolean
+}
+
+const MES_VALIDO = /^\d{4}-(0[1-9]|1[0-2])$/
+
+/**
+ * Primer mes que cuenta para un afiliado. Con el historial importado manda su primer mes; las marcas manuales no
+ * cuentan para esto (marcar un mes suelto no debe ocultar la deuda anterior). Sin historial importado: el mayor entre el
+ * mes de arranque configurado y la afiliación.
+ */
+export function desdeAfiliado(inicio: string, fechaAfiliacion: unknown, historial: HistorialMes[] = []): string {
+  const importado = historial.filter(h => !h.manual)
+  if (importado.length) return importado.reduce((min, h) => (h.periodo < min ? h.periodo : min), importado[0].periodo)
+  const f = typeof fechaAfiliacion === 'string' ? fechaAfiliacion.slice(0, 7) : ''
+  return MES_VALIDO.test(f) && f > inicio ? f : inicio
 }
 
 export interface MesSolvencia {

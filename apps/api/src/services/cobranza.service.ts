@@ -5,7 +5,9 @@ import { nuevoCodigoValidacion } from '../lib/certificados.js'
 import {
   avisoDelDia,
   calcularMeses,
+  desdeAfiliado,
   resumenDeuda,
+  sumarMeses,
   CONFIG_COBRANZA_DEFECTO,
   type ConfigCobranza,
   type HistorialMes,
@@ -94,14 +96,8 @@ const PAGOS_SQL = `SELECT id_pago, id_afiliado, numero_recibo, estatus, periodo,
                      AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion')
                      AND estatus IN ('Verificado', 'Pendiente')`
 
-const HISTORIAL_SQL = `SELECT id_afiliado, periodo, estado FROM solvencia_historial`
+const HISTORIAL_SQL = `SELECT id_afiliado, periodo, estado, COALESCE(fuente, '') LIKE 'manual:%' AS manual FROM solvencia_historial`
 
-/** Con historial importado manda el primer mes registrado; sin él, el mayor entre el arranque y la afiliación. */
-const desdeAfiliado = (inicio: string, fechaAfiliacion: unknown, historial: HistorialMes[] = []) => {
-  if (historial.length) return historial.reduce((min, h) => (h.periodo < min ? h.periodo : min), historial[0].periodo)
-  const f = typeof fechaAfiliacion === 'string' ? fechaAfiliacion.slice(0, 7) : ''
-  return MES_RE.test(f) && f > inicio ? f : inicio
-}
 
 export interface SolvenciaAfiliado extends ResumenDeuda {
   id_afiliado: number
@@ -125,7 +121,7 @@ export async function calcularSolvencias(ids?: number[]) {
   const porAfiliado = new Map<number, PagoCubierto[]>()
   for (const p of pagos.rows as any[]) porAfiliado.set(p.id_afiliado, [...(porAfiliado.get(p.id_afiliado) ?? []), p])
   const histPorAfiliado = new Map<number, HistorialMes[]>()
-  for (const h of hist.rows as any[]) histPorAfiliado.set(h.id_afiliado, [...(histPorAfiliado.get(h.id_afiliado) ?? []), h])
+  for (const h of hist.rows as any[]) histPorAfiliado.set(h.id_afiliado, [...(histPorAfiliado.get(h.id_afiliado) ?? []), { ...h, manual: Number(h.manual) === 1 }])
 
   const hoy = hoyCaracas()
   const solvencias = new Map<number, SolvenciaAfiliado>()
@@ -135,6 +131,18 @@ export async function calcularSolvencias(ids?: number[]) {
     solvencias.set(a.id_afiliado, { id_afiliado: a.id_afiliado, meses, ...resumenDeuda(meses, hoy, monto, config.cobranza) })
   }
   return { ...config, hoy, montoMensual: monto, solvencias }
+}
+
+/**
+ * Mes al que debe aplicarse el próximo pago de mensualidad de un afiliado: el mes impago más antiguo (deuda o mes en
+ * curso). Si está al día, el mes siguiente al último cubierto. Los meses en revisión ya tienen un pago reportado.
+ */
+export async function mesMasAntiguoImpago(idAfiliado: number): Promise<string> {
+  const { solvencias, hoy } = await calcularSolvencias([idAfiliado])
+  const meses = solvencias.get(idAfiliado)?.meses ?? []
+  const impago = meses.find(m => m.estado === 'deuda') ?? meses.find(m => m.estado === 'por_pagar')
+  if (impago) return impago.periodo
+  return meses.length ? sumarMeses(meses[meses.length - 1].periodo, 1) : hoy.slice(0, 7)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

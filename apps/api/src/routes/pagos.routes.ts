@@ -16,7 +16,13 @@ import {
   adminUpdateCuenta,
   adminDeleteCuenta,
   adminUpdateArancel,
-  adminCursosPorCobrar
+  adminCursosPorCobrar,
+  adminBuscarPagadores,
+  getModalidadPagos,
+  adminSetModalidadPagos,
+  getCobrosAfiliacion,
+  adminAnularPago,
+  adminMarcarMesSolvencia
 } from '../controllers/pagos.controller.js';
 import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia, adminEnviarRecordatorio, emitirConstancia } from '../controllers/solvencia.controller.js';
 
@@ -27,6 +33,8 @@ const adminRoles: UserRole[] = ['admin', 'super_admin', 'asistente', 'administra
 router.get('/cuentas', getCuentas);
 router.get('/aranceles', getArancelesController);
 router.get('/arancel-formalizacion/:idAfiliado', getArancelFormalizacion);
+router.get('/modalidad', getModalidadPagos);
+router.get('/afiliado/:idAfiliado/cobros', requireAuth, getCobrosAfiliacion);
 router.get('/recibo/:reciboIdOrCode', requireAuth, getRecibo);
 router.post('/reportar', requireAuth, reportarPago);
 router.get('/afiliado/:idAfiliado', requireAuth, getPagosByAfiliado);
@@ -39,7 +47,11 @@ router.get('/admin/solvencia', requireAuth, requireRole(...adminRoles), adminRes
 router.put('/admin/solvencia/config', requireAuth, requireRole(...adminRoles), adminSetInicioSolvencia);
 router.post('/admin/solvencia/recordatorio', requireAuth, requireRole(...adminRoles), adminEnviarRecordatorio);
 router.get('/admin/cursos-por-cobrar', requireAuth, requireRole(...adminRoles), adminCursosPorCobrar);
+router.put('/admin/modalidad', requireAuth, requireRole(...adminRoles), adminSetModalidadPagos);
+router.get('/admin/pagadores', requireAuth, requireRole(...adminRoles), adminBuscarPagadores);
 router.post('/admin/cobro-taquilla', requireAuth, requireRole(...adminRoles), adminCobroTaquilla);
+router.patch('/admin/:id/anular', requireAuth, requireRole('super_admin'), adminAnularPago);
+router.put('/admin/solvencia/afiliado/:idAfiliado/mes', requireAuth, requireRole('super_admin'), adminMarcarMesSolvencia);
 router.patch('/admin/:id/verificar', requireAuth, requireRole(...adminRoles), adminVerificarPago);
 router.patch('/admin/:id/rechazar', requireAuth, requireRole(...adminRoles), adminRechazarPago);
 

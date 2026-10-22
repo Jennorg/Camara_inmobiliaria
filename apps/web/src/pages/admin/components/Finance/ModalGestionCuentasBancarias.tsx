@@ -47,6 +47,45 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
     orden: 0
   });
 
+  // Modalidad: pagos electrónicos o todos canalizados por la administración (null mientras se consulta)
+  const [electronicos, setElectronicos] = useState<boolean | null>(null);
+  const [guardandoModalidad, setGuardandoModalidad] = useState(false);
+
+  const cambiarModalidad = async (habilitar: boolean) => {
+    const confirmacion = await Swal.fire({
+      title: habilitar ? '¿Recibir pagos electrónicos?' : '¿Canalizar todos los pagos por la administración?',
+      text: habilitar
+        ? 'Los afiliados volverán a ver las cuentas oficiales y podrán reportar pagos con su comprobante.'
+        : 'Los afiliados dejarán de ver las cuentas y no podrán reportar pagos: se les indicará que paguen en la administración. Los pagos ya reportados se siguen verificando.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cambiar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#059669'
+    });
+    if (!confirmacion.isConfirmed) return;
+    setGuardandoModalidad(true);
+    try {
+      const res = await fetch(`${API_URL}/api/pagos/admin/modalidad`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ electronicos: habilitar })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo guardar');
+      setElectronicos(habilitar);
+    } catch (err: any) {
+      Swal.fire('Error', err.message || 'No se pudo cambiar la modalidad', 'error');
+    } finally {
+      setGuardandoModalidad(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!effectiveOpen) return;
+    fetch(`${API_URL}/api/pagos/modalidad`).then(r => r.json()).then(j => { if (j.success) setElectronicos(!!j.data.electronicos); }).catch(() => {});
+  }, [effectiveOpen]);
+
   const fetchCuentas = async () => {
     setLoading(true);
     try {
@@ -170,10 +209,10 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
             </span>
             <div>
               <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                Cuentas Bancarias Receptoras
+                Cuentas y modalidad de pago
               </h3>
               <p className="text-xs font-bold text-slate-500">
-                Gestionar cuentas oficiales visibles para aspirantes
+                Cómo reciben los pagos los afiliados y aspirantes
               </p>
             </div>
           </div>
@@ -188,6 +227,29 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-800">
+
+          {/* Modalidad de recepción de pagos */}
+          <div className={`p-4 rounded-2xl border flex items-start justify-between gap-4 ${electronicos === false ? 'bg-amber-50/70 border-amber-200' : 'bg-emerald-50/50 border-emerald-100'}`}>
+            <div className="space-y-1">
+              <p id="etiqueta-modalidad" className="text-sm font-black text-slate-900">Recibir pagos electrónicos</p>
+              <p className="text-xs font-medium text-slate-600 leading-relaxed">
+                {electronicos === false
+                  ? 'Desactivado: todos los pagos se canalizan por la administración. Los afiliados no ven las cuentas ni pueden reportar pagos.'
+                  : 'Activado: los afiliados ven las cuentas oficiales y reportan sus pagos con comprobante para que Finanzas los verifique.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={electronicos !== false}
+              aria-labelledby="etiqueta-modalidad"
+              disabled={electronicos === null || guardandoModalidad}
+              onClick={() => cambiarModalidad(electronicos === false)}
+              className={`relative shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${electronicos === false ? 'bg-slate-300' : 'bg-emerald-600'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform duration-200 motion-reduce:transition-none ${electronicos === false ? '' : 'translate-x-5'}`} />
+            </button>
+          </div>
           
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">

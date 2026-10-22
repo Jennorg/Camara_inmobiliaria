@@ -2,6 +2,7 @@ import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js';
 import { Request, Response } from 'express';
 import { db } from '../lib/db.js';
 import * as pagosService from '../services/pagos.service.js';
+import { MENSAJE_SOLO_ADMINISTRACION, pagosElectronicosHabilitados, setPagosElectronicos } from '../services/config-pagos.service.js';
 import { precioCurso } from '../lib/cursos-pago.js';
 
 // ============================================================
@@ -14,7 +15,8 @@ import { precioCurso } from '../lib/cursos-pago.js';
  */
 export const getCuentas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const cuentas = await pagosService.getCuentasBancarias(true);
+    // Sin pagos electrónicos no se publican las cuentas receptoras
+    const cuentas = (await pagosElectronicosHabilitados()) ? await pagosService.getCuentasBancarias(true) : [];
     res.json({ success: true, data: cuentas });
   } catch (error) {
     console.error('getCuentas error:', error);
@@ -97,6 +99,11 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
       meses_cubiertos
     } = req.body;
 
+    if (!(await pagosElectronicosHabilitados())) {
+      res.status(403).json({ success: false, code: 'PAGOS_ELECTRONICOS_DESHABILITADOS', message: MENSAJE_SOLO_ADMINISTRACION });
+      return;
+    }
+
     if (!id_afiliado || !metodo_pago || !monto || !referencia) {
       res.status(400).json({
         success: false,
@@ -107,6 +114,15 @@ export const reportarPago = async (req: Request, res: Response): Promise<void> =
 
     if (!(await puedeAccederAfiliado(req.user!, Number(id_afiliado)))) {
       res.status(403).json({ success: false, message: 'No puedes reportar pagos de otro afiliado' });
+      return;
+    }
+
+    const insuficiente = await pagosService.validarMontoArancel({
+      tipo_concepto: tipo_concepto || 'formalizacion_afiliacion', id_afiliado: Number(id_afiliado), meses_cubiertos: meses_cubiertos ? Number(meses_cubiertos) : null,
+      monto_usd: Number(monto_usd_equivalente || monto),
+    });
+    if (insuficiente) {
+      res.status(400).json({ success: false, code: 'MONTO_MENOR_ARANCEL', esperado: insuficiente.esperado, message: `El monto no cubre el arancel: corresponden $${insuficiente.esperado.toFixed(2)}.` });
       return;
     }
 
@@ -359,6 +375,52 @@ export const adminCursosPorCobrar = async (req: Request, res: Response): Promise
 };
 
 /**
+ * GET /api/pagos/admin/pagadores?campo=nombre|cedula|codigo&q=
+ * Afiliados a quienes la caja puede cobrar un concepto (afiliación, CIBIR o cuota de sostenimiento).
+ */
+const CAMPOS_PAGADOR: Record<string, string> = {
+  nombre: `COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), e.razon_social, '')`,
+  cedula: `COALESCE(p.cedula, e.rif_numero, '')`,
+  codigo: `COALESCE(a.codigo, '')`,
+};
+
+export const adminBuscarPagadores = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const campo = typeof req.query.campo === 'string' && req.query.campo in CAMPOS_PAGADOR ? req.query.campo : 'nombre';
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+    // Cada palabra debe aparecer (en el nombre se busca por partes; en cédula y código, el texto tal cual)
+    const terminos = campo === 'nombre' ? q.split(/\s+/) : [q.replace(/[^\w-]/g, '')];
+    const r = await db.execute({
+      sql: `SELECT a.id_afiliado, a.codigo, a.tipo_afiliado, a.estatus,
+                   (a.estatus IN ('1_PREINSCRIPCION','2_EXPEDIENTE','3_ENTREVISTA','4_VERIFICACION','5_CIBIR','6_INSCRIPCION')) AS formalizacion_pendiente,
+                   (a.estatus IN ('5_CIBIR','6_INSCRIPCION') AND a.cibir_acreditado = 0 AND NOT EXISTS (
+                      SELECT 1 FROM pagos pg WHERE pg.id_afiliado = a.id_afiliado AND pg.tipo_concepto = 'curso_cibir'
+                        AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL)) AS cibir_pendiente,
+                   CASE WHEN a.tipo_afiliado = 'Corporativo'
+                        THEN COALESCE(NULLIF(TRIM(e.razon_social), ''), TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')))
+                        ELSE TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')) END AS nombre,
+                   COALESCE(p.cedula_tipo || '-' || p.cedula, e.rif_tipo || '-' || e.rif_numero) AS identificacion
+            FROM afiliados a
+            LEFT JOIN personas p ON p.id = a.id_persona
+            LEFT JOIN empresas e ON e.id_empresa = a.id_empresa
+            WHERE a.eliminado_en IS NULL AND a.activo = 1
+              ${terminos.map(() => `AND ${CAMPOS_PAGADOR[campo]} LIKE ?`).join(' ')}
+            ORDER BY nombre
+            LIMIT 15`,
+      args: terminos.map(t => `%${t}%`),
+    });
+    res.json({ success: true, data: r.rows });
+  } catch (error) {
+    console.error('adminBuscarPagadores error:', error);
+    res.status(500).json({ success: false, message: 'Error al buscar pagadores' });
+  }
+};
+
+/**
  * POST /api/admin/pagos/cobro-taquilla
  * Registrar cobro directo en taquilla/caja (Efectivo USD/Bs, POS, etc.)
  */
@@ -399,6 +461,18 @@ export const adminCobroTaquilla = async (req: Request, res: Response): Promise<v
         message: 'Campos requeridos: id_afiliado (o la inscripción del curso), metodo_pago, monto'
       });
       return;
+    }
+
+    // El cobro debe cubrir el arancel de su concepto; la caja puede autorizar un monto menor de forma explícita
+    if (!req.body.autorizar_monto_menor) {
+      const insuficiente = await pagosService.validarMontoArancel({
+        tipo_concepto: tipo_concepto || 'formalizacion_afiliacion', id_afiliado: id_afiliado ? Number(id_afiliado) : null,
+        meses_cubiertos: meses_cubiertos ? Number(meses_cubiertos) : null, monto_usd: Number(monto_usd_equivalente || monto),
+      });
+      if (insuficiente) {
+        res.status(409).json({ success: false, code: 'MONTO_MENOR_ARANCEL', esperado: insuficiente.esperado, message: `El monto es menor al arancel ($${insuficiente.esperado.toFixed(2)}).` });
+        return;
+      }
     }
 
     const pago = await pagosService.registrarCobroTaquilla({
@@ -626,5 +700,87 @@ export const adminUpdateArancel = async (req: Request, res: Response): Promise<v
     res.json({ success: true, data: result.rows[0] });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || 'Error al actualizar arancel' });
+  }
+};
+
+/**
+ * GET /api/pagos/modalidad
+ * Si se reciben pagos electrónicos o todos se canalizan por la administración (lo consultan los afiliados).
+ */
+export const getModalidadPagos = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const electronicos = await pagosElectronicosHabilitados();
+    res.json({ success: true, data: { electronicos, mensaje: electronicos ? null : MENSAJE_SOLO_ADMINISTRACION } });
+  } catch (error) {
+    console.error('getModalidadPagos error:', error);
+    res.status(500).json({ success: false, message: 'Error al consultar la modalidad de pagos' });
+  }
+};
+
+/** PUT /api/pagos/admin/modalidad  { electronicos: boolean } */
+export const adminSetModalidadPagos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (typeof req.body?.electronicos !== 'boolean') {
+      res.status(400).json({ success: false, message: 'electronicos debe ser verdadero o falso' });
+      return;
+    }
+    await setPagosElectronicos(req.body.electronicos);
+    res.json({ success: true, data: { electronicos: req.body.electronicos } });
+  } catch (error) {
+    console.error('adminSetModalidadPagos error:', error);
+    res.status(500).json({ success: false, message: 'Error al guardar la modalidad de pagos' });
+  }
+};
+
+/** GET /api/pagos/afiliado/:idAfiliado/cobros — cobros del proceso de afiliación y su estado */
+export const getCobrosAfiliacion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idAfiliado = Number(req.params.idAfiliado);
+    if (!Number.isFinite(idAfiliado) || !(await puedeAccederAfiliado(req.user!, idAfiliado))) {
+      res.status(403).json({ success: false, message: 'No tienes acceso a este afiliado' });
+      return;
+    }
+    res.json({ success: true, data: await pagosService.cobrosAfiliacion(idAfiliado) });
+  } catch (error: any) {
+    console.error('getCobrosAfiliacion error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error al consultar los cobros' });
+  }
+};
+
+/** PATCH /api/pagos/admin/:id/anular  { motivo } — solo superadmin */
+export const adminAnularPago = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idPago = Number(req.params.id);
+    const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+    if (!Number.isFinite(idPago) || motivo.length < 3) {
+      res.status(400).json({ success: false, message: 'Indica el motivo de la anulación' });
+      return;
+    }
+    const pago = await pagosService.anularPago(idPago, motivo, req.user!.id, String((req.user as any).email ?? ''));
+    res.json({ success: true, message: 'Pago anulado', data: pago });
+  } catch (error: any) {
+    if (error.status) { res.status(error.status).json({ success: false, message: error.message }); return; }
+    console.error('adminAnularPago error:', error);
+    res.status(500).json({ success: false, message: 'Error al anular el pago' });
+  }
+};
+
+/** PUT /api/pagos/admin/solvencia/afiliado/:idAfiliado/mes  { periodo: 'AAAA-MM', pagado: boolean } — solo superadmin */
+export const adminMarcarMesSolvencia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idAfiliado = Number(req.params.idAfiliado);
+    const { periodo, pagado } = req.body ?? {};
+    if (!Number.isFinite(idAfiliado) || typeof periodo !== 'string' || typeof pagado !== 'boolean') {
+      res.status(400).json({ success: false, message: 'Faltan periodo (AAAA-MM) y pagado (verdadero/falso)' });
+      return;
+    }
+    const existe = await db.execute({ sql: `SELECT 1 FROM afiliados WHERE id_afiliado = ? AND eliminado_en IS NULL`, args: [idAfiliado] });
+    if (!existe.rows.length) { res.status(404).json({ success: false, message: 'Afiliado no encontrado' }); return; }
+    await pagosService.marcarMesSolvencia(idAfiliado, periodo, pagado, req.user!.id);
+    res.json({ success: true, data: { idAfiliado, periodo, pagado } });
+  } catch (error: any) {
+    if (error.status) { res.status(error.status).json({ success: false, message: error.message }); return; }
+    console.error('adminMarcarMesSolvencia error:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar la solvencia' });
   }
 };

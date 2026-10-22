@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { UploadCloud, Loader2, Copy, Check, Building2 } from 'lucide-react';
+import { UploadCloud, Loader2, Copy, Check, Building2, Landmark } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import FileUpload from '@/components/common/FileUpload';
@@ -11,6 +11,15 @@ interface CursoPendiente {
   curso_nombre: string;
   monto_usd: number;
   reserva_vence_en: string | null;
+}
+
+/** Cobro del proceso de afiliación (formalización o CIBIR) que el afiliado tiene pendiente */
+interface CobroProceso {
+  concepto: 'formalizacion_afiliacion' | 'curso_cibir';
+  etiqueta: string;
+  detalle: string;
+  monto_usd: number;
+  estado: 'pagado' | 'por_verificar' | 'pendiente' | 'no_aplica';
 }
 
 interface Props {
@@ -40,8 +49,12 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
   const [montoMensual, setMontoMensual] = useState(0);
   const [cursos, setCursos] = useState<CursoPendiente[]>([]);
   const [copiado, setCopiado] = useState<string | null>(null);
+  // null mientras se consulta; false cuando todos los pagos se canalizan por la administración
+  const [electronicos, setElectronicos] = useState<boolean | null>(null);
+  const [mensajeAdmin, setMensajeAdmin] = useState('');
+  const [cobrosProceso, setCobrosProceso] = useState<CobroProceso[]>([]);
 
-  // 'mensualidad' o 'curso:<id_inscripcion>'
+  // 'mensualidad', 'curso:<id_inscripcion>' o 'proceso:<concepto>'
   const [concepto, setConcepto] = useState('mensualidad');
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [meses, setMeses] = useState(1);
@@ -56,12 +69,26 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
 
   const cargar = useCallback(async () => {
     const json = (url: string, init?: RequestInit) => fetch(url, init).then(r => r.json()).catch(() => null);
-    const [c, t, s, mc] = await Promise.all([
+    const [c, t, s, mc, mod, cp] = await Promise.all([
       json(`${API_URL}/api/pagos/cuentas`),
       json(`${API_URL}/api/public/tasas-referencia`),
       json(`${API_URL}/api/pagos/solvencia/afiliado/${idAfiliado}`, { headers: authHeaders }),
       json(`${API_URL}/api/afiliados/me/cursos`, { headers: authHeaders }),
+      json(`${API_URL}/api/pagos/modalidad`),
+      json(`${API_URL}/api/pagos/afiliado/${idAfiliado}/cobros`, { headers: authHeaders }),
     ]);
+    if (mod?.success) {
+      setElectronicos(!!mod.data.electronicos);
+      setMensajeAdmin(mod.data.mensaje || '');
+    } else {
+      setElectronicos(true);
+    }
+    if (cp?.success) {
+      const pendientes = (cp.data as CobroProceso[]).filter(x => x.estado === 'pendiente' && x.monto_usd > 0);
+      setCobrosProceso(pendientes);
+      // Quien está en el proceso de afiliación paga primero lo que le corresponde de él
+      if (pendientes.length) setConcepto(prev => (prev === 'mensualidad' ? `proceso:${pendientes[0].concepto}` : prev));
+    }
     if (c?.success) setCuentas(c.data);
     if (t?.success) setTasaBcv(Number(t.data?.tasas?.USD_BCV?.tasa) || 0);
     if (s?.success) {
@@ -85,7 +112,8 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
   useEffect(() => { cargar(); }, [cargar]);
 
   const cursoSel = concepto.startsWith('curso:') ? cursos.find(c => `curso:${c.id_inscripcion}` === concepto) : undefined;
-  const montoUsd = cursoSel ? Number(cursoSel.monto_usd) : meses * montoMensual;
+  const procesoSel = concepto.startsWith('proceso:') ? cobrosProceso.find(x => `proceso:${x.concepto}` === concepto) : undefined;
+  const montoUsd = cursoSel ? Number(cursoSel.monto_usd) : procesoSel ? procesoSel.monto_usd : meses * montoMensual;
   const moneda = METODOS.find(m => m.value === metodoPago)!.moneda;
   const montoVes = useMemo(() => Number((montoUsd * tasaBcv).toFixed(2)), [montoUsd, tasaBcv]);
 
@@ -108,6 +136,8 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
         id_afiliado: idAfiliado,
         ...(cursoSel
           ? { tipo_concepto: 'curso', id_inscripcion_curso: cursoSel.id_inscripcion, descripcion_concepto: `Curso: ${cursoSel.curso_nombre}` }
+          : procesoSel
+          ? { tipo_concepto: procesoSel.concepto, descripcion_concepto: procesoSel.etiqueta }
           : {
               tipo_concepto: 'mensualidad',
               periodo,
@@ -143,6 +173,27 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
       setEnviando(false);
     }
   };
+
+  if (electronicos === null) {
+    return <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-slate-300" aria-label="Cargando" /></div>;
+  }
+
+  if (!electronicos) {
+    return (
+      <div role="status" className="p-5 rounded-2xl border border-amber-200 bg-amber-50/70 flex items-start gap-3 text-slate-700">
+        <Landmark size={20} className="text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+        <div className="space-y-1">
+          <p className="text-sm font-black text-slate-900">Los pagos se realizan en la administración</p>
+          <p className="text-xs font-medium leading-relaxed">{mensajeAdmin || 'Acude a la sede de la Cámara para realizar tu pago; el recibo se emite al momento.'}</p>
+          {cobrosProceso.length > 0 && (
+            <ul className="pt-1 text-xs font-semibold text-slate-800 list-disc pl-4">
+              {cobrosProceso.map(x => <li key={x.concepto}>{x.etiqueta}: ${x.monto_usd.toFixed(2)} <span className="font-medium text-slate-500">({x.detalle})</span></li>)}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 text-slate-800">
@@ -180,6 +231,9 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
           <label className="space-y-1 md:col-span-2">
             <span className={etiquetaClase}>¿Qué estás pagando? *</span>
             <select value={concepto} onChange={e => setConcepto(e.target.value)} className={`${inputClase} font-bold`}>
+              {cobrosProceso.map(x => (
+                <option key={x.concepto} value={`proceso:${x.concepto}`}>{x.etiqueta} (${x.monto_usd.toFixed(2)})</option>
+              ))}
               <option value="mensualidad">Mensualidad gremial</option>
               {cursos.map(c => (
                 <option key={c.id_inscripcion} value={`curso:${c.id_inscripcion}`}>Curso: {c.curso_nombre} (${Number(c.monto_usd).toFixed(2)})</option>
@@ -187,11 +241,12 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
             </select>
           </label>
 
-          {!cursoSel && (
+          {!cursoSel && !procesoSel && (
             <>
               <label className="space-y-1">
-                <span className={etiquetaClase}>Desde el mes *</span>
-                <input type="month" required value={periodo} onChange={e => setPeriodo(e.target.value)} className={inputClase} />
+                <span className={etiquetaClase}>Desde el mes</span>
+                <input type="month" readOnly value={periodo} aria-describedby="ayuda-mes-pago" className={`${inputClase} bg-slate-50 cursor-not-allowed`} />
+                <span id="ayuda-mes-pago" className="text-[10px] font-medium text-slate-500 block ml-1">Tu pago se aplica primero a tu deuda más antigua.</span>
               </label>
               <label className="space-y-1">
                 <span className={etiquetaClase}>Cantidad de meses *</span>

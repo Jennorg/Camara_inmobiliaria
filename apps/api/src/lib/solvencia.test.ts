@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { avisoDelDia, calcularMeses, resumenDeuda, type PagoCubierto } from './solvencia.js'
+import { avisoDelDia, calcularMeses, desdeAfiliado, resumenDeuda, type PagoCubierto } from './solvencia.js'
 
 const pago = (periodo: string, estatus = 'Verificado', meses = 1): PagoCubierto => ({
   id_pago: 1, numero_recibo: 'REC-1', estatus, periodo, meses_cubiertos: meses, monto_usd_equivalente: 5, fecha_pago: '2026-01-01',
@@ -63,5 +63,19 @@ describe('avisoDelDia', () => {
     expect(avisoDelDia('2026-10-10', cfg, 'por_pagar', 2, null)).toBe('mora')
     expect(avisoDelDia('2026-10-16', cfg, 'por_pagar', 2, '2026-10-10')).toBeNull()
     expect(avisoDelDia('2026-10-17', cfg, 'por_pagar', 2, '2026-10-10')).toBe('mora')
+  })
+})
+
+describe('desdeAfiliado', () => {
+  it('con historial importado manda su primer mes', () => {
+    expect(desdeAfiliado('2026-07', '2026-09-01', [{ periodo: '2026-03', estado: 'pagado' }, { periodo: '2026-01', estado: 'pagado' }])).toBe('2026-01')
+  })
+  it('una marca manual suelta no mueve el inicio ni oculta la deuda anterior', () => {
+    expect(desdeAfiliado('2026-07', null, [{ periodo: '2026-08', estado: 'pagado', manual: true }])).toBe('2026-07')
+    expect(desdeAfiliado('2026-07', '2026-09-15', [{ periodo: '2026-08', estado: 'pagado', manual: true }])).toBe('2026-09')
+  })
+  it('sin historial usa el mayor entre el arranque y la afiliación', () => {
+    expect(desdeAfiliado('2026-07', '2026-02-10')).toBe('2026-07')
+    expect(desdeAfiliado('2026-07', '2026-09-10')).toBe('2026-09')
   })
 })
