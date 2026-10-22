@@ -51,37 +51,16 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
   }, [seleccion])
 
   return (
-    <section aria-labelledby={idTitulo} className="border-b border-gray-100 bg-white px-4 pt-3 pb-3">
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-        <h3 id={idTitulo} className="text-sm font-bold text-slate-800">
-          Cohortes de {programa}
-        </h3>
-        <div className="flex items-center gap-2">
-          {activa && (
-            <button
-              type="button"
-              onClick={() => onExportar(activa)}
-              className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 ${FOCO}`}
-            >
-              <Download size={14} aria-hidden="true" className="shrink-0" />
-              <span className="max-w-[14rem] truncate">Excel de {activa.nombre}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onNueva}
-            className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 ${FOCO}`}
-          >
-            <Plus size={14} aria-hidden="true" />
-            Nueva cohorte
-          </button>
-        </div>
-      </div>
+    // En pantallas chicas las acciones van arriba de las tarjetas; desde `sm`, al costado
+    <section aria-labelledby={idTitulo} className="flex flex-col-reverse gap-2 border-b border-gray-100 bg-white px-4 py-2.5 sm:flex-row sm:items-start sm:gap-3">
+      <h3 id={idTitulo} className="sr-only">
+        Cohortes de {programa}
+      </h3>
 
       <div
         role="group"
         aria-label={`Cohortes de ${programa}`}
-        className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]"
+        className="-mx-1 flex min-w-0 flex-1 snap-x gap-2.5 overflow-x-auto px-1 pb-1.5 [scrollbar-width:thin]"
       >
         <button
           type="button"
@@ -89,13 +68,13 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
           ref={seleccion === null ? tarjetaActiva : undefined}
           onClick={() => onSeleccionar(null)}
           className={[
-            'flex w-36 shrink-0 snap-start flex-col gap-1 rounded-2xl border p-3 text-left transition-colors',
+            'flex w-28 shrink-0 snap-start flex-col gap-0.5 rounded-xl border p-2.5 text-left transition-colors',
             seleccion === null ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50',
             FOCO,
           ].join(' ')}
         >
           <span className="text-sm font-bold text-slate-800">Vista general</span>
-          <span className="text-xs leading-snug text-slate-500">Sin filtrar por cohorte</span>
+          <span className="text-[11px] leading-snug text-slate-500">Todo {programa}, sin filtrar</span>
         </button>
 
         {cohortes.map(c => {
@@ -110,7 +89,7 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
               ref={elegida ? tarjetaActiva : undefined}
               onClick={() => onSeleccionar(c.id_cohorte)}
               className={[
-                'flex min-w-60 max-w-sm flex-1 basis-60 snap-start flex-col rounded-2xl border p-3 text-left transition-colors',
+                'flex w-[15.5rem] shrink-0 snap-start flex-col rounded-xl border p-2.5 text-left transition-colors',
                 elegida ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-slate-50',
                 FOCO,
               ].join(' ')}
@@ -119,7 +98,7 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
                 <span className="truncate text-sm font-bold text-slate-800">{c.nombre}</span>
                 <span
                   className={[
-                    'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold',
+                    'shrink-0 rounded-full border px-1.5 py-px text-[10px] font-bold',
                     c.estado === 'Abierta' ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-gray-200 bg-gray-100 text-slate-600',
                   ].join(' ')}
                 >
@@ -127,25 +106,25 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
                 </span>
               </span>
 
-              <span className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-extrabold leading-none tabular-nums text-slate-900">{c.inscritos}</span>
+              <span className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-extrabold leading-none tabular-nums text-slate-900">{c.inscritos}</span>
                 <span className="text-xs font-medium text-slate-500">{c.inscritos === 1 ? 'inscrito' : 'inscritos'}</span>
               </span>
 
               <span
                 role="img"
                 aria-label={`${c.nombre}: ${resumen}`}
-                className="mt-2.5 flex h-2 gap-0.5 overflow-hidden rounded-full bg-slate-100"
+                className="mt-2 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-slate-100"
               >
                 {presentes.map(e => (
                   <span key={e.clave} className={`${e.color} min-w-1`} style={{ flexGrow: c.etapas[e.clave] }} />
                 ))}
               </span>
 
-              <span className={`mt-2 grid gap-x-3 gap-y-1 text-[11px] text-slate-600 ${presentes.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`} aria-hidden="true">
+              <span className={`mt-1.5 grid gap-x-2 gap-y-0.5 text-[11px] text-slate-600 ${presentes.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`} aria-hidden="true">
                 {presentes.map(e => (
                   <span key={e.clave} className="flex min-w-0 items-center gap-1.5">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${e.color}`} />
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${e.color}`} />
                     <span className="truncate">{e.etiqueta}</span>
                     <b className="ml-auto font-bold tabular-nums text-slate-800">{c.etapas[e.clave]}</b>
                   </span>
@@ -158,6 +137,27 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
         {cohortes.length === 0 && (
           <p className="self-center px-2 text-xs text-slate-500">Este programa aún no tiene cohortes. Crea la primera con “Nueva cohorte”.</p>
         )}
+      </div>
+
+      <div className="flex shrink-0 gap-2 sm:w-40 sm:flex-col sm:gap-1.5">
+        {activa && (
+          <button
+            type="button"
+            onClick={() => onExportar(activa)}
+            className={`inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 sm:w-full ${FOCO}`}
+          >
+            <Download size={14} aria-hidden="true" className="shrink-0" />
+            <span className="truncate">Excel de {activa.nombre}</span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onNueva}
+          className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 sm:w-full ${FOCO}`}
+        >
+          <Plus size={14} aria-hidden="true" className="shrink-0" />
+          Nueva cohorte
+        </button>
       </div>
     </section>
   )
