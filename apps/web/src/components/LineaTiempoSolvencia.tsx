@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { corregirMesSolvencia } from '@/utils/correccionesSolvencia'
 import { CheckCircle2, Clock, AlertCircle, CircleDashed, CalendarPlus, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
@@ -9,7 +10,7 @@ type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
 interface MesSolvencia {
   periodo: string
   estado: EstadoMes
-  pago: { numero_recibo: string; estatus: string; fecha_pago: string; monto_usd_equivalente: number } | null
+  pago: { id_pago: number; numero_recibo: string; estatus: string; fecha_pago: string; monto_usd_equivalente: number } | null
   historico?: boolean
 }
 
@@ -37,13 +38,14 @@ const mesLargo = (ym: string) =>
 
 /** Línea de tiempo mensual de solvencia de un afiliado (mes más reciente arriba). */
 export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: number }) {
-  const { token } = useAuth()
+  const { token, isSuperAdmin } = useAuth()
   const [data, setData] = useState<Solvencia | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [version, setVersion] = useState(0)
+  const [ocupado, setOcupado] = useState(false)
 
   useEffect(() => {
     let vivo = true
-    setData(null)
     setError(null)
     apiFetch<{ data: Solvencia }>(`${API_URL}/api/pagos/solvencia/afiliado/${idAfiliado}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -51,6 +53,15 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
       .then(r => vivo && setData(r.data))
       .catch(e => vivo && setError(e.message))
     return () => { vivo = false }
+  }, [idAfiliado, token, version])
+
+  const corregir = useCallback(async (m: MesSolvencia) => {
+    setOcupado(true)
+    try {
+      if (await corregirMesSolvencia(idAfiliado, m, token)) setVersion(v => v + 1)
+    } finally {
+      setOcupado(false)
+    }
   }, [idAfiliado, token])
 
   if (error) return <p className="text-xs font-medium text-red-500">No se pudo cargar la solvencia: {error}</p>
@@ -102,6 +113,28 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
                     <p className="text-[11px] text-slate-500 font-medium tabular-nums mt-0.5">
                       {m.pago.numero_recibo} · {new Date(m.pago.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' })}
                     </p>
+                  )}
+                  {isSuperAdmin && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {m.pago && (
+                        <button type="button" disabled={ocupado} onClick={() => corregir(m)}
+                          className="px-2 py-0.5 rounded-md border border-red-200 bg-white text-[10px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
+                          Anular pago
+                        </button>
+                      )}
+                      {m.historico && (
+                        <button type="button" disabled={ocupado} onClick={() => corregir(m)}
+                          className="px-2 py-0.5 rounded-md border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                          Quitar marca
+                        </button>
+                      )}
+                      {!m.pago && (m.estado === 'deuda' || m.estado === 'por_pagar') && (
+                        <button type="button" disabled={ocupado} onClick={() => corregir(m)}
+                          className="px-2 py-0.5 rounded-md border border-emerald-200 bg-white text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+                          Marcar como pagado
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

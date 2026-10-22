@@ -1,12 +1,12 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
-import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia'
 import { cleanSearchDigits, normalizeSearchText } from '@/utils/searchUtils'
 import { formatNombreCard } from '@/utils/formatters'
+import { accionDelMes, corregirMesSolvencia, type MesCorregible } from '@/utils/correccionesSolvencia'
 
 type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
 
@@ -70,7 +70,7 @@ const CELDA: Record<EstadoMes, { clase: string; marca: string; titulo: string }>
 
 /** Matriz mes a mes de la solvencia de todos los afiliados; al abrir una fila se ve su línea de tiempo. */
 export default function SolvenciaPanel() {
-  const { authHeaders } = useAuth()
+  const { authHeaders, token, isSuperAdmin } = useAuth()
   const [anio, setAnio] = useState(new Date().getFullYear())
   const [data, setData] = useState<Resumen | null>(null)
   const [inicio, setInicio] = useState('')
@@ -78,7 +78,6 @@ export default function SolvenciaPanel() {
   const [criterio, setCriterio] = useState<CriterioBusqueda>('nombre')
   const [menuCriterio, setMenuCriterio] = useState(false)
   const [soloMora, setSoloMora] = useState(false)
-  const [abierto, setAbierto] = useState<number | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
 
@@ -109,6 +108,22 @@ export default function SolvenciaPanel() {
     }
     return (data?.afiliados ?? []).filter(a => (!soloMora || !a.solvente) && (!busqueda.trim() || coincide(a)))
   }, [data, busqueda, criterio, soloMora])
+
+  /** Superadmin: clic en el mes de un afiliado para anular su pago, marcarlo o quitarle la marca */
+  const corregirCelda = async (idAfiliado: number, mesIndex: number) => {
+    const periodo = `${anio}-${String(mesIndex + 1).padStart(2, '0')}`
+    try {
+      const r = await apiFetch<{ data: { meses: MesCorregible[] } }>(`${API_URL}/api/pagos/solvencia/afiliado/${idAfiliado}`, { headers: authHeaders })
+      const mes = r.data.meses.find(m => m.periodo === periodo)
+      if (!mes || !accionDelMes(mes)) {
+        Swal.fire('Sin cambios posibles', 'Este mes no tiene nada que corregir.', 'info')
+        return
+      }
+      if (await corregirMesSolvencia(idAfiliado, mes, token)) await cargar()
+    } catch (e: any) {
+      Swal.fire('Error', e.message, 'error')
+    }
+  }
 
   const enviarRecordatorio = async (idAfiliado?: number) => {
     const ok = await Swal.fire({
@@ -265,14 +280,20 @@ export default function SolvenciaPanel() {
           <tbody className="divide-y divide-slate-100">
             {filas.length === 0 && <tr><td colSpan={15} className="p-6 text-center text-slate-400 font-medium">Sin afiliados para mostrar.</td></tr>}
             {filas.map(a => (
-              <Fragment key={a.id_afiliado}>
-                <tr onClick={() => setAbierto(abierto === a.id_afiliado ? null : a.id_afiliado)} className="hover:bg-slate-50 cursor-pointer">
+              <tr key={a.id_afiliado} className="hover:bg-slate-50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-400 tabular-nums">{a.codigo}</td>
                   <td className="px-3 py-2 font-bold text-slate-800 truncate max-w-[260px]" title={a.nombre}>{formatNombreCard(a.nombres, a.apellidos) || a.razon_social || a.nombre}</td>
                   {a.celdas.map((c, i) => (
                     <td key={i} className="px-1 py-2 text-center">
                       {c ? (
-                        <span title={`${MESES[i]} ${anio}: ${CELDA[c].titulo}`} className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-black ${CELDA[c].clase}`}>{CELDA[c].marca}</span>
+                        isSuperAdmin ? (
+                          <button type="button" onClick={e => { e.stopPropagation(); corregirCelda(a.id_afiliado, i) }}
+                            title={`${MESES[i]} ${anio}: ${CELDA[c].titulo} · clic para corregir`}
+                            aria-label={`${MESES[i]} ${anio}: ${CELDA[c].titulo}. Corregir`}
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-black cursor-pointer hover:ring-2 hover:ring-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-600 ${CELDA[c].clase}`}>{CELDA[c].marca}</button>
+                        ) : (
+                          <span title={`${MESES[i]} ${anio}: ${CELDA[c].titulo}`} className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-black ${CELDA[c].clase}`}>{CELDA[c].marca}</span>
+                        )
                       ) : <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-200" />}
                     </td>
                   ))}
@@ -281,22 +302,16 @@ export default function SolvenciaPanel() {
                     {a.bloqueado && <span className="block text-[9px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
                 </tr>
-                {abierto === a.id_afiliado && (
-                  <tr><td colSpan={15} className="bg-slate-50/60 px-6 py-4 space-y-3">
-                    {!a.solvente && (
-                      <button type="button" onClick={() => enviarRecordatorio(a.id_afiliado)}
-                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-black uppercase tracking-wider cursor-pointer">
-                        Enviar recordatorio
-                      </button>
-                    )}
-                    <LineaTiempoSolvencia idAfiliado={a.id_afiliado} />
-                  </td></tr>
-                )}
-              </Fragment>
             ))}
           </tbody>
         </table>
       </div>
+
+      {isSuperAdmin && (
+        <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+          Como superadmin puedes corregir cualquier mes: haz clic en su casilla para anular el pago, marcarlo como pagado o quitar la marca.
+        </p>
+      )}
 
       <p className="text-xs text-slate-500 font-medium">
         Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso cuenta como deuda a partir del día {data.cobranza.diaVencimiento + 1}. Con más de {data.cobranza.mesesGracia} meses de deuda se bloquean el carnet, la constancia de solvencia y los certificados. Los afiliados sin historial importado deben desde el mes indicado arriba.
