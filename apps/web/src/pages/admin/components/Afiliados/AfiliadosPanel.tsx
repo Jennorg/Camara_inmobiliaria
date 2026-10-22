@@ -282,6 +282,11 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       if (res.ok) {
         await loadDetail(selected.id_afiliado)
         if (['estatus', 'nombre_completo', 'codigo', 'tipo_afiliado'].includes(field)) await load()
+      } else {
+        // El servidor puede rechazar el cambio (p. ej. falta el pago del CIBIR): se explica y se vuelve al valor guardado
+        const json = await res.json().catch(() => null)
+        Swal.fire({ title: 'No se pudo aplicar el cambio', text: json?.message || 'Inténtalo de nuevo.', icon: 'warning', confirmButtonColor: '#059669' })
+        await loadDetail(selected.id_afiliado)
       }
     } catch (err) { console.error(err) }
   }

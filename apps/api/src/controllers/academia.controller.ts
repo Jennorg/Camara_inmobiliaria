@@ -5,6 +5,7 @@ import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
+import { MENSAJE_PAGO_CIBIR_REQUERIDO, puedeEntrarACibir } from '../services/pagos.service.js'
 import { esCupoIlimitado, precioCurso, sqlOcupaCupo, venceReserva } from '../lib/cursos-pago.js'
 import { asegurarCohortes } from '../services/cohortes.service.js'
 
@@ -2432,8 +2433,14 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           p_rep.cedula as representante_cedula,
           p_rep.email as representante_email,
           p_rep.telefono as representante_telefono,
+          af.id_afiliado as id_afiliado,
           af.estatus as afiliado_estatus,
           af.tipo_afiliado as afiliado_tipo,
+          -- Estado de los cobros que la caja puede registrar desde esta pantalla
+          EXISTS (SELECT 1 FROM pagos pg WHERE pg.tipo_concepto = 'curso_cibir' AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL
+                    AND (pg.id_afiliado = af.id_afiliado OR pg.id_estudiante = ic.id_estudiante)) as pago_cibir,
+          EXISTS (SELECT 1 FROM pagos pg WHERE pg.tipo_concepto = 'programa' AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL
+                    AND pg.id_estudiante = ic.id_estudiante AND pg.codigo_arancel = 'programa_' || LOWER(ic.programa_codigo)) as pago_programa,
           emp_vinc.razon_social as empresa_vinculada_nombre,
           af.ano_inicio_servicio as ano_inicio_servicio,
           entr.fecha as entrevista_fecha,
@@ -2971,6 +2978,12 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       return
     }
 
+    // Remitir a CIBIR exige tener registrado el pago del arancel
+    if (!(await puedeEntrarACibir({ idEstudiante: row.id_estudiante }))) {
+      res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO })
+      return
+    }
+
     // 2. Marcar como 'Inscrito' (o mantener AFILIACION pero procesado)
     // Para simplificar, lo aprobamos como 'Inscrito' sin cambiar el programa_codigo (sigue siendo AFILIACION)
     await db.execute({
@@ -3118,6 +3131,12 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       }).catch(e => console.error('Error enviando correo rechazo entrevista:', e))
 
       res.json({ success: true, message: 'Postulación rechazada.' })
+      return
+    }
+
+    // Una aprobación parcial manda al aspirante a la etapa CIBIR: exige el pago del arancel
+    if (resultado === 'Parcial' && row.programa_codigo === 'AFILIACION' && !(await puedeEntrarACibir({ idEstudiante: row.id_estudiante }))) {
+      res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO })
       return
     }
 
@@ -3964,6 +3983,12 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     }
 
     const row = currentRes.rows[0] as any
+
+    // La etapa 4 de la afiliación es CIBIR: exige tener registrado el pago del arancel
+    if (etapa === 4 && row.programa_codigo === 'AFILIACION' && !(await puedeEntrarACibir({ idEstudiante: row.id_estudiante }))) {
+      res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO })
+      return
+    }
 
     // Map stage index to inscripciones_cursos.estatus
     let targetInscripcionStatus = 'Preinscrito'

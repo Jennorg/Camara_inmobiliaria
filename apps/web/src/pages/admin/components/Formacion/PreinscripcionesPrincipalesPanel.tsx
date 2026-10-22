@@ -9,6 +9,9 @@ import { formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
 import { formatDateLatina } from '@/utils/formatters'
 import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
+import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
+import ReciboDigitalModal from '@/components/ReciboDigitalModal'
+import type { PagoDTO } from '@/types/pagos'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -43,8 +46,12 @@ type Row = {
   representante_email?: string | null
   representante_telefono?: string | null
   tipo_estudiante?: string | null
+  id_afiliado?: number | null
   afiliado_estatus?: string
   afiliado_tipo?: string | null
+  /** Hay un pago verificado del arancel CIBIR / del arancel de su programa */
+  pago_cibir?: number | null
+  pago_programa?: number | null
   empresa_vinculada_nombre?: string | null
   estudiante_es_corredor_inmobiliario?: number | boolean | null
   estudiante_nivel_profesional?: string | null
@@ -201,6 +208,26 @@ export default function PreinscripcionesPrincipalesPanel({
 
   const [showModalAgendar, setShowModalAgendar] = useState(false)
   const [showModalFinalizar, setShowModalFinalizar] = useState(false)
+  // Cobros de caja sin salir de la pantalla: qué se está cobrando a la persona seleccionada y el recibo emitido
+  const [cobro, setCobro] = useState<'formalizacion_afiliacion' | 'curso_cibir' | 'programa' | null>(null)
+  const [reciboPago, setReciboPago] = useState<PagoDTO | null>(null)
+  /** Muestra el recibo completo (con los datos del pagador); si no se puede pedir, el recién creado */
+  const abrirRecibo = async (pago: PagoDTO) => {
+    try {
+      const res = await fetch(`${API_URL}/api/pagos/recibo/${pago.id_pago}`, { headers: { ...authHeaders } })
+      const json = await res.json()
+      setReciboPago(res.ok && json.success ? json.data : pago)
+    } catch {
+      setReciboPago(pago)
+    }
+  }
+  const ofrecerCobroCibir = async (mensaje: string) => {
+    const r = await Swal.fire({
+      title: 'Falta el pago del CIBIR', text: mensaje, icon: 'info', showCancelButton: true,
+      confirmButtonText: 'Registrar cobro ahora', cancelButtonText: 'Cerrar', confirmButtonColor: '#059669',
+    })
+    if (r.isConfirmed) setCobro('curso_cibir')
+  }
   const [entrevista, setEntrevista] = useState({ fecha: '', hora: '', lugar: 'Sede Cámara Inmobiliaria' })
   const [finalizarData, setFinalizarData] = useState<{ resultado: 'Aprobado' | 'Parcial' | 'Rechazado', modulos: number[], nota: string }>({
     resultado: 'Aprobado',
@@ -691,6 +718,11 @@ export default function PreinscripcionesPrincipalesPanel({
         headers: { 'Content-Type': 'application/json', ...authHeaders },
       })
       const json = await res.json()
+      if (json.code === 'PAGO_CIBIR_REQUERIDO') {
+        Swal.close()
+        await ofrecerCobroCibir(json.message)
+        return
+      }
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo remitir')
 
       Swal.fire({
@@ -736,6 +768,11 @@ export default function PreinscripcionesPrincipalesPanel({
         body: JSON.stringify({ etapa }),
       })
       const json = await res.json()
+      if (json.code === 'PAGO_CIBIR_REQUERIDO') {
+        Swal.close()
+        await ofrecerCobroCibir(json.message)
+        return
+      }
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la etapa')
 
       Swal.fire({
@@ -1208,6 +1245,49 @@ export default function PreinscripcionesPrincipalesPanel({
                 </select>
               </label>
             )}
+
+            {/* Cobros de caja de esta persona: se registran aquí, sin ir a Finanzas */}
+            {(() => {
+              const r = selected
+              const enCurso = ['Preinscrito', 'Entrevista', 'Inscrito'].includes(r.estatus)
+              const items: { clave: 'formalizacion_afiliacion' | 'curso_cibir' | 'programa'; etiqueta: string; detalle: string; pagado: boolean; disponible: boolean }[] = []
+              if (r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION') {
+                items.push({ clave: 'formalizacion_afiliacion', etiqueta: 'Formalización de afiliación', detalle: 'Inscripción + primera cuota. Al cobrarla pasa a Afiliado.', pagado: false, disponible: true })
+              }
+              const cibirAplica = !r.cibir_acreditado && (
+                (r.programa_codigo === 'AFILIACION' && ['4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(r.afiliado_estatus || '')) ||
+                (r.programa_codigo === 'CIBIR' && enCurso && Number(r.completado) !== 1))
+              if (cibirAplica && r.id_afiliado) {
+                items.push({ clave: 'curso_cibir', etiqueta: 'Arancel CIBIR', detalle: 'Se exige para pasar a la etapa CIBIR.', pagado: !!r.pago_cibir, disponible: true })
+              }
+              if (['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && enCurso) {
+                items.push({ clave: 'programa', etiqueta: `Arancel ${r.programa_codigo}`, detalle: 'Se cobra a la persona inscrita al programa.', pagado: !!r.pago_programa, disponible: true })
+              }
+              if (items.length === 0) return null
+              return (
+                <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 mb-4 space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Cobros</span>
+                  {items.map(it => (
+                    <div key={it.clave} className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800">{it.etiqueta}</p>
+                        <p className="text-[11px] text-slate-500 font-medium">{it.detalle}</p>
+                      </div>
+                      {it.pagado ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Check size={11} aria-hidden="true" /> Pagado
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => setCobro(it.clave)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                          <CreditCard size={12} aria-hidden="true" /> Registrar cobro
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
 
             {/* Stepper de Progreso */}
             {(selected.programa_codigo === 'AFILIACION' || selected.afiliado_estatus === '5_CIBIR') && (() => {
@@ -1863,6 +1943,23 @@ export default function PreinscripcionesPrincipalesPanel({
       )}
 
       {/* Modal Finalizar */}
+      {cobro && selected && (
+        <ModalCobroTaquilla
+          open
+          onClose={() => setCobro(null)}
+          onSuccess={(pago) => { setCobro(null); abrirRecibo(pago); fetchData(true) }}
+          afiliadoId={selected.id_afiliado ?? null}
+          afiliadoNombre={formatNombreCard(selected.estudiante_nombres, selected.estudiante_apellidos)}
+          afiliadoTipo={selected.afiliado_tipo ?? undefined}
+          conceptoDefault={cobro === 'programa' ? 'programa' : cobro}
+          programaPorCobrar={cobro === 'programa'
+            ? { id_estudiante: selected.id_estudiante, codigo_arancel: `programa_${selected.programa_codigo.toLowerCase()}`, nombre: selected.programa_codigo }
+            : null}
+          authHeaders={authHeaders}
+        />
+      )}
+      <ReciboDigitalModal pago={reciboPago} onClose={() => setReciboPago(null)} />
+
       {showModalFinalizar && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6">
