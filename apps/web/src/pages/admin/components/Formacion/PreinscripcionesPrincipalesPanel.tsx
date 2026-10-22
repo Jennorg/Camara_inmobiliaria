@@ -7,7 +7,7 @@ import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
 import { formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
-import CohortesNavegador, { CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
+import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -61,6 +61,9 @@ type Row = {
 }
 
 const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
+/** Aparición de la franja al cambiar de programa y de las primeras filas al cambiar de lista (sin movimiento si el usuario lo prefiere) */
+const ENTRADA_FRANJA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-300'
+const ENTRADA_FILA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-300 motion-safe:fill-mode-backwards'
 
 export default function PreinscripcionesPrincipalesPanel({
   initialPrograma = 'Todos'
@@ -949,23 +952,27 @@ export default function PreinscripcionesPrincipalesPanel({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
-      {!PROGRAMAS_CON_COHORTE.includes(programa) && cohortes.length > 0 && (
-        <div className={selected ? 'hidden sm:block' : ''}>
-          <CohortesPorPrograma cohortes={cohortes} onElegir={setPrograma} />
-        </div>
-      )}
-      {PROGRAMAS_CON_COHORTE.includes(programa) && (
-        <div className={selected ? 'hidden sm:block' : ''}>
-          <CohortesNavegador
-            programa={programa}
-            cohortes={cohortesDelPrograma}
-            seleccion={cohorteFiltro}
-            onSeleccionar={seleccionarCohorte}
-            onNueva={nuevaCohorte}
-            onExportar={exportarCohorte}
-          />
-        </div>
-      )}
+      <div className={selected ? 'hidden sm:block' : ''}>
+        <AlturaSuave>
+          {PROGRAMAS_CON_COHORTE.includes(programa) ? (
+            <div key={programa} className={ENTRADA_FRANJA}>
+              <CohortesNavegador
+                programa={programa}
+                cohortes={cohortesDelPrograma}
+                seleccion={cohorteFiltro}
+                onSeleccionar={seleccionarCohorte}
+                onNueva={nuevaCohorte}
+                onExportar={exportarCohorte}
+                cargando={loading}
+              />
+            </div>
+          ) : cohortes.length > 0 ? (
+            <div key="resumen" className={ENTRADA_FRANJA}>
+              <CohortesPorPrograma cohortes={cohortes} onElegir={setPrograma} />
+            </div>
+          ) : null}
+        </AlturaSuave>
+      </div>
       <div className="relative flex-1 min-h-0">
       <div className="grid grid-cols-1 sm:grid-cols-[340px_1fr] grid-rows-1 h-full w-full overflow-hidden absolute inset-0">
       {/* Listado lateral */}
@@ -1051,7 +1058,21 @@ export default function PreinscripcionesPrincipalesPanel({
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {loading ? (
-            <div className="p-4 text-center text-xs text-slate-400 font-semibold uppercase tracking-widest mt-10 animate-pulse">Cargando...</div>
+            <div aria-busy="true" className="divide-y divide-gray-50">
+              <span className="sr-only" role="status">Cargando inscritos…</span>
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} aria-hidden="true" className="flex flex-col gap-2 px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="h-4 rounded bg-slate-100 motion-safe:animate-pulse" style={{ width: `${48 + ((i * 17) % 32)}%` }} />
+                    <div className="h-4 w-20 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-14 rounded bg-slate-100 motion-safe:animate-pulse" />
+                    <div className="h-3 w-28 rounded bg-slate-100 motion-safe:animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : error ? (
             <div className="p-4 text-center text-xs text-red-500 mt-10">{error}</div>
           ) : filteredRows.length === 0 ? (
@@ -1061,12 +1082,14 @@ export default function PreinscripcionesPrincipalesPanel({
                 : 'No hay registros.'}
             </div>
           ) : (
-            filteredRows.map(r => (
+            filteredRows.map((r, i) => (
               <button
                 key={r.id_inscripcion}
                 onClick={() => { setSelected(r); fetchDocumentos(r.id_estudiante) }}
+                style={i < 12 ? { animationDelay: `${i * 30}ms` } : undefined}
                 className={['w-full text-left px-4 py-3.5 transition-colors flex flex-col gap-1',
                   selected?.id_inscripcion === r.id_inscripcion ? 'bg-[#E9FAF4]' : 'hover:bg-slate-50',
+                  i < 12 ? ENTRADA_FILA : '',
                 ].join(' ')}
               >
                 <div className="flex items-start justify-between gap-2">
