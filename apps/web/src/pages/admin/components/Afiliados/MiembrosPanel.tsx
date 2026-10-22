@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif, getInitials } from '@/utils/formatters'
+import ImagenConSkeleton from '@/components/ImagenConSkeleton'
 import { EstatusAfiliado, AfiliadoDTO } from '@/types/afiliados'
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import { apiFetch } from '@/lib/apiClient'
@@ -1432,7 +1433,14 @@ export default function MiembrosPanel() {
                           title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar el logo de la empresa" : "Haz clic para cambiar el logo comercial / personal"}
                         >
                           {selected.empresa_logo_url ? (
-                            <img src={selected.empresa_logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
+                            <ImagenConSkeleton
+                              key={selected.empresa_logo_url}
+                              src={selected.empresa_logo_url}
+                              alt="Logo"
+                              className="object-contain p-1"
+                              silueta={<Building2 size={32} strokeWidth={1.25} />}
+                              alternativa={<Building2 size={36} className="text-emerald-900" />}
+                            />
                           ) : (
                             <Building2 size={36} className="text-emerald-900" />
                           )}
@@ -1461,7 +1469,19 @@ export default function MiembrosPanel() {
                           title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar la foto del representante" : "Haz clic para cambiar la foto de perfil"}
                         >
                           {selected.foto_url ? (
-                            <img src={selected.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
+                            <ImagenConSkeleton
+                              key={selected.foto_url}
+                              src={selected.foto_url}
+                              alt="Foto de perfil"
+                              className="object-cover"
+                              prioritaria
+                              silueta={<UserIcon size={44} strokeWidth={1.25} />}
+                              alternativa={
+                                <span className="text-2xl font-black text-emerald-700 uppercase">
+                                  {getInitials(selected.nombres, selected.apellidos)}
+                                </span>
+                              }
+                            />
                           ) : (
                             <span className="text-2xl font-black text-emerald-700 uppercase">
                               {getInitials(selected.nombres, selected.apellidos)}
@@ -1490,7 +1510,19 @@ export default function MiembrosPanel() {
                       title="Haz clic para cambiar la foto de perfil"
                     >
                       {selected.foto_url ? (
-                        <img src={selected.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
+                        <ImagenConSkeleton
+                          key={selected.foto_url}
+                          src={selected.foto_url}
+                          alt="Foto de perfil"
+                          className="object-cover"
+                          prioritaria
+                          silueta={<UserIcon size={44} strokeWidth={1.25} />}
+                          alternativa={
+                            <span className="text-2xl font-black text-emerald-600 uppercase tracking-tighter">
+                              {getInitials(selected.nombres, selected.apellidos)}
+                            </span>
+                          }
+                        />
                       ) : (
                         <span className="text-2xl font-black text-emerald-600 uppercase tracking-tighter">
                           {getInitials(selected.nombres, selected.apellidos)}

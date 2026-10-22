@@ -152,6 +152,12 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
   to   { transform: scaleX(1); }
 }
 
+/* Brillo que cruza un esqueleto de imagen mientras carga */
+@keyframes brillo-skeleton {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
 @keyframes skeleton-shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0;  }
