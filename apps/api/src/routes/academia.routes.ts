@@ -35,6 +35,8 @@ import {
   adminReenviarEnlaceExpediente,
 } from '../controllers/academia.controller.js'
 
+import { adminAsignarCohorte, adminCrearCohorte, adminExportarCohorte, adminListCohortes } from '../controllers/cohortes.controller.js'
+
 const router = Router()
 
 // Todo lo de este router es para panel administrativo
@@ -119,6 +121,12 @@ router.delete('/profesores/:id', requireRole('admin', 'super_admin'), adminDelet
 router.get('/personas-disponibles', adminListPersonasDisponibles)
 // POST /api/academia/inscripciones/:id/reenviar-enlace
 router.post('/inscripciones/:id/reenviar-enlace', adminReenviarEnlaceExpediente)
+
+// Cohortes de los programas CIBIR, PREANI, PEGI y PADI
+router.get('/cohortes', adminListCohortes)
+router.post('/cohortes', adminCrearCohorte)
+router.get('/cohortes/:id/inscritos.xlsx', adminExportarCohorte)
+router.patch('/inscripciones/:id/cohorte', adminAsignarCohorte)
 
 export { router as academiaRoutes }
 

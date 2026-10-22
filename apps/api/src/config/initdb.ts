@@ -12,6 +12,7 @@ import { db } from '../lib/db.js'
 import { env } from './env.js'
 import bcrypt from 'bcryptjs'
 import { toTitleCase } from '../lib/formatters.js'
+import { asegurarEsquemaCohortes } from '../lib/cohortes.js'
 
 const statements = [
   `PRAGMA foreign_keys = ON`,
@@ -821,6 +822,9 @@ async function run() {
       }
     }
   }
+
+  console.log('  ⚠ Cohortes (tabla, columna y triggers de asignación)...')
+  await asegurarEsquemaCohortes(db)
 
   console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')
   try {

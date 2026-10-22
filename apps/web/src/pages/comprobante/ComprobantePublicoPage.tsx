@@ -32,6 +32,7 @@ type ApiData = {
   instructor_cargo?: string | null
   firmantes?: any[]
   vigente: boolean
+  cohorte?: { numero: number; nombre: string } | null
 }
 
 const MAIN_PROGRAMS = new Set(['CIBIR', 'PREANI', 'PEGI', 'PADI'])
@@ -93,6 +94,7 @@ const ComprobantePublicoPage: React.FC = () => {
           programaCodigo: data.programa_codigo || '',
           urlVerificacion,
           cedula: data.cedula,
+          cohorteNombre: data.cohorte?.nombre,
           firmantes: data.firmantes,
         }, 3.0)
       } else {
@@ -139,6 +141,7 @@ const ComprobantePublicoPage: React.FC = () => {
           programaCodigo: data.programa_codigo || '',
           urlVerificacion,
           cedula: data.cedula,
+          cohorteNombre: data.cohorte?.nombre,
           firmantes: data.firmantes,
         }, 3.0)
       } else {
@@ -291,6 +294,7 @@ const ComprobantePublicoPage: React.FC = () => {
               urlVerificacion={urlVerificacion}
               vigente={data.vigente}
               cedula={data.cedula}
+              cohorteNombre={data.cohorte?.nombre}
               firmantes={data.firmantes}
             />
           ) : (

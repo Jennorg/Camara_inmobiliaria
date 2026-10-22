@@ -25,6 +25,7 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
     const result = await db.execute({
       sql: `
         SELECT
+          ic.id_inscripcion,
           COALESCE(c.id_certificado, 0) AS id_certificado,
           COALESCE(c.codigo_validacion, ?) AS codigo_validacion,
           COALESCE(c.fecha_emision, ic.fecha_inscripcion, datetime('now')) AS fecha_emision,
@@ -175,10 +176,21 @@ export const publicGetComprobanteByCodigo = async (req: Request, res: Response):
       mostrar_firma: f?.mostrar_firma !== false
     }))
 
+    // Cohorte (solo programas). Consulta aparte: si la tabla aún no existe o falla, el certificado se verifica igual.
+    let cohorte: { numero: number; nombre: string } | null = null
+    try {
+      const coh = await db.execute({
+        sql: `SELECT c.numero, c.nombre FROM inscripciones_cursos ic JOIN cohortes c ON c.id_cohorte = ic.id_cohorte WHERE ic.id_inscripcion = ?`,
+        args: [row.id_inscripcion as number],
+      })
+      if (coh.rows[0]) cohorte = { numero: Number(coh.rows[0].numero), nombre: String(coh.rows[0].nombre) }
+    } catch { /* sin cohortes: se omite */ }
+
     res.json({
       success: true,
       data: {
         codigo_validacion: row.codigo_validacion,
+        cohorte,
         fecha_emision: row.fecha_emision,
         titular_nombre: row.titular_nombre,
         titular_nombres: (row.titular_nombres as string | null) || null,

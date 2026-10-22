@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/apiClient'
 import { formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
 import { formatDateLatina } from '@/utils/formatters'
+import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -56,7 +57,15 @@ type Row = {
   modulos_aprobados?: number
   num_documentos?: number
   edicion_cibir_nombre?: string | null
+  id_cohorte?: number | null
+  cohorte_numero?: number | null
+  cohorte_nombre?: string | null
 }
+
+const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
+/** Aparición de la franja al cambiar de programa y de las primeras filas al cambiar de lista (sin movimiento si el usuario lo prefiere) */
+const ENTRADA_FRANJA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-300'
+const ENTRADA_FILA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-300 motion-safe:fill-mode-backwards'
 
 export default function PreinscripcionesPrincipalesPanel({
   initialPrograma = 'Todos'
@@ -101,6 +110,95 @@ export default function PreinscripcionesPrincipalesPanel({
     return h
   }, [token])
 
+  // Cohortes: lista, filtro ('todas' | 'sin' | id) y acciones
+  const [cohortes, setCohortes] = useState<Cohorte[]>([])
+  const [cohorteFiltro, setCohorteFiltro] = useState<number | null>(null)
+  const [savingCohorte, setSavingCohorte] = useState(false)
+
+  const fetchCohortes = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes`, { headers: { ...authHeaders } })
+      const json = await res.json()
+      if (res.ok && json.success) setCohortes(json.data)
+    } catch { /* el panel sigue funcionando sin cohortes */ }
+  }, [authHeaders])
+  useEffect(() => { fetchCohortes() }, [fetchCohortes])
+  useEffect(() => { setCohorteFiltro(null) }, [programa])
+
+  const cohortesDelPrograma = useMemo(
+    () => cohortes.filter(c => c.programa_codigo === programa),
+    [cohortes, programa]
+  )
+  const seleccionarCohorte = (id: number | null) => {
+    setCohorteFiltro(id)
+    setUiEstatus('Todos') // una cohorte cerrada no tiene "pendientes": mostrar a todos, no el filtro por defecto
+    setSelected(null)
+  }
+
+  const mostrarError = (e: unknown, fallback: string) =>
+    Swal.fire({ title: 'Error', text: e instanceof Error ? e.message : fallback, icon: 'error', confirmButtonColor: '#dc2626' })
+
+  const cambiarCohorte = async (r: Row, valor: string) => {
+    setSavingCohorte(true)
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${r.id_inscripcion}/cohorte`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ id_cohorte: valor === '' ? null : Number(valor) }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la cohorte')
+      const destino = cohortes.find(c => c.id_cohorte === Number(valor))
+      setSelected(prev => prev && prev.id_inscripcion === r.id_inscripcion
+        ? { ...prev, id_cohorte: destino?.id_cohorte ?? null, cohorte_numero: destino?.numero ?? null, cohorte_nombre: destino?.nombre ?? null }
+        : prev)
+      await Promise.all([fetchData(true), fetchCohortes()])
+    } catch (e) {
+      mostrarError(e, 'No se pudo cambiar la cohorte')
+    } finally {
+      setSavingCohorte(false)
+    }
+  }
+
+  const nuevaCohorte = async () => {
+    if (!PROGRAMAS_CON_COHORTE.includes(programa)) return
+    const abierta = cohortesDelPrograma.find(c => c.estado === 'Abierta')
+    const r = await Swal.fire({
+      title: `Nueva cohorte de ${programa}`,
+      html: abierta
+        ? `Se cerrará la <b>${abierta.nombre}</b> y las nuevas inscripciones entrarán a la nueva cohorte.`
+        : 'Las nuevas inscripciones entrarán a esta cohorte.',
+      input: 'text', inputLabel: 'Nombre (opcional)', inputPlaceholder: `Cohorte ${(cohortesDelPrograma.at(-1)?.numero ?? 0) + 1}`,
+      showCancelButton: true, confirmButtonText: 'Crear', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!r.isConfirmed) return
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ programa_codigo: programa, nombre: r.value || undefined }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo crear la cohorte')
+      await fetchCohortes()
+      seleccionarCohorte(json.data.id_cohorte)
+    } catch (e) {
+      mostrarError(e, 'No se pudo crear la cohorte')
+    }
+  }
+
+  const exportarCohorte = async (c: Cohorte) => {
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes/${c.id_cohorte}/inscritos.xlsx`, { headers: { ...authHeaders } })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || 'No se pudo generar el Excel')
+      const url = URL.createObjectURL(await res.blob())
+      Object.assign(document.createElement('a'), { href: url, download: `${c.programa_codigo}-cohorte-${c.numero}.xlsx` }).click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      mostrarError(e, 'No se pudo generar el Excel')
+    }
+  }
+
   const [showModalAgendar, setShowModalAgendar] = useState(false)
   const [showModalFinalizar, setShowModalFinalizar] = useState(false)
   const [entrevista, setEntrevista] = useState({ fecha: '', hora: '', lugar: 'Sede Cámara Inmobiliaria' })
@@ -136,7 +234,10 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const qs = new URLSearchParams()
       qs.set('estatus', 'Todos')
-      if (programa !== 'Todos') {
+      if (cohorteFiltro !== null) {
+        // Los miembros se piden por cohorte: no todos se guardan con el mismo código de programa
+        qs.set('cohorteId', String(cohorteFiltro))
+      } else if (programa !== 'Todos') {
         // Tanto ACREDITACION como CIBIR se mapean a 'AFILIACION' en la API
         if (programa === 'ACREDITACION' || programa === 'CIBIR') {
           qs.set('programaCodigo', 'AFILIACION')
@@ -173,7 +274,7 @@ export default function PreinscripcionesPrincipalesPanel({
     } finally {
       if (!isSilent) setLoading(false)
     }
-  }, [programa, authHeaders, fetchDocumentos])
+  }, [programa, cohorteFiltro, authHeaders, fetchDocumentos])
 
   const fetchModulos = useCallback(async (idInscripcion: number) => {
     setLoadingModulos(true)
@@ -752,6 +853,7 @@ export default function PreinscripcionesPrincipalesPanel({
   //  - ACREDITACION: lista de preinscritos pendientes que SÍ optan por acreditación.
   //  - CIBIR: quienes NO optaron por acreditación.
   const programaRows = useMemo(() => {
+    if (cohorteFiltro !== null) return rows // el servidor ya trajo solo los de esa cohorte
     if (programa === 'ACREDITACION') {
       return rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
     }
@@ -759,7 +861,7 @@ export default function PreinscripcionesPrincipalesPanel({
       return rows.filter(r => !r.apto_acreditacion)
     }
     return rows
-  }, [rows, programa])
+  }, [rows, programa, cohorteFiltro])
 
   const counts = useMemo(() => {
     const base = programaRows
@@ -852,6 +954,28 @@ export default function PreinscripcionesPrincipalesPanel({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
+      <div className={selected ? 'hidden sm:block' : ''}>
+        <AlturaSuave>
+          {PROGRAMAS_CON_COHORTE.includes(programa) ? (
+            <div key={programa} className={ENTRADA_FRANJA}>
+              <CohortesNavegador
+                programa={programa}
+                cohortes={cohortesDelPrograma}
+                seleccion={cohorteFiltro}
+                onSeleccionar={seleccionarCohorte}
+                onNueva={nuevaCohorte}
+                onExportar={exportarCohorte}
+                cargando={loading}
+              />
+            </div>
+          ) : cohortes.length > 0 ? (
+            <div key="resumen" className={ENTRADA_FRANJA}>
+              <CohortesPorPrograma cohortes={cohortes} onElegir={setPrograma} />
+            </div>
+          ) : null}
+        </AlturaSuave>
+      </div>
+      <div className="relative flex-1 min-h-0">
       <div className="grid grid-cols-1 sm:grid-cols-[340px_1fr] grid-rows-1 h-full w-full overflow-hidden absolute inset-0">
       {/* Listado lateral */}
       <div className={['flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0', selected ? 'hidden sm:flex' : 'flex'].join(' ')}>
@@ -936,13 +1060,31 @@ export default function PreinscripcionesPrincipalesPanel({
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {loading ? (
-            <div className="p-4 text-center text-xs text-slate-400 font-semibold uppercase tracking-widest mt-10 animate-pulse">Cargando...</div>
+            <div aria-busy="true" className="divide-y divide-gray-50">
+              <span className="sr-only" role="status">Cargando inscritos…</span>
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} aria-hidden="true" className="flex flex-col gap-2 px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="h-4 rounded bg-slate-100 motion-safe:animate-pulse" style={{ width: `${48 + ((i * 17) % 32)}%` }} />
+                    <div className="h-4 w-20 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-14 rounded bg-slate-100 motion-safe:animate-pulse" />
+                    <div className="h-3 w-28 rounded bg-slate-100 motion-safe:animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : error ? (
             <div className="p-4 text-center text-xs text-red-500 mt-10">{error}</div>
           ) : filteredRows.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-400 mt-10">No hay registros.</div>
+            <div role="status" className="p-4 text-center text-xs text-slate-400 mt-10">
+              {cohorteFiltro !== null && programaRows.length === 0
+                ? 'Esta cohorte aún no tiene inscritos. Si está abierta, las nuevas inscripciones del programa entrarán aquí.'
+                : 'No hay registros.'}
+            </div>
           ) : (
-            filteredRows.map(r => {
+            filteredRows.map((r, i) => {
               const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus, r.num_documentos)
               const isSelected = selected?.id_inscripcion === r.id_inscripcion
 
@@ -958,16 +1100,19 @@ export default function PreinscripcionesPrincipalesPanel({
                 r.estudiante_cedula || null,
                 tipoLabel,
                 r.empresa_vinculada_nombre || null,
-                r.edicion_cibir_nombre ? `Ed. ${r.edicion_cibir_nombre}` : null
+                r.edicion_cibir_nombre ? `Ed. ${r.edicion_cibir_nombre}` : null,
+                r.cohorte_numero ? `Cohorte ${r.cohorte_numero}` : null
               ].filter(Boolean)
 
               return (
                 <button
                   key={r.id_inscripcion}
                   onClick={() => { setSelected(r); fetchDocumentos(r.id_estudiante) }}
+                  style={i < 12 ? { animationDelay: `${i * 30}ms` } : undefined}
                   className={[
                     'w-full text-left px-4 py-3 transition-colors flex flex-col gap-1 cursor-pointer border-b border-gray-100/60',
                     isSelected ? 'bg-emerald-50/80 border-l-4 border-l-[#00D084]' : 'hover:bg-slate-50/80',
+                    i < 12 ? ENTRADA_FILA : '',
                   ].join(' ')}
                 >
                   {/* Línea 1: Nombre + Opta icon + Estado único (dot) */}
@@ -1046,6 +1191,23 @@ export default function PreinscripcionesPrincipalesPanel({
                 </span>
               </div>
             </div>
+
+            {PROGRAMAS_CON_COHORTE.includes(selected.programa_codigo) && (
+              <label className="bg-white rounded-2xl px-4 py-3 border border-gray-100 flex items-center gap-3 flex-wrap mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cohorte</span>
+                <select
+                  value={selected.id_cohorte ?? ''}
+                  disabled={savingCohorte}
+                  onChange={e => cambiarCohorte(selected, e.target.value)}
+                  className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-700 text-xs font-bold disabled:opacity-60"
+                >
+                  <option value="">Sin cohorte</option>
+                  {cohortes.filter(c => c.programa_codigo === selected.programa_codigo).map(c => (
+                    <option key={c.id_cohorte} value={c.id_cohorte}>{c.nombre}{c.estado === 'Abierta' ? ' (abierta)' : ''}</option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {/* Stepper de Progreso */}
             {(selected.programa_codigo === 'AFILIACION' || selected.afiliado_estatus === '5_CIBIR') && (() => {
@@ -1747,6 +1909,7 @@ export default function PreinscripcionesPrincipalesPanel({
           </div>
         </div>
       )}
+    </div>
     </div>
   </div>
 )

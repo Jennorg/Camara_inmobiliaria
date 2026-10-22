@@ -6,6 +6,7 @@ import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
 import { esCupoIlimitado, precioCurso, sqlOcupaCupo, venceReserva } from '../lib/cursos-pago.js'
+import { asegurarCohortes } from '../services/cohortes.service.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 const generateSlug = (str: string) => {
@@ -2299,6 +2300,7 @@ export const publicGetVerificacionPreinscripcionByToken = async (req: Request, r
 
 export const adminListPreinscripciones = async (req: Request, res: Response): Promise<void> => {
   try {
+    await asegurarCohortes()
     // Auto-curación: si hay inscripciones de 'AFILIACION' o 'CIBIR' como 'Preinscrito'/'Entrevista' pero el afiliado ya está como 'Afiliado' o 'Rechazado',
     // actualizamos la inscripción correspondientemente.
     try {
@@ -2335,6 +2337,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     }
     const programaCodigo = normalizeProgramaCodigo(req.query?.programaCodigo)
     const cursoId = req.query?.cursoId ? Number(req.query.cursoId) : null
+    // Los miembros de una cohorte se piden por la cohorte, sin importar con qué código de programa se guardó cada inscripción
+    const cohorteId = /^\d+$/.test(String(req.query?.cohorteId ?? '')) ? Number(req.query.cohorteId) : null
     const estatus = typeof req.query?.estatus === 'string' ? req.query.estatus : 'Todos'
     const allowedStatus = new Set(['Todos', 'Preinscrito', 'Entrevista', 'Inscrito', 'Rechazado', 'Cancelado'])
     if (!allowedStatus.has(estatus)) {
@@ -2346,7 +2350,10 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
     const baseWhere: string[] = []
     const countArgs: any[] = []
 
-    if (onlyCursos) {
+    if (cohorteId) {
+      baseWhere.push('ic.id_cohorte = ?')
+      countArgs.push(cohorteId)
+    } else if (onlyCursos) {
       // Formación = Cursos + Programas (CIBIR/PADI/PEGI/PREANI), excepto AFILIACION que va por panel de Afiliados o si es 5_CIBIR
       baseWhere.push("(ic.id_curso IS NOT NULL OR (ic.programa_codigo IS NOT NULL AND (ic.programa_codigo <> 'AFILIACION' OR af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') OR af.cibir_acreditado = 1)))")
     } else if (cursoId) {
@@ -2444,8 +2451,11 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
               AND ec.eliminado_en IS NULL
             ORDER BY iec.fecha_asignacion DESC
             LIMIT 1
-          ) as edicion_cibir_nombre
+          ) as edicion_cibir_nombre,
+          coh.numero as cohorte_numero,
+          coh.nombre as cohorte_nombre
         FROM inscripciones_cursos ic
+        LEFT JOIN cohortes coh ON coh.id_cohorte = ic.id_cohorte
         JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
         LEFT JOIN personas p ON e.id_persona = p.id
         LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa

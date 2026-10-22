@@ -298,6 +298,10 @@ function DraggableColumnItem({
   );
 }
 
+// Sin aprobación manual, un Preinscrito (flujo anterior) ya está admitido
+const estatusDe = (r: { estatus?: string }, sinAprobacion: boolean) =>
+  sinAprobacion && r.estatus === 'Preinscrito' ? 'Inscrito' : r.estatus;
+
 export default function ExportInscritosCursoModal({
   open,
   onClose,
@@ -307,6 +311,7 @@ export default function ExportInscritosCursoModal({
   const [activeTab, setActiveTab] = useState<'filtros' | 'columnas'>('filtros');
   const [exportMode, setExportMode] = useState<'general' | 'asistencia'>('general');
   const [cantFirmas, setCantFirmas] = useState<number>(1);
+  const sinAprobacion = !Number(curso.requiere_aprobacion);
 
   // Filtros State
   const [estatusFilter, setEstatusFilter] = useState<'Todos' | 'Preinscrito' | 'Inscrito' | 'Completado' | 'Rechazado'>('Todos');
@@ -373,9 +378,9 @@ export default function ExportInscritosCursoModal({
         if (estatusFilter === 'Completado') {
           if (r.completado !== 1) return false;
         } else if (estatusFilter === 'Preinscrito') {
-          if (r.estatus !== 'Preinscrito' || r.completado === 1) return false;
+          if (estatusDe(r, sinAprobacion) !== 'Preinscrito' || r.completado === 1) return false;
         } else if (estatusFilter === 'Inscrito') {
-          if (r.estatus !== 'Inscrito' || r.completado === 1) return false;
+          if (estatusDe(r, sinAprobacion) !== 'Inscrito' || r.completado === 1) return false;
         } else if (estatusFilter === 'Rechazado') {
           if (r.estatus !== 'Rechazado' && r.estatus !== 'Revocado') return false;
         }
@@ -459,7 +464,7 @@ export default function ExportInscritosCursoModal({
       const cmp = valA.localeCompare(valB, 'es', { sensitivity: 'base' });
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [rows, estatusFilter, searchQuery, searchField, fechaDesde, fechaHasta, sortBy, sortDirection]);
+  }, [rows, sinAprobacion, estatusFilter, searchQuery, searchField, fechaDesde, fechaHasta, sortBy, sortDirection]);
 
   const visibleSelectedCount = useMemo(() => {
     return selectedColumns.filter(c => INSCRITOS_EXPORT_COLUMNS.some(col => col.id === c)).length;
@@ -620,7 +625,8 @@ export default function ExportInscritosCursoModal({
           else if (cId === 'telefono') rowData.push(r.estudiante_telefono || 'Sin teléfono');
           else if (cId === 'fecha') rowData.push(r.creado_en ? new Date(r.creado_en).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'S/F');
           else if (cId === 'estatus') {
-            const st = r.completado === 1 ? 'Graduado' : r.estatus === 'Preinscrito' ? 'Pendiente' : r.estatus === 'Inscrito' ? 'Admitido' : (r.estatus || 'Registrado');
+            const est = estatusDe(r, sinAprobacion);
+            const st = r.completado === 1 ? 'Graduado' : est === 'Preinscrito' ? 'Pendiente' : est === 'Inscrito' ? 'Admitido' : (est || 'Registrado');
             rowData.push(st);
           } else if (cId.startsWith('firma')) {
             rowData.push('');
