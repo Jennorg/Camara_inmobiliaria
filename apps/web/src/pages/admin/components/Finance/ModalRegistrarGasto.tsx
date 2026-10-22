@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { X, Check, DollarSign, FileText, UploadCloud, AlertCircle, Calculator } from 'lucide-react'
+import { X, Check, DollarSign, FileText, UploadCloud, AlertCircle, Calculator, Loader2 } from 'lucide-react'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
 import type { TxType, TxCategory } from '@/types/finanzas'
@@ -35,6 +35,53 @@ const CATEGORIAS_INGRESO: { id: TxCategory; label: string }[] = [
   { id: 'otro',       label: 'Otro Ingreso' }
 ]
 
+interface MetodoConfig {
+  label: string
+  /** Moneda en que siempre se opera con este método; si falta, se elige */
+  moneda?: 'USD' | 'VES'
+  referencia?: { label: string; placeholder: string; requerida?: boolean }
+  /** Texto de la cuenta/banco según el sentido de la operación */
+  banco?: { egreso: string; ingreso: string; placeholder: string }
+}
+
+/** Datos que tiene sentido pedir según cómo se pagó: el efectivo no tiene referencia ni banco. */
+const METODOS: Record<string, MetodoConfig> = {
+  transferencia: {
+    label: 'Transferencia bancaria',
+    referencia: { label: 'Nº de referencia', placeholder: 'Ej. 991204', requerida: true },
+    banco: { egreso: 'Banco desde el que se pagó', ingreso: 'Banco del pagador', placeholder: 'Ej. Banesco' },
+  },
+  pago_movil: {
+    label: 'Pago móvil',
+    moneda: 'VES',
+    referencia: { label: 'Nº de referencia', placeholder: 'Ej. 440192', requerida: true },
+    banco: { egreso: 'Banco desde el que se pagó', ingreso: 'Banco del pagador', placeholder: 'Ej. Mercantil' },
+  },
+  efectivo_usd: { label: 'Efectivo USD ($)', moneda: 'USD' },
+  efectivo_bs: { label: 'Efectivo bolívares (Bs.)', moneda: 'VES' },
+  zelle: {
+    label: 'Zelle',
+    moneda: 'USD',
+    referencia: { label: 'Nº de confirmación', placeholder: 'Ej. BAC123456789', requerida: true },
+    banco: { egreso: 'Correo o titular al que se envió', ingreso: 'Correo o titular de origen', placeholder: 'Ej. pagos@proveedor.com' },
+  },
+  binance_usdt: {
+    label: 'Binance (USDT)',
+    moneda: 'USD',
+    referencia: { label: 'Order ID / hash', placeholder: 'Ej. 3029485716', requerida: true },
+    banco: { egreso: 'Binance Pay ID o correo de destino', ingreso: 'Binance Pay ID o correo de origen', placeholder: 'Ej. 123456789' },
+  },
+  cheque: {
+    label: 'Cheque',
+    referencia: { label: 'Nº de cheque', placeholder: 'Ej. 00001234', requerida: true },
+    banco: { egreso: 'Banco emisor', ingreso: 'Banco del cheque', placeholder: 'Ej. Provincial' },
+  },
+  otro: {
+    label: 'Otro',
+    referencia: { label: 'Referencia (opcional)', placeholder: 'Ej. nota o código interno' },
+  },
+}
+
 export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: ModalRegistrarGastoProps) {
   const { authHeaders } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -45,7 +92,6 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
   const [proveedorCliente, setProveedorCliente] = useState('')
   const [rifCedula, setRifCedula] = useState('')
   const [nroFactura, setNroFactura] = useState('')
-  const [nroControl, setNroControl] = useState('')
   const [concepto, setConcepto] = useState('')
   
   const [moneda, setMoneda] = useState<'USD' | 'VES'>('USD')
@@ -64,33 +110,14 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
       .catch(() => {})
   }, [isOpen])
 
-  // Desglose contable
-  const [montoExento, setMontoExento] = useState('0')
-  const [baseImponible, setBaseImponible] = useState('')
-  const [alicuotaIva, setAlicuotaIva] = useState('16')
-  const [montoIva, setMontoIva] = useState('0')
+  // Monto de la operación
   const [montoTotal, setMontoTotal] = useState('')
-  
+
   const [metodoPago, setMetodoPago] = useState('transferencia')
   const [referenciaPago, setReferenciaPago] = useState('')
   const [bancoOrigen, setBancoOrigen] = useState('')
   const [comprobanteUrl, setComprobanteUrl] = useState('')
   const [notas, setNotas] = useState('')
-
-  // Re-calcular IVA y total al cambiar base o alícuota
-  useEffect(() => {
-    const base = parseFloat(baseImponible) || 0
-    const exento = parseFloat(montoExento) || 0
-    const alic = parseFloat(alicuotaIva) || 0
-    
-    const ivaCalculado = Math.round((base * (alic / 100)) * 100) / 100
-    setMontoIva(ivaCalculado > 0 ? ivaCalculado.toFixed(2) : '0')
-    
-    const totalCalculado = Math.round((base + exento + ivaCalculado) * 100) / 100
-    if (base > 0 || exento > 0) {
-      setMontoTotal(totalCalculado.toFixed(2))
-    }
-  }, [baseImponible, montoExento, alicuotaIva])
 
   // Ajustar categoría predeterminada al cambiar tipo
   useEffect(() => {
@@ -100,6 +127,16 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
       setCategoria('convenio')
     }
   }, [tipo])
+
+  const metodo = METODOS[metodoPago]
+
+  const cambiarMetodo = (nuevo: string) => {
+    const cfg = METODOS[nuevo]
+    setMetodoPago(nuevo)
+    if (cfg.moneda) setMoneda(cfg.moneda)
+    if (!cfg.referencia) setReferenciaPago('')
+    if (!cfg.banco) setBancoOrigen('')
+  }
 
   if (!isOpen) return null
 
@@ -112,6 +149,10 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
     }
     if (!concepto.trim()) {
       toast.error('Ingrese una descripción o concepto del movimiento')
+      return
+    }
+    if (metodo.referencia?.requerida && !referenciaPago.trim()) {
+      toast.error(`Ingrese ${metodo.referencia.label.toLowerCase()}`)
       return
     }
     const totalNum = parseFloat(montoTotal) || 0
@@ -130,18 +171,13 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
         proveedor_cliente: proveedorCliente.trim(),
         rif_cedula: rifCedula.trim() || null,
         nro_factura_documento: nroFactura.trim() || null,
-        nro_control_fiscal: nroControl.trim() || null,
         concepto: concepto.trim(),
-        base_imponible: parseFloat(baseImponible) || 0,
-        monto_exento: parseFloat(montoExento) || 0,
-        alicuota_iva: parseFloat(alicuotaIva) || 0,
-        monto_iva: parseFloat(montoIva) || 0,
         monto_total: totalNum,
-        moneda,
+        moneda: metodo.moneda ?? moneda,
         tasa_bcv: parseFloat(tasaBcv) || 1,
         metodo_pago: metodoPago,
-        referencia_pago: referenciaPago.trim() || null,
-        banco_origen: bancoOrigen.trim() || null,
+        referencia_pago: metodo.referencia ? referenciaPago.trim() || null : null,
+        banco_origen: metodo.banco ? bancoOrigen.trim() || null : null,
         comprobante_url: comprobanteUrl || null,
         estatus: 'completado',
         notas: notas.trim() || null
@@ -176,7 +212,7 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-emerald-800 to-teal-900 text-white flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-emerald-300">
               <Calculator size={20} />
@@ -186,16 +222,17 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
                 {tipo === 'egreso' ? 'Registrar Compra / Gasto Operativo' : 'Registrar Ingreso Extraordinario'}
               </h3>
               <p className="text-xs text-emerald-200/80">
-                {tipo === 'egreso' ? 'Libro de Compras · Control de Gastos e IVA' : 'Libro de Ventas · Flujo de Caja'}
+                {tipo === 'egreso' ? 'Libro de Compras · Control de Gastos' : 'Libro de Ventas · Flujo de Caja'}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+            aria-label="Cerrar"
+            className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            <X size={18} />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -210,7 +247,8 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
               <button
                 type="button"
                 onClick={() => setTipo('egreso')}
-                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
+                aria-pressed={tipo === 'egreso'}
+                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${
                   tipo === 'egreso'
                     ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -221,7 +259,8 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
               <button
                 type="button"
                 onClick={() => setTipo('ingreso')}
-                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
+                aria-pressed={tipo === 'ingreso'}
+                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${
                   tipo === 'ingreso'
                     ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -261,8 +300,8 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
             </div>
           </div>
 
-          {/* Factura / Control Fiscal / Fecha */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Factura / Fecha */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Nro. Factura / Doc.
@@ -272,18 +311,6 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
                 value={nroFactura}
                 onChange={e => setNroFactura(e.target.value)}
                 placeholder="Ej. FAC-00892"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Nro. Control Fiscal
-              </label>
-              <input
-                type="text"
-                value={nroControl}
-                onChange={e => setNroControl(e.target.value)}
-                placeholder="Ej. 00-001245"
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono"
               />
             </div>
@@ -332,149 +359,89 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
             </div>
           </div>
 
-          {/* Desglose Contable e IVA */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Desglose Impositivo (SENIAT / Contabilidad)
+          {/* Monto y moneda */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500">Tasa BCV:</span>
+              <span className="text-xs font-black text-slate-700 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                Bs. {parseFloat(tasaBcv || '1').toFixed(2)}
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500">Tasa BCV:</span>
-                <span className="text-xs font-black text-slate-700 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
-                  Bs. {parseFloat(tasaBcv || '1').toFixed(2)}
-                </span>
-                <span className="text-xs font-semibold text-slate-500 ml-2">Moneda:</span>
-                <select
-                  value={moneda}
-                  onChange={e => setMoneda(e.target.value as any)}
-                  className="text-xs font-bold px-2 py-1 rounded-lg border border-slate-300 bg-white"
-                >
-                  <option value="USD">USD ($)</option>
-                  <option value="VES">VES (Bs.)</option>
-                </select>
-              </div>
+              <label htmlFor="gasto-moneda" className="text-xs font-semibold text-slate-500 ml-2">Moneda:</label>
+              <select
+                id="gasto-moneda"
+                value={metodo.moneda ?? moneda}
+                onChange={e => setMoneda(e.target.value as any)}
+                disabled={!!metodo.moneda}
+                title={metodo.moneda ? `${metodo.label} se registra siempre en ${metodo.moneda === 'USD' ? 'dólares' : 'bolívares'}` : undefined}
+                className="text-xs font-bold px-2 py-1 rounded-lg border border-slate-300 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="VES">VES (Bs.)</option>
+              </select>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Monto Exento
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={montoExento}
-                  onChange={e => setMontoExento(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Base Imponible
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={baseImponible}
-                  onChange={e => setBaseImponible(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Alícuota IVA (%)
-                </label>
-                <select
-                  value={alicuotaIva}
-                  onChange={e => setAlicuotaIva(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white"
-                >
-                  <option value="16">16% (General)</option>
-                  <option value="8">8% (Reducida)</option>
-                  <option value="0">0% (Exento)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Monto IVA ({alicuotaIva}%)
-                </label>
-                <input
-                  type="text"
-                  readOnly
-                  value={montoIva}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-emerald-700 bg-emerald-50/50 cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800">
-                Total Factura / Operación:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black text-slate-400">{moneda === 'USD' ? '$' : 'Bs.'}</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={montoTotal}
-                  onChange={e => setMontoTotal(e.target.value)}
-                  placeholder="0.00"
-                  className="w-32 px-3 py-1 rounded-lg border border-emerald-300 text-base font-black text-emerald-800 bg-white text-right"
-                />
-              </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="gasto-monto" className="text-xs font-bold text-slate-800">Monto total:</label>
+              <span className="text-sm font-black text-slate-400">{(metodo.moneda ?? moneda) === 'USD' ? '$' : 'Bs.'}</span>
+              <input
+                id="gasto-monto"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                value={montoTotal}
+                onChange={e => setMontoTotal(e.target.value)}
+                placeholder="0.00"
+                className="w-32 px-3 py-1 rounded-lg border border-emerald-300 text-base font-black text-emerald-800 bg-white text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              />
             </div>
           </div>
 
-          {/* Método de Pago y Referencia */}
+          {/* Método de pago: los datos que se piden dependen de él */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Método de Pago
+              <label htmlFor="gasto-metodo" className="block text-[11px] font-bold text-slate-600 mb-1">
+                Método de pago
               </label>
               <select
+                id="gasto-metodo"
                 value={metodoPago}
-                onChange={e => setMetodoPago(e.target.value)}
+                onChange={e => cambiarMetodo(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
               >
-                <option value="transferencia">Transferencia Bancaria</option>
-                <option value="pago_movil">Pago Móvil</option>
-                <option value="efectivo_usd">Efectivo USD ($)</option>
-                <option value="efectivo_bs">Efectivo Bolívares (Bs.)</option>
-                <option value="zelle">Zelle</option>
-                <option value="binance_usdt">Binance (USDT)</option>
-                <option value="cheque">Cheque</option>
-                <option value="otro">Otro</option>
+                {Object.entries(METODOS).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Nro. Referencia Bancaria
-              </label>
-              <input
-                type="text"
-                value={referenciaPago}
-                onChange={e => setReferenciaPago(e.target.value)}
-                placeholder="Ej. TRN-991204"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                Banco Origen / Destino
-              </label>
-              <input
-                type="text"
-                value={bancoOrigen}
-                onChange={e => setBancoOrigen(e.target.value)}
-                placeholder="Ej. Banesco"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-              />
-            </div>
+            {metodo.referencia && (
+              <div>
+                <label htmlFor="gasto-referencia" className="block text-[11px] font-bold text-slate-600 mb-1">
+                  {metodo.referencia.label}{metodo.referencia.requerida && ' *'}
+                </label>
+                <input
+                  id="gasto-referencia"
+                  type="text"
+                  value={referenciaPago}
+                  onChange={e => setReferenciaPago(e.target.value)}
+                  placeholder={metodo.referencia.placeholder}
+                  required={metodo.referencia.requerida}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono"
+                />
+              </div>
+            )}
+            {metodo.banco && (
+              <div>
+                <label htmlFor="gasto-banco" className="block text-[11px] font-bold text-slate-600 mb-1">
+                  {tipo === 'egreso' ? metodo.banco.egreso : metodo.banco.ingreso}
+                </label>
+                <input
+                  id="gasto-banco"
+                  type="text"
+                  value={bancoOrigen}
+                  onChange={e => setBancoOrigen(e.target.value)}
+                  placeholder={metodo.banco.placeholder}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                />
+              </div>
+            )}
           </div>
 
           {/* Adjuntar Factura / Comprobante */}
@@ -513,20 +480,23 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 shadow-sm shadow-emerald-600/20 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
             >
               {loading ? (
-                <span>Guardando...</span>
+                <>
+                  <Loader2 size={14} className="motion-safe:animate-spin" aria-hidden="true" />
+                  <span>Guardando…</span>
+                </>
               ) : (
                 <>
-                  <Check size={16} />
+                  <Check size={16} aria-hidden="true" />
                   <span>{tipo === 'egreso' ? 'Registrar Gasto' : 'Registrar Ingreso'}</span>
                 </>
               )}

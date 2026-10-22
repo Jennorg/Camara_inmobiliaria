@@ -27,11 +27,6 @@ export interface MovimientoFinancieroDTO {
   proveedor_cliente: string
   rif_cedula?: string | null
   nro_factura_documento?: string | null
-  nro_control_fiscal?: string | null
-  base_imponible: number
-  monto_exento: number
-  alicuota_iva: number
-  monto_iva: number
   monto_total: number
   monto_usd_equivalente: number
   moneda: 'USD' | 'VES'
@@ -52,10 +47,9 @@ export interface MovimientoFinancieroDTO {
 export interface LibroVentaItemDTO {
   id: string
   id_pago: number | null
-  tipo_origen: 'pago_recibo' | 'movimiento_manual'
+  tipo_origen: 'pago_recibo' | 'movimiento_manual' | 'cuota_importada'
   fecha: string
   documento: string
-  nro_control?: string | null
   cliente: string
   rif_cedula: string
   concepto: string
@@ -65,10 +59,6 @@ export interface LibroVentaItemDTO {
   monto_original: number
   monto_usd: number
   tasa_bcv: number
-  base_imponible: number
-  monto_exento: number
-  alicuota_iva: number
-  monto_iva: number
   referencia?: string | null
 }
 
@@ -76,15 +66,10 @@ export interface LibroCompraItemDTO {
   id_movimiento: number
   fecha: string
   nro_factura_documento: string
-  nro_control_fiscal?: string | null
   proveedor: string
   rif_cedula: string
   concepto: string
   categoria: string
-  base_imponible: number
-  monto_exento: number
-  alicuota_iva: number
-  monto_iva: number
   monto_total: number
   monto_usd_equivalente: number
   moneda: string
@@ -95,6 +80,19 @@ export interface LibroCompraItemDTO {
   estatus: string
   notas?: string | null
   creado_en: string
+}
+
+/** Cifras de un período (el año o un mes) */
+export interface VistaResumenDTO {
+  kpis: {
+    totalIngresosUSD: number
+    totalEgresosUSD: number
+    flujoNetoUSD: number
+    conteoIngresos: number
+    conteoEgresos: number
+  }
+  ingresosPorConcepto: { concepto: string; etiqueta: string; total: number; cantidad: number }[]
+  gastosPorCategoria: { categoria: string; total: number; cantidad: number }[]
 }
 
 export interface ResumenFinancieroDTO {
@@ -108,10 +106,6 @@ export interface ResumenFinancieroDTO {
     totalIngresosUSD: number
     totalEgresosUSD: number
     flujoNetoUSD: number
-    ivaDebitoFiscal: number
-    ivaCreditoFiscal: number
-    totalBaseCompras: number
-    totalExentoCompras: number
     conteoIngresos: number
     conteoEgresos: number
   }
@@ -122,11 +116,20 @@ export interface ResumenFinancieroDTO {
     egresos: number
     neto: number
   }[]
+  ingresosPorConcepto: {
+    concepto: string
+    etiqueta: string
+    total: number
+    cantidad: number
+  }[]
   gastosPorCategoria: {
     categoria: string
     total: number
     cantidad: number
   }[]
+  /** El año completo y cada mes: el cliente cambia de período sin volver a pedir datos */
+  anual: VistaResumenDTO
+  meses: (VistaResumenDTO & { mesNumero: number })[]
 }
 
 export interface FiltrosFinanzasDTO {

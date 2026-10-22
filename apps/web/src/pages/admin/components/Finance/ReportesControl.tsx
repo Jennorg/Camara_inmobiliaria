@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, FileSpreadsheet, Loader2, Lock, Send } from 'lucide-react'
+import { FileSpreadsheet, Loader2, Send } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -55,22 +55,22 @@ const BotonExcel = ({ onClick }: { onClick: () => void }) => (
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface Ingresos {
+interface MatrizConceptos {
   anio: number
   conceptos: { concepto: string; etiqueta: string; meses: number[]; total: number }[]
   totalesMes: number[]
   total: number
 }
 
-/** Matriz de ingresos verificados del año por concepto y mes. */
-export function IngresosPorConcepto({ anio }: { anio: number }) {
-  const { data, error, authHeaders } = useReporte<Ingresos>(`${API_URL}/api/finanzas/ingresos-por-concepto?anio=${anio}`)
+/** Matriz año × concepto por mes: la comparten los ingresos y los egresos. */
+function MatrizPorConcepto({ anio, ruta, titulo, colorTotal, vacio }: { anio: number; ruta: string; titulo: string; colorTotal: string; vacio: string }) {
+  const { data, error, authHeaders } = useReporte<MatrizConceptos>(`${API_URL}/api/finanzas/${ruta}?anio=${anio}`)
   if (!data) return <Cargando error={error} />
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-bold text-slate-800 text-base">Ingresos por concepto · {data.anio} <span className="text-emerald-700 tabular-nums">{usd(data.total)}</span></h3>
-        <BotonExcel onClick={() => descargarXlsx('ingresos-por-concepto', { anio }, authHeaders)} />
+        <h3 className="font-bold text-slate-800 text-base">{titulo} · {data.anio} <span className={`${colorTotal} tabular-nums`}>{usd(data.total)}</span></h3>
+        <BotonExcel onClick={() => descargarXlsx(ruta, { anio }, authHeaders)} />
       </div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-xs tabular-nums">
@@ -82,6 +82,7 @@ export function IngresosPorConcepto({ anio }: { anio: number }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
+            {data.conceptos.length === 0 && <tr><td colSpan={14} className="p-6 text-center text-slate-400">{vacio}</td></tr>}
             {data.conceptos.map(c => (
               <tr key={c.concepto} className={c.total ? '' : 'text-slate-300'}>
                 <td className="px-3 py-2 font-bold text-slate-700">{c.etiqueta}</td>
@@ -90,7 +91,7 @@ export function IngresosPorConcepto({ anio }: { anio: number }) {
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-emerald-50/60 font-black text-emerald-900">
+          <tfoot className="bg-slate-50 font-black text-slate-900">
             <tr>
               <td className="px-3 py-2">Total</td>
               {data.totalesMes.map((v, i) => <td key={i} className="px-2 py-2 text-right">{v ? usd(v) : '—'}</td>)}
@@ -103,122 +104,17 @@ export function IngresosPorConcepto({ anio }: { anio: number }) {
   )
 }
 
+/** Ingresos verificados del año por concepto y mes. */
+export const IngresosPorConcepto = ({ anio }: { anio: number }) => (
+  <MatrizPorConcepto anio={anio} ruta="ingresos-por-concepto" titulo="Ingresos por concepto" colorTotal="text-emerald-700" vacio="Sin ingresos registrados este año." />
+)
+
+/** Egresos del año por categoría y mes. */
+export const EgresosPorConcepto = ({ anio }: { anio: number }) => (
+  <MatrizPorConcepto anio={anio} ruta="egresos-por-concepto" titulo="Egresos por concepto" colorTotal="text-amber-700" vacio="Sin egresos registrados este año." />
+)
+
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface Totales {
-  porMetodo: { metodo_pago: string; moneda: string; cantidad: number; monto: number; monto_usd: number }[]
-  porCajero: { cajero: string; cantidad: number; monto_usd: number }[]
-  totalUsd: number
-  cantidad: number
-}
-interface Cierre extends Totales {
-  fecha: string
-  cierre: { cerrado_por: string | null; creado_en: string; observaciones: string | null; totales: Totales } | null
-  cambiosTrasCierre: boolean
-}
-
-const METODOS: Record<string, string> = {
-  efectivo_usd: 'Efectivo USD', efectivo_bs: 'Efectivo Bs', pago_movil: 'Pago Móvil', transferencia_bs: 'Transferencia Bs',
-  zelle: 'Zelle', pos_debito: 'Punto de venta', binance_usdt: 'Binance USDT', otro: 'Otro',
-}
-
-/** Arqueo del día por método y cajero; se congela una vez con "Cerrar caja". */
-export function CierreCaja() {
-  const [fecha, setFecha] = useState(hoyCaracas())
-  const { data, error, recargar, authHeaders } = useReporte<Cierre>(`${API_URL}/api/finanzas/cierre-caja?fecha=${fecha}`)
-  const [cerrando, setCerrando] = useState(false)
-
-  const cerrar = async () => {
-    const r = await Swal.fire({
-      title: `Cerrar caja del ${fecha}`, input: 'text', inputLabel: 'Observaciones (opcional)',
-      text: 'Se guarda una foto de los totales. Cualquier cambio posterior en ese día quedará señalado.',
-      showCancelButton: true, confirmButtonText: 'Cerrar caja', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
-    })
-    if (!r.isConfirmed) return
-    setCerrando(true)
-    try {
-      const res = await fetch(`${API_URL}/api/finanzas/cierre-caja`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ fecha, observaciones: r.value || null }),
-      })
-      const j = await res.json()
-      if (!res.ok || !j.success) throw new Error(j.message)
-      await recargar()
-    } catch (e) {
-      Swal.fire('Error', e instanceof Error ? e.message : 'No se pudo cerrar la caja', 'error')
-    } finally {
-      setCerrando(false)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Día</span>
-          <input type="date" value={fecha} max={hoyCaracas()} onChange={e => e.target.value && setFecha(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-        </label>
-        {data && !data.cierre && (
-          <button type="button" onClick={cerrar} disabled={cerrando}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-50">
-            <Lock size={13} aria-hidden="true" /> {cerrando ? 'Cerrando…' : 'Cerrar caja'}
-          </button>
-        )}
-      </div>
-
-      {!data ? <Cargando error={error} /> : (
-        <>
-          {data.cierre && (
-            <div role="status" className={`p-4 rounded-2xl border text-xs ${data.cambiosTrasCierre ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
-              <p className="font-bold flex items-center gap-1.5">
-                {data.cambiosTrasCierre ? <AlertTriangle size={14} aria-hidden="true" /> : <Lock size={14} aria-hidden="true" />}
-                Caja cerrada por {data.cierre.cerrado_por ?? '—'} el {new Date(data.cierre.creado_en).toLocaleString('es-VE', { timeZone: 'America/Caracas' })} con {usd(data.cierre.totales.totalUsd)} ({data.cierre.totales.cantidad} cobros).
-              </p>
-              {data.cambiosTrasCierre && <p className="mt-1">Hubo cambios después del cierre: ahora el día suma {usd(data.totalUsd)} ({data.cantidad} cobros). Revisa anulaciones o cobros registrados con esta fecha.</p>}
-              {data.cierre.observaciones && <p className="mt-1 opacity-80">Observaciones: {data.cierre.observaciones}</p>}
-            </div>
-          )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-              <table className="w-full text-xs tabular-nums">
-                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  <tr><th className="px-3 py-3 text-left">Método</th><th className="px-3 py-3 text-right">Cobros</th><th className="px-3 py-3 text-right">Monto</th><th className="px-3 py-3 text-right">USD</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {data.porMetodo.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-slate-400">Sin cobros este día.</td></tr>}
-                  {data.porMetodo.map(m => (
-                    <tr key={`${m.metodo_pago}-${m.moneda}`}>
-                      <td className="px-3 py-2 font-bold text-slate-700">{METODOS[m.metodo_pago] ?? m.metodo_pago}</td>
-                      <td className="px-3 py-2 text-right">{m.cantidad}</td>
-                      <td className="px-3 py-2 text-right">{m.moneda === 'VES' ? `Bs. ${m.monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })}` : usd(m.monto)}</td>
-                      <td className="px-3 py-2 text-right font-bold">{usd(m.monto_usd)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-emerald-50/60 font-black text-emerald-900">
-                  <tr><td className="px-3 py-2">Total</td><td className="px-3 py-2 text-right">{data.cantidad}</td><td /><td className="px-3 py-2 text-right">{usd(data.totalUsd)}</td></tr>
-                </tfoot>
-              </table>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-              <table className="w-full text-xs tabular-nums">
-                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  <tr><th className="px-3 py-3 text-left">Cajero</th><th className="px-3 py-3 text-right">Cobros</th><th className="px-3 py-3 text-right">USD</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {data.porCajero.map(c => (
-                    <tr key={c.cajero}><td className="px-3 py-2 font-bold text-slate-700 break-all">{c.cajero}</td><td className="px-3 py-2 text-right">{c.cantidad}</td><td className="px-3 py-2 text-right font-bold">{usd(c.monto_usd)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
