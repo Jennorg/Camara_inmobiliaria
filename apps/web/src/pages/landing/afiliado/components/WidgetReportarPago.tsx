@@ -3,7 +3,7 @@ import { UploadCloud, Loader2, Copy, Check, Building2, Landmark } from 'lucide-r
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import FileUpload from '@/components/common/FileUpload';
-import type { CuentaBancariaDTO, MetodoPago } from '@/types/pagos';
+import { ETIQUETA_TIPO_CUENTA, type CuentaBancariaDTO, type MetodoPago } from '@/types/pagos';
 import { toast } from 'sonner';
 
 interface CursoPendiente {
@@ -32,6 +32,8 @@ const METODOS: { value: MetodoPago; label: string; moneda: 'USD' | 'VES' }[] = [
   { value: 'pago_movil', label: 'Pago Móvil (Bolívares)', moneda: 'VES' },
   { value: 'transferencia_bs', label: 'Transferencia Bancaria Nacional (Bolívares)', moneda: 'VES' },
   { value: 'zelle', label: 'Zelle (USD)', moneda: 'USD' },
+  // No tiene método propio en el libro: se registra como "otro" con moneda USD
+  { value: 'otro', label: 'Transferencia bancaria en dólares (USD)', moneda: 'USD' },
   { value: 'binance_usdt', label: 'Binance Pay / USDT', moneda: 'USD' },
 ];
 
@@ -203,7 +205,7 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
           {cuentas.map(c => (
             <div key={c.id_cuenta} className="p-3.5 rounded-2xl border border-slate-200 bg-white text-[11px] text-slate-600 space-y-0.5 font-medium">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{c.tipo.replace('_', ' ')}</span>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{ETIQUETA_TIPO_CUENTA[c.tipo] ?? c.tipo.replace('_', ' ')}</span>
                 <span className="font-bold text-slate-800">{c.banco}</span>
               </div>
               <p><strong className="text-slate-800">Titular:</strong> {c.beneficiario}</p>

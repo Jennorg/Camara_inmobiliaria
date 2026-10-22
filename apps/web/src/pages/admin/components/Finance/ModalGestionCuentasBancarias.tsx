@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Landmark, Trash2, Edit2, Check, Loader2, Info } from 'lucide-react';
-import { CuentaBancariaDTO } from '@/types/pagos';
+import { CuentaBancariaDTO, ETIQUETA_TIPO_CUENTA, type TipoCuenta } from '@/types/pagos';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
@@ -26,7 +26,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<{
-    tipo: 'pago_movil' | 'transferencia' | 'zelle' | 'otro';
+    tipo: TipoCuenta;
     banco: string;
     beneficiario: string;
     identificacion: string;
@@ -171,12 +171,12 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
   const handleDelete = async (id: number) => {
     const confirm = await Swal.fire({
-      title: '¿Desactivar Cuenta?',
-      text: 'La cuenta no será mostrada a los aspirantes para realizar pagos.',
+      title: '¿Eliminar cuenta?',
+      text: 'Se borra de forma definitiva y los afiliados dejan de verla. Los pagos ya registrados no se modifican.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#e11d48',
-      confirmButtonText: 'Sí, Desactivar',
+      confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar'
     });
 
@@ -263,11 +263,17 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                 <label className="text-[10px] font-bold text-slate-500 block mb-1">Tipo de Cuenta *</label>
                 <select
                   value={form.tipo}
-                  onChange={(e) => setForm({ ...form, tipo: e.target.value as any })}
+                  onChange={(e) => {
+                    const tipo = e.target.value as TipoCuenta;
+                    // Binance siempre es la plataforma: se rellena si está vacío
+                    setForm({ ...form, tipo, banco: tipo === 'binance' && !form.banco.trim() ? 'Binance' : form.banco });
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 text-xs font-bold"
                 >
                   <option value="pago_movil">Pago Móvil (Bs.)</option>
-                  <option value="transferencia">Transferencia Bancaria Nacional (Bs.)</option>
+                  <option value="transferencia">Transferencia bancaria nacional (Bs.)</option>
+                  <option value="transferencia_usd">Transferencia bancaria en dólares (USD)</option>
+                  <option value="binance">Binance Pay / USDT</option>
                   <option value="zelle">Zelle (USD)</option>
                   <option value="otro">Otro</option>
                 </select>
@@ -298,11 +304,11 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">RIF / C.I. *</label>
+                <label className="text-[10px] font-bold text-slate-500 block mb-1">{form.tipo === 'binance' ? 'Binance Pay ID *' : 'RIF / C.I. *'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej. J-30456789-0"
+                  placeholder={form.tipo === 'binance' ? 'Ej. 123456789' : 'Ej. J-30456789-0'}
                   value={form.identificacion}
                   onChange={(e) => setForm({ ...form, identificacion: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 text-xs font-mono font-bold"
@@ -322,12 +328,14 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                 </div>
               )}
 
-              {form.tipo === 'transferencia' && (
+              {(form.tipo === 'transferencia' || form.tipo === 'transferencia_usd') && (
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Número de Cuenta Completo (20 dígitos)</label>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                    {form.tipo === 'transferencia_usd' ? 'Número de cuenta en dólares' : 'Número de Cuenta Completo (20 dígitos)'}
+                  </label>
                   <input
                     type="text"
-                    placeholder="Ej. 0134-0000-00-0000000000"
+                    placeholder={form.tipo === 'transferencia_usd' ? 'Ej. 0108-0000-00-0000000000' : 'Ej. 0134-0000-00-0000000000'}
                     value={form.numero_cuenta}
                     onChange={(e) => setForm({ ...form, numero_cuenta: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500 text-xs font-mono font-bold"
@@ -335,9 +343,9 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                 </div>
               )}
 
-              {form.tipo === 'zelle' && (
+              {(form.tipo === 'zelle' || form.tipo === 'binance') && (
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Correo Electrónico Zelle</label>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">{form.tipo === 'binance' ? 'Correo de la cuenta Binance' : 'Correo Electrónico Zelle'}</label>
                   <input
                     type="email"
                     placeholder="Ej. pagos@camarainmobiliaria.com"
@@ -408,7 +416,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                   >
                     <div className="flex items-center gap-3">
                       <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs uppercase">
-                        {c.tipo.replace('_', ' ')}
+                        {ETIQUETA_TIPO_CUENTA[c.tipo] ?? c.tipo.replace('_', ' ')}
                       </span>
                       <div>
                         <div className="flex items-center gap-2">
@@ -436,15 +444,14 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
-                      {Number(c.activo) === 1 && (
-                        <button
-                          onClick={() => handleDelete(c.id_cuenta)}
-                          className="p-2 rounded-xl hover:bg-rose-50 text-rose-500 transition-colors"
-                          title="Desactivar"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleDelete(c.id_cuenta)}
+                        className="p-2 rounded-xl hover:bg-rose-50 text-rose-500 transition-colors"
+                        title="Eliminar"
+                        aria-label={`Eliminar la cuenta ${c.banco}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}

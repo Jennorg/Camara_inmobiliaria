@@ -13,6 +13,7 @@ import { env } from './env.js'
 import bcrypt from 'bcryptjs'
 import { toTitleCase } from '../lib/formatters.js'
 import { asegurarEsquemaCohortes } from '../lib/cohortes.js'
+import { asegurarTiposCuenta } from '../lib/cuentas.js'
 
 const statements = [
   `PRAGMA foreign_keys = ON`,
@@ -348,7 +349,7 @@ const statements = [
   // ===========================================================
   `CREATE TABLE IF NOT EXISTS cuentas_bancarias_camara (
     id_cuenta       INTEGER PRIMARY KEY AUTOINCREMENT,
-    tipo            TEXT NOT NULL CHECK (tipo IN ('pago_movil', 'transferencia', 'zelle', 'efectivo', 'otro')),
+    tipo            TEXT NOT NULL CHECK (tipo IN ('pago_movil', 'transferencia', 'transferencia_usd', 'zelle', 'binance', 'efectivo', 'otro')),
     banco           TEXT NOT NULL,
     beneficiario    TEXT NOT NULL,
     identificacion  TEXT NOT NULL,
@@ -816,6 +817,7 @@ async function run() {
 
   console.log('  ⚠ Cohortes (tabla, columna y triggers de asignación)...')
   await asegurarEsquemaCohortes(db)
+  await asegurarTiposCuenta(db)
 
   console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')
   try {

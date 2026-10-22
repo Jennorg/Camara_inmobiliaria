@@ -59,9 +59,21 @@ export interface PagoDTO {
   admin_verificador_email?: string;
 }
 
+export type TipoCuenta = 'pago_movil' | 'transferencia' | 'transferencia_usd' | 'zelle' | 'binance' | 'efectivo' | 'otro';
+
+export const ETIQUETA_TIPO_CUENTA: Record<TipoCuenta, string> = {
+  pago_movil: 'Pago móvil (Bs.)',
+  transferencia: 'Transferencia (Bs.)',
+  transferencia_usd: 'Transferencia (USD)',
+  zelle: 'Zelle (USD)',
+  binance: 'Binance (USDT)',
+  efectivo: 'Efectivo',
+  otro: 'Otro',
+};
+
 export interface CuentaBancariaDTO {
   id_cuenta: number;
-  tipo: 'pago_movil' | 'transferencia' | 'zelle' | 'efectivo' | 'otro';
+  tipo: TipoCuenta;
   banco: string;
   beneficiario: string;
   identificacion: string;

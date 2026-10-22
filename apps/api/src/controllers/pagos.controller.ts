@@ -4,6 +4,7 @@ import { db } from '../lib/db.js';
 import * as pagosService from '../services/pagos.service.js';
 import { MENSAJE_SOLO_ADMINISTRACION, pagosElectronicosHabilitados, setPagosElectronicos } from '../services/config-pagos.service.js';
 import { precioCurso } from '../lib/cursos-pago.js';
+import { TIPOS_CUENTA, asegurarTiposCuenta } from '../lib/cuentas.js';
 
 // ============================================================
 // PÚBLICO / USUARIO AUTENTICADO
@@ -589,7 +590,12 @@ export const adminCreateCuenta = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
       return;
     }
+    if (!(TIPOS_CUENTA as readonly string[]).includes(tipo)) {
+      res.status(400).json({ success: false, message: 'Tipo de cuenta no válido' });
+      return;
+    }
 
+    await asegurarTiposCuenta(db);
     const now = new Date().toISOString();
     const result = await db.execute({
       sql: `INSERT INTO cuentas_bancarias_camara (
@@ -609,6 +615,11 @@ export const adminUpdateCuenta = async (req: Request, res: Response): Promise<vo
     const id = Number(req.params.id);
     const { tipo, banco, beneficiario, identificacion, numero_cuenta, telefono, email, instrucciones, activo, orden } = req.body;
 
+    if (tipo !== undefined && tipo !== null && !(TIPOS_CUENTA as readonly string[]).includes(tipo)) {
+      res.status(400).json({ success: false, message: 'Tipo de cuenta no válido' });
+      return;
+    }
+    await asegurarTiposCuenta(db);
     const now = new Date().toISOString();
     const result = await db.execute({
       sql: `UPDATE cuentas_bancarias_camara 
@@ -654,13 +665,15 @@ export const adminUpdateCuenta = async (req: Request, res: Response): Promise<vo
 export const adminDeleteCuenta = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = Number(req.params.id);
-    await db.execute({
-      sql: `UPDATE cuentas_bancarias_camara SET activo = 0 WHERE id_cuenta = ?`,
-      args: [id]
-    });
-    res.json({ success: true, message: 'Cuenta desactivada' });
+    // Los pagos guardan el banco de destino como texto, no apuntan a la cuenta: se puede borrar sin afectar el historial
+    const r = await db.execute({ sql: `DELETE FROM cuentas_bancarias_camara WHERE id_cuenta = ?`, args: [id] });
+    if (!r.rowsAffected) {
+      res.status(404).json({ success: false, message: 'Cuenta no encontrada' });
+      return;
+    }
+    res.json({ success: true, message: 'Cuenta eliminada' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error al desactivar cuenta' });
+    res.status(500).json({ success: false, message: 'Error al eliminar la cuenta' });
   }
 };
 
