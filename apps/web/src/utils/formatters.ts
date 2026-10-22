@@ -330,6 +330,31 @@ export const formatDateLatina = (
   return `${d}/${m}/${yearStr}`;
 };
 
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/**
+ * Formatea una fecha como DD/mmm/AA con el mes abreviado en español (ej. 22/oct/26).
+ * Acepta YYYY-MM-DD (sin desfase de zona horaria), fechas ISO o Date.
+ */
+export const formatDateLatinaMes = (
+  dateInput?: string | Date | number | null,
+  fallback = '—'
+): string => {
+  if (!dateInput) return fallback;
+  const str = String(dateInput).trim();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let y: string, m: number, d: string;
+  if (match) {
+    y = match[1]; m = Number(match[2]); d = match[3];
+  } else {
+    const parsed = new Date(dateInput);
+    if (isNaN(parsed.getTime())) return fallback;
+    y = String(parsed.getFullYear()); m = parsed.getMonth() + 1; d = String(parsed.getDate()).padStart(2, '0');
+  }
+  if (m < 1 || m > 12) return fallback;
+  return `${d}/${MESES_CORTOS[m - 1]}/${y.slice(-2)}`;
+};
+
 /**
  * Formatea fecha en formato corto latino DD/MM/AA (ej. 15/09/26)
  */

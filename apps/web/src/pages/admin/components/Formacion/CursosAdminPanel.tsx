@@ -3,9 +3,10 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
-import { formatNombreCard, formatPrecioCurso } from '@/utils/formatters';
+import { formatNombreCard, formatPrecioCurso, formatDateLatinaMes } from '@/utils/formatters';
+import DateInput from '@/components/ui/DateInput';
 import { matchesSearch } from '@/utils/searchUtils';
-import { Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack, Mail, CheckCheck } from 'lucide-react';
+import { Plus, Upload, Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack, Mail, CheckCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -193,6 +194,78 @@ const attachInscritosCounts = (cursosList: CursoDB[], preinscripcionesList?: any
   }));
 };
 
+
+const INPUT_BASE = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 disabled:bg-slate-50'
+/** Campo que ocupa todo el ancho de su columna */
+const INPUT_FORM = `w-full ${INPUT_BASE}`
+
+/** Bloque del formulario: título y explicación a la izquierda, campos a la derecha */
+const SeccionForm = ({ titulo, descripcion, children }: { titulo: string; descripcion?: string; children: React.ReactNode }) => (
+  <section className="grid grid-cols-1 md:grid-cols-[12.5rem_1fr] gap-x-8 gap-y-3 py-6 border-t border-slate-200 first:border-t-0">
+    <div>
+      <h4 className="text-sm font-semibold text-slate-900">{titulo}</h4>
+      {descripcion && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{descripcion}</p>}
+    </div>
+    <div className="space-y-4 min-w-0">{children}</div>
+  </section>
+);
+
+const Campo = ({ etiqueta, htmlFor, ayuda, children }: { etiqueta: string; htmlFor?: string; ayuda?: string; children: React.ReactNode }) => (
+  <div>
+    <label htmlFor={htmlFor} className="block text-[13px] font-medium text-slate-700 mb-1">{etiqueta}</label>
+    {children}
+    {ayuda && <p className="text-xs text-slate-500 mt-1">{ayuda}</p>}
+  </div>
+);
+
+/** Dos o tres opciones excluyentes en una sola línea */
+const Segmentado = ({ etiqueta, valor, opciones, onChange }: { etiqueta: string; valor: string; opciones: { valor: string; texto: string }[]; onChange: (v: string) => void }) => (
+  <div role="radiogroup" aria-label={etiqueta} className="inline-flex rounded-lg border border-slate-300 bg-slate-100 p-0.5">
+    {opciones.map(o => (
+      <button
+        key={o.valor}
+        type="button"
+        role="radio"
+        aria-checked={valor === o.valor}
+        onClick={() => onChange(o.valor)}
+        className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${valor === o.valor ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+      >
+        {o.texto}
+      </button>
+    ))}
+  </div>
+);
+
+/** Fila de una lista de ajustes: texto a la izquierda e interruptor a la derecha */
+const FilaInterruptor = ({ titulo, descripcion, activo, onChange }: { titulo: string; descripcion: string; activo: boolean; onChange: (v: boolean) => void }) => (
+  <div className="flex items-start justify-between gap-4 px-4 py-3">
+    <div className="min-w-0">
+      <p className="text-sm font-medium text-slate-900">{titulo}</p>
+      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{descripcion}</p>
+    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={activo}
+      aria-label={titulo}
+      onClick={() => onChange(!activo)}
+      className={`relative mt-0.5 shrink-0 w-10 h-6 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 ${activo ? 'bg-emerald-700' : 'bg-slate-300'}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${activo ? 'translate-x-4' : ''}`} />
+    </button>
+  </div>
+);
+
+/** Monto en dólares con el símbolo dentro del campo */
+const MontoUsd = ({ id, value, onChange, required }: { id: string; value: string; onChange: (v: string) => void; required?: boolean }) => (
+  <div className="relative">
+    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500" aria-hidden="true">$</span>
+    <input id={id} type="number" min="0" step="0.01" inputMode="decimal" required={required} placeholder="0,00"
+      className={`${INPUT_FORM} pl-7 pr-12 tabular-nums`} value={value} onChange={e => onChange(e.target.value)} />
+    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500" aria-hidden="true">USD</span>
+  </div>
+);
+
 const CursosAdminPanel = () => {
   const { token } = useAuth();
   const [cursos, setCursos] = useState<CursoDB[]>([]);
@@ -254,6 +327,8 @@ const CursosAdminPanel = () => {
   };
 
   // Form State
+  // Gratuito o de pago: decide si se piden precios y reserva de cupo
+  const [esDePago, setEsDePago] = useState(false);
   const [formData, setFormData] = useState<{
     nombre: string;
     descripcion: string;
@@ -442,6 +517,7 @@ const CursosAdminPanel = () => {
 
     if (curso) {
       setEditingId(curso.id_curso);
+      setEsDePago((Number(curso.precio_afiliado_usd) || 0) > 0 || (Number(curso.precio_publico_usd) || 0) > 0);
       setFormData({
         nombre: curso.titulo || curso.nombre || '',
         descripcion: curso.descripcion || '',
@@ -464,6 +540,7 @@ const CursosAdminPanel = () => {
       });
     } else {
       setEditingId(null);
+      setEsDePago(false);
       setFormData({
         nombre: '',
         descripcion: '',
@@ -628,13 +705,17 @@ const CursosAdminPanel = () => {
       const method = editingId ? 'PUT' : 'POST';
 
       // Vacío = 0 = gratis; con "mismo precio" el público paga lo mismo que el afiliado
-      const precioAfiliado = Number(formData.precio_afiliado_usd) || 0;
+      const precioAfiliado = esDePago ? Number(formData.precio_afiliado_usd) || 0 : 0;
+      if (esDePago && precioAfiliado <= 0) {
+        Swal.fire('Falta el precio', 'Indica cuánto cuesta inscribirse, o marca el curso como gratuito.', 'warning');
+        return;
+      }
       const { mismo_precio, ...datosCurso } = formData;
       const payload = {
         ...datosCurso,
         titulo: formData.nombre,
         precio_afiliado_usd: precioAfiliado,
-        precio_publico_usd: mismo_precio ? precioAfiliado : Number(formData.precio_publico_usd) || 0,
+        precio_publico_usd: !esDePago ? 0 : mismo_precio ? precioAfiliado : Number(formData.precio_publico_usd) || 0,
         nivel_academico: 'Libre'
       };
 
@@ -785,7 +866,7 @@ const CursosAdminPanel = () => {
                     <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold">
                       <span className="inline-flex items-center gap-1">
                         <Calendar size={12} className="text-slate-400" />
-                        {c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}
+                        {c.fecha_inicio ? formatDateLatinaMes(c.fecha_inicio) : 'Por definir'}
                       </span>
                       <span className="font-extrabold text-emerald-700">{formatPrecioCurso(c)}</span>
                     </div>
@@ -928,7 +1009,7 @@ const CursosAdminPanel = () => {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-slate-500 font-medium whitespace-nowrap text-center">{c.fecha_inicio ? new Date(c.fecha_inicio).toLocaleDateString() : 'Por definir'}</td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500 font-medium whitespace-nowrap text-center">{c.fecha_inicio ? formatDateLatinaMes(c.fecha_inicio) : 'Por definir'}</td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1.5">
                           <button
@@ -998,739 +1079,373 @@ const CursosAdminPanel = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="transition-opacity transition-transform bg-white rounded-3xl w-full max-w-lg shadow-xl overflow-hidden fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <h3 className="font-bold text-slate-800">{editingId ? 'Editar Curso' : 'Nuevo Curso'}</h3>
-              <button onClick={handleCloseModal} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={e => { if (e.target === e.currentTarget) handleCloseModal() }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="titulo-form-curso" className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[92vh]">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4 flex-shrink-0">
+              <div>
+                <h3 id="titulo-form-curso" className="text-base font-semibold text-slate-900">{editingId ? 'Editar curso' : 'Nuevo curso'}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{editingId ? 'Los cambios se aplican en cuanto guardes.' : 'Completa los datos; podrás editarlos después.'}</p>
+              </div>
+              <button type="button" onClick={handleCloseModal} aria-label="Cerrar" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                <X size={18} aria-hidden="true" />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-5 pr-4">
-                {/* Drag & Drop Zone */}
-                <div
-                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-[#00D084]', 'bg-[#E9FAF4]') }}
-                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]') }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.remove('border-[#00D084]', 'bg-[#E9FAF4]');
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) uploadImage(file);
-                  }}
-                  onClick={() => document.getElementById('image-upload')?.click()}
-                  className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-2xl p-6 transition-colors hover:border-[#00D084] hover:bg-[#E9FAF4]/50 flex flex-col items-center justify-center text-center gap-3 overflow-hidden"
-                >
-                  <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadImage(file);
-                  }} />
 
-                  {formData.imagen_url ? (
-                    <>
-                      <img src={formData.imagen_url} alt="Cover" className="absolute inset-0 w-full h-full object-cover opacity-10 group-hover:opacity-20 transition-opacity" />
-                      <div className="relative z-10 w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md">
-                        <img src={formData.imagen_url} alt="Thumbnail" className="w-full h-full object-cover" />
-                      </div>
-                      <p className="relative z-10 text-xs font-bold text-[#00B870]">Imagen cargada · Cambiar</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-slate-400 group-hover:text-[#00D084] group-hover:scale-110 transition-colors transition-transform">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-700">Arrastra una imagen de portada</p>
-                        <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-widest">o haz clic para buscar</p>
-                      </div>
-                    </>
-                  )}
-                  {uploading && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20">
-                      <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-[10px] font-black text-[#00D084] uppercase tracking-widest">Subiendo...</span>
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6">
+
+                <SeccionForm titulo="Información" descripcion="Lo que ve la persona en el catálogo.">
+                  <div className="flex items-start gap-4">
+                    <div
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) uploadImage(file) }}
+                      className="relative w-36 h-24 shrink-0 rounded-lg border border-dashed border-slate-300 bg-slate-50 overflow-hidden flex items-center justify-center text-center"
+                    >
+                      {formData.imagen_url
+                        ? <img src={formData.imagen_url} alt="Portada del curso" className="w-full h-full object-cover" />
+                        : <span className="text-[11px] text-slate-500 px-2 leading-snug">Arrastra una imagen aquí</span>}
+                      {uploading && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                          <Loader2 size={18} className="animate-spin text-emerald-700" aria-label="Subiendo imagen" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nombre del Curso / Cohorte</label>
-                  <input required
-                    placeholder="Ej. Curso de Ética Inmobiliaria"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                    value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Descripción del Programa</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Describe los objetivos y alcances del curso..."
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors resize-none"
-                    value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Categoría / Tipo de Actividad</label>
-                    <select
-                      required
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                      value={formData.categoria}
-                      onChange={e => setFormData({ ...formData, categoria: e.target.value })}
-                    >
-                      <option value="Taller">Taller</option>
-                      <option value="Conferencia">Conferencia</option>
-                      <option value="Workshop">Workshop</option>
-                      <option value="Webinar">Webinar</option>
-                      <option value="Diplomado">Diplomado</option>
-                      <option value="Certificación">Certificación</option>
-                      <option value="Seminario">Seminario</option>
-                      <option value="Charla">Charla</option>
-                      <option value="Curso">Curso</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Estatus del Curso</label>
-                    <select
-                      value={formData.estatus}
-                      onChange={e => setFormData({ ...formData, estatus: e.target.value as any })}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                    >
-                      <option value="Abierto">Abierto (Recibiendo Inscripciones)</option>
-                      <option value="Cerrado">Cerrado / Concluido</option>
-                      <option value="En curso">En curso</option>
-                      <option value="Próximamente">Próximamente</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Modo Solo Informativo Toggle */}
-                <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-50 border border-emerald-200/80 rounded-2xl space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h5 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                        <span>📢 Publicar en Landing como Noticia / Afiche (Solo Informativo)</span>
-                        {formData.solo_informativo === 1 && (
-                          <span className="bg-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">En Landing</span>
+                    <div className="space-y-1.5">
+                      <p className="text-[13px] font-medium text-slate-700">Imagen de portada</p>
+                      <div className="flex flex-wrap gap-2">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-600/30">
+                          <Upload size={14} aria-hidden="true" />
+                          {formData.imagen_url ? 'Cambiar imagen' : 'Subir imagen'}
+                          <input id="image-upload" type="file" className="sr-only" accept="image/*" onChange={e => { const file = e.target.files?.[0]; if (file) uploadImage(file) }} />
+                        </label>
+                        {formData.imagen_url && (
+                          <button type="button" onClick={() => setFormData({ ...formData, imagen_url: '' })} className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100">Quitar</button>
                         )}
-                      </h5>
-                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                        Al activar esta opción, la afiche o imagen promocional se publicitará automáticamente en el carrusel de <strong>Noticias de la Landing Principal</strong> (vista en grande de solo imagen).
-                      </p>
+                      </div>
+                      <p className="text-xs text-slate-500">JPG o PNG, horizontal. Se recorta para la tarjeta.</p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={formData.solo_informativo === 1}
-                        onChange={(e) => setFormData({ ...formData, solo_informativo: e.target.checked ? 1 : 0 })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
-                    </label>
                   </div>
-                </div>
 
-                {/* Curso privado — solo afiliados oficiales */}
-                <div className="p-4 bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border border-amber-200/80 rounded-2xl space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h5 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                        <span>🔒 Curso privado (Solo Afiliados)</span>
-                        {formData.solo_afiliados === 1 && (
-                          <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Privado</span>
-                        )}
-                      </h5>
-                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                        Si lo activas, solo podrán inscribirse las personas <strong>afiliadas oficialmente</strong> (las que aparecen en el Directorio de Miembros). El curso sigue visible en el catálogo público, pero cualquier otra persona verá un aviso de que es exclusivo para afiliados. Tú puedes seguir asignando estudiantes manualmente sin restricción.
-                      </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={formData.solo_afiliados === 1}
-                        onChange={(e) => setFormData({ ...formData, solo_afiliados: e.target.checked ? 1 : 0 })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-amber-600"></div>
-                    </label>
+                  <Campo etiqueta="Nombre" htmlFor="curso-nombre">
+                    <input id="curso-nombre" required placeholder="Ej. Ética en la gestión inmobiliaria" className={INPUT_FORM}
+                      value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} />
+                  </Campo>
+
+                  <Campo etiqueta="Descripción" htmlFor="curso-descripcion" ayuda="Objetivos y a quién va dirigido.">
+                    <textarea id="curso-descripcion" rows={3} className={`${INPUT_FORM} resize-y`}
+                      value={formData.descripcion} onChange={e => setFormData({ ...formData, descripcion: e.target.value })} />
+                  </Campo>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Campo etiqueta="Tipo de actividad" htmlFor="curso-categoria">
+                      <select id="curso-categoria" required className={INPUT_FORM} value={formData.categoria} onChange={e => setFormData({ ...formData, categoria: e.target.value })}>
+                        {['Taller', 'Conferencia', 'Workshop', 'Webinar', 'Diplomado', 'Certificación', 'Seminario', 'Charla', 'Curso'].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </Campo>
+                    <Campo etiqueta="Estado" htmlFor="curso-estatus">
+                      <select id="curso-estatus" className={INPUT_FORM} value={formData.estatus} onChange={e => setFormData({ ...formData, estatus: e.target.value as any })}>
+                        <option value="Abierto">Abierto a inscripciones</option>
+                        <option value="Próximamente">Próximamente</option>
+                        <option value="En curso">En curso</option>
+                        <option value="Cerrado">Cerrado o concluido</option>
+                      </select>
+                    </Campo>
                   </div>
-                </div>
+                </SeccionForm>
 
-                {/* Aprobación manual de inscritos */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h5 className="text-xs font-extrabold text-slate-800">Aprobar inscritos manualmente</h5>
-                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
-                        Desactivado (por defecto), quien se inscribe queda admitido de inmediato. Si lo activas, cada inscripción queda <strong>pendiente</strong> hasta que la valides o rechaces desde la lista de inscritos.
-                      </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={formData.requiere_aprobacion === 1}
-                        onChange={(e) => setFormData({ ...formData, requiere_aprobacion: e.target.checked ? 1 : 0 })}
-                        className="sr-only peer"
+                <SeccionForm titulo="Fecha y cupos" descripcion="Cuándo empieza y cuántas personas caben.">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Campo etiqueta="Fecha de inicio" htmlFor="curso-fecha">
+                      <DateInput id="curso-fecha" required value={formData.fecha_inicio} onChange={v => setFormData({ ...formData, fecha_inicio: v })} />
+                    </Campo>
+                    <Campo etiqueta="Cupos">
+                      <Segmentado
+                        etiqueta="Tipo de cupos"
+                        valor={formData.cupos_totales === 999999 ? 'ilimitado' : 'limitado'}
+                        opciones={[{ valor: 'limitado', texto: 'Limitados' }, { valor: 'ilimitado', texto: 'Ilimitados' }]}
+                        onChange={v => setFormData({ ...formData, cupos_totales: v === 'ilimitado' ? 999999 : 30 })}
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo de Cupos</label>
-                    <select
-                      value={formData.cupos_totales === 999999 ? 'ilimitado' : 'limitado'}
-                      onChange={(e) => {
-                        const isIlimitado = e.target.value === 'ilimitado';
-                        setFormData({
-                          ...formData,
-                          cupos_totales: isIlimitado ? 999999 : 30
-                        });
-                      }}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                    >
-                      <option value="limitado">Definidos / Limitados</option>
-                      <option value="ilimitado">Abierto / Ilimitados</option>
-                    </select>
+                    </Campo>
                   </div>
                   {formData.cupos_totales !== 999999 && (
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Cantidad de Cupos</label>
-                      <input type="number" required min="1"
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                        value={formData.cupos_totales} onChange={e => {
-                          const val = e.currentTarget.valueAsNumber;
-                          setFormData({ ...formData, cupos_totales: Number.isFinite(val) ? val : 0 });
-                        }}
-                      />
-                    </div>
+                    <Campo etiqueta="Cantidad de cupos" htmlFor="curso-cupos">
+                      <input id="curso-cupos" type="number" required min="1" inputMode="numeric" className={`${INPUT_FORM} sm:max-w-[10rem] tabular-nums`}
+                        value={formData.cupos_totales}
+                        onChange={e => { const val = e.currentTarget.valueAsNumber; setFormData({ ...formData, cupos_totales: Number.isFinite(val) ? val : 0 }) }} />
+                    </Campo>
                   )}
-                </div>
+                </SeccionForm>
 
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.mismo_precio}
-                      onChange={(e) => setFormData({ ...formData, mismo_precio: e.target.checked })}
-                      className="accent-emerald-600"
-                    />
-                    Mismo precio para afiliados y público general
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="precio_afiliado_usd" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                        {formData.mismo_precio ? 'Precio (USD)' : 'Precio Afiliados (USD)'}
-                      </label>
-                      <input id="precio_afiliado_usd" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0 = Gratis"
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                        value={formData.precio_afiliado_usd}
-                        onChange={e => setFormData({ ...formData, precio_afiliado_usd: e.target.value })}
-                      />
-                    </div>
-                    {!formData.mismo_precio && (
-                      <div>
-                        <label htmlFor="precio_publico_usd" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Precio Público (USD)</label>
-                        <input id="precio_publico_usd" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0 = Gratis"
-                          className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                          value={formData.precio_publico_usd}
-                          onChange={e => setFormData({ ...formData, precio_publico_usd: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <label htmlFor="horas_reserva" className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Reserva de cupo (horas)</label>
-                      <input id="horas_reserva" type="number" min="1" max="720" step="1" required
-                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                        value={formData.horas_reserva}
-                        onChange={e => {
-                          const val = e.currentTarget.valueAsNumber;
-                          setFormData({ ...formData, horas_reserva: Number.isFinite(val) ? val : 48 });
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-400">En cursos de pago, la preinscripción aparta el cupo durante estas horas mientras se reporta o verifica el pago.</p>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Fecha de Inicio Estimada</label>
-                  <input type="date" required
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] transition-colors"
-                    value={formData.fecha_inicio ? formData.fecha_inicio.substring(0, 10) : ''} onChange={e => setFormData({ ...formData, fecha_inicio: e.target.value })}
+                <SeccionForm titulo="Precio" descripcion="Lo que paga cada persona para inscribirse. Se cobra en taquilla o con un pago reportado.">
+                  <Segmentado
+                    etiqueta="Tipo de inscripción"
+                    valor={esDePago ? 'pago' : 'gratis'}
+                    opciones={[{ valor: 'gratis', texto: 'Gratuito' }, { valor: 'pago', texto: 'De pago' }]}
+                    onChange={v => {
+                      const pago = v === 'pago'
+                      setEsDePago(pago)
+                      if (!pago) setFormData({ ...formData, precio_afiliado_usd: '', precio_publico_usd: '', mismo_precio: true })
+                    }}
                   />
-                </div>
-
-                {/* Sección de Cursos Mutuamente Excluyentes */}
-                <div className="p-4 bg-amber-50/70 border border-amber-200/90 rounded-2xl space-y-3 shadow-xs">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h5 className="text-xs font-black text-amber-900 flex items-center gap-1.5">
-                        <span>🚫 Cursos Excluyentes (Incompatibilidad)</span>
-                        {formData.cursos_excluyentes.length > 0 && (
-                          <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">
-                            {formData.cursos_excluyentes.length} {formData.cursos_excluyentes.length === 1 ? 'curso' : 'cursos'}
-                          </span>
+                  {esDePago ? (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Campo etiqueta={formData.mismo_precio ? 'Precio de inscripción' : 'Precio para afiliados'} htmlFor="precio_afiliado_usd">
+                          <MontoUsd id="precio_afiliado_usd" required value={formData.precio_afiliado_usd} onChange={v => setFormData({ ...formData, precio_afiliado_usd: v })} />
+                        </Campo>
+                        {!formData.mismo_precio && (
+                          <Campo etiqueta="Precio para el público general" htmlFor="precio_publico_usd">
+                            <MontoUsd id="precio_publico_usd" value={formData.precio_publico_usd} onChange={v => setFormData({ ...formData, precio_publico_usd: v })} />
+                          </Campo>
                         )}
-                      </h5>
-                      <p className="text-[11px] text-amber-800/80 font-medium leading-relaxed mt-0.5">
-                        Si un estudiante está inscrito en este curso, <strong>no podrá inscribirse en los cursos que selecciones aquí</strong>. Es de <strong>un solo sentido</strong>: para que también aplique al revés, edita el otro curso y selecciona este. Puedes seleccionar más de un curso.
-                      </p>
-                    </div>
-                    {formData.cursos_excluyentes.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, cursos_excluyentes: [] })}
-                        className="text-[10px] text-amber-700 hover:text-amber-900 underline font-bold shrink-0"
-                      >
-                        Limpiar
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {cursos.filter(c => c.id_curso !== editingId).length === 0 ? (
-                      <p className="text-[11px] text-slate-400 italic">No hay otros cursos disponibles para vincular en este momento.</p>
-                    ) : (
-                      cursos.filter(c => c.id_curso !== editingId).map(other => {
-                        const isSelected = formData.cursos_excluyentes.includes(other.id_curso);
-                        return (
-                          <label
-                            key={other.id_curso}
-                            className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-amber-100/90 border-amber-400 shadow-xs'
-                                : 'bg-white/80 border-gray-200 hover:border-amber-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const updated = e.target.checked
-                                    ? [...formData.cursos_excluyentes, other.id_curso]
-                                    : formData.cursos_excluyentes.filter(id => id !== other.id_curso);
-                                  setFormData({ ...formData, cursos_excluyentes: updated });
-                                }}
-                                className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500 shrink-0"
-                              />
-                              <div className="truncate">
-                                <p className="text-xs font-bold text-slate-800 truncate">
-                                  {other.titulo || other.nombre}
-                                </p>
-                                <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                                  <span>{other.categoria || 'Curso'}</span>
-                                  <span>•</span>
-                                  <span>{other.estatus}</span>
-                                </div>
-                              </div>
-                            </div>
-                            {isSelected && (
-                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded-md shrink-0">
-                                Excluyente
-                              </span>
-                            )}
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3 border-t border-gray-100 pt-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos del Curso</label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextNum = formData.modulos.length + 1;
-                        setFormData({
-                          ...formData,
-                          modulos: [
-                            ...formData.modulos,
-                            { nombre_modulo: `Módulo ${nextNum}`, id_profesor: null, orden: nextNum - 1 }
-                          ]
-                        });
-                      }}
-                      className="text-xs font-bold text-[#00B870] hover:underline"
-                    >
-                      + Agregar Módulo
-                    </button>
-                  </div>
-
-                  {formData.modulos.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic">No hay módulos definidos. Se creará uno por defecto.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {formData.modulos.map((mod, index) => (
-                        <div key={(mod as any).id_modulo || (mod as any).id || mod.nombre_modulo || `modulo-${index}`} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                          <span className="text-xs font-bold text-slate-400 min-w-[20px]">{index + 1}</span>
-                          <input
-                            type="text"
-                            required
-                            placeholder="Nombre del módulo"
-                            value={mod.nombre_modulo}
-                            onChange={(e) => {
-                              const newMods = [...formData.modulos];
-                              newMods[index].nombre_modulo = e.target.value;
-                              setFormData({ ...formData, modulos: newMods });
-                            }}
-                            className="flex-1 bg-white rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                          />
-                          <select
-                            value={mod.id_profesor || ''}
-                            onChange={(e) => {
-                              if (e.target.value === 'NEW_PROFESOR') {
-                                setCurrentModIndex(index);
-                                handleOpenProfModal();
-                                e.target.value = mod.id_profesor ? String(mod.id_profesor) : '';
-                                return;
-                              }
-                              const val = e.target.value ? Number(e.target.value) : null;
-                              const newMods = [...formData.modulos];
-                              newMods[index].id_profesor = val;
-                              setFormData({ ...formData, modulos: newMods });
-                            }}
-                            className="bg-white rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                          >
-                            <option value="">Profesor (Opcional)</option>
-                            {profesores.map(p => (
-                              <option key={p.id_profesor} value={p.id_profesor}>
-                                {p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}
-                              </option>
-                            ))}
-                            <option value="NEW_PROFESOR" className="text-[#00B870] font-bold">+ Crear Nuevo Profesor...</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newMods = formData.modulos.filter((_, idx) => idx !== index)
-                                .map((m, idx) => ({ ...m, orden: idx }));
-                              setFormData({ ...formData, modulos: newMods });
-                            }}
-                            className="text-red-500 hover:text-red-700 text-xs font-bold px-1"
-                          >
-                            &times;
-                          </button>
+                      </div>
+                      <label className="flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer w-fit">
+                        <input type="checkbox" checked={formData.mismo_precio} onChange={e => setFormData({ ...formData, mismo_precio: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600" />
+                        Afiliados y público general pagan lo mismo
+                      </label>
+                      <Campo etiqueta="Reserva del cupo" htmlFor="horas_reserva" ayuda="Tras preinscribirse, el cupo queda apartado este tiempo mientras se reporta o verifica el pago. Si no hay pago, se libera.">
+                        <div className="flex items-center gap-2">
+                          <input id="horas_reserva" type="number" min="1" max="720" step="1" required inputMode="numeric" className={`${INPUT_FORM} max-w-[7rem] tabular-nums`}
+                            value={formData.horas_reserva}
+                            onChange={e => { const val = e.currentTarget.valueAsNumber; setFormData({ ...formData, horas_reserva: Number.isFinite(val) ? val : 48 }) }} />
+                          <span className="text-sm text-slate-500">horas</span>
                         </div>
-                      ))}
-                    </div>
+                      </Campo>
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-500">La inscripción es gratuita: no se cobra ni se aparta el cupo por pago.</p>
                   )}
-                </div>
+                </SeccionForm>
 
-                {/* Firmantes del Certificado */}
-                <div className="space-y-4 border-t border-gray-100 pt-4">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Firmantes del Certificado</label>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">Selecciona autoridades de la Junta Directiva y personaliza el orden de las firmas</p>
+                <SeccionForm titulo="Quién puede inscribirse" descripcion="Reglas de acceso y publicación.">
+                  <div className="divide-y divide-slate-200 border border-slate-200 rounded-lg">
+                    <FilaInterruptor
+                      titulo="Solo afiliados"
+                      descripcion="Únicamente las personas afiliadas oficialmente pueden inscribirse. El curso sigue visible en el catálogo; quien no sea afiliado ve el aviso. Tú puedes asignar estudiantes a mano sin esta restricción."
+                      activo={formData.solo_afiliados === 1}
+                      onChange={v => setFormData({ ...formData, solo_afiliados: v ? 1 : 0 })}
+                    />
+                    <FilaInterruptor
+                      titulo="Aprobar inscritos manualmente"
+                      descripcion="Cada inscripción queda pendiente hasta que la valides o rechaces desde la lista de inscritos. Apagado, quien se inscribe queda admitido de inmediato."
+                      activo={formData.requiere_aprobacion === 1}
+                      onChange={v => setFormData({ ...formData, requiere_aprobacion: v ? 1 : 0 })}
+                    />
+                    <FilaInterruptor
+                      titulo="Solo informativo"
+                      descripcion="Publica la imagen como afiche en el carrusel de noticias de la página principal, sin inscripción."
+                      activo={formData.solo_informativo === 1}
+                      onChange={v => setFormData({ ...formData, solo_informativo: v ? 1 : 0 })}
+                    />
                   </div>
+                </SeccionForm>
 
-                  {/* 1. Selección Rápida de Junta Directiva */}
+                <SeccionForm
+                  titulo="Cursos excluyentes"
+                  descripcion="Quien esté inscrito en este curso no podrá inscribirse en los que marques. Funciona en un solo sentido: para que también valga al revés, edita el otro curso."
+                >
+                  {cursos.filter(c => c.id_curso !== editingId).length === 0 ? (
+                    <p className="text-xs text-slate-500">Aún no hay otros cursos con los que vincular.</p>
+                  ) : (
+                    <>
+                      <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+                        {cursos.filter(c => c.id_curso !== editingId).map(other => {
+                          const marcado = formData.cursos_excluyentes.includes(other.id_curso)
+                          return (
+                            <label key={other.id_curso} className={`flex items-center gap-3 px-3 py-2 cursor-pointer text-sm hover:bg-slate-50 ${marcado ? 'bg-emerald-50/60' : ''}`}>
+                              <input type="checkbox" checked={marcado}
+                                onChange={e => {
+                                  const actualizado = e.target.checked ? [...formData.cursos_excluyentes, other.id_curso] : formData.cursos_excluyentes.filter(id => id !== other.id_curso)
+                                  setFormData({ ...formData, cursos_excluyentes: actualizado })
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 shrink-0" />
+                              <span className="min-w-0 flex-1 truncate text-slate-800">{other.titulo || other.nombre}</span>
+                              <span className="text-xs text-slate-400 shrink-0">{other.categoria || 'Curso'} · {other.estatus}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      {formData.cursos_excluyentes.length > 0 && (
+                        <button type="button" onClick={() => setFormData({ ...formData, cursos_excluyentes: [] })} className="text-xs font-medium text-slate-600 hover:text-slate-900 underline underline-offset-2">
+                          Quitar los {formData.cursos_excluyentes.length} seleccionados
+                        </button>
+                      )}
+                    </>
+                  )}
+                </SeccionForm>
+
+                <SeccionForm titulo="Módulos" descripcion="Las partes del curso y quién dicta cada una.">
+                  {formData.modulos.length === 0 && <p className="text-xs text-slate-500">Sin módulos: se creará uno por defecto.</p>}
+                  <div className="space-y-2">
+                    {formData.modulos.map((mod, index) => (
+                      <div key={(mod as any).id_modulo || (mod as any).id || `modulo-${index}`} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                        <span className="w-5 text-right text-xs text-slate-400 tabular-nums" aria-hidden="true">{index + 1}</span>
+                        <input type="text" required aria-label={`Nombre del módulo ${index + 1}`} placeholder="Nombre del módulo" value={mod.nombre_modulo}
+                          onChange={e => { const nuevos = [...formData.modulos]; nuevos[index].nombre_modulo = e.target.value; setFormData({ ...formData, modulos: nuevos }) }}
+                          className={`${INPUT_BASE} flex-1 min-w-[10rem]`} />
+                        <select aria-label={`Profesor del módulo ${index + 1}`} value={mod.id_profesor || ''}
+                          onChange={e => {
+                            if (e.target.value === 'NEW_PROFESOR') {
+                              setCurrentModIndex(index); handleOpenProfModal()
+                              e.target.value = mod.id_profesor ? String(mod.id_profesor) : ''
+                              return
+                            }
+                            const val = e.target.value ? Number(e.target.value) : null
+                            const nuevos = [...formData.modulos]; nuevos[index].id_profesor = val; setFormData({ ...formData, modulos: nuevos })
+                          }}
+                          className={`${INPUT_BASE} w-full sm:w-52 sm:shrink-0`}>
+                          <option value="">Sin profesor</option>
+                          {profesores.map(p => <option key={p.id_profesor} value={p.id_profesor}>{p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}</option>)}
+                          <option value="NEW_PROFESOR">Crear profesor nuevo…</option>
+                        </select>
+                        <button type="button" aria-label={`Quitar el módulo ${index + 1}`}
+                          onClick={() => setFormData({ ...formData, modulos: formData.modulos.filter((_, idx) => idx !== index).map((m, idx) => ({ ...m, orden: idx })) })}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0">
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button"
+                    onClick={() => { const n = formData.modulos.length + 1; setFormData({ ...formData, modulos: [...formData.modulos, { nombre_modulo: `Módulo ${n}`, id_profesor: null, orden: n - 1 }] }) }}
+                    className="inline-flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 hover:text-emerald-900">
+                    <Plus size={14} aria-hidden="true" /> Agregar módulo
+                  </button>
+                </SeccionForm>
+
+                <SeccionForm titulo="Firmas del certificado" descripcion="Quiénes firman y en qué orden. Sin firmantes, firma el Presidente.">
                   {directivaMembers.length > 0 && (
-                    <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                          <Users size={14} className="text-emerald-600" />
-                          <span>Seleccionar Autoridades de la Junta Directiva</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        <span className="text-[13px] font-medium text-slate-700">Junta directiva</span>
+                        <span className="text-xs text-slate-500 tabular-nums">
                           {directivaMembers.filter(m => formData.firmantes?.some(f => (f.id && String(f.id) === String(m.id)) || f.nombre.trim().toLowerCase() === m.nombre.trim().toLowerCase())).length} seleccionados
                         </span>
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                        {directivaMembers.map((member) => {
-                          const isSelected = formData.firmantes?.some(
-                            f => (f.id && String(f.id) === String(member.id)) || f.nombre.trim().toLowerCase() === member.nombre.trim().toLowerCase()
-                          );
-                          const hasFirma = Boolean(member.firma_url);
-
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                        {directivaMembers.map(member => {
+                          const elegido = formData.firmantes?.some(f => (f.id && String(f.id) === String(member.id)) || f.nombre.trim().toLowerCase() === member.nombre.trim().toLowerCase())
                           return (
-                            <div
-                              key={member.id}
-                              onClick={() => {
-                                if (isSelected) {
-                                  const updated = (formData.firmantes || []).filter(
-                                    f => !(f.id && String(f.id) === String(member.id)) && f.nombre.trim().toLowerCase() !== member.nombre.trim().toLowerCase()
-                                  );
-                                  setFormData({ ...formData, firmantes: updated });
-                                } else {
-                                  const newSigner: FirmanteItem = {
-                                    id: member.id,
-                                    nombre: member.nombre,
-                                    cargo: member.cargo,
-                                    firma_url: member.firma_url || null,
-                                    mostrar_firma: true
-                                  };
-                                  setFormData({ ...formData, firmantes: [...(formData.firmantes || []), newSigner] });
-                                }
-                              }}
-                              className={`p-2.5 rounded-xl border text-left cursor-pointer transition-colors flex items-center gap-2.5 ${isSelected
-                                ? 'bg-emerald-50/90 border-emerald-300'
-                                : 'bg-white border-slate-200 hover:bg-slate-100/60'
-                                }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => { }}
-                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 pointer-events-none"
-                              />
-                              <div className="w-7 h-7 rounded-full bg-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                                {member.foto_url ? (
-                                  <img src={member.foto_url} alt={member.nombre} className="w-full h-full object-cover" />
-                                ) : (
-                                  <User size={14} className="text-slate-400" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 truncate">{member.nombre}</p>
-                                <p className="text-[10px] text-slate-500 font-medium truncate">{member.cargo}</p>
-                                {!hasFirma && (
-                                  <span className="inline-flex items-center gap-1 text-[9px] text-amber-700 font-extrabold mt-0.5">
-                                    <AlertTriangle size={10} /> Sin firma digital cargada
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
+                            <label key={member.id} className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${elegido ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                              <input type="checkbox" checked={!!elegido}
+                                onChange={() => {
+                                  if (elegido) {
+                                    setFormData({ ...formData, firmantes: (formData.firmantes || []).filter(f => !(f.id && String(f.id) === String(member.id)) && f.nombre.trim().toLowerCase() !== member.nombre.trim().toLowerCase()) })
+                                  } else {
+                                    const nuevo: FirmanteItem = { id: member.id, nombre: member.nombre, cargo: member.cargo, firma_url: member.firma_url || null, mostrar_firma: true }
+                                    setFormData({ ...formData, firmantes: [...(formData.firmantes || []), nuevo] })
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 shrink-0" />
+                              <span className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">
+                                {member.foto_url ? <img src={member.foto_url} alt="" className="w-full h-full object-cover" /> : <User size={14} className="text-slate-400" aria-hidden="true" />}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[13px] font-medium text-slate-900 truncate">{member.nombre}</span>
+                                <span className="block text-xs text-slate-500 truncate">{member.cargo}</span>
+                                {!member.firma_url && <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 mt-0.5"><AlertTriangle size={11} aria-hidden="true" /> Sin firma digital</span>}
+                              </span>
+                            </label>
+                          )
                         })}
                       </div>
-
                       {directivaMembers.some(m => !m.firma_url) && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-2 text-[11px] text-amber-800">
-                          <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
-                          <p>
-                            <strong>Nota sobre firmas faltantes:</strong> Si el miembro seleccionado no tiene su firma digital cargada, debes acceder a la sección <strong>Junta Directiva</strong> para subir su firma, o subir la firma directamente en este curso.
-                          </p>
-                        </div>
+                        <p className="text-xs text-slate-500">A quien no tiene firma cargada puedes subírsela aquí abajo o desde la sección Junta Directiva.</p>
                       )}
                     </div>
                   )}
 
-                  {/* 2. Lista de Firmantes Unificada con Controles de Reordenamiento */}
                   <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div className="flex items-center justify-between gap-3">
                       <div>
-                        <span className="text-xs font-extrabold text-slate-800">Orden Final de Firmas en el Certificado ({formData.firmantes?.length || 0})</span>
-                        <p className="text-[10px] text-slate-400 font-medium">Combina y reordena libremente los miembros de la junta y los firmantes personalizados</p>
+                        <span className="text-[13px] font-medium text-slate-700">Orden de las firmas</span>
+                        <span className="text-xs text-slate-500 ml-2 tabular-nums">{formData.firmantes?.length || 0}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newSigner: FirmanteItem = {
-                            nombre: '',
-                            cargo: '',
-                            firma_url: null,
-                            mostrar_firma: true
-                          };
-                          setFormData(prev => ({ ...prev, firmantes: [...(prev.firmantes || []), newSigner] }));
-                        }}
-                        className="text-xs font-bold text-[#00B870] hover:underline cursor-pointer self-start sm:self-auto"
-                      >
-                        + Firmante Personalizado
+                      <button type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, firmantes: [...(prev.firmantes || []), { nombre: '', cargo: '', firma_url: null, mostrar_firma: true }] }))}
+                        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-emerald-700 hover:text-emerald-900">
+                        <Plus size={14} aria-hidden="true" /> Firmante personalizado
                       </button>
                     </div>
 
                     {(!formData.firmantes || formData.firmantes.length === 0) ? (
-                      <p className="text-xs text-slate-400 italic bg-slate-100/70 p-3 rounded-xl">No hay firmantes asignados. Se utilizará el Presidente por defecto.</p>
+                      <p className="text-xs text-slate-500">No hay firmantes asignados: se usará el Presidente.</p>
                     ) : (
-                      <div className="space-y-3">
+                      <ol className="space-y-3">
                         {formData.firmantes.map((firmante, index) => (
-                          <div key={index} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col gap-2.5">
+                          <li key={index} className="border border-slate-200 rounded-lg p-3 space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center flex-wrap gap-2">
-                                <span className="text-[10px] font-black bg-slate-800 text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
-                                  Posición #{index + 1}
-                                </span>
-
-                                {firmante.id ? (
-                                  <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-md">
-                                    Junta Directiva
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300 px-2 py-0.5 rounded-md">
-                                    Personalizado
-                                  </span>
-                                )}
-
-                                {/* Selector directo de Posición */}
-                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-0.5">
-                                  <span className="text-[10px] font-bold text-slate-500">Mover a:</span>
-                                  <select
-                                    value={index}
-                                    onChange={(e) => {
-                                      const newIdx = parseInt(e.target.value, 10);
-                                      if (newIdx === index || newIdx < 0 || newIdx >= formData.firmantes.length) return;
-                                      const updated = [...formData.firmantes];
-                                      const [item] = updated.splice(index, 1);
-                                      updated.splice(newIdx, 0, item);
-                                      setFormData({ ...formData, firmantes: updated });
-                                    }}
-                                    className="text-xs font-black text-slate-800 bg-transparent outline-none cursor-pointer"
-                                  >
-                                    {formData.firmantes.map((_, i) => (
-                                      <option key={i} value={i}>Posición #{i + 1}</option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                {/* Botones de subida y bajada */}
-                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5">
-                                  <button
-                                    type="button"
-                                    disabled={index === 0}
-                                    title="Mover arriba"
-                                    onClick={() => {
-                                      const updated = [...formData.firmantes];
-                                      const [item] = updated.splice(index, 1);
-                                      updated.splice(index - 1, 0, item);
-                                      setFormData({ ...formData, firmantes: updated });
-                                    }}
-                                    className="p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 rounded cursor-pointer disabled:cursor-not-allowed flex items-center gap-0.5 text-[10px] font-bold"
-                                  >
-                                    <ArrowUp size={13} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={index === formData.firmantes.length - 1}
-                                    title="Mover abajo"
-                                    onClick={() => {
-                                      const updated = [...formData.firmantes];
-                                      const [item] = updated.splice(index, 1);
-                                      updated.splice(index + 1, 0, item);
-                                      setFormData({ ...formData, firmantes: updated });
-                                    }}
-                                    className="p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 rounded cursor-pointer disabled:cursor-not-allowed flex items-center gap-0.5 text-[10px] font-bold"
-                                  >
-                                    <ArrowDown size={13} />
-                                  </button>
-                                </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center tabular-nums">{index + 1}</span>
+                                <span className="text-xs text-slate-500">{firmante.id ? 'Junta directiva' : 'Personalizado'}</span>
                               </div>
-
-                              <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-600">
-                                  <input
-                                    type="checkbox"
-                                    checked={firmante.mostrar_firma !== false}
-                                    onChange={(e) => {
-                                      const updated = [...(formData.firmantes || [])];
-                                      updated[index].mostrar_firma = e.target.checked;
-                                      setFormData({ ...formData, firmantes: updated });
-                                    }}
-                                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                  />
-                                  <span>Mostrar firma</span>
+                              <div className="flex items-center gap-1">
+                                <button type="button" disabled={index === 0} aria-label="Mover arriba"
+                                  onClick={() => { const a = [...formData.firmantes]; const [it] = a.splice(index, 1); a.splice(index - 1, 0, it); setFormData({ ...formData, firmantes: a }) }}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"><ArrowUp size={14} aria-hidden="true" /></button>
+                                <button type="button" disabled={index === formData.firmantes.length - 1} aria-label="Mover abajo"
+                                  onClick={() => { const a = [...formData.firmantes]; const [it] = a.splice(index, 1); a.splice(index + 1, 0, it); setFormData({ ...formData, firmantes: a }) }}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"><ArrowDown size={14} aria-hidden="true" /></button>
+                                <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer ml-2">
+                                  <input type="checkbox" checked={firmante.mostrar_firma !== false}
+                                    onChange={e => { const a = [...(formData.firmantes || [])]; a[index].mostrar_firma = e.target.checked; setFormData({ ...formData, firmantes: a }) }}
+                                    className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600" />
+                                  Mostrar firma
                                 </label>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = (formData.firmantes || []).filter((_, i) => i !== index);
-                                    setFormData({ ...formData, firmantes: updated });
-                                  }}
-                                  className="text-rose-600 hover:text-rose-800 text-xs font-bold"
-                                >
-                                  Eliminar
-                                </button>
+                                <button type="button" onClick={() => setFormData({ ...formData, firmantes: (formData.firmantes || []).filter((_, i) => i !== index) })}
+                                  className="ml-1 px-2 py-1 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50">Quitar</button>
                               </div>
                             </div>
 
-                            {/* Alerta de firma faltante */}
                             {!firmante.firma_url && (
-                              <div className="bg-amber-50 border border-amber-200/80 text-amber-800 rounded-xl p-2 flex items-center gap-2 text-[11px]">
-                                <AlertTriangle size={14} className="text-amber-600 shrink-0" />
-                                <span>
-                                  Falta la imagen de la firma. Debes acceder a <strong>Junta Directiva</strong> para subir la firma del miembro, o subirla manualmente abajo.
-                                </span>
-                              </div>
+                              <p className="flex items-center gap-1.5 text-xs text-amber-700"><AlertTriangle size={13} aria-hidden="true" /> Falta la imagen de la firma.</p>
                             )}
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <input
-                                type="text"
-                                required
-                                placeholder="Nombre y Apellidos"
-                                value={firmante.nombre}
-                                onChange={(e) => {
-                                  const updated = [...(formData.firmantes || [])];
-                                  updated[index].nombre = e.target.value;
-                                  setFormData({ ...formData, firmantes: updated });
-                                }}
-                                className="bg-white rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                              />
-                              <input
-                                type="text"
-                                required
-                                placeholder="Cargo / Subtítulo (ej. Presidente)"
-                                value={firmante.cargo}
-                                onChange={(e) => {
-                                  const updated = [...(formData.firmantes || [])];
-                                  updated[index].cargo = e.target.value;
-                                  setFormData({ ...formData, firmantes: updated });
-                                }}
-                                className="bg-white rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-[#00D084]/20 focus:border-[#00D084]"
-                              />
+                              <input type="text" required aria-label="Nombre del firmante" placeholder="Nombre y apellidos" value={firmante.nombre}
+                                onChange={e => { const a = [...(formData.firmantes || [])]; a[index].nombre = e.target.value; setFormData({ ...formData, firmantes: a }) }} className={INPUT_FORM} />
+                              <input type="text" required aria-label="Cargo del firmante" placeholder="Cargo (ej. Presidente)" value={firmante.cargo}
+                                onChange={e => { const a = [...(formData.firmantes || [])]; a[index].cargo = e.target.value; setFormData({ ...formData, firmantes: a }) }} className={INPUT_FORM} />
                             </div>
 
                             <div className="flex items-center gap-3">
-                              <div className="h-12 w-32 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
-                                {firmante.firma_url ? (
-                                  <img src={firmante.firma_url} alt="Firma" className="max-h-10 w-auto object-contain" />
-                                ) : (
-                                  <span className="text-[9px] text-slate-400">Sin imagen</span>
-                                )}
+                              <div className="h-12 w-32 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 bg-slate-50">
+                                {firmante.firma_url ? <img src={firmante.firma_url} alt="Firma" className="max-h-10 w-auto object-contain" /> : <span className="text-[11px] text-slate-400">Sin imagen</span>}
                               </div>
-                              <label className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold cursor-pointer transition-colors">
-                                <span>{firmante.firma_url ? 'Cambiar Firma' : 'Subir Firma Digital'}</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        const url = await uploadFileStorage(file, 'firmas_cursos');
-                                        const updated = [...(formData.firmantes || [])];
-                                        updated[index].firma_url = url;
-                                        setFormData({ ...formData, firmantes: updated });
-                                        toast.success('Firma cargada');
-                                      } catch (err: any) {
-                                        Swal.fire('Error', err.message || 'Error al subir la firma', 'error');
-                                      }
+                              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-600/30">
+                                <Upload size={14} aria-hidden="true" />
+                                {firmante.firma_url ? 'Cambiar firma' : 'Subir firma'}
+                                <input type="file" accept="image/*" className="sr-only"
+                                  onChange={async e => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    try {
+                                      const url = await uploadFileStorage(file, 'firmas_cursos')
+                                      const a = [...(formData.firmantes || [])]; a[index].firma_url = url
+                                      setFormData({ ...formData, firmantes: a })
+                                      toast.success('Firma cargada')
+                                    } catch (err: any) {
+                                      Swal.fire('Error', err.message || 'Error al subir la firma', 'error')
                                     }
-                                  }}
-                                />
+                                  }} />
                               </label>
                             </div>
-                          </div>
+                          </li>
                         ))}
-                      </div>
+                      </ol>
                     )}
                   </div>
-                </div>
+                </SeccionForm>
               </div>
 
-              <div className="p-5 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0 bg-slate-50/50">
-                <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors transition-transform active:scale-95">
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading || submittingCourse}
-                  className="px-8 py-2.5 text-sm font-bold text-white bg-[#00D084] hover:bg-[#00B870] rounded-xl transition-colors transition-transform shadow-lg shadow-[#00D084]/30 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
-                >
+              <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 rounded-b-xl flex justify-end gap-2 flex-shrink-0">
+                <button type="button" onClick={handleCloseModal} className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors">Cancelar</button>
+                <button type="submit" disabled={uploading || submittingCourse}
+                  className="px-5 py-2 text-sm font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
                   {(uploading || submittingCourse) ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>{uploading ? 'Subiendo imagen...' : editingId ? 'Actualizando...' : 'Creando...'}</span>
-                    </>
+                    <><Loader2 size={15} className="animate-spin" aria-hidden="true" /><span>{uploading ? 'Subiendo imagen…' : editingId ? 'Guardando…' : 'Creando…'}</span></>
                   ) : (
-                    <span>{editingId ? 'Actualizar Programa' : 'Crear Curso'}</span>
+                    <span>{editingId ? 'Guardar cambios' : 'Crear curso'}</span>
                   )}
                 </button>
               </div>
