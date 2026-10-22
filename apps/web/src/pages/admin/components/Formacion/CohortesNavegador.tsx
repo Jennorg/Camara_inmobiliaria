@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Download, Plus } from 'lucide-react'
 
 export type Etapa = 'cursando' | 'completado' | 'admitido' | 'entrevista' | 'pendiente' | 'sin_expediente' | 'rechazado'
@@ -94,6 +94,8 @@ interface Props {
 /** Franja para moverse entre las cohortes de un programa y ver, de un vistazo, cuántos inscritos tiene cada una y en qué etapa están. */
 export default function CohortesNavegador({ programa, cohortes, seleccion, onSeleccionar, onNueva, onExportar, cargando = false }: Props) {
   const activa = cohortes.find(c => c.id_cohorte === seleccion)
+  // De la más reciente a la más antigua: la abierta queda siempre junto a "Vista general"
+  const ordenadas = useMemo(() => [...cohortes].sort((a, b) => b.numero - a.numero), [cohortes])
   const idTitulo = useId()
   const contenedor = useRef<HTMLDivElement>(null)
   const tarjetas = useRef(new Map<number | null, HTMLButtonElement>())
@@ -167,7 +169,7 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
           <span className="text-[11px] leading-snug text-slate-500">Todo {programa}, sin filtrar</span>
         </button>
 
-        {cohortes.map((c, i) => {
+        {ordenadas.map((c, i) => {
           const elegida = c.id_cohorte === seleccion
           const presentes = ETAPAS.filter(e => c.etapas[e.clave] > 0)
           const resumen = presentes.map(e => `${c.etapas[e.clave]} ${e.etiqueta.toLocaleLowerCase('es')}`).join(', ') || 'sin inscritos'
