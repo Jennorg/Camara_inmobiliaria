@@ -422,7 +422,8 @@ export const tasasService = {
         args.push(codigo);
       }
 
-      sql += ` ORDER BY id DESC LIMIT ?`;
+      // Más reciente primero por fecha de la cotización; `id` desempata las del mismo día
+      sql += ` ORDER BY fecha DESC, id DESC LIMIT ?`;
       args.push(limite);
 
       const res = await db.execute({ sql, args });

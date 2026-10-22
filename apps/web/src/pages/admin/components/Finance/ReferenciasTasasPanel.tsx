@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  ArrowLeftRight, 
   RefreshCw, 
   Clock, 
   Edit3, 
   Check, 
   X, 
-  Search, 
-  ChevronDown, 
   ShieldCheck, 
   Zap, 
   Calendar, 
@@ -32,15 +29,10 @@ export default function ReferenciasTasasPanel() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  // Estados del conversor
-  const [montoEntrada, setMontoEntrada] = useState<string>('30');
-  const [monedaOrigen, setMonedaOrigen] = useState<'USD' | 'USDT' | 'VES'>('USD');
-  const [monedaDestino, setMonedaDestino] = useState<'USD' | 'USDT' | 'VES'>('VES');
-
-  // Estados del filtro de historial (Cumpliendo GEMINI.md)
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState<'todos' | 'codigo' | 'fuente' | 'fecha'>('todos');
-  const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
+  // Filtros del historial por categoría ('' = todas)
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroFuente, setFiltroFuente] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
 
   // Modal / Edición manual
   const [editingCodigo, setEditingCodigo] = useState<'USD_BCV' | 'USDT_BINANCE' | null>(null);
@@ -161,82 +153,18 @@ export default function ReferenciasTasasPanel() {
   const tasaBcvNum = snapshot?.tasas.USD_BCV?.tasa || 875.65;
   const tasaUsdtNum = snapshot?.tasas.USDT_BINANCE?.tasa || 1008.45;
 
-  // 6. Lógica de conversión en tiempo real
-  const resultadoConversion = useMemo(() => {
-    const val = parseFloat(montoEntrada);
-    if (isNaN(val) || val <= 0) return 0;
+  // Opciones de cada filtro, tomadas de lo que realmente hay en el historial
+  const fuentes = useMemo(() => [...new Set(historial.map(h => h.fuente))].sort(), [historial]);
+  const fechas = useMemo(() => [...new Set(historial.map(h => h.fecha))].sort().reverse(), [historial]);
 
-    if (monedaOrigen === monedaDestino) return val;
-
-    if (monedaOrigen === 'USD' && monedaDestino === 'VES') {
-      return Number((val * tasaBcvNum).toFixed(2));
-    }
-    if (monedaOrigen === 'VES' && monedaDestino === 'USD') {
-      return Number((val / tasaBcvNum).toFixed(2));
-    }
-    if (monedaOrigen === 'USDT' && monedaDestino === 'VES') {
-      return Number((val * tasaUsdtNum).toFixed(2));
-    }
-    if (monedaOrigen === 'VES' && monedaDestino === 'USDT') {
-      return Number((val / tasaUsdtNum).toFixed(2));
-    }
-    if (monedaOrigen === 'USD' && monedaDestino === 'USDT') {
-      const ves = val * tasaBcvNum;
-      return Number((ves / tasaUsdtNum).toFixed(4));
-    }
-    if (monedaOrigen === 'USDT' && monedaDestino === 'USD') {
-      const ves = val * tasaUsdtNum;
-      return Number((ves / tasaBcvNum).toFixed(4));
-    }
-    return val;
-  }, [montoEntrada, monedaOrigen, monedaDestino, tasaBcvNum, tasaUsdtNum]);
-
-  // Intercambio de moneda rápida (Swap ⇄)
-  const handleSwap = () => {
-    const orig = monedaOrigen;
-    setMonedaOrigen(monedaDestino);
-    setMonedaDestino(orig);
-  };
-
-  // Atajos rápidos de aranceles
-  const aplicarAtajoMonto = (usd: number) => {
-    setMonedaOrigen('USD');
-    setMonedaDestino('VES');
-    setMontoEntrada(String(usd));
-  };
-
-  // Filtrado de historial respetando estándar GEMINI.md
-  const historialFiltrado = useMemo(() => {
-    if (!searchQuery.trim()) return historial;
-    const q = searchQuery.toLowerCase().trim();
-
-    return historial.filter(item => {
-      const cod = (item.codigo || '').toLowerCase();
-      const fuente = (item.fuente || '').toLowerCase();
-      const fecha = (item.fecha || '').toLowerCase();
-
-      switch (searchField) {
-        case 'codigo':
-          return cod.includes(q);
-        case 'fuente':
-          return fuente.includes(q);
-        case 'fecha':
-          return fecha.includes(q);
-        case 'todos':
-        default:
-          return cod.includes(q) || fuente.includes(q) || fecha.includes(q);
-      }
-    });
-  }, [historial, searchQuery, searchField]);
-
-  const placeholderContextual = useMemo(() => {
-    switch (searchField) {
-      case 'codigo': return 'Buscar por código (ej. USD_BCV, USDT)...';
-      case 'fuente': return 'Buscar por fuente (ej. BCV, Binance)...';
-      case 'fecha': return 'Buscar por fecha (AAAA-MM-DD)...';
-      default: return 'Buscar en el historial de tasas...';
-    }
-  }, [searchField]);
+  const historialFiltrado = useMemo(
+    () => historial.filter(h =>
+      (!filtroTipo || h.codigo === filtroTipo) &&
+      (!filtroFuente || h.fuente === filtroFuente) &&
+      (!filtroFecha || h.fecha === filtroFecha)),
+    [historial, filtroTipo, filtroFuente, filtroFecha],
+  );
+  const hayFiltros = !!(filtroTipo || filtroFuente || filtroFecha);
 
   // Formato minutos restantes
   const minutosRestantes = Math.ceil((snapshot?.tiempo_restante_cache_ms || 0) / 60000);
@@ -443,170 +371,6 @@ export default function ReferenciasTasasPanel() {
         </div>
       )}
 
-      {/* ── CONVERSOR INTELIGENTE MULTIMONEDA ── */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6" data-testid="conversor-inteligente">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
-              <ArrowLeftRight size={16} />
-            </span>
-            <h3 className="text-base font-black text-slate-900">
-              Conversor Automático de Divisas & Cripto
-            </h3>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Calcula instantáneamente de Dólares a Bolívares, de USDT a Bolívares o entre divisas.
-          </p>
-        </div>
-
-        {/* Botones de Aranceles Rápidos */}
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-            Atajos de Aranceles Gremiales de la Cámara:
-          </span>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => aplicarAtajoMonto(5)}
-              data-testid="atajo-arancel-5"
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs font-bold text-slate-700 hover:text-emerald-800 transition-colors"
-            >
-              $5 (Mensualidad Gremial)
-            </button>
-            <button
-              type="button"
-              onClick={() => aplicarAtajoMonto(25)}
-              data-testid="atajo-arancel-25"
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs font-bold text-slate-700 hover:text-emerald-800 transition-colors"
-            >
-              $25 (Inscripción de Aspirante)
-            </button>
-            <button
-              type="button"
-              onClick={() => aplicarAtajoMonto(30)}
-              data-testid="atajo-arancel-30"
-              className="px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-xs font-black text-emerald-800 transition-colors"
-            >
-              $30 (Formalización Completa)
-            </button>
-            <button
-              type="button"
-              onClick={() => aplicarAtajoMonto(50)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700"
-            >
-              $50
-            </button>
-            <button
-              type="button"
-              onClick={() => aplicarAtajoMonto(100)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700"
-            >
-              $100
-            </button>
-          </div>
-        </div>
-
-        {/* Inputs de Conversión */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-          {/* LADO ORIGEN */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase text-slate-400">Importe a Convertir</label>
-              <select
-                value={monedaOrigen}
-                onChange={e => setMonedaOrigen(e.target.value as any)}
-                data-testid="select-moneda-origen"
-                className="text-xs font-black text-emerald-800 bg-white border border-slate-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer"
-              >
-                <option value="USD">Dólares (USD)</option>
-                <option value="USDT">Binance (USDT)</option>
-                <option value="VES">Bolívares (VES)</option>
-              </select>
-            </div>
-            <div className="relative">
-              <input
-                type="number"
-                step="any"
-                value={montoEntrada}
-                onChange={e => setMontoEntrada(e.target.value)}
-                placeholder="0.00"
-                data-testid="input-monto-origen"
-                className="w-full px-4 py-3 bg-white rounded-xl border border-slate-200 font-mono font-black text-lg text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
-              />
-              <span className="absolute right-3.5 top-3.5 font-bold text-xs text-slate-400">
-                {monedaOrigen}
-              </span>
-            </div>
-          </div>
-
-          {/* BOTÓN SWAP */}
-          <div className="flex justify-center pt-2 md:pt-4">
-            <button
-              type="button"
-              onClick={handleSwap}
-              data-testid="btn-swap-monedas"
-              title="Invertir dirección de conversión"
-              className="p-3 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300 hover:shadow-xs transition-all cursor-pointer"
-            >
-              <ArrowLeftRight size={18} />
-            </button>
-          </div>
-
-          {/* LADO DESTINO */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase text-slate-400">Resultado Equivalente</label>
-              <select
-                value={monedaDestino}
-                onChange={e => setMonedaDestino(e.target.value as any)}
-                data-testid="select-moneda-destino"
-                className="text-xs font-black text-emerald-800 bg-white border border-slate-200 rounded-lg px-2 py-0.5 outline-none cursor-pointer"
-              >
-                <option value="VES">Bolívares (VES)</option>
-                <option value="USD">Dólares (USD)</option>
-                <option value="USDT">Binance (USDT)</option>
-              </select>
-            </div>
-            <div className="relative">
-              <div
-                data-testid="resultado-conversion"
-                className="w-full px-4 py-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 font-mono font-black text-lg text-emerald-950 truncate"
-              >
-                {resultadoConversion.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-              </div>
-              <span className="absolute right-3.5 top-3.5 font-bold text-xs text-emerald-700">
-                {monedaDestino}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* CUADRO COMPARATIVO BCV vs USDT */}
-        {parseFloat(montoEntrada) > 0 && (monedaOrigen === 'USD' || monedaOrigen === 'USDT') && (
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-              Comparativa Simultánea para {montoEntrada} {monedaOrigen}:
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Al Cambio Oficial BCV</span>
-                <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
-                  Bs. {(parseFloat(montoEntrada) * tasaBcvNum).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="text-[10px] text-slate-500">Tasa: Bs. {tasaBcvNum.toFixed(2)}</span>
-              </div>
-              <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <span className="text-[10px] font-bold text-[#b58b09] uppercase block">Al Cambio Binance USDT</span>
-                <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
-                  Bs. {(parseFloat(montoEntrada) * tasaUsdtNum).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="text-[10px] text-slate-500">Tasa: Bs. {tasaUsdtNum.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── HISTORIAL DE COTIZACIONES (ESTÁNDAR GEMINI.MD) ── */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -615,63 +379,27 @@ export default function ReferenciasTasasPanel() {
             <h4 className="text-sm font-black text-slate-900">Historial Reciente de Cotizaciones</h4>
           </div>
 
-          {/* INPUT DE BÚSQUEDA CON ESTÁNDAR GEMINI.MD */}
-          <div className="w-full sm:w-auto min-w-[280px]">
-            <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-all">
-              {/* Botón de Criterio */}
-              <button
-                type="button"
-                onClick={() => setIsCriteriaOpen(!isCriteriaOpen)}
-                className="flex items-center gap-1 pl-3 pr-2 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors shrink-0"
-              >
-                <span>{searchField}</span>
-                <ChevronDown size={12} />
+          {/* Filtros por categoría */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <select aria-label="Filtrar por tipo" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer">
+              <option value="">Todos los tipos</option>
+              <option value="USD_BCV">USD (BCV)</option>
+              <option value="USDT_BINANCE">USDT (Binance)</option>
+            </select>
+            <select aria-label="Filtrar por fuente" value={filtroFuente} onChange={e => setFiltroFuente(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer">
+              <option value="">Todas las fuentes</option>
+              {fuentes.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <select aria-label="Filtrar por fecha" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)} className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer">
+              <option value="">Todas las fechas</option>
+              {fechas.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+            {hayFiltros && (
+              <button type="button" onClick={() => { setFiltroTipo(''); setFiltroFuente(''); setFiltroFecha(''); }}
+                className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors">
+                <X size={12} aria-hidden="true" /> Limpiar
               </button>
-
-              {/* Menú Desplegable con Backdrop */}
-              {isCriteriaOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsCriteriaOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-xs">
-                    {(['todos', 'codigo', 'fuente', 'fecha'] as const).map(crit => (
-                      <button
-                        key={crit}
-                        type="button"
-                        onClick={() => {
-                          setSearchField(crit);
-                          setIsCriteriaOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-1.5 font-bold capitalize transition-colors ${
-                          searchField === crit ? 'bg-emerald-50 text-emerald-800' : 'text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {crit}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              <Search size={14} className="text-slate-400 mx-1 shrink-0" />
-
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={placeholderContextual}
-                className="w-full bg-transparent py-2 pr-7 text-xs text-slate-800 placeholder-slate-400 outline-none font-medium"
-              />
-
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
@@ -691,7 +419,7 @@ export default function ReferenciasTasasPanel() {
               {historialFiltrado.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-4 text-center text-slate-400">
-                    No se encontraron registros de cotizaciones con el filtro actual.
+                    Ninguna cotización coincide con los filtros elegidos.
                   </td>
                 </tr>
               ) : (
