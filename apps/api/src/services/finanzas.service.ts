@@ -1,6 +1,7 @@
 import { db } from '../lib/db.js';
+import { COLUMNA_FECHA_CUOTA, cuotasImportadas, cuotasImportadasPorPeriodo, fechaCuota } from './cuotas-importadas.service.js';
 import { SQL_JOIN_PAGADOR } from './pagos.service.js';
-import { conceptoReporte, type ConceptoReporte } from '../lib/conceptos.js';
+import { CONCEPTOS_REPORTE, ETIQUETA_CONCEPTO, conceptoReporte, type ConceptoReporte } from '../lib/conceptos.js';
 
 export interface FiltrosFinanzas {
   anio?: number;
@@ -14,6 +15,9 @@ export interface FiltrosFinanzas {
   concepto?: string;
   metodo?: string;
   cajero?: string;
+  /** Paginación de los libros: sin `pagina` se devuelven todas las filas (exportaciones) */
+  pagina?: number;
+  limite?: number;
 }
 
 export interface MovimientoInput {
@@ -24,11 +28,6 @@ export interface MovimientoInput {
   proveedor_cliente: string;
   rif_cedula?: string | null;
   nro_factura_documento?: string | null;
-  nro_control_fiscal?: string | null;
-  base_imponible?: number;
-  monto_exento?: number;
-  alicuota_iva?: number;
-  monto_iva?: number;
   monto_total: number;
   moneda?: 'USD' | 'VES';
   tasa_bcv?: number;
@@ -38,6 +37,17 @@ export interface MovimientoInput {
   comprobante_url?: string | null;
   estatus?: 'completado' | 'pendiente' | 'anulado';
   notas?: string | null;
+}
+
+export const LIMITE_LIBRO = 50;
+
+/** Corta una lista ya ordenada en la página pedida; la página se ajusta al rango válido. */
+function paginar<T>(items: T[], filtros: FiltrosFinanzas) {
+  if (!filtros.pagina) return { items, paginacion: null };
+  const limite = Math.min(Math.max(filtros.limite || LIMITE_LIBRO, 1), 200);
+  const paginas = Math.max(Math.ceil(items.length / limite), 1);
+  const pagina = Math.min(Math.max(filtros.pagina, 1), paginas);
+  return { items: items.slice((pagina - 1) * limite, pagina * limite), paginacion: { pagina, limite, total: items.length, paginas } };
 }
 
 const MESES_NOMBRES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -71,10 +81,9 @@ function buildDateCondition(campoFecha: string, filtros: FiltrosFinanzas): { sql
 export interface ItemVenta {
   id: string;
   id_pago: number | null;
-  tipo_origen: 'pago_recibo' | 'movimiento_manual';
+  tipo_origen: 'pago_recibo' | 'movimiento_manual' | 'cuota_importada';
   fecha: string;
   documento: string;
-  nro_control: string | null;
   cliente: string;
   rif_cedula: string;
   concepto: string;
@@ -84,11 +93,9 @@ export interface ItemVenta {
   monto_original: number;
   monto_usd: number;
   tasa_bcv: number;
-  base_imponible: number;
-  monto_exento: number;
-  alicuota_iva: number;
-  monto_iva: number;
   referencia: string | null;
+  /** Cuándo se registró en el sistema; ordena el libro (lo más reciente primero) */
+  registrado_en: string;
   concepto_reporte: ConceptoReporte;
   cajero: string | null;
 }
@@ -98,140 +105,108 @@ export const finanzasService = {
    * Obtiene el resumen general de flujo de caja y KPIs contables
    */
   async getResumenFinanciero(filtros: FiltrosFinanzas = {}) {
-    const anioActual = filtros.anio || new Date().getFullYear();
+    const anio = filtros.anio || new Date().getFullYear();
+    const prefijo = `${anio}%`;
 
-    // 1. Ingresos provenientes de pagos verificados
-    const dateCondPagos = buildDateCondition('p.fecha_pago', filtros);
-    const pagosRes = await db.execute({
-      sql: `SELECT 
-              COALESCE(SUM(p.monto_usd_equivalente), 0) as total_usd,
-              COUNT(p.id_pago) as conteo
-            FROM pagos p
-            WHERE p.estatus = 'Verificado'
-              AND p.eliminado_en IS NULL
-              AND ${dateCondPagos.sql}`,
-      args: dateCondPagos.args
+    // Se calcula el año completo en una sola pasada (consultas agrupadas por mes y en paralelo): así el cliente
+    // cambia de mes al instante, sin volver a pedir nada al servidor.
+    const [pagosRes, manualesRes, egresosRes, importadas] = await Promise.all([
+      db.execute({
+        sql: `SELECT substr(fecha_pago, 6, 2) AS mes, tipo_concepto, codigo_arancel, COALESCE(SUM(monto_usd_equivalente), 0) AS total, COUNT(*) AS n
+              FROM pagos WHERE estatus = 'Verificado' AND eliminado_en IS NULL AND fecha_pago LIKE ?
+              GROUP BY mes, tipo_concepto, codigo_arancel`,
+        args: [prefijo]
+      }),
+      // Ingresos manuales (sin id_pago para evitar duplicados)
+      db.execute({
+        sql: `SELECT substr(fecha, 6, 2) AS mes, COALESCE(SUM(monto_usd_equivalente), 0) AS total, COUNT(*) AS n
+              FROM movimientos_financieros
+              WHERE tipo = 'ingreso' AND estatus != 'anulado' AND id_pago IS NULL AND eliminado_en IS NULL AND fecha LIKE ?
+              GROUP BY mes`,
+        args: [prefijo]
+      }),
+      db.execute({
+        sql: `SELECT substr(fecha, 6, 2) AS mes, categoria, COALESCE(SUM(monto_usd_equivalente), 0) AS total, COUNT(*) AS n
+              FROM movimientos_financieros
+              WHERE tipo = 'egreso' AND estatus != 'anulado' AND eliminado_en IS NULL AND fecha LIKE ?
+              GROUP BY mes, categoria`,
+        args: [prefijo]
+      }),
+      // Cuotas de sostenimiento del listado de solvencia importado (sin recibo)
+      cuotasImportadasPorPeriodo(anio),
+    ]);
+
+    const nuevoMes = () => ({
+      ingresos: new Map<ConceptoReporte, { total: number; cantidad: number }>(CONCEPTOS_REPORTE.map(c => [c, { total: 0, cantidad: 0 }])),
+      gastos: new Map<string, { total: number; cantidad: number }>(),
     });
-    const totalPagosUSD = Number(pagosRes.rows[0]?.total_usd || 0);
-    const conteoPagos = Number(pagosRes.rows[0]?.conteo || 0);
+    const meses = Array.from({ length: 12 }, nuevoMes);
+    const sumarIngreso = (m: number, c: ConceptoReporte, total: number, cantidad: number) => {
+      const e = meses[m].ingresos.get(c)!;
+      e.total += total;
+      e.cantidad += cantidad;
+    };
 
-    // 2. Ingresos manuales en movimientos_financieros (sin id_pago para evitar duplicados)
-    const dateCondIngresosManuales = buildDateCondition('m.fecha', filtros);
-    const ingManualesRes = await db.execute({
-      sql: `SELECT 
-              COALESCE(SUM(m.monto_usd_equivalente), 0) as total_usd,
-              COUNT(m.id_movimiento) as conteo,
-              COALESCE(SUM(m.monto_iva), 0) as total_iva
-            FROM movimientos_financieros m
-            WHERE m.tipo = 'ingreso'
-              AND m.estatus != 'anulado'
-              AND m.id_pago IS NULL
-              AND m.eliminado_en IS NULL
-              AND ${dateCondIngresosManuales.sql}`,
-      args: dateCondIngresosManuales.args
-    });
-    const totalIngManualesUSD = Number(ingManualesRes.rows[0]?.total_usd || 0);
-    const conteoIngManuales = Number(ingManualesRes.rows[0]?.conteo || 0);
-    const totalIvaDebito = Number(ingManualesRes.rows[0]?.total_iva || 0);
-
-    const totalIngresosUSD = totalPagosUSD + totalIngManualesUSD;
-    const conteoIngresos = conteoPagos + conteoIngManuales;
-
-    // 3. Egresos (Gastos Operativos y Compras)
-    const dateCondEgresos = buildDateCondition('m.fecha', filtros);
-    const egresosRes = await db.execute({
-      sql: `SELECT 
-              COALESCE(SUM(m.monto_usd_equivalente), 0) as total_usd,
-              COUNT(m.id_movimiento) as conteo,
-              COALESCE(SUM(m.monto_iva), 0) as total_iva_credito,
-              COALESCE(SUM(m.base_imponible), 0) as total_base,
-              COALESCE(SUM(m.monto_exento), 0) as total_exento
-            FROM movimientos_financieros m
-            WHERE m.tipo = 'egreso'
-              AND m.estatus != 'anulado'
-              AND m.eliminado_en IS NULL
-              AND ${dateCondEgresos.sql}`,
-      args: dateCondEgresos.args
-    });
-    const totalEgresosUSD = Number(egresosRes.rows[0]?.total_usd || 0);
-    const conteoEgresos = Number(egresosRes.rows[0]?.conteo || 0);
-    const totalIvaCredito = Number(egresosRes.rows[0]?.total_iva_credito || 0);
-    const totalBaseCompras = Number(egresosRes.rows[0]?.total_base || 0);
-    const totalExentoCompras = Number(egresosRes.rows[0]?.total_exento || 0);
-
-    const flujoNetoUSD = totalIngresosUSD - totalEgresosUSD;
-
-    // 4. Histórico Mensual para gráficos (12 meses del año)
-    const historicoMensual = [];
-    for (let m = 1; m <= 12; m++) {
-      const mesStr = String(m).padStart(2, '0');
-      const prefix = `${anioActual}-${mesStr}`;
-
-      const ingPagosMes = await db.execute({
-        sql: `SELECT COALESCE(SUM(monto_usd_equivalente), 0) as t FROM pagos WHERE estatus = 'Verificado' AND fecha_pago LIKE ?`,
-        args: [`${prefix}%`]
-      });
-      const ingManualMes = await db.execute({
-        sql: `SELECT COALESCE(SUM(monto_usd_equivalente), 0) as t FROM movimientos_financieros WHERE tipo = 'ingreso' AND estatus != 'anulado' AND id_pago IS NULL AND fecha LIKE ?`,
-        args: [`${prefix}%`]
-      });
-      const egresosMes = await db.execute({
-        sql: `SELECT COALESCE(SUM(monto_usd_equivalente), 0) as t FROM movimientos_financieros WHERE tipo = 'egreso' AND estatus != 'anulado' AND fecha LIKE ?`,
-        args: [`${prefix}%`]
-      });
-
-      const ing = Number(ingPagosMes.rows[0]?.t || 0) + Number(ingManualMes.rows[0]?.t || 0);
-      const eg = Number(egresosMes.rows[0]?.t || 0);
-
-      historicoMensual.push({
-        mesNumero: m,
-        mes: MESES_NOMBRES[m - 1],
-        ingresos: Math.round(ing * 100) / 100,
-        egresos: Math.round(eg * 100) / 100,
-        neto: Math.round((ing - eg) * 100) / 100
-      });
+    for (const r of pagosRes.rows as any[]) sumarIngreso(Number(r.mes) - 1, conceptoReporte(r.tipo_concepto, r.codigo_arancel), Number(r.total), Number(r.n));
+    for (const r of manualesRes.rows as any[]) sumarIngreso(Number(r.mes) - 1, 'otros', Number(r.total), Number(r.n));
+    for (const [periodo, n] of importadas.porPeriodo) sumarIngreso(Number(periodo.slice(5, 7)) - 1, 'mensualidad', n * importadas.monto, n);
+    for (const r of egresosRes.rows as any[]) {
+      const g = meses[Number(r.mes) - 1].gastos;
+      const e = g.get(String(r.categoria)) ?? { total: 0, cantidad: 0 };
+      e.total += Number(r.total);
+      e.cantidad += Number(r.n);
+      g.set(String(r.categoria), e);
     }
 
-    // 5. Desglose de egresos por categoría
-    const categoriasRes = await db.execute({
-      sql: `SELECT 
-              m.categoria, 
-              COALESCE(SUM(m.monto_usd_equivalente), 0) as total,
-              COUNT(m.id_movimiento) as cantidad
-            FROM movimientos_financieros m 
-            WHERE m.tipo = 'egreso' 
-              AND m.estatus != 'anulado' 
-              AND m.eliminado_en IS NULL
-              AND ${dateCondEgresos.sql}
-            GROUP BY m.categoria
-            ORDER BY total DESC`,
-      args: dateCondEgresos.args
-    });
+    const redondear = (n: number) => Math.round(n * 100) / 100;
+    /** Resumen de un conjunto de meses (uno o los doce) */
+    const resumir = (indices: number[]) => {
+      const ingresos = new Map<ConceptoReporte, { total: number; cantidad: number }>(CONCEPTOS_REPORTE.map(c => [c, { total: 0, cantidad: 0 }]));
+      const gastos = new Map<string, { total: number; cantidad: number }>();
+      for (const i of indices) {
+        for (const [c, v] of meses[i].ingresos) { const e = ingresos.get(c)!; e.total += v.total; e.cantidad += v.cantidad; }
+        for (const [c, v] of meses[i].gastos) { const e = gastos.get(c) ?? { total: 0, cantidad: 0 }; e.total += v.total; e.cantidad += v.cantidad; gastos.set(c, e); }
+      }
+      const totalIngresos = [...ingresos.values()].reduce((a, v) => a + v.total, 0);
+      const totalEgresos = [...gastos.values()].reduce((a, v) => a + v.total, 0);
+      return {
+        kpis: {
+          totalIngresosUSD: redondear(totalIngresos),
+          totalEgresosUSD: redondear(totalEgresos),
+          flujoNetoUSD: redondear(totalIngresos - totalEgresos),
+          conteoIngresos: [...ingresos.values()].reduce((a, v) => a + v.cantidad, 0),
+          conteoEgresos: [...gastos.values()].reduce((a, v) => a + v.cantidad, 0),
+        },
+        ingresosPorConcepto: CONCEPTOS_REPORTE
+          .map(c => ({ concepto: c, etiqueta: ETIQUETA_CONCEPTO[c], total: redondear(ingresos.get(c)!.total), cantidad: ingresos.get(c)!.cantidad }))
+          .filter(c => c.total > 0)
+          .sort((a, b) => b.total - a.total),
+        gastosPorCategoria: [...gastos.entries()]
+          .map(([categoria, v]) => ({ categoria, total: redondear(v.total), cantidad: v.cantidad }))
+          .sort((a, b) => b.total - a.total),
+      };
+    };
+
+    const porMes = meses.map((_, i) => ({ mesNumero: i + 1, ...resumir([i]) }));
+    const anual = resumir(meses.map((_, i) => i));
+    const mes = filtros.mes && filtros.mes >= 1 && filtros.mes <= 12 ? filtros.mes : null;
+    const periodo = mes ? porMes[mes - 1] : anual;
 
     return {
-      periodo: {
-        anio: anioActual,
-        mes: filtros.mes || null,
-        fechaInicio: filtros.fechaInicio || null,
-        fechaFin: filtros.fechaFin || null
-      },
-      kpis: {
-        totalIngresosUSD: Math.round(totalIngresosUSD * 100) / 100,
-        totalEgresosUSD: Math.round(totalEgresosUSD * 100) / 100,
-        flujoNetoUSD: Math.round(flujoNetoUSD * 100) / 100,
-        ivaDebitoFiscal: Math.round(totalIvaDebito * 100) / 100,
-        ivaCreditoFiscal: Math.round(totalIvaCredito * 100) / 100,
-        totalBaseCompras: Math.round(totalBaseCompras * 100) / 100,
-        totalExentoCompras: Math.round(totalExentoCompras * 100) / 100,
-        conteoIngresos,
-        conteoEgresos
-      },
-      historicoMensual,
-      gastosPorCategoria: categoriasRes.rows.map((r: any) => ({
-        categoria: String(r.categoria),
-        total: Number(r.total),
-        cantidad: Number(r.cantidad)
-      }))
+      periodo: { anio, mes, fechaInicio: null, fechaFin: null },
+      kpis: periodo.kpis,
+      ingresosPorConcepto: periodo.ingresosPorConcepto,
+      gastosPorCategoria: periodo.gastosPorCategoria,
+      historicoMensual: porMes.map(m => ({
+        mesNumero: m.mesNumero,
+        mes: MESES_NOMBRES[m.mesNumero - 1],
+        ingresos: m.kpis.totalIngresosUSD,
+        egresos: m.kpis.totalEgresosUSD,
+        neto: m.kpis.flujoNetoUSD,
+      })),
+      // El año completo y cada mes, para que el cliente cambie de período sin ir al servidor
+      anual,
+      meses: porMes,
     };
   },
 
@@ -310,7 +285,6 @@ export const finanzasService = {
         tipo_origen: 'pago_recibo' as const,
         fecha: String(r.fecha),
         documento: String(r.numero_recibo),
-        nro_control: null as string | null,
         cliente: clienteNombre,
         rif_cedula: rifCedula,
         concepto: String(r.concepto),
@@ -320,11 +294,8 @@ export const finanzasService = {
         monto_original: Number(r.monto_original),
         monto_usd: montoUsd,
         tasa_bcv: Number(r.tasa_bcv || 0),
-        base_imponible: 0, // Servicios gremiales exentos/no sujetos
-        monto_exento: montoUsd,
-        alicuota_iva: 0,
-        monto_iva: 0,
         referencia: r.referencia ? String(r.referencia) : null,
+        registrado_en: String(r.creado_en),
         concepto_reporte: conceptoReporte(r.tipo_concepto, r.codigo_arancel),
         cajero: r.cajero ? String(r.cajero) : null
       };
@@ -351,7 +322,6 @@ export const finanzasService = {
         tipo_origen: 'movimiento_manual' as const,
         fecha: String(m.fecha),
         documento: String(m.nro_factura_documento || `ING-${m.id_movimiento}`),
-        nro_control: m.nro_control_fiscal ? String(m.nro_control_fiscal) : null,
         cliente: String(m.proveedor_cliente),
         rif_cedula: String(m.rif_cedula || ''),
         concepto: String(m.concepto),
@@ -361,15 +331,38 @@ export const finanzasService = {
         monto_original: Number(m.monto_total),
         monto_usd: Number(m.monto_usd_equivalente),
         tasa_bcv: Number(m.tasa_bcv || 0),
-        base_imponible: Number(m.base_imponible || 0),
-        monto_exento: Number(m.monto_exento || 0),
-        alicuota_iva: Number(m.alicuota_iva || 0),
-        monto_iva: Number(m.monto_iva || 0),
         referencia: m.referencia_pago ? String(m.referencia_pago) : null,
+        registrado_en: String(m.creado_en),
         concepto_reporte: 'otros',
         cajero: m.cajero ? String(m.cajero) : null
       });
     }
+
+    // Cuotas de sostenimiento del listado de solvencia importado: una fila por afiliado y mes, sin recibo
+    for (const c of await cuotasImportadas(buildDateCondition(COLUMNA_FECHA_CUOTA, filtros))) {
+      itemsVentas.push({
+        id: `SOL-${c.id_afiliado}-${c.periodo}`,
+        id_pago: null,
+        tipo_origen: 'cuota_importada' as const,
+        fecha: fechaCuota(c.periodo),
+        documento: `SOL-${c.periodo}-${c.codigo ?? c.id_afiliado}`,
+        cliente: c.nombre,
+        rif_cedula: c.identificacion,
+        concepto: `Cuota de sostenimiento ${c.periodo} (${c.fuente?.startsWith('manual') ? 'marcada manualmente' : 'listado importado'})`,
+        categoria: 'mensualidad',
+        metodo_pago: 'importado',
+        moneda: 'USD',
+        monto_original: c.monto_usd,
+        monto_usd: c.monto_usd,
+        tasa_bcv: 0,
+        referencia: c.fuente,
+        registrado_en: c.importado_en,
+        concepto_reporte: 'mensualidad',
+        cajero: null,
+      });
+    }
+    // Lo registrado más recientemente primero; la fecha del movimiento desempata
+    itemsVentas.sort((a, b) => b.registrado_en.localeCompare(a.registrado_en) || b.fecha.localeCompare(a.fecha));
 
     // Filtrar por búsqueda si se especificó
     let filtrados = itemsVentas.filter(i =>
@@ -387,25 +380,21 @@ export const finanzasService = {
       );
     }
 
+    const pag = paginar(filtrados, filtros);
     const totalVentasUSD = filtrados.reduce((acc: number, i: any) => acc + i.monto_usd, 0);
-    const totalExentoUSD = filtrados.reduce((acc: number, i: any) => acc + i.monto_exento, 0);
-    const totalBaseUSD = filtrados.reduce((acc: number, i: any) => acc + i.base_imponible, 0);
-    const totalIvaUSD = filtrados.reduce((acc: number, i: any) => acc + i.monto_iva, 0);
 
     return {
       totales: {
         totalVentasUSD: Math.round(totalVentasUSD * 100) / 100,
-        totalExentoUSD: Math.round(totalExentoUSD * 100) / 100,
-        totalBaseUSD: Math.round(totalBaseUSD * 100) / 100,
-        totalIvaUSD: Math.round(totalIvaUSD * 100) / 100,
         cantidadRegistros: filtrados.length
       },
-      items: filtrados
+      items: pag.items,
+      paginacion: pag.paginacion
     };
   },
 
   /**
-   * Libro de Compras (Gastos operativos, servicios, alquiler, suministros y facturas con crédito fiscal)
+   * Libro de Compras (Gastos operativos, servicios, alquiler, suministros y facturas)
    */
   async getLibroCompras(filtros: FiltrosFinanzas = {}) {
     const dateCond = buildDateCondition('m.fecha', filtros);
@@ -425,7 +414,7 @@ export const finanzasService = {
       args.push(filtros.categoria);
     }
 
-    sql += ` ORDER BY m.fecha DESC, m.id_movimiento DESC`;
+    sql += ` ORDER BY m.creado_en DESC, m.id_movimiento DESC`;
 
     const res = await db.execute({ sql, args });
 
@@ -433,15 +422,10 @@ export const finanzasService = {
       id_movimiento: Number(r.id_movimiento),
       fecha: String(r.fecha),
       nro_factura_documento: String(r.nro_factura_documento || `EGR-${r.id_movimiento}`),
-      nro_control_fiscal: r.nro_control_fiscal ? String(r.nro_control_fiscal) : null,
       proveedor: String(r.proveedor_cliente),
       rif_cedula: String(r.rif_cedula || ''),
       concepto: String(r.concepto),
       categoria: String(r.categoria),
-      base_imponible: Number(r.base_imponible || 0),
-      monto_exento: Number(r.monto_exento || 0),
-      alicuota_iva: Number(r.alicuota_iva || 16),
-      monto_iva: Number(r.monto_iva || 0),
       monto_total: Number(r.monto_total),
       monto_usd_equivalente: Number(r.monto_usd_equivalente),
       moneda: String(r.moneda || 'USD'),
@@ -459,26 +443,21 @@ export const finanzasService = {
       items = items.filter((i: any) =>
         i.proveedor.toLowerCase().includes(q) ||
         i.nro_factura_documento.toLowerCase().includes(q) ||
-        (i.nro_control_fiscal && i.nro_control_fiscal.toLowerCase().includes(q)) ||
         i.concepto.toLowerCase().includes(q) ||
         i.rif_cedula.toLowerCase().includes(q)
       );
     }
 
+    const pag = paginar(items, filtros);
     const totalComprasUSD = items.filter((i: any) => i.estatus !== 'anulado').reduce((acc: number, i: any) => acc + i.monto_usd_equivalente, 0);
-    const totalBaseUSD = items.filter((i: any) => i.estatus !== 'anulado').reduce((acc: number, i: any) => acc + i.base_imponible, 0);
-    const totalExentoUSD = items.filter((i: any) => i.estatus !== 'anulado').reduce((acc: number, i: any) => acc + i.monto_exento, 0);
-    const totalIvaCreditoUSD = items.filter((i: any) => i.estatus !== 'anulado').reduce((acc: number, i: any) => acc + i.monto_iva, 0);
 
     return {
       totales: {
         totalComprasUSD: Math.round(totalComprasUSD * 100) / 100,
-        totalBaseUSD: Math.round(totalBaseUSD * 100) / 100,
-        totalExentoUSD: Math.round(totalExentoUSD * 100) / 100,
-        totalIvaCreditoUSD: Math.round(totalIvaCreditoUSD * 100) / 100,
         cantidadRegistros: items.length
       },
-      items
+      items: pag.items,
+      paginacion: pag.paginacion
     };
   },
 
@@ -490,26 +469,18 @@ export const finanzasService = {
     const moneda = data.moneda || 'USD';
     const tasaBcv = Number(data.tasa_bcv || 1);
 
-    const base = Number(data.base_imponible || 0);
-    const exento = Number(data.monto_exento || 0);
-    const alicuota = Number(data.alicuota_iva !== undefined ? data.alicuota_iva : 16);
-    let iva = Number(data.monto_iva !== undefined ? data.monto_iva : (base * (alicuota / 100)));
-    
-    let total = Number(data.monto_total || (base + exento + iva));
-    if (total <= 0) {
-      total = base + exento + iva;
-    }
+    const total = Number(data.monto_total || 0);
+    if (!(total > 0)) throw new Error('El monto total debe ser mayor a cero');
 
     const usdEquivalente = moneda === 'VES' && tasaBcv > 0 ? (total / tasaBcv) : total;
 
     const res = await db.execute({
       sql: `INSERT INTO movimientos_financieros (
               tipo, categoria, fecha, concepto, proveedor_cliente, rif_cedula,
-              nro_factura_documento, nro_control_fiscal, base_imponible, monto_exento,
-              alicuota_iva, monto_iva, monto_total, monto_usd_equivalente, moneda,
+              nro_factura_documento, monto_total, monto_usd_equivalente, moneda,
               tasa_bcv, metodo_pago, referencia_pago, banco_origen, comprobante_url,
               estatus, notas, registrado_por
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         data.tipo,
         data.categoria,
@@ -518,11 +489,6 @@ export const finanzasService = {
         data.proveedor_cliente,
         data.rif_cedula || null,
         data.nro_factura_documento || null,
-        data.nro_control_fiscal || null,
-        base,
-        exento,
-        alicuota,
-        iva,
         total,
         usdEquivalente,
         moneda,
@@ -560,12 +526,8 @@ export const finanzasService = {
     if (data.proveedor_cliente !== undefined) { updates.push('proveedor_cliente = ?'); args.push(data.proveedor_cliente); }
     if (data.rif_cedula !== undefined) { updates.push('rif_cedula = ?'); args.push(data.rif_cedula); }
     if (data.nro_factura_documento !== undefined) { updates.push('nro_factura_documento = ?'); args.push(data.nro_factura_documento); }
-    if (data.nro_control_fiscal !== undefined) { updates.push('nro_control_fiscal = ?'); args.push(data.nro_control_fiscal); }
     if (data.categoria !== undefined) { updates.push('categoria = ?'); args.push(data.categoria); }
     if (data.fecha !== undefined) { updates.push('fecha = ?'); args.push(data.fecha); }
-    if (data.base_imponible !== undefined) { updates.push('base_imponible = ?'); args.push(data.base_imponible); }
-    if (data.monto_exento !== undefined) { updates.push('monto_exento = ?'); args.push(data.monto_exento); }
-    if (data.monto_iva !== undefined) { updates.push('monto_iva = ?'); args.push(data.monto_iva); }
     if (data.monto_total !== undefined) { updates.push('monto_total = ?'); args.push(data.monto_total); }
     if (data.metodo_pago !== undefined) { updates.push('metodo_pago = ?'); args.push(data.metodo_pago); }
     if (data.referencia_pago !== undefined) { updates.push('referencia_pago = ?'); args.push(data.referencia_pago); }

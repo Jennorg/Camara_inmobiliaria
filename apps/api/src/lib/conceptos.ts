@@ -32,3 +32,18 @@ export function tramoAntiguedad(dias: number): '0-30' | '31-60' | '61-90' | '90+
   if (dias <= 90) return '61-90'
   return '90+'
 }
+
+/** Etiquetas de las categorías de egreso del Libro de Compras (las mismas que ve la persona al registrar un gasto) */
+export const ETIQUETA_CATEGORIA_EGRESO: Record<string, string> = {
+  alquiler: 'Alquiler Sede',
+  servicios_publicos: 'Servicios Públicos/Internet',
+  nomina: 'Nómina Administrativa',
+  honorarios: 'Honorarios Profesionales',
+  papeleria: 'Papelería y Suministros',
+  mantenimiento: 'Mantenimiento',
+  impuestos: 'Impuestos / Tasas',
+  gasto_operativo: 'Gasto Operativo',
+  gasto_admin: 'Gasto Admin.',
+  donacion: 'Donación',
+  otro: 'Otro',
+}

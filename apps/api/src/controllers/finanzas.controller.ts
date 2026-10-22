@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { finanzasService, FiltrosFinanzas } from '../services/finanzas.service.js';
 import { tasasService } from '../services/tasas.service.js';
-import { cerrarCaja, cuentasPorCobrar, getCierreCaja, ingresosPorConcepto } from '../services/reportes.service.js';
+import { cuentasPorCobrar, egresosPorConcepto, ingresosPorConcepto } from '../services/reportes.service.js';
 import { hoyCaracas } from '../services/cobranza.service.js';
 import { ETIQUETA_CONCEPTO } from '../lib/conceptos.js';
 import XLSX from 'xlsx';
 
 function parseFiltros(req: Request): FiltrosFinanzas {
-  const { anio, mes, fechaInicio, fechaFin, search, categoria, tipo, concepto, metodo, cajero } = req.query;
+  const { anio, mes, fechaInicio, fechaFin, search, categoria, tipo, concepto, metodo, cajero, pagina, limite } = req.query;
   return {
     anio: anio ? parseInt(String(anio), 10) : undefined,
     mes: mes ? parseInt(String(mes), 10) : undefined,
@@ -18,7 +18,9 @@ function parseFiltros(req: Request): FiltrosFinanzas {
     tipo: tipo === 'ingreso' || tipo === 'egreso' ? tipo : undefined,
     concepto: concepto ? String(concepto) : undefined,
     metodo: metodo ? String(metodo) : undefined,
-    cajero: cajero ? String(cajero) : undefined
+    cajero: cajero ? String(cajero) : undefined,
+    pagina: pagina ? parseInt(String(pagina), 10) || undefined : undefined,
+    limite: limite ? parseInt(String(limite), 10) || undefined : undefined
   };
 }
 
@@ -66,11 +68,6 @@ export async function crearMovimiento(req: Request, res: Response) {
       proveedor_cliente,
       rif_cedula,
       nro_factura_documento,
-      nro_control_fiscal,
-      base_imponible,
-      monto_exento,
-      alicuota_iva,
-      monto_iva,
       monto_total,
       moneda,
       tasa_bcv,
@@ -85,6 +82,9 @@ export async function crearMovimiento(req: Request, res: Response) {
     if (!tipo || !categoria || !concepto || !proveedor_cliente) {
       return res.status(400).json({ error: 'Faltan campos obligatorios (tipo, categoría, concepto, proveedor/cliente)' });
     }
+    if (!(Number(monto_total) > 0)) {
+      return res.status(400).json({ error: 'El monto total debe ser mayor a cero' });
+    }
 
     const resultado = await finanzasService.registrarMovimiento({
       tipo,
@@ -94,11 +94,6 @@ export async function crearMovimiento(req: Request, res: Response) {
       proveedor_cliente,
       rif_cedula,
       nro_factura_documento,
-      nro_control_fiscal,
-      base_imponible,
-      monto_exento,
-      alicuota_iva,
-      monto_iva,
       monto_total,
       moneda,
       tasa_bcv,
@@ -245,7 +240,7 @@ export async function getHistorialTasas(req: Request, res: Response) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reportes de control: ingresos por concepto, cierre de caja, cuentas por cobrar, Excel
+// Reportes de control: ingresos por concepto, cuentas por cobrar, Excel
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Responde con el status de los errores de negocio (`status`) o 500. */
@@ -266,20 +261,11 @@ export async function getIngresosPorConcepto(req: Request, res: Response) {
   }
 }
 
-export async function getCierreCajaController(req: Request, res: Response) {
+export async function getEgresosPorConcepto(req: Request, res: Response) {
   try {
-    return res.json({ success: true, data: await getCierreCaja(String(req.query.fecha ?? hoyCaracas())) });
+    return res.json({ success: true, data: await egresosPorConcepto(anioDe(req)) });
   } catch (error) {
-    return responderError(res, error, 'cierre de caja');
-  }
-}
-
-export async function cerrarCajaController(req: Request, res: Response) {
-  try {
-    const { fecha, observaciones } = req.body ?? {};
-    return res.status(201).json({ success: true, data: await cerrarCaja(String(fecha ?? hoyCaracas()), req.user!.id, typeof observaciones === 'string' ? observaciones : null) });
-  } catch (error) {
-    return responderError(res, error, 'cierre de caja');
+    return responderError(res, error, 'egresos por concepto');
   }
 }
 
@@ -305,13 +291,12 @@ async function filasReporte(reporte: string, req: Request): Promise<Record<strin
   if (reporte === 'libro-compras') {
     const { items } = await finanzasService.getLibroCompras(filtros);
     return items.map((i: any) => ({
-      Fecha: i.fecha.slice(0, 10), Factura: i.nro_factura_documento, 'N° control': i.nro_control_fiscal, Proveedor: i.proveedor,
-      'RIF/C.I.': i.rif_cedula, Concepto: i.concepto, Categoría: i.categoria, Exento: i.monto_exento, Base: i.base_imponible,
-      'IVA %': i.alicuota_iva, IVA: i.monto_iva, 'Total USD': i.monto_usd_equivalente, Método: i.metodo_pago, Estatus: i.estatus,
+      Fecha: i.fecha.slice(0, 10), Factura: i.nro_factura_documento, Proveedor: i.proveedor,
+      'RIF/C.I.': i.rif_cedula, Concepto: i.concepto, Categoría: i.categoria, 'Total USD': i.monto_usd_equivalente, Método: i.metodo_pago, Estatus: i.estatus,
     }));
   }
-  if (reporte === 'ingresos-por-concepto') {
-    const r = await ingresosPorConcepto(anioDe(req));
+  if (reporte === 'ingresos-por-concepto' || reporte === 'egresos-por-concepto') {
+    const r = reporte === 'ingresos-por-concepto' ? await ingresosPorConcepto(anioDe(req)) : await egresosPorConcepto(anioDe(req));
     const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const fila = (nombre: string, meses: number[], total: number) =>
       ({ Concepto: nombre, ...Object.fromEntries(MESES.map((m, i) => [m, meses[i]])), Total: total });

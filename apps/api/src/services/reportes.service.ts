@@ -1,13 +1,10 @@
 import { db } from '../lib/db.js'
-import { CONCEPTOS_REPORTE, ETIQUETA_CONCEPTO, conceptoReporte, tramoAntiguedad } from '../lib/conceptos.js'
+import { CONCEPTOS_REPORTE, ETIQUETA_CATEGORIA_EGRESO, ETIQUETA_CONCEPTO, conceptoReporte, tramoAntiguedad } from '../lib/conceptos.js'
 import { sqlOcupaCupo } from '../lib/cursos-pago.js'
-import { calcularSolvencias, hoyCaracas } from './cobranza.service.js'
+import { calcularSolvencias } from './cobranza.service.js'
+import { cuotasImportadasPorPeriodo } from './cuotas-importadas.service.js'
 
 const redondear = (n: number) => Math.round(n * 100) / 100
-const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/
-
-/** Error con código HTTP para que el controller lo traduzca. */
-const fallo = (status: number, message: string) => Object.assign(new Error(message), { status })
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ingresos por concepto (mes × concepto)
@@ -32,6 +29,8 @@ export async function ingresosPorConcepto(anio: number) {
     }),
   ])
   const matriz = new Map(CONCEPTOS_REPORTE.map(c => [c, Array<number>(12).fill(0)]))
+  const importadas = await cuotasImportadasPorPeriodo(anio)
+  for (const [periodo, n] of importadas.porPeriodo) matriz.get('mensualidad')![Number(periodo.slice(5, 7)) - 1] += n * importadas.monto
   for (const r of pagos.rows as any[]) matriz.get(conceptoReporte(r.tipo_concepto, r.codigo_arancel))![r.mes - 1] += Number(r.total)
   for (const r of manuales.rows as any[]) matriz.get('otros')![r.mes - 1] += Number(r.total)
 
@@ -44,107 +43,32 @@ export async function ingresosPorConcepto(anio: number) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cierre de caja diario
+// Egresos por concepto (mes × categoría)
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface TotalesCaja {
-  porMetodo: { metodo_pago: string; moneda: string; cantidad: number; monto: number; monto_usd: number }[]
-  porCajero: { cajero: string; cantidad: number; monto_usd: number }[]
-  totalUsd: number
-  cantidad: number
-  /** Documentos incluidos (P<id_pago> / M<id_movimiento>): detecta cambios aunque el total coincida */
-  documentos: string[]
-}
-
-/** Cobros verificados (por día local de Caracas) e ingresos manuales del día, por método/moneda y por cajero. */
-async function totalesDelDia(fecha: string): Promise<TotalesCaja> {
+/** Matriz de egresos del año por categoría y mes, con el mismo criterio que el Libro de compras (sin anulados ni eliminados). */
+export async function egresosPorConcepto(anio: number) {
   const r = await db.execute({
-    sql: `SELECT metodo_pago, moneda, cajero, COUNT(*) AS cantidad, SUM(monto) AS monto, SUM(monto_usd) AS monto_usd,
-                 GROUP_CONCAT(doc) AS docs FROM (
-            SELECT 'P' || p.id_pago AS doc, p.metodo_pago, p.moneda, COALESCE(u.email, 'sin registrar') AS cajero, p.monto, p.monto_usd_equivalente AS monto_usd
-            FROM pagos p LEFT JOIN users u ON u.id = p.registrado_por
-            WHERE p.estatus = 'Verificado' AND p.eliminado_en IS NULL AND date(p.fecha_pago, '-4 hours') = ?
-            UNION ALL
-            SELECT 'M' || m.id_movimiento, COALESCE(m.metodo_pago, 'otro'), COALESCE(m.moneda, 'USD'), COALESCE(u.email, 'sin registrar'), m.monto_total, m.monto_usd_equivalente
-            FROM movimientos_financieros m LEFT JOIN users u ON u.id = m.registrado_por
-            WHERE m.tipo = 'ingreso' AND m.estatus != 'anulado' AND m.id_pago IS NULL AND m.eliminado_en IS NULL AND substr(m.fecha, 1, 10) = ?
-          )
-          GROUP BY metodo_pago, moneda, cajero`,
-    args: [fecha, fecha],
+    sql: `SELECT CAST(substr(fecha, 6, 2) AS INTEGER) AS mes, categoria, SUM(monto_usd_equivalente) AS total
+          FROM movimientos_financieros
+          WHERE tipo = 'egreso' AND estatus != 'anulado' AND eliminado_en IS NULL AND fecha LIKE ?
+          GROUP BY 1, 2`,
+    args: [`${anio}%`],
   })
-  const porMetodo = new Map<string, TotalesCaja['porMetodo'][number]>()
-  const porCajero = new Map<string, TotalesCaja['porCajero'][number]>()
-  const documentos: string[] = []
+  const matriz = new Map<string, number[]>()
   for (const f of r.rows as any[]) {
-    documentos.push(...String(f.docs ?? '').split(',').filter(Boolean))
-    const km = `${f.metodo_pago}|${f.moneda}`
-    const m = porMetodo.get(km) ?? { metodo_pago: f.metodo_pago, moneda: f.moneda, cantidad: 0, monto: 0, monto_usd: 0 }
-    m.cantidad += Number(f.cantidad); m.monto = redondear(m.monto + Number(f.monto)); m.monto_usd = redondear(m.monto_usd + Number(f.monto_usd))
-    porMetodo.set(km, m)
-    const c = porCajero.get(f.cajero) ?? { cajero: f.cajero, cantidad: 0, monto_usd: 0 }
-    c.cantidad += Number(f.cantidad); c.monto_usd = redondear(c.monto_usd + Number(f.monto_usd))
-    porCajero.set(f.cajero, c)
+    const meses = matriz.get(String(f.categoria)) ?? Array<number>(12).fill(0)
+    meses[f.mes - 1] += Number(f.total)
+    matriz.set(String(f.categoria), meses)
   }
-  const metodos = [...porMetodo.values()]
-  return {
-    porMetodo: metodos,
-    porCajero: [...porCajero.values()],
-    totalUsd: redondear(metodos.reduce((a, m) => a + m.monto_usd, 0)),
-    cantidad: metodos.reduce((a, m) => a + m.cantidad, 0),
-    documentos: documentos.sort(),
-  }
-}
-
-let tablaCierresLista = false
-async function asegurarTablaCierres() {
-  if (tablaCierresLista) return
-  await db.execute(`CREATE TABLE IF NOT EXISTS cierres_caja (
-    id_cierre     INTEGER PRIMARY KEY,
-    fecha         TEXT    NOT NULL UNIQUE,
-    id_user       INTEGER REFERENCES users(id),
-    totales_json  TEXT    NOT NULL,
-    observaciones TEXT,
-    creado_en     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-  )`)
-  tablaCierresLista = true
-}
-
-function validarFecha(fecha: string) {
-  if (!FECHA_RE.test(fecha) || Number.isNaN(Date.parse(fecha))) throw fallo(400, 'fecha debe tener el formato AAAA-MM-DD')
-  if (fecha > hoyCaracas()) throw fallo(400, 'No se puede consultar ni cerrar un día futuro')
-}
-
-/**
- * Totales del día y, si ya se cerró, la foto guardada al cerrar. `cambiosTrasCierre` señala que algo
- * se anuló o registró en ese día después del cierre (los totales actuales ya no cuadran con la foto).
- */
-export async function getCierreCaja(fecha: string) {
-  validarFecha(fecha)
-  await asegurarTablaCierres()
-  const [actual, c] = await Promise.all([
-    totalesDelDia(fecha),
-    db.execute({ sql: `SELECT c.*, u.email AS cerrado_por FROM cierres_caja c LEFT JOIN users u ON u.id = c.id_user WHERE fecha = ?`, args: [fecha] }),
-  ])
-  const fila = c.rows[0] as any
-  const cierre = fila ? { ...fila, totales: JSON.parse(fila.totales_json) as TotalesCaja, totales_json: undefined } : null
-  const cambiosTrasCierre = !!cierre && (
-    Math.abs(cierre.totales.totalUsd - actual.totalUsd) > 0.005 ||
-    (cierre.totales.documentos ?? []).join(',') !== actual.documentos.join(',')
-  )
-  return { fecha, ...actual, cierre, cambiosTrasCierre }
-}
-
-/** Congela los totales del día. Un día solo se cierra una vez. */
-export async function cerrarCaja(fecha: string, idUser: number, observaciones: string | null) {
-  validarFecha(fecha)
-  await asegurarTablaCierres()
-  const totales = await totalesDelDia(fecha)
-  const r = await db.execute({
-    sql: `INSERT OR IGNORE INTO cierres_caja (fecha, id_user, totales_json, observaciones) VALUES (?, ?, ?, ?)`,
-    args: [fecha, idUser, JSON.stringify(totales), observaciones?.trim() || null],
-  })
-  if (!r.rowsAffected) throw fallo(409, `La caja del ${fecha} ya fue cerrada`)
-  return getCierreCaja(fecha)
+  const conceptos = [...matriz.entries()]
+    .map(([categoria, m]) => {
+      const meses = m.map(redondear)
+      return { concepto: categoria, etiqueta: ETIQUETA_CATEGORIA_EGRESO[categoria] ?? categoria, meses, total: redondear(meses.reduce((a, b) => a + b, 0)) }
+    })
+    .sort((a, b) => b.total - a.total)
+  const totalesMes = Array.from({ length: 12 }, (_, i) => redondear(conceptos.reduce((a, c) => a + c.meses[i], 0)))
+  return { anio, conceptos, totalesMes, total: redondear(totalesMes.reduce((a, b) => a + b, 0)) }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -420,15 +420,6 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_afiliado ON pagos(id_afiliado)`,
   `CREATE INDEX IF NOT EXISTS idx_pagos_inscripcion ON pagos(id_inscripcion_curso)`,
-  // Cierres de caja diarios (foto de los totales al cerrar)
-  `CREATE TABLE IF NOT EXISTS cierres_caja (
-    id_cierre     INTEGER PRIMARY KEY,
-    fecha         TEXT    NOT NULL UNIQUE,
-    id_user       INTEGER REFERENCES users(id),
-    totales_json  TEXT    NOT NULL,
-    observaciones TEXT,
-    creado_en     TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
-  )`,
   // Constancias de solvencia (una por afiliado y mes, verificables por código)
   `CREATE TABLE IF NOT EXISTS constancias_solvencia (
     id_constancia     INTEGER PRIMARY KEY,
@@ -473,7 +464,7 @@ const statements = [
     nro_control_fiscal    TEXT,
     base_imponible        REAL NOT NULL DEFAULT 0,
     monto_exento          REAL NOT NULL DEFAULT 0,
-    alicuota_iva          REAL NOT NULL DEFAULT 16,
+    alicuota_iva          REAL NOT NULL DEFAULT 0,
     monto_iva             REAL NOT NULL DEFAULT 0,
     monto_total           REAL NOT NULL,
     monto_usd_equivalente REAL NOT NULL,
@@ -1052,8 +1043,8 @@ async function run() {
     { codigo: 'inscripcion_natural', nombre: 'Inscripción Miembro Natural', descripcion: 'Cuota de formalización de membresía natural', monto_usd: 25.00, categoria: 'afiliacion' },
     { codigo: 'inscripcion_corporativo', nombre: 'Inscripción Miembro Corporativo', descripcion: 'Cuota de formalización de membresía corporativa', monto_usd: 25.00, categoria: 'afiliacion' },
     { codigo: 'inscripcion_agente', nombre: 'Inscripción Agente Corporativo', descripcion: 'Cuota de formalización de agente corporativo', monto_usd: 25.00, categoria: 'afiliacion' },
-    { codigo: 'mensualidad_base', nombre: 'Mensualidad Gremial Base', descripcion: 'Cuota mensual de solvencia gremial', monto_usd: 5.00, categoria: 'mensualidad' },
-    { codigo: 'curso_cibir', nombre: 'Curso de Inducción CIBIR', descripcion: 'Arancel de formación del Curso de Iniciación en Bienes Raíces (CIBIR)', monto_usd: 30.00, categoria: 'formacion' },
+    { codigo: 'mensualidad_base', nombre: 'Cuota de Sostenimiento', descripcion: 'Cuota mensual de solvencia gremial', monto_usd: 5.00, categoria: 'mensualidad' },
+    { codigo: 'curso_cibir', nombre: 'CIBIR', descripcion: 'Arancel de formación del Curso de Iniciación en Bienes Raíces (CIBIR)', monto_usd: 30.00, categoria: 'formacion' },
     // Monto 0 = "Consultar" hasta que el admin lo fije en Finanzas → Aranceles
     { codigo: 'programa_preani', nombre: 'Programa PREANI', descripcion: 'Arancel del programa PREANI', monto_usd: 0, categoria: 'formacion' },
     { codigo: 'programa_pegi', nombre: 'Programa PEGI', descripcion: 'Arancel del programa PEGI', monto_usd: 0, categoria: 'formacion' },
@@ -1131,11 +1122,6 @@ async function run() {
       proveedor_cliente: 'Inmobiliaria Centro C.A.',
       rif_cedula: 'J-12345678-9',
       nro_factura_documento: 'FAC-00892',
-      nro_control_fiscal: '00-001245',
-      base_imponible: 120.00,
-      monto_exento: 0.00,
-      alicuota_iva: 16.0,
-      monto_iva: 19.20,
       monto_total: 139.20,
       monto_usd_equivalente: 139.20,
       moneda: 'USD',
@@ -1152,11 +1138,6 @@ async function run() {
       proveedor_cliente: 'CORPOELEC / Cantv',
       rif_cedula: 'G-20012345-0',
       nro_factura_documento: 'FAC-E-8823',
-      nro_control_fiscal: '00-008823',
-      base_imponible: 45.00,
-      monto_exento: 0.00,
-      alicuota_iva: 16.0,
-      monto_iva: 7.20,
       monto_total: 52.20,
       monto_usd_equivalente: 52.20,
       moneda: 'USD',
@@ -1173,11 +1154,6 @@ async function run() {
       proveedor_cliente: 'Papelería El Gremial RIF J-40567890-1',
       rif_cedula: 'J-40567890-1',
       nro_factura_documento: 'FAC-00441',
-      nro_control_fiscal: '00-004410',
-      base_imponible: 28.00,
-      monto_exento: 0.00,
-      alicuota_iva: 16.0,
-      monto_iva: 4.48,
       monto_total: 32.48,
       monto_usd_equivalente: 32.48,
       moneda: 'USD',
@@ -1198,14 +1174,12 @@ async function run() {
         await db.execute({
           sql: `INSERT INTO movimientos_financieros (
                   tipo, categoria, fecha, concepto, proveedor_cliente, rif_cedula,
-                  nro_factura_documento, nro_control_fiscal, base_imponible, monto_exento,
-                  alicuota_iva, monto_iva, monto_total, monto_usd_equivalente, moneda, tasa_bcv,
+                  nro_factura_documento, monto_total, monto_usd_equivalente, moneda, tasa_bcv,
                   metodo_pago, referencia_pago, estatus
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             g.tipo, g.categoria, g.fecha, g.concepto, g.proveedor_cliente, g.rif_cedula,
-            g.nro_factura_documento, g.nro_control_fiscal, g.base_imponible, g.monto_exento,
-            g.alicuota_iva, g.monto_iva, g.monto_total, g.monto_usd_equivalente, g.moneda, g.tasa_bcv,
+            g.nro_factura_documento, g.monto_total, g.monto_usd_equivalente, g.moneda, g.tasa_bcv,
             g.metodo_pago, g.referencia_pago, g.estatus
           ]
         })

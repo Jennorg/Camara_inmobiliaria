@@ -14,8 +14,7 @@ import {
   resetTasaManual,
   getHistorialTasas,
   getIngresosPorConcepto,
-  getCierreCajaController,
-  cerrarCajaController,
+  getEgresosPorConcepto,
   getCuentasPorCobrar,
   exportarXlsx
 } from '../controllers/finanzas.controller.js';
@@ -36,8 +35,7 @@ router.delete('/movimientos/:id', eliminarMovimiento);
 
 // ── Reportes de control ──
 router.get('/ingresos-por-concepto', getIngresosPorConcepto);
-router.get('/cierre-caja', getCierreCajaController);
-router.post('/cierre-caja', cerrarCajaController);
+router.get('/egresos-por-concepto', getEgresosPorConcepto);
 router.get('/cuentas-por-cobrar', getCuentasPorCobrar);
 router.get('/export/:reporte.xlsx', exportarXlsx);
 
