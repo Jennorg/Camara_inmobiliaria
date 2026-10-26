@@ -45,6 +45,20 @@ export async function crearCohorte(programa: ProgramaCohorte, nombre?: string, d
   return creada.rows[0]
 }
 
+/** Cierra una cohorte o la reabre; al reabrir se cierra la que estuviera abierta en su programa (solo una abierta por programa). */
+export async function cambiarEstadoCohorte(idCohorte: number, estado: 'Abierta' | 'Cerrada') {
+  await asegurarCohortes()
+  const c = await db.execute({ sql: `SELECT programa_codigo FROM cohortes WHERE id_cohorte = ?`, args: [idCohorte] })
+  if (!c.rows[0]) throw fallo(404, 'Cohorte no encontrada')
+  const ahora = new Date().toISOString()
+  await db.batch([
+    ...(estado === 'Abierta'
+      ? [{ sql: `UPDATE cohortes SET estado = 'Cerrada', actualizado_en = ? WHERE programa_codigo = ? AND estado = 'Abierta' AND id_cohorte <> ?`, args: [ahora, c.rows[0].programa_codigo, idCohorte] }]
+      : []),
+    { sql: `UPDATE cohortes SET estado = ?, actualizado_en = ? WHERE id_cohorte = ?`, args: [estado, ahora, idCohorte] },
+  ], 'write')
+}
+
 /** Mueve una inscripción a otra cohorte (o la deja sin cohorte con `null`). Debe ser del mismo programa. */
 export async function asignarCohorte(idInscripcion: number, idCohorte: number | null) {
   await asegurarCohortes()

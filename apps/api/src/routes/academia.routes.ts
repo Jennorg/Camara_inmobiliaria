@@ -35,7 +35,7 @@ import {
   adminReenviarEnlaceExpediente,
 } from '../controllers/academia.controller.js'
 
-import { adminAsignarCohorte, adminCrearCohorte, adminExportarCohorte, adminListCohortes } from '../controllers/cohortes.controller.js'
+import { adminAsignarCohorte, adminCambiarEstadoCohorte, adminCrearCohorte, adminExportarCohorte, adminListCohortes } from '../controllers/cohortes.controller.js'
 
 const router = Router()
 
@@ -130,3 +130,4 @@ router.patch('/inscripciones/:id/cohorte', adminAsignarCohorte)
 
 export { router as academiaRoutes }
 
+router.patch('/cohortes/:id/estado', adminCambiarEstadoCohorte)

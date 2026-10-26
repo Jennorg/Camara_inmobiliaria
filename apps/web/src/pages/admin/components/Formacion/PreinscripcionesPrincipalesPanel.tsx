@@ -7,6 +7,7 @@ import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { apiFetch } from '@/lib/apiClient'
 import { formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
+import GestionCohortesModal from './GestionCohortesModal'
 import { formatDateLatina } from '@/utils/formatters'
 import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
 import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
@@ -150,6 +151,7 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${r.id_inscripcion}/cohorte`, {
         method: 'PATCH',
+  const [gestionandoCohortes, setGestionandoCohortes] = useState(false)
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ id_cohorte: valor === '' ? null : Number(valor) }),
       })
@@ -194,15 +196,28 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
-  const exportarCohorte = async (c: Cohorte) => {
+  const cambiarEstadoCohorte = async (c: Cohorte) => {
+    const cerrar = c.estado === 'Abierta'
+    const otraAbierta = cohortesDelPrograma.find(o => o.estado === 'Abierta' && o.id_cohorte !== c.id_cohorte)
+    const r = await Swal.fire({
+      title: `${cerrar ? 'Cerrar' : 'Reabrir'} ${c.nombre}`,
+      html: cerrar
+        ? `Las nuevas inscripciones de ${c.programa_codigo} quedarán sin cohorte hasta que abras otra.`
+        : `Las nuevas inscripciones entrarán a la <b>${c.nombre}</b>.${otraAbierta ? ` Se cerrará la <b>${otraAbierta.nombre}</b>.` : ''}`,
+      showCancelButton: true, confirmButtonText: cerrar ? 'Cerrar' : 'Reabrir', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!r.isConfirmed) return
     try {
-      const res = await fetch(`${API_URL}/api/academia/cohortes/${c.id_cohorte}/inscritos.xlsx`, { headers: { ...authHeaders } })
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || 'No se pudo generar el Excel')
-      const url = URL.createObjectURL(await res.blob())
-      Object.assign(document.createElement('a'), { href: url, download: `${c.programa_codigo}-cohorte-${c.numero}.xlsx` }).click()
-      URL.revokeObjectURL(url)
+      const res = await fetch(`${API_URL}/api/academia/cohortes/${c.id_cohorte}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ estado: cerrar ? 'Cerrada' : 'Abierta' }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar el estado de la cohorte')
+      await fetchCohortes()
     } catch (e) {
-      mostrarError(e, 'No se pudo generar el Excel')
+      mostrarError(e, 'No se pudo cambiar el estado de la cohorte')
     }
   }
 
@@ -881,6 +896,10 @@ export default function PreinscripcionesPrincipalesPanel({
         })
       } finally {
         setProcessingAction(null)
+      {gestionandoCohortes && PROGRAMAS_CON_COHORTE.includes(programa) && (
+        <GestionCohortesModal
+          onNueva={nuevaCohorte}
+          onCambiarEstado={cambiarEstadoCohorte}
       }
     }
   }
@@ -1000,8 +1019,8 @@ export default function PreinscripcionesPrincipalesPanel({
                 cohortes={cohortesDelPrograma}
                 seleccion={cohorteFiltro}
                 onSeleccionar={seleccionarCohorte}
-                onNueva={nuevaCohorte}
-                onExportar={exportarCohorte}
+                onGestionar={() => setGestionandoCohortes(true)}
+                onVolver={() => setPrograma('Todos')}
                 cargando={loading}
               />
             </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Download, Plus } from 'lucide-react'
+import { ArrowLeft, Settings2 } from 'lucide-react'
 
 export type Etapa = 'cursando' | 'completado' | 'admitido' | 'entrevista' | 'pendiente' | 'sin_expediente' | 'rechazado'
 
@@ -19,8 +19,8 @@ export type Cohorte = {
  */
 const ETAPAS: { clave: Etapa; etiqueta: string; color: string }[] = [
   { clave: 'cursando', etiqueta: 'Cursando', color: 'bg-indigo-500' },
-  { clave: 'completado', etiqueta: 'Completado', color: 'bg-emerald-600' },
-  { clave: 'admitido', etiqueta: 'Admitido', color: 'bg-cyan-600' },
+  { clave: 'completado', etiqueta: 'Aprobado', color: 'bg-emerald-600' },
+  { clave: 'admitido', etiqueta: 'Inscrito', color: 'bg-cyan-600' },
   { clave: 'entrevista', etiqueta: 'Entrevista', color: 'bg-purple-500' },
   { clave: 'pendiente', etiqueta: 'Pendiente', color: 'bg-amber-600' },
   { clave: 'sin_expediente', etiqueta: 'Sin expediente', color: 'bg-slate-500' },
@@ -85,15 +85,15 @@ interface Props {
   /** Cohorte elegida; `null` = vista general, sin filtrar por cohorte */
   seleccion: number | null
   onSeleccionar: (id: number | null) => void
-  onNueva: () => void
-  onExportar: (cohorte: Cohorte) => void
+  onGestionar: () => void
+  /** Vuelve a la vista de todos los programas */
+  onVolver: () => void
   /** Se están cargando los inscritos de la selección: muestra una línea de progreso en la franja */
   cargando?: boolean
 }
 
 /** Franja para moverse entre las cohortes de un programa y ver, de un vistazo, cuántos inscritos tiene cada una y en qué etapa están. */
-export default function CohortesNavegador({ programa, cohortes, seleccion, onSeleccionar, onNueva, onExportar, cargando = false }: Props) {
-  const activa = cohortes.find(c => c.id_cohorte === seleccion)
+export default function CohortesNavegador({ programa, cohortes, seleccion, onSeleccionar, onGestionar, onVolver, cargando = false }: Props) {
   // De la más reciente a la más antigua: la abierta queda siempre junto a "Vista general"
   const ordenadas = useMemo(() => [...cohortes].sort((a, b) => b.numero - a.numero), [cohortes])
   const idTitulo = useId()
@@ -229,28 +229,26 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
         })}
 
         {cohortes.length === 0 && (
-          <p className="self-center px-2 text-xs text-slate-500">Este programa aún no tiene cohortes. Crea la primera con “Nueva cohorte”.</p>
+          <p className="self-center px-2 text-xs text-slate-500">Este programa aún no tiene cohortes. Crea la primera con “Gestionar cohortes”.</p>
         )}
       </div>
 
       <div className="flex shrink-0 gap-2 sm:w-40 sm:flex-col sm:gap-1.5">
-        {activa && (
-          <button
-            type="button"
-            onClick={() => onExportar(activa)}
-            className={`inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 sm:w-full ${FOCO}`}
-          >
-            <Download size={14} aria-hidden="true" className="shrink-0" />
-            <span className="truncate">Excel de {activa.nombre}</span>
-          </button>
-        )}
         <button
           type="button"
-          onClick={onNueva}
+          onClick={onVolver}
+          className={`inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 sm:w-full ${FOCO}`}
+        >
+          <ArrowLeft size={14} aria-hidden="true" className="shrink-0" />
+          <span className="truncate">Todos los programas</span>
+        </button>
+        <button
+          type="button"
+          onClick={onGestionar}
           className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 sm:w-full ${FOCO}`}
         >
-          <Plus size={14} aria-hidden="true" className="shrink-0" />
-          Nueva cohorte
+          <Settings2 size={14} aria-hidden="true" className="shrink-0" />
+          Gestionar cohortes
         </button>
       </div>
 

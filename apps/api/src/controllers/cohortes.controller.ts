@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import XLSX from 'xlsx'
 import { esProgramaCohorte } from '../lib/cohortes.js'
-import { asignarCohorte, crearCohorte, inscritosDeCohorte, listarCohortes } from '../services/cohortes.service.js'
+import { asignarCohorte, cambiarEstadoCohorte, crearCohorte, inscritosDeCohorte, listarCohortes } from '../services/cohortes.service.js'
 
 /** Responde con el status de los errores de negocio (`status`) o 500. */
 function responderError(res: Response, error: unknown, contexto: string) {
@@ -33,6 +33,22 @@ export const adminCrearCohorte = async (req: Request, res: Response) => {
     res.status(201).json({ success: true, data: await crearCohorte(programa_codigo, typeof nombre === 'string' ? nombre : undefined, typeof descripcion === 'string' ? descripcion : undefined) })
   } catch (e) {
     responderError(res, e, 'creación de cohorte')
+  }
+}
+
+/** PATCH /api/academia/cohortes/:id/estado — { estado: 'Abierta' | 'Cerrada' } */
+export const adminCambiarEstadoCohorte = async (req: Request, res: Response) => {
+  const id = entero(req.params.id)
+  const { estado } = req.body ?? {}
+  if (id === null || (estado !== 'Abierta' && estado !== 'Cerrada')) {
+    res.status(400).json({ success: false, message: 'id de cohorte o estado inválido' })
+    return
+  }
+  try {
+    await cambiarEstadoCohorte(id, estado)
+    res.json({ success: true })
+  } catch (e) {
+    responderError(res, e, 'cambio de estado de cohorte')
   }
 }
 
