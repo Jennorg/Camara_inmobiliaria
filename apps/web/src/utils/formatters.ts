@@ -412,3 +412,20 @@ export const formatPrecioCurso = (c: { precio_afiliado_usd?: number | null; prec
   if (afiliado === publico) return usd(publico);
   return `Afiliados ${usd(afiliado)} · Público ${usd(publico)}`;
 };
+
+const ETIQUETAS_DOCUMENTO: Record<string, string> = {
+  cv: 'Currículum Vitae',
+  titulo: 'Título Profesional',
+  registro_mercantil: 'Registro Mercantil',
+  titulo_representante: 'Título de Representante',
+  especializacion: 'Especialización',
+  curso_extra: 'Curso Adicional',
+  diplomado: 'Diplomado',
+  referencia_afiliado_1: 'Referencia Gremial 1',
+  referencia_afiliado_2: 'Referencia Gremial 2',
+  otro_documento: 'Otros Documentos',
+}
+
+/** Nombre legible de un documento a partir del tipo con el que se guarda en la BD (el nombre del archivo no importa). */
+export const etiquetaDocumento = (tipo: string) =>
+  ETIQUETAS_DOCUMENTO[tipo] ?? (tipo.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()))

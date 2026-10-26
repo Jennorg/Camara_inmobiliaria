@@ -4,8 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Clock, Mail, Loader2 } from 'lucide-react'
 import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
-import { apiFetch } from '@/lib/apiClient'
-import { formatNombreCard } from '@/utils/formatters'
+import { etiquetaDocumento, formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
 import GestionCohortesModal from './GestionCohortesModal'
 import { formatDateLatina } from '@/utils/formatters'
@@ -1318,12 +1317,9 @@ export default function PreinscripcionesPrincipalesPanel({
                 <div className="flex flex-col gap-2">
                   {documentos.map(doc => (
                     <div key={doc.id_documento} className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 flex-1 min-w-0 hover:text-emerald-600 transition-colors">
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" title={doc.nombre_archivo ?? undefined} className="flex items-center gap-3 flex-1 min-w-0 hover:text-emerald-600 transition-colors">
                         <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold truncate">{doc.nombre_archivo || doc.tipo_doc}</span>
-                          <span className="text-[9px] text-slate-400 uppercase font-black">{doc.tipo_doc.replace(/_/g, ' ')}</span>
-                        </div>
+                        <span className="text-xs font-bold truncate">{etiquetaDocumento(doc.tipo_doc)}</span>
                       </a>
                       {['referencia_afiliado_1', 'referencia_afiliado_2'].includes(doc.tipo_doc) && doc.nombre_archivo && (
                         <button 
