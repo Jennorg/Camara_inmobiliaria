@@ -6,7 +6,6 @@ import Swal from 'sweetalert2'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { etiquetaDocumento, formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
-import GestionCohortesModal from './GestionCohortesModal'
 import { formatDateLatina } from '@/utils/formatters'
 import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
 import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
@@ -23,7 +22,7 @@ const AFILIACION_STEPS_FLOW = [
   { label: 'Afiliación', desc: 'Miembro activo de la Cámara', icon: Check, labelShort: 'Afil.' }
 ]
 
-type ProgramaCodigo = 'ACREDITACION' | 'CIBIR' | 'PADI' | 'PEGI' | 'PREANI' | 'AFILIACION'
+type ProgramaCodigo = 'CIBIR' | 'PADI' | 'PEGI' | 'PREANI' | 'AFILIACION'
 type Estatus = 'Preinscrito' | 'Entrevista' | 'Inscrito' | 'Rechazado' | 'Cancelado'
 
 type Row = {
@@ -70,6 +69,48 @@ type Row = {
 }
 
 const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
+/** Etapas del trámite de acreditación; es el filtro de estado cuando en CIBIR se elige la vía Acreditación */
+const ETAPAS_ACRED = ['Todas', 'Sin expediente', 'En revisión', 'Entrevista', 'Verificación', 'Por acreditar', 'Acreditado', 'Rechazado'] as const
+type EtapaAcred = typeof ETAPAS_ACRED[number]
+const TIPOS_ACRED = ['Agente Indep.', 'Agente Corp.', 'Corporativo'] as const
+
+const etapaAcred = (r: Pick<Row, 'estatus' | 'afiliado_estatus' | 'num_documentos' | 'cibir_acreditado'>): Exclude<EtapaAcred, 'Todas'> => {
+  if (r.estatus === 'Rechazado') return 'Rechazado'
+  if (r.cibir_acreditado || r.afiliado_estatus === '6_INSCRIPCION') return 'Acreditado'
+  switch (r.afiliado_estatus) {
+    case '3_ENTREVISTA': return 'Entrevista'
+    case '4_VERIFICACION': return 'Verificación'
+    case '5_CIBIR': return 'Por acreditar'
+    default: return r.num_documentos ? 'En revisión' : 'Sin expediente'
+  }
+}
+const tipoAcred = (t?: string | null) => (t === 'Corporativo' ? 'Corporativo' : t === 'Agente Corporativo' || t === 'Agente' ? 'Agente Corp.' : 'Agente Indep.')
+
+const UI_ESTATUS = ['Todos', 'Sin Expediente', 'Pendiente', 'Entrevista', 'Inscrito', 'Aprobado', 'Rechazado'] as const
+
+/**
+ * Estado de la lista de una fila: sigue a la etapa de afiliación (la misma que muestra la etiqueta) y, sin ella, al estatus de la inscripción.
+ * Inscrito = está dentro del programa (etapa CIBIR o inscripción); Aprobado = lo terminó (`completado`) o ya es Afiliado oficial.
+ * Verificación cuenta como Pendiente: aún no ha entrado al programa. En la BD, Inscrito y Aprobado comparten estatus 'Inscrito'.
+ */
+type EstadoUi = Exclude<typeof UI_ESTATUS[number], 'Todos'>
+type FilaEstado = { estatus: string; completado?: unknown; afiliado_estatus?: string; num_documentos?: number }
+const estadoUi = (r: FilaEstado): EstadoUi | null => {
+  const a = r.afiliado_estatus
+  if (r.estatus === 'Rechazado' || a === 'Rechazado') return 'Rechazado'
+  if (a === 'Afiliado' || ((r.estatus === 'Inscrito' || r.estatus === 'Pagado') && Number(r.completado) === 1)) return 'Aprobado'
+  const preinscrito: EstadoUi = r.num_documentos ? 'Pendiente' : 'Sin Expediente'
+  switch (a) {
+    case '1_PREINSCRIPCION': case '2_EXPEDIENTE': return preinscrito
+    case '3_ENTREVISTA': return 'Entrevista'
+    case '4_VERIFICACION': return 'Pendiente'
+    case '5_CIBIR': case '6_INSCRIPCION': return 'Inscrito'
+  }
+  if (r.estatus === 'Preinscrito') return preinscrito
+  if (r.estatus === 'Entrevista') return 'Entrevista'
+  return r.estatus === 'Inscrito' ? 'Inscrito' : null
+}
+
 /** Aparición de la franja al cambiar de programa y de las primeras filas al cambiar de lista (sin movimiento si el usuario lo prefiere) */
 const ENTRADA_FRANJA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-300'
 const ENTRADA_FILA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-300 motion-safe:fill-mode-backwards'
@@ -81,10 +122,9 @@ export default function PreinscripcionesPrincipalesPanel({
 }) {
   const { token } = useAuth()
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
-  type UiEstatus = 'Todos' | 'Pendiente' | 'Sin Expediente' | 'Entrevista' | 'Inscripción' | 'Rechazado'
+  type UiEstatus = typeof UI_ESTATUS[number]
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
   const [search, setSearch] = useState('')
-  const [showProgramaDropdown, setShowProgramaDropdown] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -118,7 +158,7 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch { /* el panel sigue funcionando sin cohortes */ }
   }, [authHeaders])
   useEffect(() => { fetchCohortes() }, [fetchCohortes])
-  useEffect(() => { setCohorteFiltro(null) }, [programa])
+  useEffect(() => { setCohorteFiltro(null); setViaCibir('Todas') }, [programa])
 
   const cohortesDelPrograma = useMemo(
     () => cohortes.filter(c => c.programa_codigo === programa),
@@ -138,7 +178,6 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const res = await fetch(`${API_URL}/api/academia/inscripciones/${r.id_inscripcion}/cohorte`, {
         method: 'PATCH',
-  const [gestionandoCohortes, setGestionandoCohortes] = useState(false)
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ id_cohorte: valor === '' ? null : Number(valor) }),
       })
@@ -152,6 +191,13 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch (e) {
       mostrarError(e, 'No se pudo cambiar la cohorte')
     } finally {
+  const [gestionandoCohortes, setGestionandoCohortes] = useState(false)
+  // Filtros propios de la vía Acreditación
+  const [etapaAcredSel, setEtapaAcredSel] = useState<EtapaAcred>('Todas')
+  const [tipoAcredSel, setTipoAcredSel] = useState<'' | typeof TIPOS_ACRED[number]>('')
+  // La acreditación es una vía del CIBIR (quien opta por acreditarse en vez de cursarlo), no un programa aparte
+  const [viaCibir, setViaCibir] = useState<'Todas' | 'Curso' | 'Acreditación'>('Todas')
+  const esAcred = programa === 'CIBIR' && viaCibir === 'Acreditación'
       setSavingCohorte(false)
     }
   }
@@ -266,8 +312,8 @@ export default function PreinscripcionesPrincipalesPanel({
         // Los miembros se piden por cohorte: no todos se guardan con el mismo código de programa
         qs.set('cohorteId', String(cohorteFiltro))
       } else if (programa !== 'Todos') {
-        // Tanto ACREDITACION como CIBIR se mapean a 'AFILIACION' en la API
-        if (programa === 'ACREDITACION' || programa === 'CIBIR') {
+        // CIBIR (cursando o acreditando) se mapea a 'AFILIACION' en la API
+        if (programa === 'CIBIR') {
           qs.set('programaCodigo', 'AFILIACION')
         } else {
           qs.set('programaCodigo', programa)
@@ -300,7 +346,6 @@ export default function PreinscripcionesPrincipalesPanel({
       const err = e as Error
       setError(err.message || 'Error inesperado')
     } finally {
-      qs.set('soloProgramas', 'true') // los cursos y talleres se gestionan en Gestión de Formación
       if (!isSilent) setLoading(false)
     }
   }, [programa, cohorteFiltro, authHeaders, fetchDocumentos])
@@ -315,6 +360,7 @@ export default function PreinscripcionesPrincipalesPanel({
       showCancelButton: true,
       confirmButtonColor: '#00D084',
       cancelButtonColor: '#cbd5e1',
+      qs.set('soloProgramas', 'true') // los cursos y talleres se gestionan en Gestión de Formación
       confirmButtonText: 'Sí, aprobar y afiliar',
       cancelButtonText: 'Cancelar'
     })
@@ -692,64 +738,57 @@ export default function PreinscripcionesPrincipalesPanel({
         })
       } finally {
         setProcessingAction(null)
-      {gestionandoCohortes && PROGRAMAS_CON_COHORTE.includes(programa) && (
-        <GestionCohortesModal
-          onNueva={nuevaCohorte}
-          onCambiarEstado={cambiarEstadoCohorte}
       }
     }
   }
 
   // Filas acotadas por el programa seleccionado.
-  // El servidor ya filtra por programa (ACREDITACION y CIBIR se piden como 'AFILIACION').
-  //  - ACREDITACION: lista de preinscritos pendientes que SÍ optan por acreditación.
-  //  - CIBIR: quienes NO optaron por acreditación.
+  // El servidor ya filtra por programa (CIBIR se pide como 'AFILIACION'). En CIBIR, la vía separa a quienes
+  // cursan el CIBIR de quienes optan por acreditarse.
+  const optaAcreditacion = (r: Row) => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion
   const programaRows = useMemo(() => {
-    if (cohorteFiltro !== null) return rows // el servidor ya trajo solo los de esa cohorte
-    if (programa === 'ACREDITACION') {
-      return rows.filter(r => r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion)
-    }
-    if (programa === 'CIBIR') {
-      return rows.filter(r => !r.apto_acreditacion)
-    }
+    if (programa !== 'CIBIR') return rows // con cohorte, el servidor ya trajo solo los de esa cohorte
+    if (viaCibir === 'Acreditación') return rows.filter(optaAcreditacion)
+    if (viaCibir === 'Curso') return rows.filter(r => !r.apto_acreditacion)
     return rows
-  }, [rows, programa, cohorteFiltro])
+  }, [rows, programa, viaCibir])
+
+  const viaCounts = useMemo(() => ({
+    Todas: rows.length,
+    Curso: rows.filter(r => !r.apto_acreditacion).length,
+    Acreditación: rows.filter(optaAcreditacion).length,
+  }), [rows])
+
+  // En la vía Acreditación, el dropdown de tipo de afiliado acota la base antes de contar por etapa
+  const baseRows = useMemo(() => {
+    if (!esAcred || !tipoAcredSel) return programaRows
+    return programaRows.filter(r => tipoAcred(r.afiliado_tipo) === tipoAcredSel)
+  }, [programaRows, esAcred, tipoAcredSel])
+
+  const countsAcred = useMemo(() => {
+    const c = Object.fromEntries(ETAPAS_ACRED.map(e => [e, 0])) as Record<EtapaAcred, number>
+    c.Todas = baseRows.length
+    baseRows.forEach(r => { c[etapaAcred(r)]++ })
+    return c
+  }, [baseRows])
 
   const counts = useMemo(() => {
-    const base = programaRows
+    const base = baseRows
 
-    const todos = base.length
-    const pendiente = base.filter(r => r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0).length
-    const sinExpediente = base.filter(r => r.estatus === 'Preinscrito' && (!r.num_documentos || r.num_documentos === 0)).length
-    const entrevista = base.filter(r => r.estatus === 'Entrevista').length
-    const inscripcion = base.filter(r => r.estatus === 'Inscrito').length
-    const rechazado = base.filter(r => r.estatus === 'Rechazado').length
-
-    return {
-      Todos: todos,
-      Pendiente: pendiente,
-      'Sin Expediente': sinExpediente,
-      Entrevista: entrevista,
-      Inscripción: inscripcion,
-      Rechazado: rechazado,
-    }
-  }, [programaRows])
+    const c = Object.fromEntries(UI_ESTATUS.map(e => [e, 0])) as Record<typeof UI_ESTATUS[number], number>
+    c.Todos = base.length
+    base.forEach(r => { const e = estadoUi(r); if (e) c[e]++ })
+    return c
+  }, [baseRows])
 
   const filteredRows = useMemo(() => {
-    let result = programaRows
+    let result = baseRows
 
-    // Filtro por sub-estado de expediente
-    if (uiEstatus === 'Pendiente') {
-      result = result.filter(r => r.estatus === 'Preinscrito' && r.num_documentos && r.num_documentos > 0)
-    } else if (uiEstatus === 'Sin Expediente') {
-      result = result.filter(r => r.estatus === 'Preinscrito' && (!r.num_documentos || r.num_documentos === 0))
-    } else if (uiEstatus === 'Entrevista') {
-      result = result.filter(r => r.estatus === 'Entrevista')
-    } else if (uiEstatus === 'Inscripción') {
-      // Para la pestaña 'Inscripción' (Admitidos/Inscritos), mostrar todo el historial de aprobados
-      result = result.filter(r => r.estatus === 'Inscrito')
-    } else if (uiEstatus === 'Rechazado') {
-      result = result.filter(r => r.estatus === 'Rechazado')
+    // Filtro por sub-estado de expediente (la vía Acreditación usa sus propias etapas)
+    if (esAcred) {
+      if (etapaAcredSel !== 'Todas') result = result.filter(r => etapaAcred(r) === etapaAcredSel)
+    } else if (uiEstatus !== 'Todos') {
+      result = result.filter(r => estadoUi(r) === uiEstatus)
     }
     if (!search.trim()) return result
     return result.filter(r =>
@@ -758,9 +797,9 @@ export default function PreinscripcionesPrincipalesPanel({
         search
       )
     )
-  }, [programaRows, search, uiEstatus])
+  }, [baseRows, search, uiEstatus, esAcred, etapaAcredSel])
 
-  const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1) => {
+  const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1, completado?: unknown) => {
     // Si es un trámite de afiliación o tiene estatus en la tabla de afiliados, mostrar su etapa real
     if (afiliadoEstatus) {
       switch (afiliadoEstatus) {
@@ -796,7 +835,9 @@ export default function PreinscripcionesPrincipalesPanel({
       return { label: 'Entrevista', styles: 'bg-purple-50 text-purple-700 border-purple-200' }
     }
     if (estatus === 'Inscrito') {
-      return { label: 'Admitido', styles: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+      return Number(completado) === 1
+        ? { label: 'Aprobado', styles: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+        : { label: 'Inscrito', styles: 'bg-sky-50 text-sky-700 border-sky-200' }
     }
     if (estatus === 'Rechazado') {
       return { label: 'Rechazado', styles: 'bg-red-50 text-red-600 border-red-200' }
@@ -843,76 +884,68 @@ export default function PreinscripcionesPrincipalesPanel({
             />
           </div>
 
-          <div className="flex gap-2">
-            {/* Custom Programa Dropdown */}
-            <div className="relative flex-1">
-              <button
-                type="button"
-                onClick={() => setShowProgramaDropdown(!showProgramaDropdown)}
-                className="w-full flex items-center justify-between gap-1 px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-slate-600 text-[10px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                <span className="truncate">
-                  {programa === 'Todos' ? 'Todos los Programas' : programa}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${showProgramaDropdown ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showProgramaDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowProgramaDropdown(false)} />
-                  <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[150px] fade-in slide-in-from-top-1 duration-200">
-                    {[
-                      { key: 'Todos', label: 'Todos los Programas' },
-                      { key: 'ACREDITACION', label: 'ACREDITACION' },
-                      { key: 'CIBIR', label: 'CIBIR' },
-                      { key: 'PADI', label: 'PADI' },
-                      { key: 'PEGI', label: 'PEGI' },
-                      { key: 'PREANI', label: 'PREANI' },
-                    ].map(option => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => {
-                          setPrograma(option.key as any)
-                          setShowProgramaDropdown(false)
-                        }}
-                        className={`w-full text-left px-3 py-1.5 text-[10px] font-bold transition-colors ${
-                          programa === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
+          {(() => {
+            const filtrosAcred = esAcred ? [
+              { id: 'acred-tipo', etiqueta: 'Tipo de afiliado', ancho: '', valor: tipoAcredSel as string, cambiar: (v: string) => setTipoAcredSel(v as typeof tipoAcredSel),
+                opciones: [{ valor: '', texto: 'Todos' }, ...TIPOS_ACRED.map(t => ({ valor: t as string, texto: t as string }))] },
+            ] : []
+            const campos = [
+              ...(programa === 'CIBIR' ? [{ id: 'via-cibir', etiqueta: 'Acreditación', ancho: 'col-span-2', valor: viaCibir as string, cambiar: (v: string) => setViaCibir(v as typeof viaCibir),
+                opciones: [
+                  { valor: 'Todas', texto: `Todos (${viaCounts.Todas})` },
+                  { valor: 'Curso', texto: `No optan por acreditación (${viaCounts.Curso})` },
+                  { valor: 'Acreditación', texto: `Optan por acreditación (${viaCounts.Acreditación})` },
+                ] }] : []),
+              esAcred
+                ? { id: 'acred-etapa', etiqueta: 'Etapa del trámite', ancho: 'col-span-2', valor: etapaAcredSel as string, cambiar: (v: string) => setEtapaAcredSel(v as EtapaAcred),
+                    opciones: ETAPAS_ACRED.map(e => ({ valor: e as string, texto: `${e === 'Todas' ? 'Todas las etapas' : e} (${countsAcred[e]})` })) }
+                : { id: 'estado-lista', etiqueta: 'Estado', ancho: 'col-span-2', valor: uiEstatus as string, cambiar: (v: string) => setUiEstatus(v as UiEstatus),
+                    opciones: UI_ESTATUS.map(e => ({ valor: e as string, texto: `${e === 'Todos' ? 'Todos los estados' : e} (${counts[e] || 0})` })) },
+              ...filtrosAcred,
+            ]
+            const hayFiltro = viaCibir !== 'Todas' || (esAcred ? etapaAcredSel !== 'Todas' || !!tipoAcredSel : uiEstatus !== 'Todos')
+            return (
+            <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 pt-1">
+              {campos.map(f => (
+                <div key={f.id} className={`flex flex-col gap-1 min-w-0 ${f.ancho}`}>
+                  <label htmlFor={f.id} className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{f.etiqueta}</label>
+                  <select
+                    id={f.id}
+                    value={f.valor}
+                    onChange={e => f.cambiar(e.target.value)}
+                    className={`w-full min-h-9 px-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${
+                      f.valor && f.valor !== 'Todas' && f.valor !== 'Todos' ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-gray-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    {f.opciones.map(o => <option key={o.valor} value={o.valor}>{o.texto}</option>)}
+                  </select>
+                </div>
+              ))}
+              {hayFiltro && (
+                <button
+                  type="button"
+                  onClick={() => { setEtapaAcredSel('Todas'); setTipoAcredSel(''); setUiEstatus('Todos'); setViaCibir('Todas') }}
+                  className="col-span-2 self-start text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                >
+                  Limpiar filtros
+                </button>
               )}
             </div>
 
-
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {(['Todos', 'Pendiente', 'Sin Expediente', 'Entrevista', 'Inscripción', 'Rechazado'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setUiEstatus(f)}
-                className={[
-                  'text-[10px] font-semibold px-2.5 py-1.5 rounded-full transition-colors flex items-center gap-1',
-                  uiEstatus === f ? 'bg-[#00D084] text-white' : 'bg-gray-100 text-slate-500 hover:bg-gray-200',
-                ].join(' ')}
-              >
-                {f}
-                <span className={['px-1.5 rounded-full text-[9px] font-bold', uiEstatus === f ? 'bg-white/25' : 'bg-white text-slate-400'].join(' ')}>
-                  {counts[f] || 0}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {loading ? (
             <div aria-busy="true" className="divide-y divide-gray-50">
+      {gestionandoCohortes && PROGRAMAS_CON_COHORTE.includes(programa) && (
+        <GestionCohortesModal
+          programa={programa}
+          cohortes={cohortesDelPrograma}
+          onCerrar={() => setGestionandoCohortes(false)}
+          onNueva={nuevaCohorte}
+          onCambiarEstado={cambiarEstadoCohorte}
+        />
+      )}
               <span className="sr-only" role="status">Cargando inscritos…</span>
               {Array.from({ length: 7 }, (_, i) => (
                 <div key={i} aria-hidden="true" className="flex flex-col gap-2 px-4 py-3.5">
@@ -937,7 +970,7 @@ export default function PreinscripcionesPrincipalesPanel({
             </div>
           ) : (
             filteredRows.map((r, i) => {
-              const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus, r.num_documentos)
+              const statusObj = getStatusLabelAndStyles(r.estatus, r.afiliado_estatus, r.num_documentos, r.completado)
               const isSelected = selected?.id_inscripcion === r.id_inscripcion
 
               // Tipo descriptivo limpio
@@ -988,6 +1021,8 @@ export default function PreinscripcionesPrincipalesPanel({
                       {statusObj.label}
                     </span>
                   </div>
+            )
+          })()}
 
                   {/* Línea 2: Meta en texto gris discreto */}
                   <p className="text-[11px] text-slate-400 font-medium truncate">
@@ -1030,7 +1065,7 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
               <div className="flex flex-col items-end gap-1">
                 {(() => {
-                  const statusObj = getStatusLabelAndStyles(selected.estatus, selected.afiliado_estatus, selected.num_documentos)
+                  const statusObj = getStatusLabelAndStyles(selected.estatus, selected.afiliado_estatus, selected.num_documentos, selected.completado)
                   return (
                     <span className={`text-[10px] font-black px-3 py-1.5 rounded-full border uppercase tracking-wider ${statusObj.styles}`}>
                       {statusObj.label}
@@ -1134,6 +1169,8 @@ export default function PreinscripcionesPrincipalesPanel({
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">{activeIndex + 1} de 7</span>
                   </div>
                   <div className="relative flex items-start justify-between px-2 pt-2 pb-6">
+                // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
+                (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
                     <div className="absolute left-6 right-6 top-[24px] h-0.5 bg-slate-100 -z-0" />
                     <div className="absolute left-6 top-[24px] h-0.5 bg-emerald-500 -z-0 transition-colors duration-500" style={{ width: `calc(${(activeIndex / 6) * 100}% - 12px)` }} />
                     {AFILIACION_STEPS_FLOW.map((step, idx) => {
@@ -1613,6 +1650,31 @@ export default function PreinscripcionesPrincipalesPanel({
       {cobro && selected && (
         <ModalCobroTaquilla
           open
+                {(() => {
+                  // Ya aprobado: lo único que falta es cobrar (mismo modal que el bloque de Cobros)
+                  const r = selected
+                  const clave = r.estatus !== 'Inscrito' ? null
+                    : r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION' ? 'formalizacion_afiliacion' as const
+                    : ['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && !r.pago_programa && Number(r.completado) !== 1 ? 'programa' as const
+                    : null
+                  if (!clave) return null
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {clave === 'programa' ? `Arancel ${r.programa_codigo} pendiente` : 'Formalización pendiente'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCobro(clave)}
+                        className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <CreditCard size={14} aria-hidden="true" />
+                        {clave === 'programa' ? 'Registrar cobro' : 'Cobrar y formalizar'}
+                      </button>
+                    </div>
+                  )
+                })()}
+
           onClose={() => setCobro(null)}
           onSuccess={(pago) => { setCobro(null); abrirRecibo(pago); fetchData(true) }}
           afiliadoId={selected.id_afiliado ?? null}
