@@ -2369,8 +2369,8 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
         countArgs.push(programaCodigo)
       }
     } else {
-      // Si no hay curso ni programa específico, mostrar todos
-      baseWhere.push('1=1')
+      // Si no hay curso ni programa específico, mostrar todos (soloProgramas=true deja fuera las inscripciones a cursos y talleres)
+      baseWhere.push(req.query?.soloProgramas === 'true' ? 'ic.id_curso IS NULL' : '1=1')
     }
 
     // Get counts

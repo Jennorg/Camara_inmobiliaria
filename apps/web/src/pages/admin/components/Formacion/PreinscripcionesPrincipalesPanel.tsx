@@ -314,6 +314,7 @@ export default function PreinscripcionesPrincipalesPanel({
       const err = e as Error
       setError(err.message || 'Error inesperado')
     } finally {
+      qs.set('soloProgramas', 'true') // los cursos y talleres se gestionan en Gestión de Formación
       if (!isSilent) setLoading(false)
     }
   }, [programa, cohorteFiltro, authHeaders, fetchDocumentos])
