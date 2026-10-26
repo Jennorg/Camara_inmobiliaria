@@ -35,6 +35,7 @@ import {
   adminReenviarEnlaceExpediente,
 } from '../controllers/academia.controller.js'
 
+import { adminEnviarEnlaceAgenda, adminGuardarDisponibilidad, adminLeerDisponibilidad } from '../controllers/agenda.controller.js'
 import { adminAsignarCohorte, adminCambiarEstadoCohorte, adminCrearCohorte, adminExportarCohorte, adminListCohortes } from '../controllers/cohortes.controller.js'
 
 const router = Router()
@@ -68,6 +69,11 @@ router.post('/cursos/:id_curso/asignar', adminAsignarEstudianteACurso)
 
 // PATCH /api/academia/inscripciones/:id/agendar-entrevista
 router.patch('/inscripciones/:id/agendar-entrevista', adminAgendarEntrevista)
+
+// Agenda de entrevistas: disponibilidad y enlace de reserva (el aspirante reserva por /api/public/agenda)
+router.get('/agenda/disponibilidad', adminLeerDisponibilidad)
+router.put('/agenda/disponibilidad', adminGuardarDisponibilidad)
+router.post('/inscripciones/:id/enlace-agenda', adminEnviarEnlaceAgenda)
 
 // PATCH /api/academia/inscripciones/:id/finalizar-entrevista
 router.patch('/inscripciones/:id/finalizar-entrevista', adminFinalizarEntrevista)
@@ -125,9 +131,9 @@ router.post('/inscripciones/:id/reenviar-enlace', adminReenviarEnlaceExpediente)
 // Cohortes de los programas CIBIR, PREANI, PEGI y PADI
 router.get('/cohortes', adminListCohortes)
 router.post('/cohortes', adminCrearCohorte)
+router.patch('/cohortes/:id/estado', adminCambiarEstadoCohorte)
 router.get('/cohortes/:id/inscritos.xlsx', adminExportarCohorte)
 router.patch('/inscripciones/:id/cohorte', adminAsignarCohorte)
 
 export { router as academiaRoutes }
 
-router.patch('/cohortes/:id/estado', adminCambiarEstadoCohorte)

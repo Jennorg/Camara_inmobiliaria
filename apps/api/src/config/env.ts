@@ -37,6 +37,10 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   CORS_ORIGIN: z.string().optional(),
   RESEND_API_KEY: z.string().min(1),
+  /** Agenda de entrevistas (Google Calendar + Meet). Opcionales: sin ellas la reserva por enlace responde 503 y queda la agenda manual. */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REFRESH_TOKEN: z.string().optional(),
   /** Secreto que Vercel Cron envía como `Authorization: Bearer …` (sin él, /api/cron responde 503). */
   CRON_SECRET: z.string().min(16).optional(),
   RESEND_FROM_EMAIL: z.string().email().default('info@camarainmobiliariadebolivar.com'),

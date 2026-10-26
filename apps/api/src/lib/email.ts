@@ -369,6 +369,25 @@ export const enviarCorreoAprobacionEstudiante = async (params: {
   return data
 }
 
+export const enviarCorreoEnlaceAgenda = async (params: { nombre: string; email: string; url: string }) => {
+  const nombre = escapeHtml(nombreSaludo(params.nombre))
+  const { data, error } = await sendResendEmail({
+    from: DEFAULT_FROM,
+    to: params.email,
+    subject: 'Elige el horario de tu entrevista — Cámara Inmobiliaria',
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">¡Hola, ${nombre}!</h2>
+      <p>Tu solicitud avanzó a la fase de entrevista. Elige el día y la hora que mejor te convengan entre los horarios disponibles; la entrevista será por videollamada de Google Meet.</p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${params.url}" class="btn">Elegir mi horario</a>
+      </div>
+      <p style="font-size: 14px; color: #64748b;">El enlace es personal y vence en 14 días. Si ya no necesitas la entrevista o no puedes elegir un horario, responde a este correo.</p>
+    `, 'Elige tu horario de entrevista')
+  })
+  if (error) { console.error('enviarCorreoEnlaceAgenda:', error); throw error }
+  return data
+}
+
 export const enviarCorreoInvitacionCibir = async (params: {
   nombre: string
   emailOriginal: string

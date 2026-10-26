@@ -18,7 +18,13 @@ import { publicGetComprobanteByCodigo } from '../controllers/certificados.contro
 import { publicVerificarConstancia } from '../controllers/solvencia.controller.js';
 import { presignUpload, directUpload } from '../controllers/uploads.controller.js';
 
+import { publicHorarios, publicReservar } from '../controllers/agenda.controller.js';
+
 const router = Router();
+
+// GET/POST /api/public/agenda/:token — el aspirante elige su horario de entrevista
+router.get('/agenda/:token', publicHorarios);
+router.post('/agenda/:token', publicReservar);
 
 // GET /api/public/empresas
 router.get('/empresas', publicListEmpresas);

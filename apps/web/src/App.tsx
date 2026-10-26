@@ -25,6 +25,7 @@ import PreaniPage from '@/pages/landing/courses/PREANI/PreaniPage'
 import PegiPage from '@/pages/landing/courses/PEGI/PegiPage'
 import PadiPage from '@/pages/landing/courses/PADI/PadiPage'
 import VerificarPreinscripcionProgramaPage from '@/pages/landing/courses/VerificarPreinscripcionProgramaPage'
+import AgendarEntrevistaPage from '@/pages/agendar/AgendarEntrevistaPage'
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
 import LobbyPage from '@/pages/lobby/LobbyPage'
 import ComprobantePublicoPage from '@/pages/comprobante/ComprobantePublicoPage'
@@ -71,6 +72,7 @@ function AppRoutes() {
           <Route path='/cibir'         element={<CibirPage />} />
           <Route path='/cibir/verificar' element={<PreservingQueryNavigate to='/cursos/verificar' />} />
           <Route path='/cursos/verificar' element={<VerificarPreinscripcionProgramaPage />} />
+          <Route path='/agendar/:token' element={<AgendarEntrevistaPage />} />
           <Route path='/formacion/verificar' element={<PreservingQueryNavigate to='/cursos/verificar' />} />
           <Route path='/marco-legal/:category' element={<MarcoLegalPage />} />
           <Route path='/convenios' element={<Navigate to='/marco-legal/normas-y-procedimientos' replace />} />

@@ -7,6 +7,8 @@ import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { etiquetaDocumento, formatNombreCard } from '@/utils/formatters'
 import { matchesSearch } from '@/utils/searchUtils'
 import { formatDateLatina } from '@/utils/formatters'
+import DisponibilidadEntrevistasModal from './DisponibilidadEntrevistasModal'
+import GestionCohortesModal from './GestionCohortesModal'
 import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
 import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
@@ -68,7 +70,6 @@ type Row = {
   cohorte_nombre?: string | null
 }
 
-const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
 /** Etapas del trámite de acreditación; es el filtro de estado cuando en CIBIR se elige la vía Acreditación */
 const ETAPAS_ACRED = ['Todas', 'Sin expediente', 'En revisión', 'Entrevista', 'Verificación', 'Por acreditar', 'Acreditado', 'Rechazado'] as const
 type EtapaAcred = typeof ETAPAS_ACRED[number]
@@ -111,6 +112,7 @@ const estadoUi = (r: FilaEstado): EstadoUi | null => {
   return r.estatus === 'Inscrito' ? 'Inscrito' : null
 }
 
+const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
 /** Aparición de la franja al cambiar de programa y de las primeras filas al cambiar de lista (sin movimiento si el usuario lo prefiere) */
 const ENTRADA_FRANJA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-300'
 const ENTRADA_FILA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-300 motion-safe:fill-mode-backwards'
@@ -149,6 +151,13 @@ export default function PreinscripcionesPrincipalesPanel({
   const [cohortes, setCohortes] = useState<Cohorte[]>([])
   const [cohorteFiltro, setCohorteFiltro] = useState<number | null>(null)
   const [savingCohorte, setSavingCohorte] = useState(false)
+  const [gestionandoCohortes, setGestionandoCohortes] = useState(false)
+  // Filtros propios de la vía Acreditación
+  const [etapaAcredSel, setEtapaAcredSel] = useState<EtapaAcred>('Todas')
+  const [tipoAcredSel, setTipoAcredSel] = useState<'' | typeof TIPOS_ACRED[number]>('')
+  // La acreditación es una vía del CIBIR (quien opta por acreditarse en vez de cursarlo), no un programa aparte
+  const [viaCibir, setViaCibir] = useState<'Todas' | 'Curso' | 'Acreditación'>('Todas')
+  const esAcred = programa === 'CIBIR' && viaCibir === 'Acreditación'
 
   const fetchCohortes = useCallback(async () => {
     try {
@@ -191,13 +200,6 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch (e) {
       mostrarError(e, 'No se pudo cambiar la cohorte')
     } finally {
-  const [gestionandoCohortes, setGestionandoCohortes] = useState(false)
-  // Filtros propios de la vía Acreditación
-  const [etapaAcredSel, setEtapaAcredSel] = useState<EtapaAcred>('Todas')
-  const [tipoAcredSel, setTipoAcredSel] = useState<'' | typeof TIPOS_ACRED[number]>('')
-  // La acreditación es una vía del CIBIR (quien opta por acreditarse en vez de cursarlo), no un programa aparte
-  const [viaCibir, setViaCibir] = useState<'Todas' | 'Curso' | 'Acreditación'>('Todas')
-  const esAcred = programa === 'CIBIR' && viaCibir === 'Acreditación'
       setSavingCohorte(false)
     }
   }
@@ -277,6 +279,10 @@ export default function PreinscripcionesPrincipalesPanel({
     if (r.isConfirmed) setCobro('curso_cibir')
   }
   const [entrevista, setEntrevista] = useState({ fecha: '', hora: '', lugar: 'Sede Cámara Inmobiliaria' })
+  // Agendar: por enlace (el aspirante elige entre los horarios disponibles) o fijando fecha y hora a mano
+  const [modoAgenda, setModoAgenda] = useState<'enlace' | 'manual'>('enlace')
+  const [enviandoEnlace, setEnviandoEnlace] = useState(false)
+  const [showDisponibilidad, setShowDisponibilidad] = useState(false)
   const [finalizarData, setFinalizarData] = useState<{ resultado: 'Aprobado' | 'Parcial' | 'Rechazado', nota: string }>({
     resultado: 'Aprobado',
     nota: ''
@@ -308,6 +314,7 @@ export default function PreinscripcionesPrincipalesPanel({
     try {
       const qs = new URLSearchParams()
       qs.set('estatus', 'Todos')
+      qs.set('soloProgramas', 'true') // los cursos y talleres se gestionan en Gestión de Formación
       if (cohorteFiltro !== null) {
         // Los miembros se piden por cohorte: no todos se guardan con el mismo código de programa
         qs.set('cohorteId', String(cohorteFiltro))
@@ -360,7 +367,6 @@ export default function PreinscripcionesPrincipalesPanel({
       showCancelButton: true,
       confirmButtonColor: '#00D084',
       cancelButtonColor: '#cbd5e1',
-      qs.set('soloProgramas', 'true') // los cursos y talleres se gestionan en Gestión de Formación
       confirmButtonText: 'Sí, aprobar y afiliar',
       cancelButtonText: 'Cancelar'
     })
@@ -407,6 +413,28 @@ export default function PreinscripcionesPrincipalesPanel({
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  const enviarEnlaceAgenda = async () => {
+    if (!selected || enviandoEnlace) return
+    setEnviandoEnlace(true)
+    try {
+      const res = await fetch(`${API_URL}/api/academia/inscripciones/${selected.id_inscripcion}/enlace-agenda`, { method: 'POST', headers: { ...authHeaders } })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo crear el enlace')
+      setShowModalAgendar(false)
+      const { url, emailEnviado } = json.data as { url: string; emailEnviado: boolean }
+      const r = await Swal.fire({
+        title: emailEnviado ? 'Enlace enviado' : 'Enlace creado',
+        html: `${emailEnviado ? 'Se envió por correo al aspirante.' : 'El aspirante no tiene correo registrado; compártele el enlace.'}<br><br><code style="word-break:break-all;font-size:12px">${url}</code>`,
+        showCancelButton: true, confirmButtonText: 'Copiar enlace', cancelButtonText: 'Cerrar', confirmButtonColor: '#059669',
+      })
+      if (r.isConfirmed) await navigator.clipboard.writeText(url).catch(() => {})
+    } catch (e: any) {
+      Swal.fire('Error', e.message || 'No se pudo crear el enlace', 'error')
+    } finally {
+      setEnviandoEnlace(false)
+    }
+  }
 
   const busyAgendarRef = useRef(false)
   const agendarEntrevista = async () => {
@@ -868,6 +896,15 @@ export default function PreinscripcionesPrincipalesPanel({
           ) : null}
         </AlturaSuave>
       </div>
+      {gestionandoCohortes && PROGRAMAS_CON_COHORTE.includes(programa) && (
+        <GestionCohortesModal
+          programa={programa}
+          cohortes={cohortesDelPrograma}
+          onCerrar={() => setGestionandoCohortes(false)}
+          onNueva={nuevaCohorte}
+          onCambiarEstado={cambiarEstadoCohorte}
+        />
+      )}
       <div className="relative flex-1 min-h-0">
       <div className="grid grid-cols-1 sm:grid-cols-[340px_1fr] grid-rows-1 h-full w-full overflow-hidden absolute inset-0">
       {/* Listado lateral */}
@@ -931,21 +968,14 @@ export default function PreinscripcionesPrincipalesPanel({
                 </button>
               )}
             </div>
+            )
+          })()}
 
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {loading ? (
             <div aria-busy="true" className="divide-y divide-gray-50">
-      {gestionandoCohortes && PROGRAMAS_CON_COHORTE.includes(programa) && (
-        <GestionCohortesModal
-          programa={programa}
-          cohortes={cohortesDelPrograma}
-          onCerrar={() => setGestionandoCohortes(false)}
-          onNueva={nuevaCohorte}
-          onCambiarEstado={cambiarEstadoCohorte}
-        />
-      )}
               <span className="sr-only" role="status">Cargando inscritos…</span>
               {Array.from({ length: 7 }, (_, i) => (
                 <div key={i} aria-hidden="true" className="flex flex-col gap-2 px-4 py-3.5">
@@ -1021,8 +1051,6 @@ export default function PreinscripcionesPrincipalesPanel({
                       {statusObj.label}
                     </span>
                   </div>
-            )
-          })()}
 
                   {/* Línea 2: Meta en texto gris discreto */}
                   <p className="text-[11px] text-slate-400 font-medium truncate">
@@ -1106,6 +1134,8 @@ export default function PreinscripcionesPrincipalesPanel({
               }
               const cibirAplica = !r.cibir_acreditado && (
                 (r.programa_codigo === 'AFILIACION' && ['4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(r.afiliado_estatus || '')) ||
+                // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
+                (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
                 (r.programa_codigo === 'CIBIR' && enCurso && Number(r.completado) !== 1))
               if (cibirAplica && r.id_afiliado) {
                 items.push({ clave: 'curso_cibir', etiqueta: 'Arancel CIBIR', detalle: 'Se exige para pasar a la etapa CIBIR.', pagado: !!r.pago_cibir, disponible: true })
@@ -1169,8 +1199,6 @@ export default function PreinscripcionesPrincipalesPanel({
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">{activeIndex + 1} de 7</span>
                   </div>
                   <div className="relative flex items-start justify-between px-2 pt-2 pb-6">
-                // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
-                (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
                     <div className="absolute left-6 right-6 top-[24px] h-0.5 bg-slate-100 -z-0" />
                     <div className="absolute left-6 top-[24px] h-0.5 bg-emerald-500 -z-0 transition-colors duration-500" style={{ width: `calc(${(activeIndex / 6) * 100}% - 12px)` }} />
                     {AFILIACION_STEPS_FLOW.map((step, idx) => {
@@ -1585,6 +1613,31 @@ export default function PreinscripcionesPrincipalesPanel({
                   </div>
                 )}
 
+                {(() => {
+                  // Ya aprobado: lo único que falta es cobrar (mismo modal que el bloque de Cobros)
+                  const r = selected
+                  const clave = r.estatus !== 'Inscrito' ? null
+                    : r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION' ? 'formalizacion_afiliacion' as const
+                    : ['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && !r.pago_programa && Number(r.completado) !== 1 ? 'programa' as const
+                    : null
+                  if (!clave) return null
+                  return (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {clave === 'programa' ? `Arancel ${r.programa_codigo} pendiente` : 'Formalización pendiente'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCobro(clave)}
+                        className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <CreditCard size={14} aria-hidden="true" />
+                        {clave === 'programa' ? 'Registrar cobro' : 'Cobrar y formalizar'}
+                      </button>
+                    </div>
+                  )
+                })()}
+
               </div>
             )}
 
@@ -1616,7 +1669,28 @@ export default function PreinscripcionesPrincipalesPanel({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
             <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-4">Programar Entrevista</h3>
+            <div className="grid grid-cols-2 gap-1 p-1 mb-4 rounded-xl bg-slate-100">
+              {([['enlace', 'Que elija'], ['manual', 'Fijar a mano']] as const).map(([modo, texto]) => (
+                <button key={modo} type="button" aria-pressed={modoAgenda === modo} onClick={() => setModoAgenda(modo)}
+                  className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${modoAgenda === modo ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}>
+                  {texto}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-col gap-4">
+              {modoAgenda === 'enlace' ? (
+                <>
+                  <p className="text-xs text-slate-600">Se envía un enlace al aspirante para que elija uno de tus horarios disponibles. La entrevista será por Google Meet.</p>
+                  <button type="button" onClick={enviarEnlaceAgenda} disabled={enviandoEnlace}
+                    className="w-full py-3 rounded-xl bg-emerald-600 text-white font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2">
+                    {enviandoEnlace ? <><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /><span>Creando enlace…</span></> : 'Enviar enlace'}
+                  </button>
+                  <button type="button" onClick={() => setShowDisponibilidad(true)} className="w-full text-emerald-700 font-bold uppercase text-[10px] hover:underline">
+                    Mi disponibilidad
+                  </button>
+                </>
+              ) : (
+                <>
               <input type="date" value={entrevista.fecha} onChange={e => setEntrevista({ ...entrevista, fecha: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
               <input type="time" value={entrevista.hora} onChange={e => setEntrevista({ ...entrevista, hora: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
               <input type="text" value={entrevista.lugar} onChange={e => setEntrevista({ ...entrevista, lugar: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" placeholder="Lugar..." />
@@ -1634,6 +1708,8 @@ export default function PreinscripcionesPrincipalesPanel({
                   'Confirmar Cita'
                 )}
               </button>
+                </>
+              )}
               <button 
                 onClick={() => setShowModalAgendar(false)} 
                 disabled={submittingAgendar}
@@ -1646,35 +1722,12 @@ export default function PreinscripcionesPrincipalesPanel({
         </div>
       )}
 
+      {showDisponibilidad && <DisponibilidadEntrevistasModal onCerrar={() => setShowDisponibilidad(false)} authHeaders={authHeaders} />}
+
       {/* Modal Finalizar */}
       {cobro && selected && (
         <ModalCobroTaquilla
           open
-                {(() => {
-                  // Ya aprobado: lo único que falta es cobrar (mismo modal que el bloque de Cobros)
-                  const r = selected
-                  const clave = r.estatus !== 'Inscrito' ? null
-                    : r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION' ? 'formalizacion_afiliacion' as const
-                    : ['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && !r.pago_programa && Number(r.completado) !== 1 ? 'programa' as const
-                    : null
-                  if (!clave) return null
-                  return (
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {clave === 'programa' ? `Arancel ${r.programa_codigo} pendiente` : 'Formalización pendiente'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setCobro(clave)}
-                        className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <CreditCard size={14} aria-hidden="true" />
-                        {clave === 'programa' ? 'Registrar cobro' : 'Cobrar y formalizar'}
-                      </button>
-                    </div>
-                  )
-                })()}
-
           onClose={() => setCobro(null)}
           onSuccess={(pago) => { setCobro(null); abrirRecibo(pago); fetchData(true) }}
           afiliadoId={selected.id_afiliado ?? null}

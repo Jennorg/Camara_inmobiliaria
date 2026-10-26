@@ -6,6 +6,9 @@ import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
 import { MENSAJE_PAGO_CIBIR_REQUERIDO, puedeEntrarACibir } from '../services/pagos.service.js'
+import { agendarEntrevista } from '../services/entrevistas.service.js'
+import { asegurarAgenda } from '../services/agenda.service.js'
+import { borrarEventoPrevio } from './agenda.controller.js'
 import { esCupoIlimitado, precioCurso, sqlOcupaCupo, venceReserva } from '../lib/cursos-pago.js'
 import { asegurarCohortes } from '../services/cohortes.service.js'
 
@@ -2687,74 +2690,21 @@ export const adminAgendarEntrevista = async (req: Request, res: Response): Promi
       return
     }
 
-    const now = new Date().toISOString()
-    const result = await db.execute({
-      sql: `UPDATE inscripciones_cursos 
-            SET estatus='Entrevista', actualizado_en=?
-            WHERE id_inscripcion=? AND estatus IN ('Preinscrito', 'Entrevista')
-            RETURNING *`,
-      args: [now, id],
-    })
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Preinscripción no encontrada o ya procesada' })
-      return
-    }
-
-    const row = result.rows[0] as any
-
-    const existingEnt = await db.execute({
-      sql: `SELECT id_entrevista FROM entrevistas WHERE id_inscripcion = ? AND eliminado_en IS NULL LIMIT 1`,
-      args: [id]
-    })
-
-    if (existingEnt.rows.length > 0) {
-      const idEntrevista = existingEnt.rows[0].id_entrevista
-      await db.execute({
-        sql: `UPDATE entrevistas SET fecha = ?, hora = ?, lugar = ?, estatus = 'Pendiente', actualizado_en = ? WHERE id_entrevista = ?`,
-        args: [entrevistaFecha, entrevistaHora, entrevistaLugar, now, idEntrevista]
-      })
-    } else {
-      await db.execute({
-        sql: `INSERT INTO entrevistas (id_inscripcion, fecha, hora, lugar, estatus, creado_en) VALUES (?, ?, ?, ?, 'Pendiente', ?)`,
-        args: [id, entrevistaFecha, entrevistaHora, entrevistaLugar, now]
-      })
-    }
-
-    // Actualizar afiliados si aplica (etapa 3_ENTREVISTA)
-    if (row.programa_codigo === 'AFILIACION' || row.programa_codigo === 'CIBIR') {
-      try {
-        await db.execute({
-          sql: `UPDATE afiliados 
-                SET estatus = '3_ENTREVISTA', 
-                    fecha_ultimo_cambio_estatus = ?,
-                    actualizado_en = ?
-                WHERE id_afiliado IN (
-                  SELECT af.id_afiliado 
-                  FROM afiliados af
-                  JOIN estudiantes e ON (e.id_persona = af.id_persona OR (e.id_empresa IS NOT NULL AND e.id_empresa = af.id_empresa))
-                  WHERE e.id_estudiante = ?
-                )`,
-          args: [now, now, row.id_estudiante]
-        })
-      } catch (afErr) {
-        console.error('Error actualizando estatus a 3_ENTREVISTA en afiliados:', afErr)
+    let agendada
+    try {
+      await asegurarAgenda(db) // crea las columnas meet_url / google_event_id que usa agendarEntrevista
+      agendada = await agendarEntrevista(db, id, { fecha: entrevistaFecha, hora: entrevistaHora, lugar: entrevistaLugar })
+    } catch (e) {
+      if ((e as { status?: number }).status === 404) {
+        res.status(404).json({ success: false, message: (e as Error).message })
+        return
       }
+      throw e
     }
+    const { row, estudiante, eventoPrevio } = agendada
+    if (eventoPrevio) void borrarEventoPrevio(eventoPrevio)
 
     try {
-      const estRes = await db.execute({
-        sql: `SELECT 
-                COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo,
-                COALESCE(p.email, emp.email) as email
-              FROM estudiantes e 
-              LEFT JOIN personas p ON e.id_persona = p.id
-              LEFT JOIN empresas emp ON e.id_empresa = emp.id_empresa
-              WHERE e.id_estudiante = ?`,
-        args: [row.id_estudiante]
-      })
-      const estudiante = estRes.rows[0] as any
-
       if (estudiante?.email) {
         await enviarCorreoAprobacionEstudiante({
           nombre: estudiante.nombre_completo,
