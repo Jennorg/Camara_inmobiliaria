@@ -48,27 +48,13 @@ export async function generateAfiliadosPdf({
   const columns = AFILIADOS_EXPORT_COLUMNS.filter((c) => columnIds.includes(c.id))
   if (columns.length === 0) return
 
-  // Excluir los que no tienen código asignado y ordenar por código de forma ascendente
-  const sortedRows = rows
-    .filter((row) => {
-      const code = row.codigo?.trim()
-      return code !== undefined && code !== null && code !== ''
-    })
-    .sort((a, b) => {
-      const codeA = a.codigo?.trim() || ''
-      const codeB = b.codigo?.trim() || ''
-      
-      const numA = Number(codeA)
-      const numB = Number(codeB)
-      
-      const isNumA = !Number.isNaN(numA) && codeA !== ''
-      const isNumB = !Number.isNaN(numB) && codeB !== ''
-      
-      if (isNumA && isNumB) {
-        return numA - numB
-      }
-      return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' })
-    })
+  // Ordenados por código; quienes aún no tienen (p. ej. cursando el CIBIR) van al final
+  const sortedRows = [...rows].sort((a, b) => {
+    const codeA = a.codigo?.trim() || ''
+    const codeB = b.codigo?.trim() || ''
+    if (!codeA || !codeB) return codeA ? -1 : codeB ? 1 : 0
+    return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' })
+  })
 
   const landscape = columns.length > 4
   const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' })

@@ -44,6 +44,15 @@ export interface ExportAfiliadosInitialFilters {
   search?: string
 }
 
+interface CohorteOpt {
+  id_cohorte: number
+  programa_codigo: string
+  numero: number
+  nombre?: string | null
+}
+
+const cohorteLabel = (c: CohorteOpt) => c.nombre || `Cohorte ${c.numero}`
+
 interface ExportAfiliadosModalProps {
   open: boolean
   onClose: () => void
@@ -64,6 +73,7 @@ export default function ExportAfiliadosModal({
     estatus: initialFilters?.estatus ?? 'Todos',
     activo: initialFilters?.activo ?? 'todos',
     foto: initialFilters?.foto ?? 'todos',
+    cohorte: '',
     search: initialFilters?.search ?? '',
     searchField: 'todos',
     desdeCodigo: '',
@@ -74,6 +84,7 @@ export default function ExportAfiliadosModal({
   const [previewItems, setPreviewItems] = useState<AfiliadoDTO[]>([])
   const [previewLoading, setPreviewLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [cohortes, setCohortes] = useState<CohorteOpt[]>([])
   const [error, setError] = useState('')
 
   const [prevOpen, setPrevOpen] = useState(open)
@@ -85,6 +96,7 @@ export default function ExportAfiliadosModal({
         estatus: initialFilters?.estatus ?? 'Todos',
         activo: initialFilters?.activo ?? 'todos',
         foto: initialFilters?.foto ?? 'todos',
+        cohorte: '',
         search: initialFilters?.search ?? '',
         desdeCodigo: '',
         fechaDesde: '',
@@ -103,6 +115,9 @@ export default function ExportAfiliadosModal({
       if (filters.tipo !== 'Todos') {
         qs.set('tipo_afiliado', filters.tipo)
       }
+      const [clave, valor] = (filters.cohorte ?? '').split(':')
+      if (clave === 'programa') qs.set('programa', valor)
+      if (clave === 'cohorte') qs.set('id_cohorte', valor)
       const url = `${API_URL}/api/afiliados${qs.toString() ? `?${qs}` : ''}`
       const res = await fetch(url, { headers: authHeaders, signal })
       const json = await res.json()
@@ -116,7 +131,15 @@ export default function ExportAfiliadosModal({
       }
       throw err
     }
-  }, [authHeaders, filters.estatus, filters.tipo])
+  }, [authHeaders, filters.estatus, filters.tipo, filters.cohorte])
+
+  useEffect(() => {
+    if (!open) return
+    fetch(`${API_URL}/api/academia/cohortes`, { headers: authHeaders })
+      .then((r) => r.json())
+      .then((j) => j.success && setCohortes(j.data))
+      .catch(() => setCohortes([]))
+  }, [open, authHeaders])
 
   useEffect(() => {
     if (!open) return
@@ -150,6 +173,21 @@ export default function ExportAfiliadosModal({
     [previewItems, filters]
   )
 
+  const programas = useMemo(() => [...new Set(cohortes.map((c) => c.programa_codigo))], [cohortes])
+  const [claveCoh, valorCoh] = (filters.cohorte ?? '').split(':')
+  const cohorteSel = claveCoh === 'cohorte' ? valorCoh : ''
+  const programaSel =
+    claveCoh === 'programa'
+      ? valorCoh
+      : cohortes.find((c) => String(c.id_cohorte) === cohorteSel)?.programa_codigo ?? ''
+
+  const cohorteDescripcion = useMemo(() => {
+    const [clave, valor] = (filters.cohorte ?? '').split(':')
+    if (clave === 'programa') return `${valor} (todas las cohortes)`
+    const c = cohortes.find((x) => String(x.id_cohorte) === valor)
+    return c ? `${c.programa_codigo} · ${cohorteLabel(c)}` : valor
+  }, [filters.cohorte, cohortes])
+
   const toggleColumn = (id: ExportColumnId) => {
     setSelectedColumns((prev) => {
       if (prev.includes(id)) {
@@ -178,6 +216,7 @@ export default function ExportAfiliadosModal({
       estatus: 'Todos',
       activo: 'todos',
       foto: 'todos',
+      cohorte: '',
       search: '',
       desdeCodigo: '',
       fechaDesde: '',
@@ -206,7 +245,10 @@ export default function ExportAfiliadosModal({
       await generateAfiliadosPdf({
         rows,
         columnIds: selectedColumns,
-        filterSummary: describeExportFilters(filters),
+        filterSummary: [
+          ...describeExportFilters(filters),
+          ...(filters.cohorte ? [`Programa / cohorte: ${cohorteDescripcion}`] : []),
+        ],
       })
       toast.success('Reporte generado exitosamente')
       onClose()
@@ -462,6 +504,56 @@ export default function ExportAfiliadosModal({
                       <option value="Suspendido">Suspendido</option>
                       <option value="Rechazado">Rechazado</option>
                     </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              {/* Programa y Cohorte: dos dropdowns; al elegir uno se relaja el estatus para no dar 0 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                    <Filter size={12} className="text-emerald-600" /> Programa
+                  </label>
+                  <select
+                    value={programaSel}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        cohorte: e.target.value ? `programa:${e.target.value}` : '',
+                        estatus: e.target.value ? 'Todos' : f.estatus,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Todos los programas</option>
+                    {programas.map((prog) => (
+                      <option key={prog} value={prog}>{prog}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                    <Filter size={12} className="text-emerald-600" /> Cohorte
+                  </label>
+                  <select
+                    value={cohorteSel}
+                    disabled={!programaSel}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        cohorte: e.target.value ? `cohorte:${e.target.value}` : `programa:${programaSel}`,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Todas las cohortes</option>
+                    {cohortes
+                      .filter((c) => c.programa_codigo === programaSel)
+                      .map((c) => (
+                        <option key={c.id_cohorte} value={c.id_cohorte}>
+                          {cohorteLabel(c)}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>

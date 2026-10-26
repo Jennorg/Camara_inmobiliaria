@@ -4,6 +4,8 @@ import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 import { env } from '../config/env.js';
 import { isAsistente, isStaff } from '../middlewares/auth.middleware.js';
+import { asegurarCohortes } from '../services/cohortes.service.js';
+import { esProgramaCohorte } from '../lib/cohortes.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
 
@@ -875,6 +877,21 @@ export const getAfiliados = async (req: Request, res: Response) => {
     if (!Number.isNaN(idEmpresa) && idEmpresa > 0) {
       sql += ' AND a.id_empresa = ?';
       args.push(idEmpresa);
+    }
+
+    // Afiliados con inscripción en una cohorte (de un programa, o de una cohorte concreta)
+    const { programa, id_cohorte } = req.query;
+    const idCohorte = Number(id_cohorte);
+    if (idCohorte > 0 || esProgramaCohorte(programa)) {
+      await asegurarCohortes();
+      sql += ` AND EXISTS (
+        SELECT 1 FROM inscripciones_cursos ic
+        JOIN estudiantes es ON es.id_estudiante = ic.id_estudiante
+        JOIN cohortes c ON c.id_cohorte = ic.id_cohorte
+        WHERE ((es.id_persona IS NOT NULL AND es.id_persona = a.id_persona)
+            OR (es.id_empresa IS NOT NULL AND es.id_empresa = a.id_empresa))
+          AND ${idCohorte > 0 ? 'c.id_cohorte = ?' : 'c.programa_codigo = ?'})`;
+      args.push(idCohorte > 0 ? idCohorte : (programa as string));
     }
 
     sql += ' ORDER BY a.fecha_registro DESC';
