@@ -657,7 +657,7 @@ export default function VerificarPreinscripcionProgramaPage() {
               : 'border-slate-100 hover:border-emerald-200 text-slate-500 bg-white'
               }`}
           >
-            No, haré el CIBIR
+            Haré el CIBIR
           </button>
         </div>
 
