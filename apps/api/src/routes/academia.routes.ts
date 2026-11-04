@@ -6,6 +6,9 @@ import {
   adminFinalizarEntrevista,
   adminGetEstudiante,
   adminGetEstudianteDocumentos,
+  adminAgregarEstudianteDocumento,
+  adminCrearInscripcionManual,
+  adminQuitarEstudianteDocumento,
   adminListCursos,
   adminCreateCurso,
   adminUpdateCurso,
@@ -63,6 +66,8 @@ router.get('/estudiantes/:id', adminGetEstudiante)
 
 // GET /api/academia/estudiantes/:id/documentos
 router.get('/estudiantes/:id/documentos', adminGetEstudianteDocumentos)
+router.post('/estudiantes/:id/documentos', adminAgregarEstudianteDocumento)
+router.delete('/estudiantes/:id/documentos/:idDocumento', adminQuitarEstudianteDocumento)
 
 // POST /api/academia/cursos/:id_curso/asignar
 router.post('/cursos/:id_curso/asignar', adminAsignarEstudianteACurso)
@@ -134,6 +139,9 @@ router.post('/cohortes', adminCrearCohorte)
 router.patch('/cohortes/:id/estado', adminCambiarEstadoCohorte)
 router.get('/cohortes/:id/inscritos.xlsx', adminExportarCohorte)
 router.patch('/inscripciones/:id/cohorte', adminAsignarCohorte)
+
+// POST /api/academia/inscripciones/manual — agrega a una persona a CIBIR/PREANI/PEGI/PADI
+router.post('/inscripciones/manual', adminCrearInscripcionManual)
 
 export { router as academiaRoutes }
 

@@ -417,6 +417,7 @@ const ETIQUETAS_DOCUMENTO: Record<string, string> = {
   cv: 'Currículum Vitae',
   titulo: 'Título Profesional',
   registro_mercantil: 'Registro Mercantil',
+  rif_empresa: 'RIF de la Empresa',
   titulo_representante: 'Título de Representante',
   especializacion: 'Especialización',
   curso_extra: 'Curso Adicional',

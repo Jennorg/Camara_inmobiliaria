@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 import { randomUUID, createHash } from 'crypto'
+import { esProgramaCohorte } from '../lib/cohortes.js'
 import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
@@ -2420,7 +2421,14 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
             WHEN ic.programa_codigo = 'CIBIR' OR af.cibir_acreditado = 1 OR af.estatus IN ('5_CIBIR', '6_INSCRIPCION', 'Afiliado') THEN (SELECT COUNT(*) FROM acreditaciones_cibir ac WHERE ac.id_afiliado = af.id_afiliado AND ac.estatus = 'aprobado')
             ELSE (SELECT COUNT(*) FROM modulos_inscripcion mi WHERE mi.id_inscripcion = ic.id_inscripcion AND mi.estatus = 'Aprobado')
           END as modulos_aprobados,
-          (SELECT COUNT(*) FROM documentos d_count WHERE d_count.entidad_tipo = 'estudiante' AND d_count.entidad_id = e.id_estudiante AND d_count.eliminado_en IS NULL) as num_documentos,
+          -- En afiliación el expediente cuenta como cargado solo con el mínimo: CV; las empresas, además registro mercantil y RIF
+          CASE WHEN ic.programa_codigo = 'AFILIACION' AND NOT (
+                 EXISTS (SELECT 1 FROM documentos dm WHERE dm.entidad_tipo = 'estudiante' AND dm.entidad_id = e.id_estudiante AND dm.eliminado_en IS NULL AND dm.tipo_archivo = 'cv')
+                 AND (NOT (af.tipo_afiliado = 'Corporativo' OR e.id_empresa IS NOT NULL)
+                      OR (EXISTS (SELECT 1 FROM documentos dm WHERE dm.entidad_tipo = 'estudiante' AND dm.entidad_id = e.id_estudiante AND dm.eliminado_en IS NULL AND dm.tipo_archivo = 'registro_mercantil') AND EXISTS (SELECT 1 FROM documentos dm WHERE dm.entidad_tipo = 'estudiante' AND dm.entidad_id = e.id_estudiante AND dm.eliminado_en IS NULL AND dm.tipo_archivo = 'rif_empresa')))
+               ) THEN 0
+            ELSE (SELECT COUNT(*) FROM documentos d_count WHERE d_count.entidad_tipo = 'estudiante' AND d_count.entidad_id = e.id_estudiante AND d_count.eliminado_en IS NULL)
+          END as num_documentos,
           e.id_estudiante,
           COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as estudiante_nombre,
           p.nombres as estudiante_nombres,
@@ -2428,6 +2436,9 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           COALESCE(p.email, emp.email) as estudiante_email,
           COALESCE(p.telefono, emp.telefono) as estudiante_telefono,
           COALESCE(p.cedula_tipo || '-' || p.cedula, 'J-' || REPLACE(emp.rif_numero, 'J-', '')) as estudiante_cedula,
+          p.cedula as estudiante_cedula_num,
+          emp.rif_numero as estudiante_rif,
+          af.codigo as afiliado_codigo,
           p.nivel_academico as estudiante_nivel_profesional,
           p.profesion as estudiante_profesion,
           e.es_corredor_inmobiliario as estudiante_es_corredor_inmobiliario,
@@ -3630,6 +3641,37 @@ export const adminUpdateInscripcionDatos = async (req: Request, res: Response): 
       })
     }
 
+    // Datos profesionales: solo se tocan si vienen en el cuerpo (el formulario de Cursos no los envía)
+    const { nivelAcademico, profesion, anoInicioServicio, esCorredor } = req.body
+    if (idPersona && (typeof nivelAcademico === 'string' || typeof profesion === 'string')) {
+      await db.execute({
+        sql: `UPDATE personas SET
+                nivel_academico = CASE WHEN ? IS NULL THEN nivel_academico ELSE NULLIF(TRIM(?), '') END,
+                profesion = CASE WHEN ? IS NULL THEN profesion ELSE NULLIF(TRIM(?), '') END
+              WHERE id = ?`,
+        args: [
+          typeof nivelAcademico === 'string' ? nivelAcademico : null, typeof nivelAcademico === 'string' ? nivelAcademico : null,
+          typeof profesion === 'string' ? profesion : null, typeof profesion === 'string' ? profesion : null,
+          idPersona,
+        ],
+      })
+    }
+    if (anoInicioServicio !== undefined) {
+      const ano = anoInicioServicio === '' || anoInicioServicio === null ? null : Number(anoInicioServicio)
+      if (ano !== null && (!Number.isInteger(ano) || ano < 1900 || ano > new Date().getFullYear())) {
+        res.status(400).json({ success: false, message: 'Año de inicio de servicio inválido' })
+        return
+      }
+      await db.execute({
+        sql: `UPDATE afiliados SET ano_inicio_servicio = ?, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+              WHERE (? IS NOT NULL AND id_persona = ?) OR (? IS NOT NULL AND id_empresa = ?)`,
+        args: [ano, idPersona ?? null, idPersona ?? null, idEmpresa ?? null, idEmpresa ?? null],
+      })
+    }
+    if (typeof esCorredor === 'boolean') {
+      await db.execute({ sql: `UPDATE estudiantes SET es_corredor_inmobiliario = ? WHERE id_estudiante = ?`, args: [esCorredor ? 1 : 0, ins.id_estudiante] })
+    }
+
     res.json({ success: true, message: 'Datos del participante actualizados correctamente' })
   } catch (error) {
     console.error('adminUpdateInscripcionDatos:', error)
@@ -3900,6 +3942,137 @@ export const adminGetEstudianteDocumentos = async (req: Request, res: Response):
   } catch (error) {
     console.error('adminGetEstudianteDocumentos:', error)
     res.status(500).json({ success: false, message: 'Error al obtener documentos' })
+  }
+}
+
+/**
+ * POST /api/academia/inscripciones/manual
+ * { programa_codigo: CIBIR|PREANI|PEGI|PADI, tipo_registro?: 'educacion'|'afiliacion', nombres, apellidos, cedulaRif, email, telefono?, nivelProfesional?, esCorredorInmobiliario? }
+ * Agrega a una persona sin pasar por el formulario público:
+ *  - 'educacion' (por defecto): solo cursa el programa, como Preinscrito, sin cohorte (se asigna después desde la ficha).
+ *  - 'afiliacion' (solo CIBIR): flujo regular de afiliación (Expediente → … → CIBIR → Afiliado); entra a la cohorte
+ *    del CIBIR cuando el afiliado llega a esa etapa.
+ * La admisión sigue el flujo normal de aprobación.
+ */
+export const adminCrearInscripcionManual = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const b = req.body ?? {}
+    const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+    const programa = str(b.programa_codigo)
+    const nombres = str(b.nombres), apellidos = str(b.apellidos), cedulaRif = str(b.cedulaRif)
+    const email = str(b.email).toLowerCase()
+    if (!esProgramaCohorte(programa)) { res.status(400).json({ success: false, message: 'Programa inválido' }); return }
+    const afiliacion = str(b.tipo_registro) === 'afiliacion'
+    if (afiliacion && programa !== 'CIBIR') { res.status(400).json({ success: false, message: 'El flujo de afiliación solo aplica al CIBIR' }); return }
+    const programaInsc = afiliacion ? 'AFILIACION' : programa
+    if (!nombres || !apellidos || !cedulaRif || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ success: false, message: 'Nombres, apellidos, cédula y un correo válido son obligatorios' })
+      return
+    }
+
+    const cleanCed = cedulaRif.replace(/\D/g, '')
+    const existing = await db.execute({
+      sql: `SELECT ic.estatus, ic.estatus_academico
+            FROM inscripciones_cursos ic
+            JOIN estudiantes e ON ic.id_estudiante = e.id_estudiante
+            LEFT JOIN personas p ON e.id_persona = p.id
+            WHERE ic.programa_codigo = ? AND ic.id_curso IS NULL
+              AND (LOWER(TRIM(p.email)) = ? OR (? != '' AND p.cedula = ?))
+            LIMIT 1`,
+      args: [programaInsc, email, cleanCed, cleanCed],
+    })
+    const prev = existing.rows[0] as any
+    if (prev && !(prev.estatus === 'Rechazado' || prev.estatus === 'Cancelado' || ['Aprobado', 'Reprobado', 'Retirado'].includes(prev.estatus_academico))) {
+      res.status(409).json({ success: false, message: `Esta persona ya tiene una inscripción en ${afiliacion ? 'el proceso de afiliación' : programa} (${prev.estatus}).` })
+      return
+    }
+    if (afiliacion) {
+      const yaAfiliado = await db.execute({
+        sql: `SELECT a.estatus FROM afiliados a JOIN personas p ON p.id = a.id_persona
+              WHERE a.eliminado_en IS NULL AND a.estatus = 'Afiliado' AND (LOWER(TRIM(p.email)) = ? OR (? != '' AND p.cedula = ?)) LIMIT 1`,
+        args: [email, cleanCed, cleanCed],
+      })
+      if (yaAfiliado.rows.length) { res.status(409).json({ success: false, message: 'Esta persona ya es afiliada.' }); return }
+    }
+
+    const { id_estudiante } = await upsertEstudianteByEmail({
+      nombreCompleto: `${nombres} ${apellidos}`, nombres, apellidos, email, cedulaRif,
+      telefono: str(b.telefono) || null, tipo: afiliacion ? 'Afiliado' : 'Regular',
+      nivelProfesional: normalizeNivelProfesional(b.nivelProfesional) || 'Nivel Profesional',
+      esCorredorInmobiliario: normalizeEsCorredorInmobiliario(b.esCorredorInmobiliario) ?? true,
+    })
+
+    const now = new Date().toISOString()
+    if (afiliacion) {
+      // Candidato a afiliado (persona natural) en la etapa de expediente, igual que tras confirmar la preinscripción pública
+      const est = await db.execute({ sql: `SELECT id_persona FROM estudiantes WHERE id_estudiante = ?`, args: [id_estudiante] })
+      const idPersona = (est.rows[0] as any)?.id_persona
+      if (!idPersona) { res.status(400).json({ success: false, message: 'No se pudo asociar la persona al registro' }); return }
+      await db.execute({
+        sql: `INSERT INTO afiliados (id_persona, id_empresa, tipo_afiliado, estatus, actualizado_en)
+              VALUES (?, NULL, 'Natural', '2_EXPEDIENTE', ?)
+              ON CONFLICT(id_persona) DO UPDATE SET
+                estatus = CASE WHEN afiliados.estatus IN ('Afiliado', 'Aprobado', 'CIBIR') THEN afiliados.estatus ELSE '2_EXPEDIENTE' END,
+                actualizado_en = excluded.actualizado_en`,
+        args: [idPersona, now],
+      })
+    }
+    const r = await db.execute({
+      sql: `INSERT INTO inscripciones_cursos (id_estudiante, id_curso, programa_codigo, tipo_inscripcion, estatus, creado_en, actualizado_en)
+            VALUES (?, NULL, ?, 'programa', 'Preinscrito', ?, ?)
+            ON CONFLICT DO UPDATE SET estatus = 'Preinscrito', estatus_academico = 'Inscrito', completado = 0,
+              tipo_inscripcion = 'programa', actualizado_en = excluded.actualizado_en
+            RETURNING id_inscripcion`,
+      args: [id_estudiante, programaInsc, now, now],
+    })
+    const idInscripcion = Number(r.rows[0].id_inscripcion)
+    // La solicitud queda sin cohorte (el trigger asigna la abierta al insertar): se elige después desde la ficha
+    await db.execute({ sql: `UPDATE inscripciones_cursos SET id_cohorte = NULL WHERE id_inscripcion = ?`, args: [idInscripcion] })
+    res.status(201).json({ success: true, data: { id_inscripcion: idInscripcion, id_estudiante } })
+  } catch (error) {
+    console.error('adminCrearInscripcionManual:', error)
+    res.status(500).json({ success: false, message: 'Error al agregar el inscrito' })
+  }
+}
+
+/** POST /api/academia/estudiantes/:id/documentos  { tipo_doc, url, nombre_archivo? } — agrega un soporte al expediente */
+export const adminAgregarEstudianteDocumento = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const { tipo_doc, url, nombre_archivo } = req.body ?? {}
+    if (!Number.isFinite(id) || typeof tipo_doc !== 'string' || !tipo_doc.trim() || typeof url !== 'string' || !/^https?:\/\//.test(url)) {
+      res.status(400).json({ success: false, message: 'Faltan el tipo de documento y el archivo' })
+      return
+    }
+    const existe = await db.execute({ sql: `SELECT 1 FROM estudiantes WHERE id_estudiante = ?`, args: [id] })
+    if (!existe.rows.length) { res.status(404).json({ success: false, message: 'Estudiante no encontrado' }); return }
+    await db.execute({
+      sql: `INSERT INTO documentos (entidad_tipo, entidad_id, tipo_archivo, url, nombre_archivo) VALUES ('estudiante', ?, ?, ?, ?)`,
+      args: [id, tipo_doc.trim(), url, typeof nombre_archivo === 'string' ? nombre_archivo : null],
+    })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('adminAgregarEstudianteDocumento:', error)
+    res.status(500).json({ success: false, message: 'Error al agregar el documento' })
+  }
+}
+
+/** DELETE /api/academia/estudiantes/:id/documentos/:idDocumento — quita un soporte (borrado lógico) */
+export const adminQuitarEstudianteDocumento = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id)
+    const idDoc = Number(req.params.idDocumento)
+    if (!Number.isFinite(id) || !Number.isFinite(idDoc)) { res.status(400).json({ success: false, message: 'id inválido' }); return }
+    const r = await db.execute({
+      sql: `UPDATE documentos SET eliminado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')
+            WHERE id_documento = ? AND entidad_tipo = 'estudiante' AND entidad_id = ? AND eliminado_en IS NULL`,
+      args: [idDoc, id],
+    })
+    if (!r.rowsAffected) { res.status(404).json({ success: false, message: 'Documento no encontrado' }); return }
+    res.json({ success: true })
+  } catch (error) {
+    console.error('adminQuitarEstudianteDocumento:', error)
+    res.status(500).json({ success: false, message: 'Error al quitar el documento' })
   }
 }
 
