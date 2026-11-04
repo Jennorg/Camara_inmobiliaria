@@ -140,6 +140,16 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
 
   if (!isOpen) return null
 
+  /** Al salir del campo RIF, rellena el proveedor con el nombre ya conocido (empresas y gastos anteriores) si está vacío */
+  const autocompletarNombre = async () => {
+    if (proveedorCliente.trim() || rifCedula.replace(/\D/g, '').length < 5) return
+    try {
+      const r = await fetch(`${API_URL}/api/finanzas/nombre-por-rif?rif=${encodeURIComponent(rifCedula)}`, { headers: authHeaders })
+      const j = await r.json()
+      if (j?.success && j.data?.nombre) { setProveedorCliente(prev => prev.trim() ? prev : j.data.nombre); toast.success(`Nombre encontrado: ${j.data.nombre}`) }
+    } catch { /* sin conexión: se escribe a mano */ }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -294,6 +304,7 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
                 type="text"
                 value={rifCedula}
                 onChange={e => setRifCedula(e.target.value.toUpperCase())}
+                onBlur={autocompletarNombre}
                 placeholder="Ej. J-12345678-9"
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none uppercase"
               />

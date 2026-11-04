@@ -183,3 +183,26 @@ export async function cuentasPorCobrar() {
   })
   return { fecha: hoy, filas, tramos, total_usd: redondear(filas.reduce((a, f) => a + f.monto_usd, 0)) }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Nombre por RIF (datos propios)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const soloDigitos = (v: unknown) => String(v ?? '').replace(/\D/g, '')
+
+/**
+ * Busca el nombre de una empresa o proveedor por su RIF/cédula en lo que ya conoce el sistema:
+ * empresas afiliadas y proveedores de gastos anteriores. No consulta el SENIAT (exige captcha y bloquea el acceso automático).
+ */
+export async function nombrePorRif(rif: string): Promise<{ nombre: string; fuente: 'empresa' | 'gasto' } | null> {
+  const buscado = soloDigitos(rif)
+  if (buscado.length < 5) return null
+  const [empresas, gastos] = await Promise.all([
+    db.execute(`SELECT razon_social, rif_numero FROM empresas WHERE eliminado_en IS NULL AND rif_numero IS NOT NULL`),
+    db.execute(`SELECT proveedor_cliente, rif_cedula FROM movimientos_financieros WHERE eliminado_en IS NULL AND rif_cedula IS NOT NULL ORDER BY fecha DESC`),
+  ])
+  const emp = (empresas.rows as any[]).find(r => soloDigitos(r.rif_numero) === buscado && String(r.razon_social ?? '').trim())
+  if (emp) return { nombre: String(emp.razon_social).trim(), fuente: 'empresa' }
+  const gasto = (gastos.rows as any[]).find(r => soloDigitos(r.rif_cedula) === buscado && String(r.proveedor_cliente ?? '').trim())
+  return gasto ? { nombre: String(gasto.proveedor_cliente).trim(), fuente: 'gasto' } : null
+}
