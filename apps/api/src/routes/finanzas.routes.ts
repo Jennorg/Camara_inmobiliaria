@@ -14,6 +14,7 @@ import {
   resetTasaManual,
   getHistorialTasas,
   getIngresosPorConcepto,
+  getIngresosPorCohorte,
   getEgresosPorConcepto,
   getCuentasPorCobrar,
   exportarXlsx
@@ -35,6 +36,7 @@ router.delete('/movimientos/:id', eliminarMovimiento);
 
 // ── Reportes de control ──
 router.get('/ingresos-por-concepto', getIngresosPorConcepto);
+router.get('/ingresos-por-cohorte', getIngresosPorCohorte);
 router.get('/egresos-por-concepto', getEgresosPorConcepto);
 router.get('/cuentas-por-cobrar', getCuentasPorCobrar);
 router.get('/export/:reporte.xlsx', exportarXlsx);

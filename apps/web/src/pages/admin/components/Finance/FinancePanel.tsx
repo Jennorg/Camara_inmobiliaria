@@ -25,7 +25,8 @@ import {
   Filter, 
   X,
   CreditCard,
-  Ban
+  Ban,
+  GraduationCap,
 } from 'lucide-react'
 import SolvenciaPanel from './SolvenciaPanel'
 import { API_URL } from '@/config/env'
@@ -41,7 +42,7 @@ import Paginacion, { type PaginacionDTO } from '@/pages/admin/components/Finance
 import ModalRegistrarCobro from '@/pages/admin/components/Finance/ModalRegistrarCobro'
 import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
-import { CuentasPorCobrar, EgresosPorConcepto, IngresosPorConcepto, descargarXlsx } from './ReportesControl'
+import { CuentasPorCobrar, EgresosPorConcepto, IngresosPorCohorte, IngresosPorConcepto, descargarXlsx } from './ReportesControl'
 import ModalReporte from '@/pages/admin/components/Finance/ModalReporte'
 import type { PagoDTO } from '@/types/pagos'
 import { BinanceIcon } from '@/components/icons/BinanceIcon'
@@ -164,6 +165,7 @@ export default function FinancePanel() {
   const [modalCobroOpen, setModalCobroOpen] = useState(false)
   const [modalIngresosOpen, setModalIngresosOpen] = useState(false)
   const [modalEgresosOpen, setModalEgresosOpen] = useState(false)
+  const [modalCohortesOpen, setModalCohortesOpen] = useState(false)
   const [modalCuentasOpen, setModalCuentasOpen] = useState(false)
   const [modalArancelesOpen, setModalArancelesOpen] = useState(false)
   
@@ -929,6 +931,13 @@ export default function FinancePanel() {
               </select>
 
               <button
+                onClick={() => setModalCohortesOpen(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <GraduationCap size={13} aria-hidden="true" />
+                Ingresos por cohorte
+              </button>
+              <button
                 onClick={() => setModalIngresosOpen(true)}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-sm"
               >
@@ -1231,6 +1240,11 @@ export default function FinancePanel() {
       <ModalReporte open={modalIngresosOpen} onClose={() => setModalIngresosOpen(false)} icono={<TrendingUp className="w-5 h-5" aria-hidden="true" />}
         titulo="Ingresos por concepto" subtitulo={`Ingresos verificados de ${selectedYear}, por mes`}>
         <IngresosPorConcepto anio={selectedYear} />
+      </ModalReporte>
+
+      <ModalReporte open={modalCohortesOpen} onClose={() => setModalCohortesOpen(false)} icono={<GraduationCap className="w-5 h-5" aria-hidden="true" />}
+        titulo="Ingresos por cohorte" subtitulo="Ingresos verificados de CIBIR, PREANI, PEGI y PADI, por cohorte">
+        <IngresosPorCohorte />
       </ModalReporte>
 
       <ModalReporte open={modalEgresosOpen} onClose={() => setModalEgresosOpen(false)} icono={<TrendingDown className="w-5 h-5" aria-hidden="true" />}

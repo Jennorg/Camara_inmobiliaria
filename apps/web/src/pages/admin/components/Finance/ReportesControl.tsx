@@ -162,6 +162,53 @@ export const EgresosPorConcepto = ({ anio }: { anio: number }) => (
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface PorCohorte {
+  filas: { programa: string; cohorte: string; estado: string; inscritos: number; pagos: number; total_usd: number }[]
+  total_usd: number
+}
+
+/** Ingresos verificados por cohorte de los programas que las tienen (CIBIR, PREANI, PEGI, PADI). */
+export function IngresosPorCohorte() {
+  const { data, error } = useReporte<PorCohorte>(`${API_URL}/api/finanzas/ingresos-por-cohorte`)
+  const [programa, setPrograma] = useState('')
+  if (!data) return <Cargando error={error} />
+  const programas = [...new Set(data.filas.map(f => f.programa).filter(p => p !== '—'))]
+  const filas = programa ? data.filas.filter(f => f.programa === programa) : data.filas
+  const total = filas.reduce((a, f) => a + f.total_usd, 0)
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-bold text-slate-800 text-base">Ingresos por cohorte <span className="text-emerald-700 tabular-nums">{usd(total)}</span></h3>
+        <select aria-label="Programa" value={programa} onChange={e => setPrograma(e.target.value)}
+          className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white">
+          <option value="">Todos los programas</option>
+          {programas.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-xs">
+          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+            <tr><th className="px-3 py-3 text-left">Programa</th><th className="px-3 py-3 text-left">Cohorte</th><th className="px-3 py-3 text-left">Estado</th><th className="px-3 py-3 text-right">Inscritos</th><th className="px-3 py-3 text-right">Pagos</th><th className="px-3 py-3 text-right">Ingreso</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filas.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-slate-400">Sin ingresos por cohorte.</td></tr>}
+            {filas.map(f => (
+              <tr key={`${f.programa}-${f.cohorte}`}>
+                <td className="px-3 py-2 font-bold text-slate-700">{f.programa}</td>
+                <td className="px-3 py-2 text-slate-800">{f.cohorte}</td>
+                <td className="px-3 py-2 text-slate-500">{f.estado}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{f.inscritos}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{f.pagos}</td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-emerald-700">{usd(f.total_usd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 interface PorCobrar {
   filas: { tipo: 'mensualidad' | 'curso'; id_afiliado: number | null; id_inscripcion: number | null; codigo: string | null; nombre: string; identificacion: string; email: string; detalle: string; monto_usd: number; dias: number; tramo: string }[]
   tramos: { tramo: string; cantidad: number; monto_usd: number }[]

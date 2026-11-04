@@ -43,6 +43,52 @@ export async function ingresosPorConcepto(anio: number) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Ingresos por cohorte (programas con cohortes: CIBIR, PREANI, PEGI, PADI)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ingresos verificados de los programas con cohortes, agrupados por la cohorte en que está inscrito quien pagó.
+ * El pago del CIBIR se liga por afiliado y el de un programa por estudiante; ambos se resuelven a la inscripción
+ * más reciente de ese programa que tenga cohorte (la del CIBIR en curso vive en la inscripción de afiliación). Lo que no se puede ligar queda en "Sin cohorte".
+ */
+export async function ingresosPorCohorte() {
+  const [cohortes, pagos] = await Promise.all([
+    db.execute(`SELECT c.id_cohorte, c.programa_codigo, c.numero, c.nombre, c.estado,
+                       (SELECT COUNT(*) FROM inscripciones_cursos ic WHERE ic.id_cohorte = c.id_cohorte) AS inscritos
+                FROM cohortes c ORDER BY c.programa_codigo, c.numero`),
+    db.execute(`
+      SELECT x.programa, x.monto,
+             (SELECT ic.id_cohorte FROM inscripciones_cursos ic
+                JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
+               WHERE (ic.programa_codigo = x.programa OR (x.programa = 'CIBIR' AND ic.programa_codigo = 'AFILIACION')) AND ic.id_cohorte IS NOT NULL
+                 AND (ic.id_estudiante = x.id_estudiante
+                      OR EXISTS (SELECT 1 FROM afiliados a WHERE a.id_afiliado = x.id_afiliado
+                                  AND ((e.id_persona IS NOT NULL AND a.id_persona = e.id_persona)
+                                    OR (e.id_empresa IS NOT NULL AND a.id_empresa = e.id_empresa))))
+               ORDER BY (ic.programa_codigo <> 'AFILIACION') DESC, ic.id_inscripcion DESC LIMIT 1) AS id_cohorte
+      FROM (SELECT id_afiliado, id_estudiante, monto_usd_equivalente AS monto,
+                   CASE WHEN tipo_concepto = 'curso_cibir' THEN 'CIBIR' ELSE UPPER(substr(codigo_arancel, 10)) END AS programa
+            FROM pagos
+            WHERE estatus = 'Verificado' AND eliminado_en IS NULL
+              AND (tipo_concepto = 'curso_cibir' OR (tipo_concepto = 'programa' AND codigo_arancel LIKE 'programa\_%' ESCAPE '\'))) x`),
+  ])
+  const porCohorte = new Map<number | null, { total: number; pagos: number }>()
+  for (const r of pagos.rows as any[]) {
+    const k = r.id_cohorte == null ? null : Number(r.id_cohorte)
+    const acc = porCohorte.get(k) ?? { total: 0, pagos: 0 }
+    acc.total += Number(r.monto); acc.pagos++
+    porCohorte.set(k, acc)
+  }
+  const filas = (cohortes.rows as any[]).map(c => {
+    const v = porCohorte.get(Number(c.id_cohorte)) ?? { total: 0, pagos: 0 }
+    return { programa: String(c.programa_codigo), cohorte: String(c.nombre), estado: String(c.estado), inscritos: Number(c.inscritos), pagos: v.pagos, total_usd: redondear(v.total) }
+  })
+  const sin = porCohorte.get(null)
+  if (sin) filas.push({ programa: '—', cohorte: 'Sin cohorte', estado: '', inscritos: 0, pagos: sin.pagos, total_usd: redondear(sin.total) })
+  return { filas, total_usd: redondear(filas.reduce((a, f) => a + f.total_usd, 0)) }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Egresos por concepto (mes × categoría)
 // ─────────────────────────────────────────────────────────────────────────────
 

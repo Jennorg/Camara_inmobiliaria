@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { finanzasService, FiltrosFinanzas } from '../services/finanzas.service.js';
 import { tasasService } from '../services/tasas.service.js';
-import { cuentasPorCobrar, egresosPorConcepto, ingresosPorConcepto } from '../services/reportes.service.js';
+import { cuentasPorCobrar, egresosPorConcepto, ingresosPorCohorte, ingresosPorConcepto } from '../services/reportes.service.js';
 import { hoyCaracas } from '../services/cobranza.service.js';
 import { ETIQUETA_CONCEPTO } from '../lib/conceptos.js';
 import XLSX from 'xlsx';
@@ -258,6 +258,14 @@ export async function getIngresosPorConcepto(req: Request, res: Response) {
     return res.json({ success: true, data: await ingresosPorConcepto(anioDe(req)) });
   } catch (error) {
     return responderError(res, error, 'ingresos por concepto');
+  }
+}
+
+export async function getIngresosPorCohorte(_req: Request, res: Response) {
+  try {
+    return res.json({ success: true, data: await ingresosPorCohorte() });
+  } catch (error) {
+    return responderError(res, error, 'ingresos por cohorte');
   }
 }
 
