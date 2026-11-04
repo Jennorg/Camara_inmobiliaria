@@ -3,7 +3,7 @@ import { db } from '../lib/db.js'
 const CLAVE_ELECTRONICOS = 'pagos_electronicos'
 
 export const MENSAJE_SOLO_ADMINISTRACION =
-  'Por ahora los pagos se reciben únicamente en la administración de la Cámara. Acude a la sede para realizar tu pago y se emitirá tu recibo al momento.'
+  'Acude a la sede para realizar tu pago'
 
 /** ¿Pueden los afiliados reportar pagos electrónicos (pago móvil, transferencia, Zelle…)? Por defecto sí. */
 export async function pagosElectronicosHabilitados(): Promise<boolean> {
