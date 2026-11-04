@@ -40,7 +40,7 @@ const TIPOS_FALTA = [
 ]
 
 export default function DenunciasPublicPage() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
 
   const [activeTab, setActiveTab] = useState<'formular' | 'consultar'>('formular')
 
@@ -51,6 +51,9 @@ export default function DenunciasPublicPage() {
   const [emailDenunciante, setEmailDenunciante] = useState('')
   const [telefonoDenunciante, setTelefonoDenunciante] = useState('')
   const [direccionDenunciante, setDireccionDenunciante] = useState('')
+
+  // Afiliado con sesión: su identidad la pone el sistema, no se vuelve a pedir
+  const [identidad, setIdentidad] = useState<{ nombre: string; cedula_rif: string; codigo: string | null; tipo_afiliado: string | null; email: string; telefono: string } | null>(null)
 
   // Búsqueda de Afiliado Denunciado
   const [searchAfilQuery, setSearchAfilQuery] = useState('')
@@ -89,6 +92,22 @@ export default function DenunciasPublicPage() {
     }
   }, [user])
 
+  useEffect(() => {
+    if (!token) { setIdentidad(null); return }
+    let activo = true
+    fetch(`${API_URL}/api/denuncias/mi-identidad`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(json => {
+        if (!activo || !json?.data) return
+        setIdentidad(json.data)
+        setTipoDenunciante('afiliado')
+        setEmailDenunciante(json.data.email || '')
+        setTelefonoDenunciante(json.data.telefono || '')
+      })
+      .catch(() => {})
+    return () => { activo = false }
+  }, [token])
+
   // Buscar afiliados en el directorio público
   const handleSearchAfiliados = useCallback(async (q: string) => {
     if (!q.trim() || q.trim().length < 2) {
@@ -117,7 +136,7 @@ export default function DenunciasPublicPage() {
       toast.error('Debe buscar y seleccionar al afiliado denunciado en el registro.')
       return
     }
-    if (!nombreDenunciante.trim() || !cedulaRif.trim() || !emailDenunciante.trim() || !telefonoDenunciante.trim()) {
+    if ((!identidad && (!nombreDenunciante.trim() || !cedulaRif.trim())) || !emailDenunciante.trim() || !telefonoDenunciante.trim()) {
       toast.error('Por favor complete todos sus datos de contacto.')
       return
     }
@@ -131,8 +150,9 @@ export default function DenunciasPublicPage() {
 
       const payload = {
         tipo_denunciante: tipoDenunciante,
-        nombre_denunciante: nombreDenunciante.trim(),
-        cedula_rif_denunciante: cedulaRif.trim().toUpperCase(),
+        // Con sesión de afiliado el servidor usa los datos registrados; aquí solo importan los de contacto
+        nombre_denunciante: identidad ? identidad.nombre : nombreDenunciante.trim(),
+        cedula_rif_denunciante: identidad ? identidad.cedula_rif : cedulaRif.trim().toUpperCase(),
         email_denunciante: emailDenunciante.trim().toLowerCase(),
         telefono_denunciante: telefonoDenunciante.trim(),
         direccion_denunciante: direccionDenunciante.trim() || null,
@@ -148,7 +168,7 @@ export default function DenunciasPublicPage() {
 
       const res = await fetch(`${API_URL}/api/denuncias`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(identidad && token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(payload)
       })
 
@@ -336,6 +356,24 @@ export default function DenunciasPublicPage() {
                     <h3 className="font-bold text-base text-slate-800">Datos de la Persona o Entidad Denunciante</h3>
                   </div>
 
+                  {identidad ? (
+                    <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-800" aria-hidden="true">
+                        <CheckCircle2 size={20} />
+                      </span>
+                      <div className="min-w-0 text-sm">
+                        <p className="font-black text-emerald-950">{identidad.nombre}</p>
+                        <p className="text-xs font-medium text-emerald-900">
+                          Afiliado{identidad.codigo ? ` · Código ${identidad.codigo}` : ''} · <span className="font-mono">{identidad.cedula_rif}</span>
+                        </p>
+                        <p className="mt-1 text-xs text-emerald-800">Ya te identificamos con tu cuenta: no necesitas escribir tus datos de nuevo. Solo confirma cómo contactarte.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="rounded-xl bg-slate-100 px-3.5 py-2.5 text-xs font-medium text-slate-700">
+                        ¿Eres afiliado? Inicia sesión desde el menú superior y tus datos se completarán solos.
+                      </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">Tipo de Denunciante</label>
@@ -361,8 +399,11 @@ export default function DenunciasPublicPage() {
                       />
                     </div>
                   </div>
+                    </>
+                  )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className={`grid grid-cols-1 gap-3 ${identidad ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+                    {!identidad && (
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">Cédula de Identidad / RIF *</label>
                       <input
@@ -374,6 +415,7 @@ export default function DenunciasPublicPage() {
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 outline-none uppercase font-mono"
                       />
                     </div>
+                    )}
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">Correo Electrónico *</label>
                       <input

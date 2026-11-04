@@ -441,7 +441,7 @@ export async function setupAdminMocks(page: Page) {
             total: 1,
             recibidas: 1,
             en_revision: 0,
-            en_descargos: 0,
+            en_defensa: 0,
             en_mediacion: 0,
             resueltas: 0,
             desestimadas: 0,

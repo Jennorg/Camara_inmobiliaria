@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { X, Calendar, MapPin, Users, Check, Clock } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
@@ -25,17 +25,25 @@ export default function ModalConvocarMediacion({
   const [lugarModalidad, setLugarModalidad] = useState('Sede Cámara Inmobiliaria de Bolívar (Sala de Juntas)')
   const [notas, setNotas] = useState('')
 
+  useEffect(() => {
+    if (!isOpen) return
+    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) onClose() }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [isOpen, loading, onClose])
+
   if (!isOpen || !denuncia) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
 
     if (!fechaAudiencia) {
-      toast.error('Debe seleccionar la fecha y hora de la audiencia de mediación.')
+      toast.error('Indica la fecha y la hora de la audiencia.')
       return
     }
     if (!lugarModalidad.trim()) {
-      toast.error('Debe especificar el lugar o enlace de la reunión.')
+      toast.error('Indica el lugar o el enlace de la reunión.')
       return
     }
 
@@ -58,117 +66,118 @@ export default function ModalConvocarMediacion({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Error al convocar mediación')
 
-      toast.success('Audiencia de mediación convocada exitosamente.')
+      const correos = json.data?.correos as { denunciante: boolean; denunciado: boolean } | undefined
+      const sinCorreo = [!correos?.denunciante && 'al denunciante', !correos?.denunciado && 'al afiliado denunciado'].filter(Boolean)
+      if (correos && sinCorreo.length) {
+        toast.warning(`Audiencia registrada, pero no se pudo enviar el correo ${sinCorreo.join(' ni ')}. Avísale por otra vía.`)
+      } else {
+        toast.success('Audiencia convocada. Se envió un correo a ambas partes.')
+      }
+      setFechaAudiencia('')
+      setNotas('')
       onSuccess()
       onClose()
     } catch (err: any) {
-      toast.error(err.message || 'Error al agendar mediación')
+      toast.error(err.message || 'Error al convocar la mediación')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-900 to-indigo-900 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-blue-200">
-              <Users size={20} />
-            </div>
-            <div>
-              <h3 className="font-bold text-base leading-tight">
-                Convocar a Audiencia de Mediación
-              </h3>
-              <p className="text-xs text-blue-200/80">
-                Expediente: <span className="font-mono font-bold text-white">{denuncia.codigo}</span>
-              </p>
-            </div>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 sm:p-6"
+      onMouseDown={e => { if (e.target === e.currentTarget && !loading) onClose() }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-mediacion"
+        className="flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+          <div>
+            <h3 id="titulo-mediacion" className="text-lg font-bold text-slate-900">Convocar mediación</h3>
+            <p className="mt-0.5 text-sm text-slate-600">
+              Expediente <span className="font-mono font-semibold text-slate-800">{denuncia.codigo}</span>
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+            disabled={loading}
+            aria-label="Cerrar"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
           >
-            <X size={18} />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-slate-700">
-          <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100 text-xs text-blue-900">
-            Esta convocatoria notificará formalmente al denunciante (<strong>{denuncia.nombre_denunciante}</strong>) y al afiliado denunciado (<strong>{denuncia.nombre_denunciado}</strong>) para una sesión de conciliación gremial.
-          </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="space-y-5 overflow-y-auto overscroll-contain px-6 py-5">
+            <p className="text-sm text-slate-600">
+              Audiencia entre <strong className="text-slate-900">{denuncia.nombre_denunciante}</strong> (denunciante) y{' '}
+              <strong className="text-slate-900">{denuncia.nombre_denunciado}</strong> (afiliado denunciado). Queda anotada en el expediente y
+              a ambas partes se les envía un correo con la fecha y el lugar (al denunciado no se le dice quién denunció).
+            </p>
 
-          {/* Fecha y Hora */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Fecha y Hora de la Audiencia *
-            </label>
-            <div className="relative">
+            <div>
+              <label htmlFor="fecha-audiencia" className="text-sm font-semibold text-slate-900">Fecha y hora *</label>
               <input
+                id="fecha-audiencia"
+                name="fecha_audiencia"
                 type="datetime-local"
                 required
                 value={fechaAudiencia}
                 onChange={e => setFechaAudiencia(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-medium"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="lugar-audiencia" className="text-sm font-semibold text-slate-900">Lugar o enlace de la videollamada *</label>
+              <input
+                id="lugar-audiencia"
+                name="lugar_audiencia"
+                type="text"
+                required
+                autoComplete="off"
+                value={lugarModalidad}
+                onChange={e => setLugarModalidad(e.target.value)}
+                placeholder="Ej. Sala de Juntas de la Cámara, o enlace de Zoom…"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="notas-audiencia" className="text-sm font-semibold text-slate-900">Qué deben llevar las partes <span className="font-normal text-slate-500">(opcional)</span></label>
+              <textarea
+                id="notas-audiencia"
+                name="notas_audiencia"
+                rows={3}
+                value={notas}
+                onChange={e => setNotas(e.target.value)}
+                placeholder="Ej. El contrato de corretaje original y los comprobantes de pago…"
+                className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
               />
             </div>
           </div>
 
-          {/* Lugar o Modalidad */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Lugar / Modalidad / Enlace de Videollamada *
-            </label>
-            <input
-              type="text"
-              required
-              value={lugarModalidad}
-              onChange={e => setLugarModalidad(e.target.value)}
-              placeholder="Ej. Sede Cámara Inmobiliaria de Bolívar (Sala de Juntas) o Enlace Zoom"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-          </div>
-
-          {/* Instrucciones / Notas */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Instrucciones y Requerimientos a las Partes
-            </label>
-            <textarea
-              rows={3}
-              value={notas}
-              onChange={e => setNotas(e.target.value)}
-              placeholder="Ej. Consignar originales del contrato de corretaje y comprobantes de transferencias bancarias..."
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+          <div className="flex items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20 active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? (
-                <span>Agendando...</span>
-              ) : (
-                <>
-                  <Check size={16} />
-                  <span>Agendar y Notificar Audiencia</span>
-                </>
-              )}
+              {loading ? 'Guardando…' : 'Convocar mediación'}
             </button>
           </div>
         </form>

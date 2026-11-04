@@ -654,3 +654,47 @@ export const enviarCorreoReservaCurso = async (params: { nombre: string; email: 
     ],
   }])
 }
+
+/**
+ * Aviso de audiencia de mediación a una de las partes de una denuncia.
+ * Al denunciado no se le revela quién denunció: solo el código del expediente.
+ */
+export const enviarCorreoMediacionDenuncia = async (params: {
+  nombre: string
+  emailOriginal: string
+  rol: 'denunciante' | 'denunciado'
+  codigoDenuncia: string
+  fechaTexto: string
+  lugar: string
+  notas?: string | null
+  reprogramada?: boolean
+}) => {
+  const { emailOriginal, rol, codigoDenuncia, fechaTexto, lugar, notas, reprogramada } = params
+  const nombre = nombreSaludo(params.nombre)
+  const intro = rol === 'denunciante'
+    ? `El Tribunal de Ética y Disciplina ha ${reprogramada ? 'reprogramado' : 'convocado'} una audiencia de mediación para tratar la denuncia que presentaste (expediente <strong>${escapeHtml(codigoDenuncia)}</strong>).`
+    : `El Tribunal de Ética y Disciplina ha ${reprogramada ? 'reprogramado' : 'convocado'} una audiencia de mediación en el marco de la denuncia con expediente <strong>${escapeHtml(codigoDenuncia)}</strong>, presentada contra usted.`
+  const consulta = rol === 'denunciante'
+    ? `<p style="font-size: 14px; color: #6b7280;">Puedes seguir el estado de tu caso en <a href="${env.APP_URL.replace(/\/$/, '')}/denuncias" style="color: #065f46;">${env.APP_URL.replace(/\/$/, '')}/denuncias</a> con tu código y tu PIN de seguimiento.</p>`
+    : ''
+
+  const { data, error } = await sendResendEmail({
+    from: DEFAULT_FROM,
+    to: emailOriginal,
+    subject: `${reprogramada ? 'Audiencia reprogramada' : 'Audiencia de mediación'} — expediente ${codigoDenuncia}`,
+    html: renderEmailTemplate(`
+      <h2 style="margin-top: 0; color: #111827; font-size: 24px;">Hola, ${nombre}</h2>
+      <p>${intro}</p>
+      <div style="background-color: #f8fafc; border-radius: 16px; padding: 24px; margin: 32px 0;">
+        <p style="margin: 0 0 8px;"><strong>Fecha y hora:</strong> ${escapeHtml(fechaTexto)}</p>
+        <p style="margin: 0;"><strong>Lugar o enlace:</strong> ${escapeHtml(lugar)}</p>
+        ${notas ? `<p style="margin: 16px 0 0;"><strong>Debe llevar o preparar:</strong> ${escapeHtml(notas)}</p>` : ''}
+      </div>
+      <p>Su asistencia es importante para intentar resolver el caso de común acuerdo. Si no puede asistir, comuníquese con la Cámara con anticipación.</p>
+      <div class="divider"></div>
+      ${consulta}
+    `, 'Tribunal de Ética')
+  })
+  if (error) { console.error('enviarCorreoMediacionDenuncia:', error); throw error }
+  return data
+}

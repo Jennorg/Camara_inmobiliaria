@@ -1,5 +1,6 @@
 import { db } from '../lib/db.js';
 import { NotificationService } from './notification.service.js';
+import { enviarCorreoMediacionDenuncia } from '../lib/email.js';
 
 export type TipoDenunciante = 'afiliado' | 'no_afiliado';
 export type TipoFalta =
@@ -14,7 +15,7 @@ export type TipoFalta =
 export type EstatusDenuncia =
   | 'recibida'
   | 'en_revision'
-  | 'en_descargos'
+  | 'en_defensa'
   | 'en_mediacion'
   | 'resuelta'
   | 'desestimada'
@@ -47,7 +48,6 @@ export interface CrearDenunciaInput {
   inmueble_referencia?: string | null;
   monto_involucrado?: number;
   moneda_monto?: 'USD' | 'VES';
-  prioridad?: PrioridadDenuncia;
   documentos?: { nombre_archivo: string; url: string }[];
 }
 
@@ -58,6 +58,39 @@ export interface FiltrosDenunciasAdmin {
   search?: string;
   id_afiliado_denunciado?: number;
 }
+
+/**
+ * Prioridad inicial de una denuncia: la propone el sistema según la gravedad y el monto, no el denunciante.
+ * Después solo el Tribunal puede cambiarla (cambiarPrioridad), y queda en el historial.
+ */
+export function prioridadSugerida(tipo: TipoFalta, monto?: number | null): PrioridadDenuncia {
+  const m = Number(monto || 0);
+  if (tipo === 'fraude_estafa') return m >= 1000 ? 'urgente' : 'alta';
+  if (m >= 5000) return 'alta';
+  if (tipo === 'otro' && m === 0) return 'baja';
+  return 'media';
+}
+
+/** La fecha llega de un datetime-local (sin zona): se muestra tal cual, sin convertirla a la hora del servidor */
+function formatearAudiencia(valor: string): string {
+  const sinZona = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(valor);
+  const d = new Date(sinZona ? `${valor}:00Z` : valor);
+  if (isNaN(d.getTime())) return valor;
+  return d.toLocaleString('es-VE', { dateStyle: 'full', timeStyle: 'short', timeZone: sinZona ? 'UTC' : 'America/Caracas' });
+}
+
+export const PRIORIDADES: PrioridadDenuncia[] = ['baja', 'media', 'alta', 'urgente'];
+
+/** Etapas a las que puede pasar un expediente desde cada estatus (la resolución final tiene su propio paso) */
+export const TRANSICIONES: Record<EstatusDenuncia, EstatusDenuncia[]> = {
+  recibida: ['en_revision', 'archivada'],
+  en_revision: ['en_defensa', 'en_mediacion', 'archivada'],
+  en_defensa: ['en_revision', 'en_mediacion', 'archivada'],
+  en_mediacion: ['en_defensa', 'archivada'],
+  resuelta: ['en_revision'],
+  desestimada: ['en_revision'],
+  archivada: ['en_revision'],
+};
 
 export const denunciasService = {
   /**
@@ -160,7 +193,7 @@ export const denunciasService = {
         input.inmueble_referencia?.trim() || null,
         Number(input.monto_involucrado || 0),
         input.moneda_monto || 'USD',
-        input.prioridad || 'media'
+        prioridadSugerida(input.tipo_falta, input.monto_involucrado)
       ]
     });
 
@@ -407,7 +440,7 @@ export const denunciasService = {
 
     // Historial completo
     const histRes = await db.execute({
-      sql: `SELECT h.*, u.email as usuario_email, u.role as usuario_rol
+      sql: `SELECT h.*, u.email as usuario_email, u.roles as usuario_rol
             FROM historial_denuncia h
             LEFT JOIN users u ON h.usuario_id = u.id
             WHERE h.id_denuncia = ?
@@ -434,6 +467,9 @@ export const denunciasService = {
     if (!currRes.rows.length) throw new Error('Denuncia no encontrada');
     const estatusAnterior = String(currRes.rows[0].estatus);
     const codigo = String(currRes.rows[0].codigo);
+    if (!TRANSICIONES[estatusAnterior as EstatusDenuncia]?.includes(estatusNuevo)) {
+      throw new Error(`No se puede pasar una denuncia de "${estatusAnterior}" a "${estatusNuevo}".`);
+    }
 
     await db.execute({
       sql: `UPDATE denuncias SET estatus = ?, actualizado_en = datetime('now') WHERE id_denuncia = ?`,
@@ -450,11 +486,42 @@ export const denunciasService = {
   },
 
   /**
+   * Cambiar la prioridad (solo el Tribunal): queda en el historial interno, no visible para las partes
+   */
+  async cambiarPrioridad(id: number, prioridad: PrioridadDenuncia, motivo?: string, userId?: number) {
+    if (!PRIORIDADES.includes(prioridad)) throw new Error('Prioridad inválida');
+    const r = await db.execute({
+      sql: `SELECT estatus, prioridad, codigo FROM denuncias WHERE id_denuncia = ? AND eliminado_en IS NULL`,
+      args: [id]
+    });
+    if (!r.rows.length) throw new Error('Denuncia no encontrada');
+    const { estatus, prioridad: anterior, codigo } = r.rows[0] as any;
+    if (anterior === prioridad) return { message: `La denuncia ${codigo} ya tiene prioridad ${prioridad}` };
+
+    await db.execute({
+      sql: `UPDATE denuncias SET prioridad = ?, actualizado_en = datetime('now') WHERE id_denuncia = ?`,
+      args: [prioridad, id]
+    });
+    await db.execute({
+      sql: `INSERT INTO historial_denuncia (id_denuncia, estatus_anterior, estatus_nuevo, accion, comentario, usuario_id, es_visible_partes)
+            VALUES (?, ?, ?, 'Cambio de Prioridad', ?, ?, 0)`,
+      args: [id, estatus, estatus, `Prioridad ${anterior} → ${prioridad}${motivo ? `: ${motivo}` : ''}`, userId || null]
+    });
+    return { message: `Prioridad de ${codigo} actualizada a ${prioridad}` };
+  },
+
+  /**
    * Convocar a Mediación y Conciliación
    */
   async convocarMediacion(id: number, data: { fechaAudiencia: string; lugarModalidad: string; notas?: string }, userId?: number) {
     const currRes = await db.execute({
-      sql: `SELECT estatus, codigo, nombre_denunciante, email_denunciante FROM denuncias WHERE id_denuncia = ? AND eliminado_en IS NULL`,
+      sql: `SELECT d.estatus, d.codigo, d.nombre_denunciante, d.email_denunciante, d.id_afiliado_denunciado, d.nombre_denunciado_snapshot,
+                   COALESCE(per.email, emp.email) AS email_denunciado
+            FROM denuncias d
+            LEFT JOIN afiliados a ON d.id_afiliado_denunciado = a.id_afiliado
+            LEFT JOIN personas per ON a.id_persona = per.id
+            LEFT JOIN empresas emp ON a.id_empresa = emp.id_empresa
+            WHERE d.id_denuncia = ? AND d.eliminado_en IS NULL`,
       args: [id]
     });
     if (!currRes.rows.length) throw new Error('Denuncia no encontrada');
@@ -471,7 +538,7 @@ export const denunciasService = {
       args: [data.fechaAudiencia, data.lugarModalidad, id]
     });
 
-    const comentarioHistorial = `Audiencia de mediación pautada para el ${new Date(data.fechaAudiencia).toLocaleString('es-VE')}. Modalidad / Lugar: ${data.lugarModalidad}. ${data.notas ? `Notas: ${data.notas}` : ''}`;
+    const comentarioHistorial = `Audiencia de mediación pautada para el ${formatearAudiencia(data.fechaAudiencia)}. Modalidad / Lugar: ${data.lugarModalidad}. ${data.notas ? `Notas: ${data.notas}` : ''}`;
 
     await db.execute({
       sql: `INSERT INTO historial_denuncia (id_denuncia, estatus_anterior, estatus_nuevo, accion, comentario, usuario_id, es_visible_partes)
@@ -479,21 +546,40 @@ export const denunciasService = {
       args: [id, estatusAnterior, comentarioHistorial, userId || null]
     });
 
-    return { message: `Audiencia de mediación agendada para el caso ${codigo}` };
+    // Aviso por correo a ambas partes. Un fallo de envío no deshace la convocatoria (ya quedó en el expediente):
+    // se informa cuál correo no salió para que el personal avise por otra vía.
+    const fila = currRes.rows[0] as any;
+    const fechaTexto = formatearAudiencia(data.fechaAudiencia);
+    const reprogramada = estatusAnterior === 'en_mediacion';
+    const enviar = async (rol: 'denunciante' | 'denunciado', nombre: string, email?: string | null) => {
+      if (!email) return false;
+      try {
+        await enviarCorreoMediacionDenuncia({ nombre, emailOriginal: email, rol, codigoDenuncia: codigo, fechaTexto, lugar: data.lugarModalidad, notas: data.notas, reprogramada });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const correos = {
+      denunciante: await enviar('denunciante', fila.nombre_denunciante, fila.email_denunciante),
+      denunciado: await enviar('denunciado', fila.nombre_denunciado_snapshot, fila.email_denunciado),
+    };
+
+    return { message: `Audiencia de mediación agendada para el caso ${codigo}`, correos };
   },
 
   /**
-   * Registrar descargos / alegatos del afiliado denunciado
+   * Registrar la defensa (alegatos) del afiliado denunciado
    */
-  async registrarDescargos(id: number, data: { descargoTexto: string; documentos?: { nombre_archivo: string; url: string }[] }, userId?: number) {
+  async registrarDefensa(id: number, data: { defensaTexto: string; documentos?: { nombre_archivo: string; url: string }[] }, userId?: number) {
     await db.execute({
       sql: `UPDATE denuncias 
-            SET descargo_afiliado = ?,
-                fecha_descargo = datetime('now'),
-                estatus = CASE WHEN estatus = 'recibida' THEN 'en_descargos' ELSE estatus END,
+            SET defensa_afiliado = ?,
+                fecha_defensa = datetime('now'),
+                estatus = CASE WHEN estatus = 'recibida' THEN 'en_defensa' ELSE estatus END,
                 actualizado_en = datetime('now')
             WHERE id_denuncia = ?`,
-      args: [data.descargoTexto, id]
+      args: [data.defensaTexto, id]
     });
 
     if (data.documentos && data.documentos.length > 0) {
@@ -510,11 +596,11 @@ export const denunciasService = {
 
     await db.execute({
       sql: `INSERT INTO historial_denuncia (id_denuncia, estatus_anterior, estatus_nuevo, accion, comentario, usuario_id, es_visible_partes)
-            VALUES (?, 'en_descargos', 'en_descargos', 'Consignación de Descargos', 'El afiliado denunciado ha consignado formalmente sus descargos y alegatos de defensa.', ?, 1)`,
+            VALUES (?, 'en_defensa', 'en_defensa', 'Defensa del afiliado recibida', 'El afiliado denunciado presentó su defensa y su versión de los hechos.', ?, 1)`,
       args: [id, userId || null]
     });
 
-    return { message: 'Descargos del afiliado registrados exitosamente' };
+    return { message: 'Defensa del afiliado registrada exitosamente' };
   },
 
   /**

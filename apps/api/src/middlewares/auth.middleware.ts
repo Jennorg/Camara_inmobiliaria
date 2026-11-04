@@ -63,6 +63,22 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 }
 
 /**
+ * Como requireAuth, pero sin sesión (o con token inválido) la petición sigue como anónima:
+ * para rutas públicas que se simplifican cuando quien llama ya está identificado.
+ */
+export const optionalAuth = (req: Request, _res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(authHeader.split(' ')[1], env.JWT_SECRET) as JwtPayload
+      if (!payload.roles) payload.roles = [payload.rol]
+      req.user = payload
+    } catch { /* token vencido o inválido: se trata como anónimo */ }
+  }
+  next()
+}
+
+/**
  * Helpers para enriquecer un usuario (reutilizable en login y middleware)
  */
 export const enrichUserPayload = async (user: JwtPayload): Promise<JwtPayload> => {

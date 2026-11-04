@@ -14,6 +14,7 @@ import bcrypt from 'bcryptjs'
 import { toTitleCase } from '../lib/formatters.js'
 import { asegurarEsquemaCohortes } from '../lib/cohortes.js'
 import { asegurarTiposCuenta } from '../lib/cuentas.js'
+import { asegurarEsquemaDenuncias } from '../lib/denuncias-esquema.js'
 
 const statements = [
   `PRAGMA foreign_keys = ON`,
@@ -554,7 +555,7 @@ const statements = [
     estatus                     TEXT NOT NULL DEFAULT 'recibida' CHECK (estatus IN (
                                   'recibida',
                                   'en_revision',
-                                  'en_descargos',
+                                  'en_defensa',
                                   'en_mediacion',
                                   'resuelta',
                                   'desestimada',
@@ -564,8 +565,8 @@ const statements = [
     fecha_admisibilidad         TEXT,
     fecha_audiencia_mediacion   TEXT,
     lugar_modalidad_audiencia   TEXT,
-    descargo_afiliado           TEXT,
-    fecha_descargo              TEXT,
+    defensa_afiliado           TEXT,
+    fecha_defensa              TEXT,
     tipo_resolucion             TEXT CHECK (tipo_resolucion IS NULL OR tipo_resolucion IN (
                                   'conciliacion_acuerdo',
                                   'amonestacion_privada',
@@ -818,6 +819,7 @@ async function run() {
   console.log('  ⚠ Cohortes (tabla, columna y triggers de asignación)...')
   await asegurarEsquemaCohortes(db)
   await asegurarTiposCuenta(db)
+  await asegurarEsquemaDenuncias(db)
 
   console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')
   try {

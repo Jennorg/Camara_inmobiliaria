@@ -12,7 +12,7 @@ export type TipoFalta =
 export type EstatusDenuncia =
   | 'recibida'
   | 'en_revision'
-  | 'en_descargos'
+  | 'en_defensa'
   | 'en_mediacion'
   | 'resuelta'
   | 'desestimada'
@@ -86,8 +86,8 @@ export interface DenunciaDTO {
   fecha_admisibilidad?: string | null
   fecha_audiencia_mediacion?: string | null
   lugar_modalidad_audiencia?: string | null
-  descargo_afiliado?: string | null
-  fecha_descargo?: string | null
+  defensa_afiliado?: string | null
+  fecha_defensa?: string | null
   tipo_resolucion?: TipoResolucion | null
   dictamen_resolucion?: string | null
   acta_resolucion_url?: string | null
