@@ -50,12 +50,14 @@ interface Resumen {
   afiliados: FilaSolvencia[]
 }
 
-type CriterioBusqueda = 'nombre' | 'cedula' | 'codigo'
+type CriterioBusqueda = 'nombre' | 'cedula' | 'rif' | 'codigo' | 'correo'
 
 const CRITERIOS: { key: CriterioBusqueda; label: string; placeholder: string }[] = [
   { key: 'nombre', label: 'Nombre', placeholder: 'Buscar por nombre o empresa...' },
-  { key: 'cedula', label: 'Cédula', placeholder: 'Buscar por cédula o RIF...' },
+  { key: 'cedula', label: 'Cédula', placeholder: 'Buscar por cédula...' },
+  { key: 'rif', label: 'RIF', placeholder: 'Buscar por RIF...' },
   { key: 'codigo', label: 'Código', placeholder: 'Buscar por N° de afiliado...' },
+  { key: 'correo', label: 'Correo', placeholder: 'Buscar por correo...' },
 ]
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -103,7 +105,9 @@ export default function SolvenciaPanel() {
         const texto = normalizeSearchText(`${a.nombres ?? ''} ${a.apellidos ?? ''} ${a.razon_social ?? ''}`)
         return terminos.every(t => texto.includes(t))
       }
-      if (criterio === 'cedula') return digitos !== '' && (cleanSearchDigits(a.cedula).includes(digitos) || cleanSearchDigits(a.rif).includes(digitos))
+      if (criterio === 'cedula') return digitos !== '' && cleanSearchDigits(a.cedula).includes(digitos)
+      if (criterio === 'rif') return digitos !== '' && cleanSearchDigits(a.rif).includes(digitos)
+      if (criterio === 'correo') return (a.email ?? '').toLowerCase().includes(busqueda.trim().toLowerCase())
       return (a.codigo ?? '') === busqueda.trim()
     }
     return (data?.afiliados ?? []).filter(a => (!soloMora || !a.solvente) && (!busqueda.trim() || coincide(a)))
