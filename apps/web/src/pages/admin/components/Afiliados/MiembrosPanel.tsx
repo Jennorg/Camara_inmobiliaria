@@ -992,7 +992,8 @@ export default function MiembrosPanel() {
         if (!newUrlCv) errors.newUrlCv = true
         if (!newUrlTitulo) errors.newUrlTitulo = true // RIF de la Empresa
         if (!newUrlRegistro) errors.newUrlRegistro = true
-        if (!newUrlTituloRep) errors.newUrlTituloRep = true
+        // El título del representante es opcional si su nivel académico es Bachiller
+        if (!newUrlTituloRep && newForm.nivel_academico !== 'Bachiller') errors.newUrlTituloRep = true
       } else {
         // Natural / Agente / Agente Corporativo
         if (!newForm.nivel_academico) errors.nivel_academico = true
@@ -2243,7 +2244,7 @@ export default function MiembrosPanel() {
                     {isNewCorporativo ? (
                       <FileUpload
                         label="Título Académico"
-                        required
+                        required={newForm.nivel_academico !== 'Bachiller'}
                         accept=".pdf,image/*"
                         folder="titulos"
                         initialUrl={newUrlTituloRep || undefined}
