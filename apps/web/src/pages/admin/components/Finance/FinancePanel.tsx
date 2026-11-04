@@ -111,6 +111,10 @@ const MESES = [
   { num: 12, label: 'Diciembre' },
 ]
 
+/** Tramo de adelantos en el histograma: rayado para distinguirlo del ingreso del mes sin depender solo del color */
+const RAYADO_ADELANTO = 'repeating-linear-gradient(135deg, #14b8a6 0 4px, #5eead4 4px 8px)'
+const mesLargoYm = (ym: string) => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString('es-VE', { month: 'long', year: 'numeric' })
+
 const fmt = (n: number) => `$${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtBs = (n: number) => `Bs. ${Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 /** DD/MM/AAAA. Las marcas de tiempo ISO (UTC) se pasan a la fecha de Caracas; las fechas AAAA-MM-DD no se desplazan. */
@@ -683,8 +687,11 @@ export default function FinancePanel() {
                   <p className="text-xs text-slate-400">Comportamiento del flujo de caja mensual</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-bold">
-                  <span className="flex items-center gap-1.5 text-emerald-600">
+                  <span className="flex items-center gap-1.5 text-emerald-700">
                     <span className="w-3 h-3 rounded-md bg-emerald-500 inline-block" /> Ingresos
+                  </span>
+                  <span className="flex items-center gap-1.5 text-teal-700">
+                    <span className="w-3 h-3 rounded-md inline-block" style={{ background: RAYADO_ADELANTO }} /> Adelantos
                   </span>
                   <span className="flex items-center gap-1.5 text-amber-600">
                     <span className="w-3 h-3 rounded-md bg-amber-400 inline-block" /> Egresos
@@ -743,7 +750,7 @@ export default function FinancePanel() {
                               key={m.mesNumero}
                               type="button"
                               aria-pressed={seleccionado}
-                              aria-label={`${m.mes}: ingresos ${fmt(m.ingresos)}, egresos ${fmt(m.egresos)}`}
+                              aria-label={`${m.mes}: ingresos ${fmt(m.ingresos)}${m.adelantos > 0 ? `, de los cuales ${fmt(m.adelantos)} por adelantado` : ''}, egresos ${fmt(m.egresos)}`}
                               onClick={() => setSelectedMonth(seleccionado ? null : m.mesNumero)}
                               className={`group flex flex-col items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                 seleccionado ? 'bg-emerald-50/80 ring-2 ring-emerald-500' : 'hover:bg-slate-50'
@@ -752,9 +759,14 @@ export default function FinancePanel() {
                               <div className="w-full h-36 flex items-end justify-center gap-0.5 sm:gap-1">
                                 <div
                                   style={{ height: `${alto(m.ingresos)}%` }}
-                                  title={`${m.mes}: Ingresos ${fmt(m.ingresos)}`}
-                                  className="w-full max-w-[12px] bg-emerald-500 rounded-t-sm transition-all group-hover:bg-emerald-600"
-                                />
+                                  title={`${m.mes}: Ingresos ${fmt(m.ingresos)}${m.adelantos > 0 ? ` (incluye ${fmt(m.adelantos)} cobrados por adelantado)` : ''}`}
+                                  className="w-full max-w-[12px] flex flex-col overflow-hidden rounded-t-sm"
+                                >
+                                  {m.adelantos > 0 && (
+                                    <div style={{ flexGrow: m.adelantos, background: RAYADO_ADELANTO }} />
+                                  )}
+                                  <div style={{ flexGrow: Math.max(m.ingresos - m.adelantos, 0) }} className="bg-emerald-500 transition-colors group-hover:bg-emerald-600" />
+                                </div>
                                 <div
                                   style={{ height: `${alto(m.egresos)}%` }}
                                   title={`${m.mes}: Egresos ${fmt(m.egresos)}`}
@@ -763,13 +775,35 @@ export default function FinancePanel() {
                               </div>
                               {/* Eje X: mes y montos del mes */}
                               <span className={`mt-1.5 text-[10px] font-bold ${seleccionado ? 'text-emerald-800' : 'text-slate-500'}`}>{m.mes}</span>
-                              <span className="hidden sm:block text-[9px] font-semibold tabular-nums text-emerald-600 leading-tight">{m.ingresos > 0 ? montoCorto(m.ingresos) : '–'}</span>
+                              <span className="hidden sm:block text-[9px] font-semibold tabular-nums text-emerald-700 leading-tight">{m.ingresos > 0 ? montoCorto(m.ingresos) : '–'}</span>
+                              <span className={`hidden sm:block text-[9px] font-bold tabular-nums leading-tight ${m.adelantos > 0 ? 'text-teal-700' : 'invisible'}`}>↗{montoCorto(m.adelantos)}</span>
                               <span className="hidden sm:block text-[9px] font-semibold tabular-nums text-amber-600 leading-tight pb-1">{m.egresos > 0 ? montoCorto(m.egresos) : '–'}</span>
                             </button>
                           )
                         })}
                       </div>
                     </div>
+                  </div>
+                )
+              })()}
+
+              {resumen?.historicoMensual && resumen.periodo.anio === selectedYear && (() => {
+                const h = resumen.historicoMensual
+                const m = selectedMonth ? h[selectedMonth - 1] : null
+                const totalAnio = h.reduce((a, x) => a + x.adelantos, 0)
+                const adelanto = m ? m.adelantos : totalAnio
+                if (adelanto <= 0) return null
+                const pagos = m ? m.adelantosPagos : h.reduce((a, x) => a + x.adelantosPagos, 0)
+                const hasta = m ? m.adelantosHasta : h.reduce<string | null>((a, x) => (x.adelantosHasta && (!a || x.adelantosHasta > a) ? x.adelantosHasta : a), null)
+                return (
+                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-teal-200 bg-teal-50 p-3">
+                    <span aria-hidden="true" className="mt-0.5 h-8 w-2 shrink-0 rounded-full" style={{ background: RAYADO_ADELANTO }} />
+                    <p className="text-xs leading-relaxed text-teal-950">
+                      <strong className="font-black tabular-nums">{fmt(adelanto)}</strong> cobrados por adelantado
+                      {m ? <> en {m.mes}</> : <> en {selectedYear}</>} ({pagos} {pagos === 1 ? 'pago' : 'pagos'}
+                      {hasta && <>, cubren hasta {mesLargoYm(hasta)}</>}).{' '}
+                      <span className="text-teal-800">Cuentan como ingreso del mes en que se pagaron; el tramo rayado muestra cuánto corresponde a meses futuros.</span>
+                    </p>
                   </div>
                 )
               })()}

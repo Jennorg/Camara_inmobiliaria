@@ -110,7 +110,7 @@ export const finanzasService = {
 
     // Se calcula el año completo en una sola pasada (consultas agrupadas por mes y en paralelo): así el cliente
     // cambia de mes al instante, sin volver a pedir nada al servidor.
-    const [pagosRes, manualesRes, egresosRes, importadas] = await Promise.all([
+    const [pagosRes, manualesRes, egresosRes, importadas, mensualidadesRes] = await Promise.all([
       db.execute({
         sql: `SELECT substr(fecha_pago, 6, 2) AS mes, tipo_concepto, codigo_arancel, COALESCE(SUM(monto_usd_equivalente), 0) AS total, COUNT(*) AS n
               FROM pagos WHERE estatus = 'Verificado' AND eliminado_en IS NULL AND fecha_pago LIKE ?
@@ -134,7 +134,30 @@ export const finanzasService = {
       }),
       // Cuotas de sostenimiento del listado de solvencia importado (sin recibo)
       cuotasImportadasPorPeriodo(anio),
+      // Mensualidades verificadas con el mes que cubren: sirven para separar lo cobrado por adelantado
+      db.execute({
+        sql: `SELECT substr(fecha_pago, 1, 7) AS ym, periodo, COALESCE(meses_cubiertos, 1) AS meses, COALESCE(monto_usd_equivalente, 0) AS monto
+              FROM pagos WHERE estatus = 'Verificado' AND eliminado_en IS NULL AND tipo_concepto = 'mensualidad'
+                AND periodo IS NOT NULL AND fecha_pago LIKE ?`,
+        args: [prefijo]
+      }),
     ]);
+
+    // Adelantos: la parte de una mensualidad que cubre meses posteriores al mes en que se pagó.
+    // Sigue contando como ingreso del mes en que se cobró (base caja); aquí solo se aparta para mostrarla distinta.
+    const adelantos = Array.from({ length: 12 }, () => ({ usd: 0, pagos: 0, hasta: null as string | null }));
+    for (const r of mensualidadesRes.rows as any[]) {
+      const n = Math.max(1, Math.trunc(Number(r.meses)) || 1);
+      const [y, m] = String(r.periodo).split('-').map(Number);
+      const cubiertos = Array.from({ length: n }, (_, i) => new Date(Date.UTC(y, m - 1 + i, 1)).toISOString().slice(0, 7));
+      const futuros = cubiertos.filter(c => c > String(r.ym));
+      if (!futuros.length) continue;
+      const a = adelantos[Number(String(r.ym).slice(5, 7)) - 1];
+      a.usd += Number(r.monto) * futuros.length / n;
+      a.pagos += 1;
+      const ultimo = futuros[futuros.length - 1];
+      if (!a.hasta || ultimo > a.hasta) a.hasta = ultimo;
+    }
 
     const nuevoMes = () => ({
       ingresos: new Map<ConceptoReporte, { total: number; cantidad: number }>(CONCEPTOS_REPORTE.map(c => [c, { total: 0, cantidad: 0 }])),
@@ -203,6 +226,9 @@ export const finanzasService = {
         ingresos: m.kpis.totalIngresosUSD,
         egresos: m.kpis.totalEgresosUSD,
         neto: m.kpis.flujoNetoUSD,
+        adelantos: redondear(adelantos[m.mesNumero - 1].usd),
+        adelantosPagos: adelantos[m.mesNumero - 1].pagos,
+        adelantosHasta: adelantos[m.mesNumero - 1].hasta,
       })),
       // El año completo y cada mes, para que el cliente cambie de período sin ir al servidor
       anual,

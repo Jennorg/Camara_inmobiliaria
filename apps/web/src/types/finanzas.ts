@@ -115,6 +115,11 @@ export interface ResumenFinancieroDTO {
     ingresos: number
     egresos: number
     neto: number
+    /** Parte de los ingresos del mes que cubre meses posteriores (mensualidades pagadas por adelantado) */
+    adelantos: number
+    adelantosPagos: number
+    /** Último mes (AAAA-MM) cubierto por esos adelantos */
+    adelantosHasta: string | null
   }[]
   ingresosPorConcepto: {
     concepto: string
