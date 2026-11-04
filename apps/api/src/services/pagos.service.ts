@@ -2,6 +2,7 @@ import { db } from '../lib/db.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { NotificationService } from './notification.service.js';
 import { mesMasAntiguoImpago } from './cobranza.service.js';
+import { fijarMontoCuotas, montoCuotaActual } from './cuotas-importadas.service.js';
 import { esCupoIlimitado, sqlOcupaCupo } from '../lib/cursos-pago.js';
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
@@ -817,10 +818,12 @@ export async function anularPago(idPago: number, motivo: string, userId: number,
 export async function marcarMesSolvencia(idAfiliado: number, periodo: string, pagado: boolean, userId: number) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodo)) throw Object.assign(new Error('periodo debe tener el formato AAAA-MM'), { status: 400 });
   if (pagado) {
+    await fijarMontoCuotas();
     await db.execute({
-      sql: `INSERT INTO solvencia_historial (id_afiliado, periodo, estado, fuente) VALUES (?, ?, 'pagado', ?)
-            ON CONFLICT (id_afiliado, periodo) DO UPDATE SET estado = 'pagado', fuente = excluded.fuente, importado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now')`,
-      args: [idAfiliado, periodo, `manual:${userId}`],
+      sql: `INSERT INTO solvencia_historial (id_afiliado, periodo, estado, fuente, monto_usd) VALUES (?, ?, 'pagado', ?, ?)
+            ON CONFLICT (id_afiliado, periodo) DO UPDATE SET estado = 'pagado', fuente = excluded.fuente, importado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now'),
+              monto_usd = CASE WHEN solvencia_historial.estado = 'pagado' THEN COALESCE(solvencia_historial.monto_usd, excluded.monto_usd) ELSE excluded.monto_usd END`,
+      args: [idAfiliado, periodo, `manual:${userId}`, await montoCuotaActual()],
     });
     return;
   }

@@ -30,7 +30,7 @@ export async function ingresosPorConcepto(anio: number) {
   ])
   const matriz = new Map(CONCEPTOS_REPORTE.map(c => [c, Array<number>(12).fill(0)]))
   const importadas = await cuotasImportadasPorPeriodo(anio)
-  for (const [periodo, n] of importadas.porPeriodo) matriz.get('mensualidad')![Number(periodo.slice(5, 7)) - 1] += n * importadas.monto
+  for (const [periodo, c] of importadas) matriz.get('mensualidad')![Number(periodo.slice(5, 7)) - 1] += c.total
   for (const r of pagos.rows as any[]) matriz.get(conceptoReporte(r.tipo_concepto, r.codigo_arancel))![r.mes - 1] += Number(r.total)
   for (const r of manuales.rows as any[]) matriz.get('otros')![r.mes - 1] += Number(r.total)
 

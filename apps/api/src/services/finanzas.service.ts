@@ -172,7 +172,7 @@ export const finanzasService = {
 
     for (const r of pagosRes.rows as any[]) sumarIngreso(Number(r.mes) - 1, conceptoReporte(r.tipo_concepto, r.codigo_arancel), Number(r.total), Number(r.n));
     for (const r of manualesRes.rows as any[]) sumarIngreso(Number(r.mes) - 1, 'otros', Number(r.total), Number(r.n));
-    for (const [periodo, n] of importadas.porPeriodo) sumarIngreso(Number(periodo.slice(5, 7)) - 1, 'mensualidad', n * importadas.monto, n);
+    for (const [periodo, c] of importadas) sumarIngreso(Number(periodo.slice(5, 7)) - 1, 'mensualidad', c.total, c.n);
     for (const r of egresosRes.rows as any[]) {
       const g = meses[Number(r.mes) - 1].gastos;
       const e = g.get(String(r.categoria)) ?? { total: 0, cantidad: 0 };

@@ -5,6 +5,7 @@ import * as pagosService from '../services/pagos.service.js';
 import { MENSAJE_SOLO_ADMINISTRACION, pagosElectronicosHabilitados, setPagosElectronicos } from '../services/config-pagos.service.js';
 import { precioCurso } from '../lib/cursos-pago.js';
 import { TIPOS_CUENTA, asegurarTiposCuenta } from '../lib/cuentas.js';
+import { fijarMontoCuotas } from '../services/cuotas-importadas.service.js';
 
 // ============================================================
 // PÚBLICO / USUARIO AUTENTICADO
@@ -685,6 +686,9 @@ export const adminUpdateArancel = async (req: Request, res: Response): Promise<v
   try {
     const { codigo } = req.params;
     const { nombre, descripcion, monto_usd, activo } = req.body;
+
+    // Las cuotas importadas ya ocurridas conservan el monto con que se registraron: se fija antes de cambiar el arancel
+    if (codigo === 'mensualidad_base') await fijarMontoCuotas(true);
 
     const now = new Date().toISOString();
     const result = await db.execute({

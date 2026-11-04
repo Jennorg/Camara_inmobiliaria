@@ -926,6 +926,7 @@ async function run() {
       estado       TEXT    NOT NULL CHECK (estado IN ('pagado', 'no_afiliado')),
       fuente       TEXT,
       importado_en TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+      monto_usd    REAL,
       PRIMARY KEY (id_afiliado, periodo)
     )`)
     // Migración: mes que cubre cada pago de mensualidad (línea de tiempo de solvencia)
