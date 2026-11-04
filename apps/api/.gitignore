@@ -10,3 +10,6 @@ scratch/
 # Database Seeds
 src/config/seed-*.ts
 src/config/afiliados_seed.json
+
+# Exportaciones de solvencia (datos personales de afiliados)
+data/solvencia-*.json
