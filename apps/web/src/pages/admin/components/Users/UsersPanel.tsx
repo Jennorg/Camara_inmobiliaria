@@ -142,6 +142,7 @@ export default function UsersPanel() {
   const [searchField, setSearchField]   = useState<'nombre' | 'codigo' | 'email' | 'cedula' | 'rif'>('nombre')
   const [filtroRol, setFiltroRol]       = useState<FiltroRol>('todos')
   const [filtroActivo, setFiltroActivo] = useState<FiltroActivo>('todos')
+  const [filtroEtapa, setFiltroEtapa] = useState('todas')
   const [viewMode, setViewMode]         = useState<'cards' | 'table'>('cards')
 
   useEffect(() => {
@@ -192,6 +193,11 @@ export default function UsersPanel() {
     })
   }, [users])
 
+  const etapas = useMemo(
+    () => [...new Set(users.map(u => u.estatus_afiliado).filter((e): e is string => !!e))].sort(),
+    [users]
+  )
+
   // ── Filtrado local ultra-rápido ─────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase()
@@ -199,6 +205,7 @@ export default function UsersPanel() {
 
     return normalizedUsers.filter(u => {
       if (filtroRol !== 'todos' && u.rol !== filtroRol) return false
+      if (filtroEtapa !== 'todas' && u.estatus_afiliado !== filtroEtapa) return false
       if (filtroActivo === 'activo'   && !u.activo)   return false
       if (filtroActivo === 'inactivo' &&  u.activo)   return false
       if (terms.length === 0) return true
@@ -223,7 +230,7 @@ export default function UsersPanel() {
       }
       return false
     })
-  }, [normalizedUsers, debouncedSearch, filtroRol, filtroActivo, searchField])
+  }, [normalizedUsers, debouncedSearch, filtroRol, filtroActivo, filtroEtapa, searchField])
 
   // ── Paginación e Infinite Scroll (30 en 30) ──────────────────────────────────
   const [visibleLimit, setVisibleLimit] = useState(30)
@@ -231,7 +238,7 @@ export default function UsersPanel() {
 
   useEffect(() => {
     setVisibleLimit(30)
-  }, [debouncedSearch, filtroRol, filtroActivo, searchField])
+  }, [debouncedSearch, filtroRol, filtroActivo, filtroEtapa, searchField])
 
   useEffect(() => {
     const target = observerTarget.current
@@ -623,6 +630,19 @@ export default function UsersPanel() {
             <option value='todos'>Todos los estados</option>
             <option value='activo'>Activo</option>
             <option value='inactivo'>Inactivo</option>
+          </select>
+        </div>
+
+        {/* Filtro Etapa Dropdown */}
+        <div className='flex items-center gap-2 w-full md:w-auto'>
+          <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Etapa:</span>
+          <select
+            value={filtroEtapa}
+            onChange={e => setFiltroEtapa(e.target.value)}
+            className='w-full md:w-auto rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:border-emerald-400 focus:bg-white transition-colors cursor-pointer'
+          >
+            <option value='todas'>Todas las etapas</option>
+            {etapas.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
 
