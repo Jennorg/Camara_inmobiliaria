@@ -75,7 +75,7 @@ function periodoArgs(
   if (params.tipo_concepto === 'formalizacion_afiliacion') return [now.slice(0, 7), 1];
   if (params.tipo_concepto !== 'mensualidad') return [null, 1];
   const periodo = params.periodo && PERIODO_RE.test(params.periodo) ? params.periodo : now.slice(0, 7);
-  const meses = Math.min(24, Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1)));
+  const meses = Math.min(36, Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1)));
   return [periodo, meses];
 }
 

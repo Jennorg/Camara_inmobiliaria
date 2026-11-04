@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 import DashboardSidebar from '@/pages/landing/afiliado/components/DashboardSidebar';
 import DashboardHeader from '@/pages/landing/afiliado/components/DashboardHeader';
-import WidgetReportarPago from '@/pages/landing/afiliado/components/WidgetReportarPago';
 import WidgetNotificaciones from '@/pages/landing/afiliado/components/WidgetNotificaciones';
 import WidgetAcademico from '@/pages/landing/afiliado/components/WidgetAcademico';
 import WidgetMisCursos from '@/pages/landing/afiliado/components/WidgetMisCursos';
@@ -60,9 +59,8 @@ import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
 import SEO from '@/components/SEO';
 
 import { useAuth } from '@/context/AuthContext';
-import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia';
+import EstadoCuentaAfiliado from '@/components/EstadoCuentaAfiliado';
 import BannerMora from '@/components/BannerMora';
-import BotonConstanciaSolvencia from '@/components/BotonConstanciaSolvencia';
 import { API_URL } from '@/config/env';
 import { apiFetch } from '@/lib/apiClient';
 import { formatNombreCard } from '@/utils/formatters';
@@ -71,7 +69,7 @@ import { formatNombreCard } from '@/utils/formatters';
 
 const NAV_AFILIADO = [
   { icon: FolderSearch, label: 'Mi Expediente' },
-  { icon: CreditCard, label: 'Estado de Cuenta y Solvencias' },
+  { icon: CreditCard, label: 'Estado de Cuenta' },
   { icon: GraduationCap, label: 'Catálogo Académico' },
   { icon: Award, label: 'Mis Certificados' },
   // { icon: Gavel, label: 'Sistema de Denuncias' },
@@ -289,7 +287,7 @@ const PanelPage = () => {
     if (isConsideredAfiliado) {
       // Acceso completo para Naturales y Corporativos (y admins)
       // La solvencia es por afiliación: un admin sin afiliado propio no la tiene
-      baseItems = NAV_AFILIADO.filter(i => i.label !== 'Estado de Cuenta y Solvencias' || !!(user?.id_afiliado || afiliado?.id_afiliado));
+      baseItems = NAV_AFILIADO.filter(i => i.label !== 'Estado de Cuenta' || !!(user?.id_afiliado || afiliado?.id_afiliado));
     } else if (isEstudiante && (!user?.roles || user.roles.length <= 1)) {
       // Exclusivo estudiante
       baseItems = [
@@ -480,21 +478,12 @@ const PanelPage = () => {
         </>
       );
     }
-    if (activeTab === 'Estado de Cuenta y Solvencias') {
+    if (activeTab === 'Estado de Cuenta') {
       const idAfiliado = user?.id_afiliado || afiliado?.id_afiliado;
       return (
-        <div className="col-span-1 lg:col-span-3 grid grid-cols-1 xl:grid-cols-[minmax(0,26rem)_1fr] gap-6 items-start">
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
-            <h2 className="text-lg font-black text-slate-900">Estado de cuenta y solvencia</h2>
-            <p className="text-xs text-slate-500 font-medium">Tus mensualidades mes a mes: pagadas, en revisión y pendientes.</p>
-            {idAfiliado && isAfiliadoActivo ? <BotonConstanciaSolvencia idAfiliado={idAfiliado} /> : null}
-            {idAfiliado ? <LineaTiempoSolvencia key={versionSolvencia} idAfiliado={idAfiliado} /> : null}
-          </div>
+        <div className="h-full overflow-y-auto custom-scrollbar-light">
           {idAfiliado ? (
-            <div id="reportar-pago" className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4 scroll-mt-24">
-              <h2 className="text-lg font-black text-slate-900">Reportar pago</h2>
-              <WidgetReportarPago idAfiliado={idAfiliado} onReportado={() => setVersionSolvencia(v => v + 1)} />
-            </div>
+            <EstadoCuentaAfiliado idAfiliado={idAfiliado} onReportado={() => setVersionSolvencia(v => v + 1)} />
           ) : null}
         </div>
       );
@@ -556,7 +545,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <BatchDownloadProvider>
@@ -643,8 +632,8 @@ const PanelPage = () => {
                   </div>
                 </div>
 
-                {isAfiliadoActivo && afiliado?.id_afiliado && activeTab !== 'Estado de Cuenta y Solvencias' && (
-                  <BannerMora key={versionSolvencia} idAfiliado={afiliado.id_afiliado} onIrAPagar={() => setActiveTab('Estado de Cuenta y Solvencias')} />
+                {isAfiliadoActivo && afiliado?.id_afiliado && activeTab !== 'Estado de Cuenta' && (
+                  <BannerMora key={versionSolvencia} idAfiliado={afiliado.id_afiliado} onIrAPagar={() => setActiveTab('Estado de Cuenta')} />
                 )}
 
                 {/* Content grid */}

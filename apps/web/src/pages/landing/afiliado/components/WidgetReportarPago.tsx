@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import FileUpload from '@/components/common/FileUpload';
 import { ETIQUETA_TIPO_CUENTA, type CuentaBancariaDTO, type MetodoPago } from '@/types/pagos';
 import { toast } from 'sonner';
+import SelectorMesesPago, { mesesPagables } from './SelectorMesesPago';
 
 interface CursoPendiente {
   id_inscripcion: number;
@@ -26,6 +27,8 @@ interface Props {
   idAfiliado: number;
   /** Tras reportar, para refrescar la línea de tiempo de solvencia */
   onReportado?: () => void;
+  /** Si el padre ya eligió los meses (calendario del estado de cuenta), se oculta el selector propio */
+  mesesFijos?: number;
 }
 
 const METODOS: { value: MetodoPago; label: string; moneda: 'USD' | 'VES' }[] = [
@@ -37,6 +40,11 @@ const METODOS: { value: MetodoPago; label: string; moneda: 'USD' | 'VES' }[] = [
   { value: 'binance_usdt', label: 'Binance Pay / USDT', moneda: 'USD' },
 ];
 
+/** Método/moneda con que se registra un pago hecho a una cuenta oficial; el efectivo se paga en taquilla, no se reporta */
+const METODO_DE_CUENTA: Partial<Record<CuentaBancariaDTO['tipo'], MetodoPago>> = {
+  pago_movil: 'pago_movil', transferencia: 'transferencia_bs', transferencia_usd: 'otro', zelle: 'zelle', binance: 'binance_usdt', otro: 'otro',
+};
+
 const inputClase = 'w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-white text-xs font-medium';
 const etiquetaClase = 'text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1';
 
@@ -44,7 +52,7 @@ const etiquetaClase = 'text-[10px] font-black uppercase tracking-widest text-sla
  * Formulario del afiliado para reportar un pago digital: mensualidades (uno o varios meses) o un
  * curso con cupo reservado. Queda 'Pendiente' hasta que Finanzas lo verifica.
  */
-const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
+const WidgetReportarPago = ({ idAfiliado, onReportado, mesesFijos }: Props) => {
   const { authHeaders } = useAuth();
   const [cuentas, setCuentas] = useState<CuentaBancariaDTO[]>([]);
   const [tasaBcv, setTasaBcv] = useState(0);
@@ -58,9 +66,10 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
 
   // 'mensualidad', 'curso:<id_inscripcion>' o 'proceso:<concepto>'
   const [concepto, setConcepto] = useState('mensualidad');
-  const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
+  const [mesesSolv, setMesesSolv] = useState<{ periodo: string; estado: string }[]>([]);
   const [meses, setMeses] = useState(1);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('pago_movil');
+  const [cuentaSel, setCuentaSel] = useState<number | null>(null);
   const [referencia, setReferencia] = useState('');
   const [banco, setBanco] = useState('');
   const [titular, setTitular] = useState('');
@@ -89,18 +98,22 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
       const pendientes = (cp.data as CobroProceso[]).filter(x => x.estado === 'pendiente' && x.monto_usd > 0);
       setCobrosProceso(pendientes);
       // Quien está en el proceso de afiliación paga primero lo que le corresponde de él
-      if (pendientes.length) setConcepto(prev => (prev === 'mensualidad' ? `proceso:${pendientes[0].concepto}` : prev));
+      if (pendientes.length && mesesFijos === undefined) setConcepto(prev => (prev === 'mensualidad' ? `proceso:${pendientes[0].concepto}` : prev));
     }
-    if (c?.success) setCuentas(c.data);
+    if (c?.success) {
+      const pagables = (c.data as CuentaBancariaDTO[]).filter(x => METODO_DE_CUENTA[x.tipo]);
+      setCuentas(pagables);
+      // Con una sola cuenta no hay nada que elegir; con varias, el afiliado indica a cuál pagó
+      setCuentaSel(prev => (pagables.length === 1 ? pagables[0].id_cuenta : pagables.some(x => x.id_cuenta === prev) ? prev : null));
+    }
     if (t?.success) setTasaBcv(Number(t.data?.tasas?.USD_BCV?.tasa) || 0);
     if (s?.success) {
       setMontoMensual(Number(s.data.monto_mensual) || 0);
-      // Sugerir desde el mes impago más antiguo y cubrir toda la deuda
-      const impagos = (s.data.meses as { periodo: string; estado: string }[]).filter(m => m.estado === 'deuda' || m.estado === 'por_pagar');
-      if (impagos.length) {
-        setPeriodo(impagos[0].periodo);
-        setMeses(Math.min(24, impagos.length));
-      }
+      // Sugerir cubrir toda la deuda desde el mes impago más antiguo
+      const todos = s.data.meses as { periodo: string; estado: string }[];
+      setMesesSolv(todos);
+      const impagos = todos.filter(m => m.estado === 'deuda' || m.estado === 'por_pagar');
+      setMeses(impagos.length ? Math.min(36, impagos.length) : 1);
     }
     if (mc?.success) {
       setCursos((mc.data as any[]).filter(i =>
@@ -109,14 +122,20 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
         !['Verificado', 'Pendiente'].includes(i.pago_estatus)
       ));
     }
-  }, [idAfiliado, authHeaders]);
+  }, [idAfiliado, authHeaders, mesesFijos]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  const lista = useMemo(() => mesesPagables(mesesSolv), [mesesSolv]);
+  const mesesSel = Math.min(mesesFijos ?? meses, lista.length);
+  const periodo = lista[0]?.periodo ?? new Date().toISOString().slice(0, 7);
+
   const cursoSel = concepto.startsWith('curso:') ? cursos.find(c => `curso:${c.id_inscripcion}` === concepto) : undefined;
   const procesoSel = concepto.startsWith('proceso:') ? cobrosProceso.find(x => `proceso:${x.concepto}` === concepto) : undefined;
-  const montoUsd = cursoSel ? Number(cursoSel.monto_usd) : procesoSel ? procesoSel.monto_usd : meses * montoMensual;
-  const moneda = METODOS.find(m => m.value === metodoPago)!.moneda;
+  const montoUsd = cursoSel ? Number(cursoSel.monto_usd) : procesoSel ? procesoSel.monto_usd : mesesSel * montoMensual;
+  const cuenta = cuentas.find(c => c.id_cuenta === cuentaSel);
+  const metodo = cuenta ? METODO_DE_CUENTA[cuenta.tipo]! : metodoPago;
+  const moneda = METODOS.find(m => m.value === metodo)!.moneda;
   const montoVes = useMemo(() => Number((montoUsd * tasaBcv).toFixed(2)), [montoUsd, tasaBcv]);
 
   const copiar = (texto: string, clave: string) => {
@@ -128,6 +147,10 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (cuentas.length > 0 && !cuenta) {
+      setError('Elige la cuenta de la Cámara a la que hiciste el pago.');
+      return;
+    }
     if (moneda === 'VES' && !tasaBcv) {
       setError('No se pudo obtener la tasa BCV. Intenta de nuevo en unos minutos.');
       return;
@@ -143,10 +166,11 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
           : {
               tipo_concepto: 'mensualidad',
               periodo,
-              meses_cubiertos: meses,
-              descripcion_concepto: meses > 1 ? `Cuotas Mensuales de Membresía Gremial (${meses} meses desde ${periodo})` : `Cuota Mensual de Membresía Gremial (${periodo})`,
+              meses_cubiertos: mesesSel,
+              descripcion_concepto: mesesSel > 1 ? `Cuotas Mensuales de Membresía Gremial (${mesesSel} meses desde ${periodo})` : `Cuota Mensual de Membresía Gremial (${periodo})`,
             }),
-        metodo_pago: metodoPago,
+        metodo_pago: metodo,
+        banco_destino: cuenta ? `${cuenta.banco} · ${cuenta.numero_cuenta || cuenta.telefono || cuenta.email || cuenta.beneficiario}` : null,
         moneda,
         monto: moneda === 'USD' ? montoUsd : montoVes,
         monto_usd_equivalente: montoUsd,
@@ -200,27 +224,35 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
   return (
     <div className="space-y-5 text-slate-800">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">Cuentas oficiales de la Cámara</span>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {cuentas.map(c => (
-            <div key={c.id_cuenta} className="p-3.5 rounded-2xl border border-slate-200 bg-white text-[11px] text-slate-600 space-y-0.5 font-medium">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{ETIQUETA_TIPO_CUENTA[c.tipo] ?? c.tipo.replace('_', ' ')}</span>
-                <span className="font-bold text-slate-800">{c.banco}</span>
+        <span id="etiqueta-cuentas" className="text-xs font-bold text-slate-800 block mb-2">¿A qué cuenta de la Cámara pagaste? *</span>
+        <div role="radiogroup" aria-labelledby="etiqueta-cuentas" className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {cuentas.map(c => {
+            const on = c.id_cuenta === cuentaSel;
+            return (
+              <div key={c.id_cuenta} onClick={() => setCuentaSel(c.id_cuenta)}
+                className={`p-3.5 rounded-2xl border-2 text-xs text-slate-700 space-y-0.5 font-medium cursor-pointer transition-colors ${on ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-400'}`}>
+                <label className="flex items-center justify-between gap-2 mb-1 cursor-pointer">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <input type="radio" name="cuenta_pagada" value={c.id_cuenta} checked={on} onChange={() => setCuentaSel(c.id_cuenta)}
+                      className="h-4 w-4 accent-emerald-600 shrink-0" />
+                    <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 truncate">{ETIQUETA_TIPO_CUENTA[c.tipo] ?? c.tipo.replace('_', ' ')}</span>
+                  </span>
+                  <span className="font-bold text-slate-900 truncate">{c.banco}</span>
+                </label>
+                <p><strong className="text-slate-900">Titular:</strong> {c.beneficiario}</p>
+                {([['RIF/C.I.', c.identificacion], ['Teléfono', c.telefono], ['Cuenta', c.numero_cuenta], ['Zelle', c.email]] as const)
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between gap-2">
+                      <span className="truncate"><strong className="text-slate-900">{k}:</strong> {v}</span>
+                      <button type="button" onClick={e => { e.stopPropagation(); copiar(String(v), `${c.id_cuenta}-${k}`); }} aria-label={`Copiar ${k}`} className="text-slate-500 hover:text-emerald-700 p-1 shrink-0">
+                        {copiado === `${c.id_cuenta}-${k}` ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                      </button>
+                    </div>
+                  ))}
               </div>
-              <p><strong className="text-slate-800">Titular:</strong> {c.beneficiario}</p>
-              {([['RIF/C.I.', c.identificacion], ['Teléfono', c.telefono], ['Cuenta', c.numero_cuenta], ['Zelle', c.email]] as const)
-                .filter(([, v]) => v)
-                .map(([k, v]) => (
-                  <div key={k} className="flex items-center justify-between gap-2">
-                    <span className="truncate"><strong className="text-slate-800">{k}:</strong> {v}</span>
-                    <button type="button" onClick={() => copiar(String(v), `${c.id_cuenta}-${k}`)} aria-label={`Copiar ${k}`} className="text-slate-400 hover:text-emerald-600 p-0.5 shrink-0">
-                      {copiado === `${c.id_cuenta}-${k}` ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                    </button>
-                  </div>
-                ))}
-            </div>
-          ))}
+            );
+          })}
         </div>
         <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500">
           <Building2 size={13} className="text-emerald-600 shrink-0" />
@@ -243,19 +275,10 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
             </select>
           </label>
 
-          {!cursoSel && !procesoSel && (
-            <>
-              <label className="space-y-1">
-                <span className={etiquetaClase}>Desde el mes</span>
-                <input type="month" readOnly value={periodo} aria-describedby="ayuda-mes-pago" className={`${inputClase} bg-slate-50 cursor-not-allowed`} />
-                <span id="ayuda-mes-pago" className="text-[10px] font-medium text-slate-500 block ml-1">Tu pago se aplica primero a tu deuda más antigua.</span>
-              </label>
-              <label className="space-y-1">
-                <span className={etiquetaClase}>Cantidad de meses *</span>
-                <input type="number" inputMode="numeric" min={1} max={24} required value={meses}
-                  onChange={e => setMeses(Math.min(24, Math.max(1, Math.trunc(e.currentTarget.valueAsNumber) || 1)))} className={inputClase} />
-              </label>
-            </>
+          {!cursoSel && !procesoSel && mesesFijos === undefined && (
+            <div className="md:col-span-2">
+              <SelectorMesesPago lista={lista} meses={mesesSel} onChange={setMeses} />
+            </div>
           )}
 
           <div className="md:col-span-2 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex flex-wrap items-baseline justify-between gap-2">
@@ -268,12 +291,14 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
             </span>
           </div>
 
+          {cuentas.length === 0 && (
           <label className="space-y-1">
-            <span className={etiquetaClase}>Método de pago *</span>
-            <select required value={metodoPago} onChange={e => setMetodoPago(e.target.value as MetodoPago)} className={`${inputClase} font-bold`}>
-              {METODOS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </label>
+              <span className={etiquetaClase}>Método de pago *</span>
+              <select required value={metodoPago} onChange={e => setMetodoPago(e.target.value as MetodoPago)} className={`${inputClase} font-bold`}>
+                {METODOS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </label>
+          )}
           <label className="space-y-1">
             <span className={etiquetaClase}>N° de referencia *</span>
             <input type="text" required value={referencia} onChange={e => setReferencia(e.target.value)} placeholder="Ej. 182749320…" autoComplete="off" spellCheck={false} className={`${inputClase} font-mono font-bold`} />
@@ -286,7 +311,7 @@ const WidgetReportarPago = ({ idAfiliado, onReportado }: Props) => {
             <span className={etiquetaClase}>Titular de la cuenta emisora</span>
             <input type="text" value={titular} onChange={e => setTitular(e.target.value)} autoComplete="name" className={inputClase} />
           </label>
-          {metodoPago === 'pago_movil' && (
+          {metodo === 'pago_movil' && (
             <label className="space-y-1">
               <span className={etiquetaClase}>Teléfono emisor</span>
               <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Ej. 0414-1234567…" autoComplete="tel" className={`${inputClase} font-mono`} />
