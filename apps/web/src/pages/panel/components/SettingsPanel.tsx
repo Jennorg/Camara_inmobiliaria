@@ -689,8 +689,8 @@ const SettingsPanel = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input label="Nombres" name="nombres" value={formData.nombres} onChange={handleInputChange} icon={User} />
-                <Input label="Apellidos" name="apellidos" value={formData.apellidos} onChange={handleInputChange} icon={User} />
+                <Input label="Nombres" name="nombres" value={formData.nombres} onChange={handleInputChange} icon={User} disabled />
+                <Input label="Apellidos" name="apellidos" value={formData.apellidos} onChange={handleInputChange} icon={User} disabled />
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Cédula</label>
                   <div className="flex gap-2">
@@ -699,7 +699,8 @@ const SettingsPanel = () => {
                         name="cedula_tipo"
                         value={formData.cedula_tipo || 'V'}
                         onChange={handleInputChange}
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors appearance-none cursor-pointer text-center pr-6"
+                        disabled
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors appearance-none text-center pr-6 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       >
                         <option value="V">V</option>
                         <option value="E">E</option>
@@ -717,7 +718,8 @@ const SettingsPanel = () => {
                         onChange={handleCedulaChange}
                         placeholder="Ej: 12.345.678"
                         maxLength={12}
-                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors"
+                        disabled
+                        className="w-full h-12 bg-gray-50 border border-gray-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-colors disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
