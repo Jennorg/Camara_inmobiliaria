@@ -38,7 +38,7 @@ const mesLargo = (ym: string) =>
 
 /** Línea de tiempo mensual de solvencia de un afiliado (mes más reciente arriba). */
 export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: number }) {
-  const { token, isSuperAdmin } = useAuth()
+  const { token, isAdmin, isAsistente } = useAuth(); const isSuperAdmin = isAdmin || isAsistente
   const [data, setData] = useState<Solvencia | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)

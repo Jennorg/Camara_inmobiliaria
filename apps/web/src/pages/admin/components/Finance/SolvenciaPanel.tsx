@@ -70,7 +70,7 @@ const CELDA: Record<EstadoMes, { clase: string; marca: string; titulo: string }>
 
 /** Matriz mes a mes de la solvencia de todos los afiliados; al abrir una fila se ve su línea de tiempo. */
 export default function SolvenciaPanel() {
-  const { authHeaders, token, isSuperAdmin } = useAuth()
+  const { authHeaders, token, isAdmin, isAsistente } = useAuth(); const isSuperAdmin = isAdmin || isAsistente
   const [anio, setAnio] = useState(new Date().getFullYear())
   const [data, setData] = useState<Resumen | null>(null)
   const [inicio, setInicio] = useState('')
@@ -309,7 +309,7 @@ export default function SolvenciaPanel() {
 
       {isSuperAdmin && (
         <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-          Como superadmin puedes corregir cualquier mes: haz clic en su casilla para anular el pago, marcarlo como pagado o quitar la marca.
+          Puedes corregir cualquier mes: haz clic en su casilla para anular el pago, marcarlo como pagado o quitar la marca.
         </p>
       )}
 

@@ -50,8 +50,8 @@ router.get('/admin/cursos-por-cobrar', requireAuth, requireRole(...adminRoles), 
 router.put('/admin/modalidad', requireAuth, requireRole(...adminRoles), adminSetModalidadPagos);
 router.get('/admin/pagadores', requireAuth, requireRole(...adminRoles), adminBuscarPagadores);
 router.post('/admin/cobro-taquilla', requireAuth, requireRole(...adminRoles), adminCobroTaquilla);
-router.patch('/admin/:id/anular', requireAuth, requireRole('super_admin'), adminAnularPago);
-router.put('/admin/solvencia/afiliado/:idAfiliado/mes', requireAuth, requireRole('super_admin'), adminMarcarMesSolvencia);
+router.patch('/admin/:id/anular', requireAuth, requireRole(...adminRoles), adminAnularPago);
+router.put('/admin/solvencia/afiliado/:idAfiliado/mes', requireAuth, requireRole(...adminRoles), adminMarcarMesSolvencia);
 router.patch('/admin/:id/verificar', requireAuth, requireRole(...adminRoles), adminVerificarPago);
 router.patch('/admin/:id/rechazar', requireAuth, requireRole(...adminRoles), adminRechazarPago);
 

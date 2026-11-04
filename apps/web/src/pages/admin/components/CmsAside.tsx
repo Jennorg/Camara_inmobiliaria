@@ -375,7 +375,7 @@ const SidebarContent = ({
       <nav className="flex-1 py-1 flex flex-col gap-0 px-2 overflow-y-auto custom-scrollbar">
         {NAV_MAIN.filter(i => {
           if (isAsistente && !isAdmin) {
-            return ['afiliados', 'users'].includes(i.id);
+            return ['afiliados', 'users', 'finanzas'].includes(i.id);
           }
           if (i.id === 'admin_users') return user?.rol === 'super_admin';
           return true;
