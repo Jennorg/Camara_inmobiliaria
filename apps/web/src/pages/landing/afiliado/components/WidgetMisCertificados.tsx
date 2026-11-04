@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Award, Copy, ExternalLink, Lock } from 'lucide-react'
+import { AlertTriangle, Award, Copy, ExternalLink, Lock } from 'lucide-react'
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
@@ -8,7 +8,7 @@ import { formatDateLatina } from '@/utils/formatters'
 
 interface CertRow {
   id_certificado: number
-  codigo_validacion: string
+  codigo_validacion: string | null
   fecha_emision: string
   programa_codigo: string | null
   tipo_inscripcion: string | null
@@ -100,9 +100,9 @@ const WidgetMisCertificados: React.FC = () => {
   const isAfiliadoActivo = afiliadoData?.estatus ? ['6_INSCRIPCION', 'Afiliado'].includes(String(afiliadoData.estatus).trim()) : false;
   const esCibirAprobado = afiliadoData?.cibir_acreditado === 1;
   const mostrarWidget = isAfiliadoActivo || esCibirAprobado;
-  
+
   console.log('DEBUG: isAfiliadoActivo:', isAfiliadoActivo, 'esCibirAprobado:', esCibirAprobado, 'mostrarWidget:', mostrarWidget);
-  
+
   const urlAfiliacion = afiliacionId ? `${origin}/comprobante/afiliacion/${afiliacionId}` : ''
 
   return (
@@ -111,36 +111,35 @@ const WidgetMisCertificados: React.FC = () => {
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{fetchError}</p>
       )}
 
-      {bloqueo && (
-        <div role="status" className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
-          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
-          <div className="text-xs">
-            <p className="font-bold">Tus certificados están bloqueados por mensualidades pendientes.</p>
-            <p className="mt-0.5 opacity-80">
-              {bloqueo.meses > 0 ? `Debes ${bloqueo.meses} ${bloqueo.meses === 1 ? 'mes' : 'meses'} ($${Number(bloqueo.monto_usd).toFixed(2)}). ` : ''}
-              Reporta tu pago en "Estado de Cuenta y Solvencias": se desbloquean cuando Finanzas lo verifique.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Sección Certificado de Afiliación Gremial */}
-      {mostrarWidget && !bloqueo && (
-        <div className="mb-6 rounded-2xl border-2 border-emerald-200/80 bg-emerald-50/40 p-5 sm:p-6 shadow-sm">
+      {mostrarWidget && (
+        <div className={`mb-6 rounded-2xl border-2 p-5 sm:p-6 shadow-sm ${bloqueo ? 'border-amber-300 bg-amber-50/50' : 'border-emerald-200/80 bg-emerald-50/40'}`}>
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0">
-              <h4 className="font-extrabold text-base text-emerald-950">
+              <h4 className={`flex items-center gap-2 font-extrabold text-base ${bloqueo ? 'text-amber-950' : 'text-emerald-950'}`}>
+                {bloqueo && <span className="grid h-6 w-6 place-items-center rounded-full bg-amber-500 text-white" aria-hidden="true"><AlertTriangle size={13} /></span>}
                 Certificado de Afiliación
               </h4>
               <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-                {afiliadoData?.estatus === 'Afiliado' 
+                {afiliadoData?.estatus === 'Afiliado'
                   ? "Como miembro registrado en la Cámara Inmobiliaria de Bolívar, dispones de tu certificado de afiliación digital y público."
                   : "Has aprobado el programa CIBIR. Dispones de tu certificado digital y público."
                 }
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 self-start sm:self-auto">
-              {afiliacionId && (
+              {afiliacionId && bloqueo && (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-amber-900 cursor-not-allowed"
+                >
+                  <Lock size={14} aria-hidden="true" />
+                  Bloqueado por mora
+                </button>
+              )}
+              {afiliacionId && !bloqueo && (
                 <>
                   <button
                     type="button"
@@ -191,39 +190,62 @@ const WidgetMisCertificados: React.FC = () => {
       ) : (
         <ul className="space-y-4">
           {rows.map((r) => {
-            const url = `${origin}/comprobante/${encodeURIComponent(r.codigo_validacion)}`
+            const codigo = r.codigo_validacion
+            const bloqueado = !codigo
+            const url = codigo ? `${origin}/comprobante/${encodeURIComponent(codigo)}` : ''
             return (
               <li
                 key={r.id_certificado}
-                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-4 sm:p-5"
+                className={`rounded-xl border p-4 sm:p-5 ${bloqueado ? 'border-amber-300 bg-amber-50/50' : 'border-[var(--color-border)] bg-[var(--color-bg-subtle)]'}`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="min-w-0">
-                    <h4 className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>
-                      {tituloCertificado(r)}
-                    </h4>
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      Emitido: {formatDateLatina(r.fecha_emision)}
-                    </p>
+                  <div className="flex min-w-0 items-start gap-3">
+                    {bloqueado && (
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-500 text-white" aria-hidden="true">
+                        <AlertTriangle size={16} />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm" style={{ color: bloqueado ? undefined : 'var(--color-primary)' }}>
+                        {tituloCertificado(r)}
+                      </h4>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Emitido: {formatDateLatina(r.fecha_emision)}
+                      </p>
+                      {bloqueado && (
+                        <p className="mt-1.5 text-xs font-semibold text-amber-900">Bloqueado: regulariza tus mensualidades para abrirlo.</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 shrink-0">
+                  {bloqueado ? (
                     <button
                       type="button"
-                      onClick={() => abrirPublico(r.codigo_validacion)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-emerald-700 cursor-pointer"
+                      disabled
+                      className="inline-flex items-center gap-1.5 self-start rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-amber-900 cursor-not-allowed shrink-0"
                     >
-                      <ExternalLink size={14} />
-                      Abrir certificado
+                      <Lock size={14} aria-hidden="true" />
+                      Bloqueado
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => copiar(url)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50 cursor-pointer"
-                    >
-                      <Copy size={14} />
-                      Copiar enlace
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => abrirPublico(codigo)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-emerald-700 cursor-pointer"
+                      >
+                        <ExternalLink size={14} />
+                        Abrir certificado
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copiar(url)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <Copy size={14} />
+                        Copiar enlace
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             )

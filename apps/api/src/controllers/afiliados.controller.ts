@@ -117,13 +117,17 @@ export const getMisCertificados = async (req: Request, res: Response): Promise<v
       args: [userEmail, userEmail, userEmail, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null, idAfiliado ?? null],
     })
 
-    // Afiliado oficial con mora por encima de la gracia: certificados bloqueados hasta verificar el pago
-    if (idAfiliado != null) {
-      const bloqueo = await estadoBloqueo(Number(idAfiliado))
-      if (bloqueo.bloqueado) {
-        res.json({ success: true, data: [], bloqueado_por_mora: true, deuda: { meses: bloqueo.mesesDeuda, monto_usd: bloqueo.montoUsd } })
-        return
-      }
+    // Con mora por encima de la gracia la lista se muestra, pero sin el código de validación: no se pueden abrir ni compartir
+    let bloqueo = { bloqueado: false, mesesDeuda: 0, montoUsd: 0 }
+    if (idAfiliado != null) bloqueo = await estadoBloqueo(Number(idAfiliado))
+    if (bloqueo.bloqueado) {
+      res.json({
+        success: true,
+        data: result.rows.map(r => ({ ...r, codigo_validacion: null })),
+        bloqueado_por_mora: true,
+        deuda: { meses: bloqueo.mesesDeuda, monto_usd: bloqueo.montoUsd },
+      })
+      return
     }
 
     res.json({ success: true, data: result.rows })
@@ -436,8 +440,8 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
         empresa_twitter: afiliado.empresa_twitter || parsedEmpresaRedes.twitter || '',
         empresa_tiktok: afiliado.empresa_tiktok || parsedEmpresaRedes.tiktok || '',
         documentos: docsResult.rows,
-        // Con mora por encima de la gracia el propio afiliado no recibe sus certificados (el personal sí)
-        certificados: bloqueo.bloqueado && !esPersonal ? [] : certsResult.rows,
+        // Con mora por encima de la gracia el propio afiliado ve sus certificados sin código de validación (el personal los ve completos)
+        certificados: bloqueo.bloqueado && !esPersonal ? certsResult.rows.map(r => ({ ...r, codigo_validacion: null })) : certsResult.rows,
         bloqueado_por_mora: bloqueo.bloqueado,
         deuda_mora: bloqueo.bloqueado ? { meses: bloqueo.mesesDeuda, monto_usd: bloqueo.montoUsd } : null,
       }
