@@ -12,6 +12,8 @@ export interface ExportRowFilters {
   estatus: ExportEstatusFilter
   activo: ExportActivoFilter
   foto: ExportFotoFilter
+  /** '' = todos; 'programa:CIBIR' = todo el programa; 'cohorte:12' = una cohorte (lo filtra la API) */
+  cohorte?: string
   search: string
   searchField?: SearchFieldType
   desdeCodigo: string
