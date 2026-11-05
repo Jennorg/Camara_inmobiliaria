@@ -25,6 +25,15 @@ export function conceptoReporte(tipoConcepto: string | null, codigoArancel: stri
   return 'otros'
 }
 
+/**
+ * Reparto de un pago entre conceptos. El cobro del CIBIR (80 $) se hace en un solo pago pero se compone de
+ * 60 $ de CIBIR, 10 $ de inscripción (afiliación) y 10 $ de cuota de sostenimiento (mensualidad); el resto de pagos va íntegro a su concepto.
+ */
+export function repartoConcepto(tipoConcepto: string | null, codigoArancel: string | null): [ConceptoReporte, number][] {
+  const c = conceptoReporte(tipoConcepto, codigoArancel)
+  return c === 'cibir' ? [['cibir', 60 / 80], ['afiliacion', 10 / 80], ['mensualidad', 10 / 80]] : [[c, 1]]
+}
+
 /** Tramo de antigüedad de una deuda según los días vencidos. */
 export function tramoAntiguedad(dias: number): '0-30' | '31-60' | '61-90' | '90+' {
   if (dias <= 30) return '0-30'

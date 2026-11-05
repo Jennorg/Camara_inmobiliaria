@@ -1,5 +1,5 @@
 import { db } from '../lib/db.js'
-import { CONCEPTOS_REPORTE, ETIQUETA_CATEGORIA_EGRESO, ETIQUETA_CONCEPTO, conceptoReporte, tramoAntiguedad } from '../lib/conceptos.js'
+import { CONCEPTOS_REPORTE, ETIQUETA_CATEGORIA_EGRESO, ETIQUETA_CONCEPTO, conceptoReporte, repartoConcepto, tramoAntiguedad } from '../lib/conceptos.js'
 import { sqlOcupaCupo } from '../lib/cursos-pago.js'
 import { calcularSolvencias } from './cobranza.service.js'
 import { cuotasImportadasPorPeriodo } from './cuotas-importadas.service.js'
@@ -31,7 +31,7 @@ export async function ingresosPorConcepto(anio: number) {
   const matriz = new Map(CONCEPTOS_REPORTE.map(c => [c, Array<number>(12).fill(0)]))
   const importadas = await cuotasImportadasPorPeriodo(anio)
   for (const [periodo, c] of importadas) matriz.get('mensualidad')![Number(periodo.slice(5, 7)) - 1] += c.total
-  for (const r of pagos.rows as any[]) matriz.get(conceptoReporte(r.tipo_concepto, r.codigo_arancel))![r.mes - 1] += Number(r.total)
+  for (const r of pagos.rows as any[]) for (const [c, parte] of repartoConcepto(r.tipo_concepto, r.codigo_arancel)) matriz.get(c)![r.mes - 1] += Number(r.total) * parte
   for (const r of manuales.rows as any[]) matriz.get('otros')![r.mes - 1] += Number(r.total)
 
   const conceptos = CONCEPTOS_REPORTE.map(c => {
