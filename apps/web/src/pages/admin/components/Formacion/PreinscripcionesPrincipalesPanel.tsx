@@ -85,6 +85,32 @@ type Row = {
 }
 
 /** Etapas del trámite de acreditación; es el filtro de estado cuando en CIBIR se elige la vía Acreditación */
+type CobroItem = { clave: 'formalizacion_afiliacion' | 'curso_cibir' | 'programa'; etiqueta: string; detalle: string; pagado: boolean; disponible: boolean }
+
+/** Cobros de caja que aplican hoy a esta persona (y si ya están pagados) */
+const cobrosDe = (r: Row): CobroItem[] => {
+  const enCurso = ['Preinscrito', 'Entrevista', 'Inscrito'].includes(r.estatus)
+  const items: CobroItem[] = []
+  if (r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION') {
+    items.push({ clave: 'formalizacion_afiliacion', etiqueta: 'Formalización de afiliación', detalle: 'Inscripción + primera cuota. Al cobrarla pasa a Afiliado.', pagado: false, disponible: true })
+  }
+  const cibirAplica = !r.cibir_acreditado && (
+    (r.programa_codigo === 'AFILIACION' && ['4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(r.afiliado_estatus || '')) ||
+    // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
+    (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
+    (r.programa_codigo === 'CIBIR' && enCurso && Number(r.completado) !== 1))
+  if (cibirAplica && r.id_afiliado) {
+    items.push({ clave: 'curso_cibir', etiqueta: 'Arancel CIBIR', detalle: 'Se exige para pasar a la etapa CIBIR.', pagado: !!r.pago_cibir, disponible: true })
+  }
+  if (['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && enCurso) {
+    items.push({ clave: 'programa', etiqueta: `Arancel ${r.programa_codigo}`, detalle: 'Se cobra a la persona inscrita al programa.', pagado: !!r.pago_programa, disponible: true })
+  }
+  return items
+}
+
+/** Debe si tiene algún cobro aplicable sin pagar */
+const debe = (r: Row) => cobrosDe(r).some(c => c.disponible && !c.pagado)
+
 const ETAPAS_ACRED = ['Todas', 'Sin expediente', 'En revisión', 'Entrevista', 'Verificación', 'Por acreditar', 'Acreditado', 'Rechazado'] as const
 type EtapaAcred = typeof ETAPAS_ACRED[number]
 const TIPOS_ACRED = ['Agente Indep.', 'Agente Corp.', 'Corporativo'] as const
@@ -139,7 +165,8 @@ export default function PreinscripcionesPrincipalesPanel({
   const { token } = useAuth()
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
   type UiEstatus = typeof UI_ESTATUS[number]
-  const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
+  const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Inscrito')
+  const [pagoSel, setPagoSel] = useState<'Todos' | 'Deben' | 'No deben'>('Deben')
   const [search, setSearch] = useState('')
   const [criterio, setCriterio] = useState<keyof typeof CRITERIOS_BUSQUEDA>('nombre')
   const [menuCriterio, setMenuCriterio] = useState(false)
@@ -192,6 +219,7 @@ export default function PreinscripcionesPrincipalesPanel({
   const seleccionarCohorte = (id: number | null) => {
     setCohorteFiltro(id)
     setUiEstatus('Todos') // una cohorte cerrada no tiene "pendientes": mostrar a todos, no el filtro por defecto
+    setPagoSel('Todos')
     setSelected(null)
   }
 
@@ -926,6 +954,11 @@ export default function PreinscripcionesPrincipalesPanel({
     return c
   }, [baseRows])
 
+  const countsPago = useMemo(() => {
+    const deben = baseRows.filter(debe).length
+    return { Todos: baseRows.length, Deben: deben, 'No deben': baseRows.length - deben }
+  }, [baseRows])
+
   const filteredRows = useMemo(() => {
     let result = baseRows
 
@@ -935,6 +968,7 @@ export default function PreinscripcionesPrincipalesPanel({
     } else if (uiEstatus !== 'Todos') {
       result = result.filter(r => estadoUi(r) === uiEstatus)
     }
+    if (pagoSel !== 'Todos') result = result.filter(r => debe(r) === (pagoSel === 'Deben'))
     if (!search.trim()) return result
     const q = search.trim()
     const digitos = cleanSearchDigits(q)
@@ -945,7 +979,7 @@ export default function PreinscripcionesPrincipalesPanel({
       if (criterio === 'correo') return (r.estudiante_email ?? '').toLowerCase().includes(q.toLowerCase())
       return (r.afiliado_codigo ?? '') === q
     })
-  }, [baseRows, search, criterio, uiEstatus, esAcred, etapaAcredSel])
+  }, [baseRows, search, criterio, uiEstatus, pagoSel, esAcred, etapaAcredSel])
 
   const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1, completado?: unknown) => {
     // Si es un trámite de afiliación o tiene estatus en la tabla de afiliados, mostrar su etapa real
@@ -1091,9 +1125,19 @@ export default function PreinscripcionesPrincipalesPanel({
                     opciones: ETAPAS_ACRED.map(e => ({ valor: e as string, texto: `${e === 'Todas' ? 'Todas las etapas' : e} (${countsAcred[e]})` })) }
                 : { id: 'estado-lista', etiqueta: 'Estado', ancho: 'col-span-2', valor: uiEstatus as string, cambiar: (v: string) => setUiEstatus(v as UiEstatus),
                     opciones: UI_ESTATUS.map(e => ({ valor: e as string, texto: `${e === 'Todos' ? 'Todos los estados' : e} (${counts[e] || 0})` })) },
+              { id: 'pago-lista', etiqueta: 'Pagos', ancho: 'col-span-2', valor: pagoSel as string, cambiar: (v: string) => {
+                  setPagoSel(v as typeof pagoSel)
+                  // Los cobros se miran sobre quienes ya están dentro del programa: se muestran los inscritos
+                  if (v !== 'Todos' && !esAcred) setUiEstatus('Inscrito')
+                },
+                opciones: [
+                  { valor: 'Todos', texto: `Todos (${countsPago.Todos})` },
+                  { valor: 'Deben', texto: `Con pago pendiente (${countsPago.Deben})` },
+                  { valor: 'No deben', texto: `Sin pago pendiente (${countsPago['No deben']})` },
+                ] },
               ...filtrosAcred,
             ]
-            const hayFiltro = viaCibir !== 'Todas' || (esAcred ? etapaAcredSel !== 'Todas' || !!tipoAcredSel : uiEstatus !== 'Todos')
+            const hayFiltro = pagoSel !== 'Todos' || viaCibir !== 'Todas' || (esAcred ? etapaAcredSel !== 'Todas' || !!tipoAcredSel : uiEstatus !== 'Todos')
             return (
             <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 pt-1">
               {campos.map(f => (
@@ -1114,7 +1158,7 @@ export default function PreinscripcionesPrincipalesPanel({
               {hayFiltro && (
                 <button
                   type="button"
-                  onClick={() => { setEtapaAcredSel('Todas'); setTipoAcredSel(''); setUiEstatus('Todos'); setViaCibir('Todas') }}
+                  onClick={() => { setEtapaAcredSel('Todas'); setTipoAcredSel(''); setUiEstatus('Todos'); setViaCibir('Todas'); setPagoSel('Todos') }}
                   className="col-span-2 self-start text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
                 >
                   Limpiar filtros
@@ -1199,9 +1243,16 @@ export default function PreinscripcionesPrincipalesPanel({
                       )}
                     </span>
 
-                    {/* Indicador de Estado Único */}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusObj.styles}`}>
-                      {statusObj.label}
+                    {/* Indicador de Estado Único (+ pago pendiente si tiene un cobro sin pagar) */}
+                    <span className="flex items-center gap-1 shrink-0">
+                      {debe(r) && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
+                          Pago pendiente
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
+                        {statusObj.label}
+                      </span>
                     </span>
                   </div>
 
@@ -1279,23 +1330,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
             {/* Cobros de caja de esta persona: se registran aquí, sin ir a Finanzas */}
             {(() => {
-              const r = selected
-              const enCurso = ['Preinscrito', 'Entrevista', 'Inscrito'].includes(r.estatus)
-              const items: { clave: 'formalizacion_afiliacion' | 'curso_cibir' | 'programa'; etiqueta: string; detalle: string; pagado: boolean; disponible: boolean }[] = []
-              if (r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION') {
-                items.push({ clave: 'formalizacion_afiliacion', etiqueta: 'Formalización de afiliación', detalle: 'Inscripción + primera cuota. Al cobrarla pasa a Afiliado.', pagado: false, disponible: true })
-              }
-              const cibirAplica = !r.cibir_acreditado && (
-                (r.programa_codigo === 'AFILIACION' && ['4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(r.afiliado_estatus || '')) ||
-                // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
-                (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
-                (r.programa_codigo === 'CIBIR' && enCurso && Number(r.completado) !== 1))
-              if (cibirAplica && r.id_afiliado) {
-                items.push({ clave: 'curso_cibir', etiqueta: 'Arancel CIBIR', detalle: 'Se exige para pasar a la etapa CIBIR.', pagado: !!r.pago_cibir, disponible: true })
-              }
-              if (['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && enCurso) {
-                items.push({ clave: 'programa', etiqueta: `Arancel ${r.programa_codigo}`, detalle: 'Se cobra a la persona inscrita al programa.', pagado: !!r.pago_programa, disponible: true })
-              }
+              const items = cobrosDe(selected)
               if (items.length === 0) return null
               return (
                 <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 mb-4 space-y-2">
