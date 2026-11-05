@@ -67,6 +67,7 @@ const icons = {
 
 import AsambleasPanel from '@/pages/admin/components/Gestion/AsambleasPanel'
 import SuperAdminUsersPanel from '@/pages/admin/components/Users/SuperAdminUsersPanel'
+import RolesPanel from '@/pages/admin/components/Roles/RolesPanel'
 
 // ─── Map of nav id → rendered panel ──────────────────────────────────────────
 const PANELS: Record<string, React.ReactNode> = {
@@ -93,6 +94,7 @@ const PANELS: Record<string, React.ReactNode> = {
   estudiantes: <EstudiantesRegularesPanel />,
   users: <UsersPanel />,
   admin_users: <SuperAdminUsersPanel />,
+  roles: <RolesPanel />,
   analytics: <AnalyticsPanel />,
   finanzas: <FinancePanel />,
   asambleas: <AsambleasPanel />,
