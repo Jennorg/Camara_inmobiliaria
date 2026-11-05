@@ -6,7 +6,7 @@ import SEO from '@/components/SEO'
 
 export default function LobbyPage() {
   const navigate = useNavigate()
-  const { user, logout, isAdmin, isAsistente, isAfiliado } = useAuth()
+  const { user, logout, isAfiliado, tienePanelAdmin } = useAuth()
 
   // Si por alguna razón cae acá con 1 solo rol, redirigir al módulo correspondiente.
   React.useEffect(() => {
@@ -20,7 +20,7 @@ export default function LobbyPage() {
   }, [navigate, user])
 
   const options = [
-    (isAdmin || isAsistente)
+    tienePanelAdmin
       ? {
         key: 'admin',
         title: 'Intranet Administrativa',

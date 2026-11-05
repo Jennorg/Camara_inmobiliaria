@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
+import { puede as puedeEn, tieneAlgunVer, type Accion, type MapaPermisos } from '@/lib/permisos'
 
 // ── Interceptor de Fetch Global (Manejo de Access + Refresh Tokens) ────────────
 
@@ -102,7 +103,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+type BaseRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+// Los roles personalizados tienen cualquier clave; se conserva el autocompletado de los conocidos.
+export type UserRole = BaseRole | (string & {})
 
 export interface AuthUser {
   id: number
@@ -127,6 +130,8 @@ export interface AuthUser {
   nivel_profesional?: string
   es_corredor_inmobiliario?: boolean
   estatus?: string
+  /** Permisos por sección del panel admin (unión de los roles del usuario). */
+  permisos?: MapaPermisos
 }
 
 interface AuthContextValue {
@@ -144,6 +149,9 @@ interface AuthContextValue {
   isAsistente: boolean
   isAfiliado: boolean
   isEstudiante: boolean
+  /** super_admin o `ver` en al menos una sección: puede entrar a /admin. */
+  tienePanelAdmin: boolean
+  puede: (seccion: string, accion: Accion) => boolean
   refreshUser: () => Promise<void>
   /** Impersonación */
   isImpersonating: boolean
@@ -455,6 +463,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
+  const tienePanelAdminVal = isSuperAdminVal || tieneAlgunVer(user?.permisos)
+  const puede = useCallback(
+    (seccion: string, accion: Accion) => puedeEn(user?.permisos, seccion, accion, isSuperAdminVal),
+    [user, isSuperAdminVal],
+  )
+
   const isImpersonatingVal = Boolean(originalAdmin && user && user.id !== originalAdmin.id)
 
   const authHeaders = useMemo((): Record<string, string> => (token ? { Authorization: `Bearer ${token}` } : {}), [token])
@@ -467,6 +481,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAsistente: isAsistenteVal,
     isAfiliado: isAfiliadoVal,
     isEstudiante: isEstudianteVal,
+    tienePanelAdmin: tienePanelAdminVal,
+    puede,
     refreshUser,
     isImpersonating: isImpersonatingVal,
     originalAdmin: isImpersonatingVal ? originalAdmin : null,
@@ -475,7 +491,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }), [
     user, token, authHeaders, isLoading, login, logout,
     hasRole, isAdminVal, isSuperAdminVal, isAsistenteVal,
-    isAfiliadoVal, isEstudianteVal, refreshUser,
+    isAfiliadoVal, isEstudianteVal, tienePanelAdminVal, puede, refreshUser,
     isImpersonatingVal, originalAdmin, impersonateUser, stopImpersonation
   ])
 

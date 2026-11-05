@@ -102,7 +102,7 @@ function AppRoutes() {
           </Route>
 
           {/* ── CMS Visual Editor / Intranet Administrativa ── */}
-          <Route element={<ProtectedRoute requiredRoles={['admin', 'super_admin', 'asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin']} />}>
+          <Route element={<ProtectedRoute requierePanelAdmin />}>
             <Route path='/admin' element={<AdminPage />} />
           </Route>
 

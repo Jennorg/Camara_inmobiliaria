@@ -211,7 +211,22 @@ const NAV_MAIN: NavGroup[] = [
   { id: 'users', label: 'Usuarios', icon: icons.users },
   { id: 'admin_users', label: 'Administradores', icon: icons.admin_users },
   { id: 'analytics', label: 'Análisis', icon: icons.analytics },
+  { id: 'roles', label: 'Roles y permisos', icon: icons.admin_users },
 ]
+
+type PuedeVer = (seccion: string, accion: 'ver') => boolean
+
+/** Un grupo con hijos se muestra si algún hijo tiene `ver`. */
+const esVisible = (item: NavGroup, puede: PuedeVer) =>
+  item.children ? item.children.some(c => puede(c.id, 'ver')) : puede(item.id, 'ver')
+
+/** Primera sección navegable que el usuario puede ver (para el activeId inicial). */
+export const primeraSeccionVisible = (puede: PuedeVer): string | undefined => {
+  for (const item of NAV_MAIN) {
+    if (!esVisible(item, puede)) continue
+    return item.children ? item.children.find(c => puede(c.id, 'ver'))?.id : item.id
+  }
+}
 
 const NAV_BOTTOM: NavItem[] = [
   { id: 'settings', label: 'Configuración', icon: icons.settings },
@@ -242,6 +257,7 @@ const NavButton = ({
   compact?: boolean
 }) => (
   <button
+    data-testid={`aside-nav-${item.id}`}
     onClick={onClick}
     title={isCollapsed ? item.label : undefined}
     style={isActive
@@ -311,7 +327,7 @@ const SidebarContent = ({
   onLogout?: () => void
   isMobile?: boolean
 }) => {
-  const { token, user, isAsistente, isAdmin } = useAuth()
+  const { token, isAdmin, puede } = useAuth()
   const [expandedGroups, setExpandedGroups] = React.useState<string[]>(['normativas'])
   const [solicitudesCambioCount, setSolicitudesCambioCount] = React.useState(0)
   const [preinscripcionesCount, setPreinscripcionesCount] = React.useState(0)
@@ -374,13 +390,7 @@ const SidebarContent = ({
 
       {/* Main nav */}
       <nav className="flex-1 py-1 flex flex-col gap-0 px-2 overflow-y-auto custom-scrollbar">
-        {NAV_MAIN.filter(i => {
-          if (isAsistente && !isAdmin) {
-            return ['afiliados', 'users', 'finanzas', 'asambleas'].includes(i.id);
-          }
-          if (i.id === 'admin_users') return user?.rol === 'super_admin';
-          return true;
-        }).map((item) => {
+        {NAV_MAIN.filter(i => esVisible(i, puede)).map((item) => {
           const hasChildren = !!item.children?.length
           const childIds = item.children?.map(c => c.id) || []
           
@@ -400,6 +410,7 @@ const SidebarContent = ({
             <React.Fragment key={item.id}>
               <button
                 data-testid={`aside-nav-${item.id}`}
+                aria-expanded={hasChildren ? isOpen : undefined}
                 onClick={() => {
                   if (hasChildren) {
                     toggleGroup(item.id)
@@ -449,7 +460,7 @@ const SidebarContent = ({
               {/* Sub-items */}
               {hasChildren && isOpen && !isCollapsed && (
                 <div className="ml-3 pl-3 border-l border-gray-100 flex flex-col gap-0.5 mb-1">
-                  {item.children?.map(child => {
+                  {item.children?.filter(c => puede(c.id, 'ver')).map(child => {
                     const hasSubChildren = !!child.children?.length
                     const subChildIds = child.children?.map(sc => sc.id) || []
                     const isSubActive = activeId === child.id || subChildIds.includes(activeId)
@@ -458,6 +469,7 @@ const SidebarContent = ({
                     return (
                       <React.Fragment key={child.id}>
                         <button
+                          data-testid={`aside-nav-${child.id}`}
                           onClick={() => {
                             onNav(child.id)
                             if (hasSubChildren) toggleGroup(child.id)
@@ -509,10 +521,8 @@ const SidebarContent = ({
 
       {/* Bottom nav */}
       <div className="pb-3 px-2 flex flex-col gap-0.5 border-t border-gray-100 pt-2">
-        {NAV_BOTTOM.filter(i => {
-          if (isAsistente && !isAdmin && i.id === 'settings') return false;
-          return true;
-        }).map((item) => (
+        {/* «settings» no es una sección con permisos: solo admin/super_admin */}
+        {NAV_BOTTOM.filter(i => i.id !== 'settings' || isAdmin).map((item) => (
           <NavButton
             key={item.id}
             item={item}

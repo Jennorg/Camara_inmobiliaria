@@ -5,6 +5,8 @@ import { useAuth, type UserRole } from '@/context/AuthContext'
 interface ProtectedRouteProps {
   /** Si se especifica, el usuario debe tener al menos uno de estos roles */
   requiredRoles?: UserRole[]
+  /** Si es true, el usuario debe ser super_admin o tener `ver` en alguna sección del panel admin */
+  requierePanelAdmin?: boolean
   children?: React.ReactNode
 }
 
@@ -15,8 +17,8 @@ interface ProtectedRouteProps {
  * - Si los roles no coinciden: redirige a `/panel` (vista unificada).
  * - Si todo OK: renderiza los hijos o <Outlet />.
  */
-export default function ProtectedRoute({ requiredRoles, children }: ProtectedRouteProps) {
-  const { user, isLoading, hasRole } = useAuth()
+export default function ProtectedRoute({ requiredRoles, requierePanelAdmin, children }: ProtectedRouteProps) {
+  const { user, isLoading, hasRole, tienePanelAdmin } = useAuth()
 
   if (isLoading) {
     return (
@@ -31,6 +33,10 @@ export default function ProtectedRoute({ requiredRoles, children }: ProtectedRou
 
   if (!user) {
     return <Navigate to="/" replace />
+  }
+
+  if (requierePanelAdmin && !tienePanelAdmin) {
+    return <Navigate to="/panel" replace />
   }
 
   // Si hay roles requeridos, verificar que el usuario tenga al menos uno
