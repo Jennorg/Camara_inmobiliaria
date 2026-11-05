@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Menu, User, X, Download, Loader2, Award, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
+import { Menu, User, X, Download, Loader2, Award, RefreshCw, Pencil, Image as ImageIcon, Building2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toJpeg } from 'html-to-image';
 import { toast } from 'sonner';
 import { AfiliadoDTO } from '@/types/afiliados';
@@ -76,7 +77,9 @@ const DashboardHeader = ({
   const [useJuntaPhoto, setUseJuntaPhoto] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
 
-  const { token, isAdmin } = useAuth();
+  const { token, isAdmin, isAsistente, tienePanelAdmin } = useAuth();
+  // Afiliado con un rol personalizado de staff: acceso a la intranet (admin/asistente ya la tienen en este panel).
+  const mostrarIntranet = tienePanelAdmin && !isAdmin && !isAsistente;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const carnetPanelRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -432,6 +435,17 @@ const DashboardHeader = ({
 
       {/* Right: Notifications + Profile */}
       <div className="flex items-center gap-4 flex-shrink-0">
+        {mostrarIntranet && (
+          <Link
+            to="/admin"
+            data-testid="panel-ir-intranet"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+          >
+            <Building2 size={16} aria-hidden="true" />
+            <span className="hidden sm:inline">Intranet administrativa</span>
+            <span className="sm:hidden">Intranet</span>
+          </Link>
+        )}
         <div
           className="flex items-center gap-1 pr-4"
           style={{ borderRight: '1px solid var(--color-border)' }}

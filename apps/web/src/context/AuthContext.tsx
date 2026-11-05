@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
-import { puede as puedeEn, tieneAlgunVer, type Accion, type MapaPermisos } from '@/lib/permisos'
+import { puede as puedeEn, tieneAlgunVer, type Accion, type MapaPermisos, type RolLegacy } from '@/lib/permisos'
 
 // ── Interceptor de Fetch Global (Manejo de Access + Refresh Tokens) ────────────
 
@@ -164,6 +164,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+const STAFF_ROLE_NAMES = ['asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
 const TOKEN_KEY = 'ciebo_token'
 const ORIGINAL_ADMIN_TOKEN_KEY = 'ciebo_original_admin_token'
 const ORIGINAL_ADMIN_INFO_KEY = 'ciebo_original_admin_info'
@@ -333,6 +334,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearOriginalAdminStorage()
     setOriginalAdmin(null)
 
+    // Varios roles con un rol personalizado de staff (p. ej. afiliado + lector): el lobby ofrece ambas vistas.
+    // admin/super_admin/staff conocidos siguen yendo a /panel como antes. Se calcula sobre el usuario recién logueado.
+    const norm = (r: string) => r.toLowerCase().trim().replace(/[\s_-]+/g, '_')
+    const rolConocidoDeStaff = newUser.roles.some(r => ['admin', 'super_admin', ...STAFF_ROLE_NAMES].includes(norm(r)))
+    if (newUser.roles.length > 1 && !rolConocidoDeStaff && tieneAlgunVer(newUser.permisos)) {
+      navigate('/lobby')
+      return
+    }
+
     // Selector general si tiene múltiples roles al panel unificado
     if (newUser.roles.length > 1) {
       navigate('/panel')
@@ -458,15 +468,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdminVal      = (user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) ?? false
   const isSuperAdminVal = user?.roles?.includes('super_admin') ?? false
-  const staffRoleNames  = ['asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
-  const isAsistenteVal  = (user?.roles?.some(r => staffRoleNames.includes(r.toLowerCase().trim().replace(/[\s_-]+/g, '_')))) ?? false
+  const isAsistenteVal  = (user?.roles?.some(r => STAFF_ROLE_NAMES.includes(r.toLowerCase().trim().replace(/[\s_-]+/g, '_')))) ?? false
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
-  const tienePanelAdminVal = isSuperAdminVal || tieneAlgunVer(user?.permisos)
+  const rolLegacy: RolLegacy = isAdminVal ? 'admin' : isAsistenteVal ? 'asistente' : null
+  const tienePanelAdminVal = isSuperAdminVal || tieneAlgunVer(user?.permisos, rolLegacy)
   const puede = useCallback(
-    (seccion: string, accion: Accion) => puedeEn(user?.permisos, seccion, accion, isSuperAdminVal),
-    [user, isSuperAdminVal],
+    (seccion: string, accion: Accion) => puedeEn(user?.permisos, seccion, accion, isSuperAdminVal, rolLegacy),
+    [user, isSuperAdminVal, rolLegacy],
   )
 
   const isImpersonatingVal = Boolean(originalAdmin && user && user.id !== originalAdmin.id)
