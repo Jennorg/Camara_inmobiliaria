@@ -15,6 +15,7 @@ import { toTitleCase } from '../lib/formatters.js'
 import { asegurarEsquemaCohortes } from '../lib/cohortes.js'
 import { asegurarTiposCuenta } from '../lib/cuentas.js'
 import { asegurarEsquemaDenuncias } from '../lib/denuncias-esquema.js'
+import { sembrarRoles } from './secciones.js'
 
 const statements = [
   `PRAGMA foreign_keys = ON`,
@@ -33,6 +34,25 @@ const statements = [
     eliminado_en        TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_users_activos ON users(eliminado_en) WHERE eliminado_en IS NULL`,
+
+  // Roles y permisos por sección (super_admin no es fila: acceso total)
+  `CREATE TABLE IF NOT EXISTS roles (
+    id                  INTEGER     PRIMARY KEY,
+    clave               TEXT        UNIQUE NOT NULL,
+    nombre              TEXT        NOT NULL,
+    es_sistema          INTEGER     NOT NULL DEFAULT 0 CHECK (es_sistema IN (0,1)),
+    activo              INTEGER     NOT NULL DEFAULT 1 CHECK (activo IN (0,1)),
+    creado_en           TEXT        NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS rol_permisos (
+    id_rol              INTEGER     NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    seccion             TEXT        NOT NULL,
+    ver                 INTEGER     NOT NULL DEFAULT 0 CHECK (ver IN (0,1)),
+    crear               INTEGER     NOT NULL DEFAULT 0 CHECK (crear IN (0,1)),
+    editar              INTEGER     NOT NULL DEFAULT 0 CHECK (editar IN (0,1)),
+    eliminar            INTEGER     NOT NULL DEFAULT 0 CHECK (eliminar IN (0,1)),
+    PRIMARY KEY (id_rol, seccion)
+  )`,
 
   // ===========================================================
   // PERSONAS
@@ -820,6 +840,13 @@ async function run() {
   await asegurarEsquemaCohortes(db)
   await asegurarTiposCuenta(db)
   await asegurarEsquemaDenuncias(db)
+
+  try {
+    await db.execute(`ALTER TABLE users ADD COLUMN nombre TEXT`)
+  } catch (e) {
+    // columna ya existe
+  }
+  await sembrarRoles(db)
 
   console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')
   try {
