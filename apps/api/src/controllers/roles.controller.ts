@@ -17,12 +17,15 @@ const fallo = (status: number, message: string) => Object.assign(new Error(messa
 
 const responder = (res: Response, error: any, contexto: string) => {
   if (error?.status) return res.status(error.status).json({ success: false, message: error.message })
+  // carrera entre la comprobación y el INSERT (UNIQUE de email o clave)
+  if (String(error?.code ?? '').startsWith('SQLITE_CONSTRAINT')) return res.status(409).json({ success: false, message: 'El registro ya existe' })
   console.error(`roles (${contexto}):`, error)
   return res.status(500).json({ success: false, message: `Error al ${contexto}` })
 }
 
 export const soloSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user || !isSuperAdmin(req.user)) {
+  // Una sesión suplantada nunca gestiona roles, aunque el JWT diga super_admin.
+  if (!req.user || !isSuperAdmin(req.user) || req.user.impersonatedBy) {
     res.status(403).json({ success: false, message: 'Acceso denegado: solo el súper administrador gestiona roles' })
     return
   }
@@ -193,7 +196,7 @@ export const crearStaff = async (req: Request, res: Response) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw fallo(400, 'Email inválido')
     const roles = await validarRoles(req.body?.roles, false)
     if (!roles.length) throw fallo(400, 'Asigna al menos un rol')
-    if ((await db.execute({ sql: 'SELECT 1 FROM users WHERE email = ?', args: [email] })).rows.length) throw fallo(409, 'Ya existe un usuario con ese email')
+    if ((await db.execute({ sql: 'SELECT 1 FROM users WHERE LOWER(TRIM(email)) = ?', args: [email] })).rows.length) throw fallo(409, 'Ya existe un usuario con ese email')
 
     // Contraseña inutilizable: el acceso se establece con el enlace de la invitación.
     const hash = await bcrypt.hash(randomBytes(32).toString('hex'), 10)

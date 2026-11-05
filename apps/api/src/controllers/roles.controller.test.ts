@@ -8,6 +8,12 @@ import { sembrarRoles } from '../config/secciones.js'
 const mem = createClient({ url: ':memory:' })
 vi.mock('../lib/db.js', () => ({ db: mem }))
 const enviarCorreo = vi.fn(async (..._a: any[]) => {})
+// Pasa al original y registra las llamadas (un spy sobre el namespace ESM no intercepta el import del controller).
+const invalidar = vi.fn()
+vi.mock('../services/permisos.service.js', async (orig) => {
+  const real: any = await orig()
+  return { ...real, invalidarCachePermisos: () => { invalidar(); real.invalidarCachePermisos() } }
+})
 vi.mock('../lib/email.js', () => ({ enviarCorreoOnboardingMasivo: (...a: any[]) => enviarCorreo(...a) }))
 
 const { env } = await import('../config/env.js')
@@ -53,7 +59,9 @@ beforeAll(async () => {
       (3, 'afi@x', 'h', '["afiliado"]'),
       (4, 'otro_super@x', 'h', '["super_admin"]'),
       (5, 'asis@x', 'h', '["asistente"]'),
-      (6, 'legacy@x', 'h', 'admin')`,
+      (6, 'legacy@x', 'h', 'admin'),
+      (7, ' Mixto@Ciebo.ORG', 'h', '["afiliado"]'),
+      (8, 'carrera@ciebo.org', 'h', '["afiliado"]')`,
   ], 'write')
   await sembrarRoles(mem)
 })
@@ -68,6 +76,12 @@ const rolesDe = async (id: number) =>
   JSON.parse(String((await mem.execute({ sql: 'SELECT roles FROM users WHERE id = ?', args: [id] })).rows[0].roles))
 
 describe('acceso', () => {
+  it('sesión suplantada no accede aunque sea super_admin', async () => {
+    const firmar = (extra: object) => `Bearer ${jwt.sign({ id: 4, email: 'u4@x', roles: ['super_admin'], rol: 'super_admin', ...extra }, env.JWT_SECRET)}`
+    expect((await request(app).get('/api/roles').set('Authorization', firmar({ impersonatedBy: 2 }))).status).toBe(403)
+    expect((await request(app).get('/api/roles').set('Authorization', firmar({}))).status).toBe(200)
+  })
+
   it('solo_super_admin_accede', async () => {
     for (const [m, url] of [['get', '/api/roles'], ['get', '/api/roles/secciones'], ['post', '/api/roles'], ['put', '/api/roles/1'],
       ['delete', '/api/roles/1'], ['put', '/api/roles/usuarios/3'], ['post', '/api/roles/staff']] as const) {
@@ -168,8 +182,10 @@ describe('roles', () => {
 
 describe('asignación', () => {
   it('asignar_rol_conserva_afiliado', async () => {
+    invalidar.mockClear()
     const r = await request(app).put('/api/roles/usuarios/3').set('Authorization', SUPER).send({ roles: ['secretario', 'secretario', 'personal'] })
     expect(r.status).toBe(200)
+    expect(invalidar).toHaveBeenCalled()
     expect((await rolesDe(3)).sort()).toEqual(['afiliado', 'personal', 'secretario'])
     expect((await mem.execute('SELECT actualizado_en FROM users WHERE id = 3')).rows[0].actualizado_en).not.toBeNull()
 
@@ -232,6 +248,23 @@ describe('staff', () => {
       expect((await request(app).post('/api/roles/staff').set('Authorization', SUPER).send({ ...base, ...cambio })).status).toBe(st)
     }
     expect((await mem.execute(`SELECT COUNT(*) AS n FROM users WHERE email = 'x@ciebo.org'`)).rows[0].n).toBe(0)
+  })
+
+  it('correo duplicado sin distinguir mayúsculas ni espacios => 409', async () => {
+    const r = await request(app).post('/api/roles/staff').set('Authorization', SUPER)
+      .send({ nombre: 'Mixto', email: 'mixto@ciebo.org', roles: ['personal'] })
+    expect(r.status).toBe(409)
+    expect((await mem.execute(`SELECT COUNT(*) AS n FROM users WHERE LOWER(TRIM(email)) = 'mixto@ciebo.org'`)).rows[0].n).toBe(1)
+  })
+
+  it('carrera en el alta (violación de UNIQUE) => 409, no 500', async () => {
+    const original = mem.execute.bind(mem)
+    const spy = vi.spyOn(mem, 'execute').mockImplementation((q: any) =>
+      String(q?.sql ?? q).includes('SELECT 1 FROM users') ? Promise.resolve({ rows: [] } as any) : original(q))
+    const r = await request(app).post('/api/roles/staff').set('Authorization', SUPER)
+      .send({ nombre: 'Dup', email: 'carrera@ciebo.org', roles: ['personal'] })
+    spy.mockRestore()
+    expect(r.status).toBe(409)
   })
 
   it('crear staff con fallo de correo => 201 invitacion_enviada:false', async () => {
