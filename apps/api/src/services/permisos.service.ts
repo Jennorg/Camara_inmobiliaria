@@ -59,3 +59,14 @@ export function rolPrimario(roles: string[], permisos: MapaPermisos, fallback = 
   if (roles.includes('estudiante')) return fallback // rol base: no pasa a 'personal'
   return Object.values(permisos).some(p => p.ver) ? 'personal' : fallback
 }
+
+/** ¿Tiene el usuario esa casilla en esa sección? super_admin siempre; ante error de BD, false (fail-closed). */
+export async function puedePermiso(user: { roles?: string[]; rol?: string }, seccion: string, accion: Accion): Promise<boolean> {
+  try {
+    const roles = user.roles ?? (user.rol ? [user.rol] : [])
+    if (roles.includes('super_admin')) return true
+    return (await permisosDeRoles(roles))[seccion]?.[accion] === true
+  } catch {
+    return false
+  }
+}
