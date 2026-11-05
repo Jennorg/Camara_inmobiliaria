@@ -5,6 +5,8 @@ import { sembrarRoles } from '../config/secciones.js'
 const mem = createClient({ url: ':memory:' })
 vi.mock('../lib/db.js', () => ({ db: mem }))
 
+const { impersonateUser } = await import('./users.controller.js')
+const jwt = (await import('jsonwebtoken')).default
 const { getMe } = await import('./auth.controller.js')
 const { rolPrimario, permisosDeRoles } = await import('../services/permisos.service.js')
 
@@ -23,6 +25,8 @@ beforeAll(async () => {
     PRIMARY KEY (id_rol, seccion)
   )`,
   ], 'write')
+  await mem.execute(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT, roles TEXT, activo INTEGER DEFAULT 1)`)
+  await mem.execute(`INSERT INTO users (id, email, roles) VALUES (7, 'c@x.y', '["lector"]')`)
   await sembrarRoles(mem)
   await mem.batch([
     `INSERT INTO roles (clave, nombre) VALUES ('lector', 'Lector'), ('sin_ver', 'Sin ver')`,
@@ -77,4 +81,16 @@ describe('rolPrimario', () => {
 
 it('estudiante_con_fallback_afiliado_conserva_el_comportamiento_de_getUsers', async () => {
   expect(rolPrimario(['estudiante', 'lector'], await permisosDeRoles(['estudiante', 'lector']), 'afiliado')).toBe('afiliado')
+})
+
+it('impersonar_no_mete_permisos_en_el_jwt_pero_si_en_la_respuesta', async () => {
+  let body: any
+  const req: any = { user: { id: 1, email: 'a@b.c', roles: ['admin'], rol: 'admin' }, params: { id: '7' } }
+  const res: any = { status: () => res, json: (b: any) => { body = b } }
+  await impersonateUser(req, res)
+  const decoded: any = jwt.verify(body.data.token, process.env.JWT_SECRET!)
+  expect(decoded.permisos).toBeUndefined()
+  expect(decoded.rol).toBe('personal')
+  expect(decoded.roles).toEqual(['lector'])
+  expect(body.data.user.permisos.noticias.ver).toBe(true)
 })

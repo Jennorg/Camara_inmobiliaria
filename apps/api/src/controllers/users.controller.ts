@@ -556,7 +556,7 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
     }
 
     // Enriquecer el payload con id_afiliado, id_persona, id_empresa, etc.
-    const enrichedUser = { ...(await enrichUserPayload(targetPayload)), permisos }
+    const enrichedUser = await enrichUserPayload(targetPayload)
 
     // Firmar JWT con 8 horas de duración
     const token = jwt.sign(enrichedUser, env.JWT_SECRET, { expiresIn: '8h' })
@@ -566,7 +566,7 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
       message: `Ingresando como ${enrichedUser.nombre_completo || enrichedUser.email}`,
       data: {
         token,
-        user: enrichedUser,
+        user: { ...enrichedUser, permisos },
         originalAdmin: {
           id: req.user!.id,
           email: req.user!.email,
