@@ -36,10 +36,10 @@ describe('permisos: siembra', () => {
       expect(p[r]).toEqual({ afiliados: 'ver,crear,editar', users: 'ver,crear,editar', finanzas: ALL, asambleas: ALL, denuncias: ALL })
     }
     expect(p.personal_admin).toEqual({ finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.secretario).toEqual({ asambleas: ALL })
-    expect(p.secretaria).toEqual({ asambleas: ALL })
-    expect(p.personal).toBeUndefined()
-    expect(p.personal_administrativo).toBeUndefined()
+    expect(p.secretario).toEqual({ finanzas: ALL, asambleas: ALL })
+    expect(p.secretaria).toEqual({ finanzas: ALL, asambleas: ALL })
+    expect(p.personal).toEqual({ finanzas: ALL })
+    expect(p.personal_administrativo).toEqual({ finanzas: ALL })
     expect(p.super_admin).toBeUndefined()
   })
 

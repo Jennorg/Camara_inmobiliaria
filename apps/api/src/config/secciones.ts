@@ -37,13 +37,14 @@ export const ROLES_SISTEMA_SEMILLA: Record<string, Record<string, Accion[]>> = {
     SECCIONES.filter(s => !SECCIONES_SOLO_SUPERADMIN.includes(s.id)).map(s => [s.id, TODAS]),
   ),
   // afiliados/users/cibir: admin|asistente|administrativo; finanzas/denuncias/pagos: + personal_admin
+  // finanzas (finanzas.routes + pagos /admin): requireRole con 'asistente' admitía a TODO el staff por la jerarquía.
   asistente: { afiliados: SIN_ELIMINAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
   administrativo: { afiliados: SIN_ELIMINAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
   personal_admin: { finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
-  secretario: { asambleas: TODAS },
-  secretaria: { asambleas: TODAS },
-  personal: {},
-  personal_administrativo: {},
+  secretario: { finanzas: TODAS, asambleas: TODAS },
+  secretaria: { finanzas: TODAS, asambleas: TODAS },
+  personal: { finanzas: TODAS },
+  personal_administrativo: { finanzas: TODAS },
 }
 
 const NOMBRES: Record<string, string> = {
