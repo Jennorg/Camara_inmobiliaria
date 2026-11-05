@@ -422,7 +422,7 @@ export const sendUserInvitation = async (req: Request, res: Response): Promise<v
     // Verificar que el usuario existe y obtener sus datos
     const check = await db.execute({ 
       sql: `SELECT u.id, u.email, 
-                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as nombre_completo,
+                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), NULLIF(TRIM(u.nombre), '')) as nombre_completo,
                    a.id_afiliado
             FROM users u 
             LEFT JOIN afiliados a ON u.id = a.id_user 
