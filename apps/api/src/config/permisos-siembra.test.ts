@@ -32,14 +32,16 @@ describe('permisos: siembra', () => {
     for (const s of SECCIONES) {
       expect(p.admin[s.id]).toBe(['roles', 'admin_users'].includes(s.id) ? undefined : ALL)
     }
-    for (const r of ['asistente', 'administrativo']) {
-      expect(p[r]).toEqual({ afiliados: 'ver,crear,editar', users: 'ver,crear,editar', finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    }
-    expect(p.personal_admin).toEqual({ finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.secretario).toEqual({ finanzas: ALL, asambleas: ALL })
-    expect(p.secretaria).toEqual({ finanzas: ALL, asambleas: ALL })
-    expect(p.personal).toEqual({ finanzas: ALL })
-    expect(p.personal_administrativo).toEqual({ finanzas: ALL })
+    const AF = 'ver,crear,editar'
+    const SC = 'ver,editar'
+    // asistente: sin solicitudes_cambio ni denuncias por decisión del producto.
+    expect(p.asistente).toEqual({ afiliados: AF, users: AF, finanzas: ALL, asambleas: ALL })
+    expect(p.administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
+    expect(p.personal_admin).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL, asambleas: ALL, denuncias: ALL })
+    expect(p.secretario).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL, asambleas: ALL })
+    expect(p.secretaria).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL, asambleas: ALL })
+    expect(p.personal).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL })
+    expect(p.personal_administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL })
     expect(p.super_admin).toBeUndefined()
   })
 

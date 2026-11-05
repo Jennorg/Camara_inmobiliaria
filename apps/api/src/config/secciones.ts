@@ -30,6 +30,7 @@ export type Accion = (typeof ACCIONES)[number]
 
 const TODAS: Accion[] = [...ACCIONES]
 const SIN_ELIMINAR: Accion[] = ['ver', 'crear', 'editar']
+const SOLO_VER_EDITAR: Accion[] = ['ver', 'editar']
 
 // Reproduce el acceso actual de las rutas (requireRole / adminRoles), no el de la UI.
 export const ROLES_SISTEMA_SEMILLA: Record<string, Record<string, Accion[]>> = {
@@ -38,13 +39,15 @@ export const ROLES_SISTEMA_SEMILLA: Record<string, Record<string, Accion[]>> = {
   ),
   // afiliados/users/cibir: admin|asistente|administrativo; finanzas/denuncias/pagos: + personal_admin
   // finanzas (finanzas.routes + pagos /admin): requireRole con 'asistente' admitía a TODO el staff por la jerarquía.
-  asistente: { afiliados: SIN_ELIMINAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
-  administrativo: { afiliados: SIN_ELIMINAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
-  personal_admin: { finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
-  secretario: { finanzas: TODAS, asambleas: TODAS },
-  secretaria: { finanzas: TODAS, asambleas: TODAS },
-  personal: { finanzas: TODAS },
-  personal_administrativo: { finanzas: TODAS },
+  // afiliados (afiliados.routes): requireRole con 'asistente' admitía a TODO el staff; eliminar era solo admin.
+  // Decisión del producto: asistente NO ve solicitudes_cambio ni denuncias.
+  asistente: { afiliados: SIN_ELIMINAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS },
+  administrativo: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
+  personal_admin: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
+  secretario: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, finanzas: TODAS, asambleas: TODAS },
+  secretaria: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, finanzas: TODAS, asambleas: TODAS },
+  personal: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, finanzas: TODAS },
+  personal_administrativo: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, finanzas: TODAS },
 }
 
 const NOMBRES: Record<string, string> = {
