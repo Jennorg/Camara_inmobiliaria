@@ -416,6 +416,46 @@ export default function PreinscripcionesPrincipalesPanel({
       setReciboPago(pago)
     }
   }
+  /** Acción que continúa cuando el cobro abierto desde una confirmación se registra (remitir a CIBIR) */
+  const despuesDelCobro = useRef<(() => void) | null>(null)
+  const montos = async (tipo?: string | null) => {
+    const json = await (await fetch(`${API_URL}/api/pagos/aranceles`)).json()
+    const m = (c: string) => Number(json.data?.find((a: { codigo: string }) => a.codigo === c)?.monto_usd ?? 0)
+    const insc = m(tipo === 'Corporativo' ? 'inscripcion_corporativo' : tipo === 'Agente Corporativo' ? 'inscripcion_agente' : 'inscripcion_natural')
+    const mens = m('mensualidad_base')
+    const total = m('curso_cibir')
+    return { insc, mens, total, cibir: total - insc - mens }
+  }
+  const lineas = (items: [string, number][]) =>
+    `<div style="text-align:left;font-size:14px">${items.map(([t, v]) => `<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${t}</span><b>$${v.toFixed(2)}</b></div>`).join('')}
+     <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px"><span>Total</span><b>$${items.reduce((t, [, v]) => t + v, 0).toFixed(2)}</b></div></div>`
+
+  /** Aprobar la acreditación: se confirma el cobro de la inscripción y la primera mensualidad, que se registra al aprobar */
+  const aprobarAcreditacion = async (r: Row) => {
+    const { insc, mens } = await montos(r.afiliado_tipo).catch(() => ({ insc: 0, mens: 0 }))
+    const res = await Swal.fire({
+      title: 'Aprobar acreditación y cobrar', icon: 'question', showCancelButton: true, showDenyButton: true,
+      html: `<p style="margin-bottom:10px">Se aprueba la acreditación de <b>${r.estudiante_nombre}</b> y se cobra:</p>${lineas([['Cuota de inscripción', insc], ['Primera mensualidad (sostenimiento)', mens]])}`,
+      confirmButtonText: 'Aprobar y cobrar', denyButtonText: 'Aprobar sin cobrar', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (res.isDismissed) return
+    if (await aprobarDirecto(r.id_inscripcion) && res.isConfirmed) setCobro('formalizacion_afiliacion')
+  }
+
+  /** Remitir a CIBIR: se confirma el cobro del bloque completo (CIBIR + inscripción + primera mensualidad) y luego se remite */
+  const confirmarRemision = async (r: Row) => {
+    if (r.pago_cibir) { remitirACibir(r.id_inscripcion); return }
+    const { insc, mens, cibir } = await montos(r.afiliado_tipo).catch(() => ({ insc: 0, mens: 0, cibir: 0 }))
+    const res = await Swal.fire({
+      title: 'Remitir a CIBIR y cobrar', icon: 'question', showCancelButton: true,
+      html: `<p style="margin-bottom:10px">Para remitir a <b>${r.estudiante_nombre}</b> se cobra el bloque completo del CIBIR:</p>${lineas([['Curso CIBIR', cibir], ['Cuota de inscripción', insc], ['Primera mensualidad (sostenimiento)', mens]])}`,
+      confirmButtonText: 'Registrar cobro y remitir', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!res.isConfirmed) return
+    despuesDelCobro.current = () => remitirACibir(r.id_inscripcion)
+    setCobro('curso_cibir')
+  }
+
   const ofrecerCobroCibir = async (mensaje: string) => {
     const r = await Swal.fire({
       title: 'Falta el pago del CIBIR', text: mensaje, icon: 'info', showCancelButton: true,
@@ -700,8 +740,8 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
-  const aprobarDirecto = async (id: number) => {
-    if (processingAction) return
+  const aprobarDirecto = async (id: number): Promise<boolean> => {
+    if (processingAction) return false
     setProcessingAction('aprobarDirecto')
     try {
       Swal.fire({
@@ -726,8 +766,10 @@ export default function PreinscripcionesPrincipalesPanel({
       })
 
       await fetchData(true)
+      return true
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al aprobar', icon: 'error' })
+      return false
     } finally {
       setProcessingAction(null)
     }
@@ -1662,7 +1704,7 @@ export default function PreinscripcionesPrincipalesPanel({
                               {selected.apto_acreditacion ? (
                                 <>
                                   <button 
-                                    onClick={() => aprobarDirecto(selected.id_inscripcion)} 
+                                    onClick={() => aprobarAcreditacion(selected)} 
                                     disabled={processingAction !== null}
                                     className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                   >
@@ -1676,7 +1718,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                     )}
                                   </button>
                                   <button 
-                                    onClick={() => remitirACibir(selected.id_inscripcion)} 
+                                    onClick={() => confirmarRemision(selected)} 
                                     disabled={processingAction !== null}
                                     className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                   >
@@ -1692,7 +1734,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                 </>
                               ) : (
                                 <button 
-                                  onClick={() => remitirACibir(selected.id_inscripcion)} 
+                                  onClick={() => confirmarRemision(selected)} 
                                   disabled={processingAction !== null}
                                   className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                 >
@@ -1961,8 +2003,8 @@ export default function PreinscripcionesPrincipalesPanel({
       {cobro && selected && (
         <ModalCobroTaquilla
           open
-          onClose={() => setCobro(null)}
-          onSuccess={(pago) => { setCobro(null); abrirRecibo(pago); fetchData(true) }}
+          onClose={() => { despuesDelCobro.current = null; setCobro(null) }}
+          onSuccess={(pago) => { const luego = despuesDelCobro.current; despuesDelCobro.current = null; setCobro(null); abrirRecibo(pago); fetchData(true); luego?.() }}
           afiliadoId={selected.id_afiliado ?? null}
           afiliadoNombre={formatNombreCard(selected.estudiante_nombres, selected.estudiante_apellidos)}
           afiliadoTipo={selected.afiliado_tipo ?? undefined}
