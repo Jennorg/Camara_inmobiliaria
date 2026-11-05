@@ -86,7 +86,7 @@ const ic = 'shrink-0 opacity-95'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { toast } from 'sonner'
-import { AsignarRolesModal, ChipsRoles, NuevoStaffModal, tieneRolCustom, type RolCatalogo } from './RolesUsuario'
+import { AsignarRolesModal, ChipsRoles, NuevoStaffModal, etiquetaRol, tieneRolCustom, type RolCatalogo } from './RolesUsuario'
 
 interface SystemUser {
   id: number
@@ -173,17 +173,26 @@ export default function UsersPanel() {
   const [catalogoRoles, setCatalogoRoles] = useState<RolCatalogo[]>([])
   const [rolesDe, setRolesDe] = useState<SystemUser | null>(null)
   const [nuevoStaff, setNuevoStaff] = useState(false)
-  useEffect(() => {
-    if (!isSuperAdmin) return
-    fetch(`${API_URL}/api/roles`, { headers: authHeaders })
-      .then(r => r.json())
-      .then(d => { if (d.success) setCatalogoRoles(d.data) })
-      .catch(() => toast.error('No se pudo cargar la lista de roles'))
-  }, [isSuperAdmin, authHeaders])
+  // Sin catálogo cargado no se puede editar: el modal enviaría una lista incompleta y borraría roles.
+  const [estadoCatalogo, setEstadoCatalogo] = useState<'cargando' | 'ok' | 'error'>('cargando')
+  const cargarCatalogo = useCallback(async () => {
+    setEstadoCatalogo('cargando')
+    try {
+      const r = await fetch(`${API_URL}/api/roles`, { headers: authHeaders })
+      const d = await r.json()
+      if (!r.ok || !d.success) throw new Error()
+      setCatalogoRoles(d.data)
+      setEstadoCatalogo('ok')
+    } catch {
+      setEstadoCatalogo('error')
+    }
+  }, [authHeaders])
+  useEffect(() => { if (isSuperAdmin) cargarCatalogo() }, [isSuperAdmin, cargarCatalogo])
+  const motivoCatalogo = estadoCatalogo === 'cargando' ? 'Cargando roles…' : estadoCatalogo === 'error' ? 'No se pudieron cargar los roles' : ''
   const motivoSinRoles = (u: SystemUser) =>
     u.id === user?.id ? 'No puedes cambiar tus propios roles'
       : u.roles?.includes('super_admin') || u.rol === 'super_admin' ? 'Los roles de un súper administrador no se cambian aquí'
-      : ''
+      : motivoCatalogo
 
   // ── Pre-procesado de llaves de búsqueda ─────────────────────────────────────
   const normalizedUsers = useMemo(() => {
@@ -456,15 +465,25 @@ export default function UsersPanel() {
             <button
               type='button'
               onClick={() => setNuevoStaff(true)}
-              className='flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1'
+              disabled={!!motivoCatalogo}
+              aria-describedby={motivoCatalogo ? 'roles-catalogo-estado' : undefined}
+              className='flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1'
             >
               <UserPlus size={16} strokeWidth={2} className={ic} /> Nuevo usuario de staff
             </button>
           )}
         </div>
       </div>
-
-
+      {isSuperAdmin && motivoCatalogo && (
+        <p id='roles-catalogo-estado' role='status' className='flex items-center justify-end gap-2 text-xs font-semibold text-slate-500'>
+          {motivoCatalogo}{estadoCatalogo === 'error' && '. No se pueden asignar roles ni crear usuarios de staff.'}
+          {estadoCatalogo === 'error' && (
+            <button type='button' onClick={cargarCatalogo} className='px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'>
+              Reintentar
+            </button>
+          )}
+        </p>
+      )}
 
       {rolesDe && (
         <AsignarRolesModal usuario={rolesDe} catalogo={catalogoRoles} onClose={() => setRolesDe(null)} onSaved={load} />
@@ -914,7 +933,7 @@ export default function UsersPanel() {
                             ) : (
                               <UserCircle2 size={14} strokeWidth={2} className='shrink-0 text-emerald-600' />
                             )}
-                            {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
+                            {etiquetaRol(u)}
                           </span>
                         )}
                         {isSuperAdmin && <div><ChipsRoles roles={u.roles} catalogo={catalogoRoles} /></div>}
@@ -961,18 +980,20 @@ export default function UsersPanel() {
                             <KeyRound size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
                             Contraseña
                           </button>
-                          {isSuperAdmin && (
+                          {isSuperAdmin && (<>
                             <button
                               type='button'
                               disabled={!!motivoSinRoles(u)}
                               onClick={() => setRolesDe(u)}
                               className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'
                               title={motivoSinRoles(u) || 'Asignar roles'}
+                              aria-describedby={motivoSinRoles(u) ? `roles-motivo-${u.id}` : undefined}
                             >
                               <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
                               Roles
                             </button>
-                          )}
+                            {motivoSinRoles(u) && <span id={`roles-motivo-${u.id}`} className='sr-only'>{motivoSinRoles(u)}</span>}
+                          </>)}
                           {(isAdmin || isSuperAdmin) && (
                             <>
                               <button
@@ -1191,7 +1212,7 @@ export default function UsersPanel() {
                                     : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                 }`}
                               >
-                                {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
+                                {etiquetaRol(u)}
                               </span>
                             )}
                             {isSuperAdmin && <ChipsRoles roles={u.roles} catalogo={catalogoRoles} />}
@@ -1245,18 +1266,20 @@ export default function UsersPanel() {
                         <span>Clave</span>
                       </button>
 
-                      {isSuperAdmin && (
+                      {isSuperAdmin && (<>
                         <button
                           type='button'
                           disabled={!!motivoSinRoles(u)}
                           onClick={() => setRolesDe(u)}
                           className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-[11.5px] font-semibold hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'
                           title={motivoSinRoles(u) || 'Asignar roles'}
+                          aria-describedby={motivoSinRoles(u) ? `roles-motivo-${u.id}` : undefined}
                         >
                           <ShieldCheck size={13} className='text-slate-500' />
                           <span>Roles</span>
                         </button>
-                      )}
+                        {motivoSinRoles(u) && <span id={`roles-motivo-${u.id}`} className='sr-only'>{motivoSinRoles(u)}</span>}
+                      </>)}
 
                       {(isAdmin || isSuperAdmin) && (
                         <>

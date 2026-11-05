@@ -12,14 +12,17 @@ const USERS = [
   { id: 1, email: 'admin@ciebo.com', nombre_completo: 'Administrador Principal', roles: ['super_admin'], rol: 'super_admin', activo: 1, creado_en: '2026-01-01' },
   { id: 2, email: 'asis@ciebo.com', nombre_completo: 'Asistente Uno', roles: ['afiliado', 'asistente'], rol: 'asistente', activo: 1, creado_en: '2026-01-01' },
   { id: 3, email: 'ana@ciebo.com', nombre_completo: 'Ana Contreras', roles: ['contador'], rol: 'personal', activo: 1, creado_en: '2026-01-01' },
+  { id: 4, email: 'viejo@ciebo.com', nombre_completo: 'Rol Borrado', roles: ['tesorero_viejo'], rol: 'afiliado', activo: 1, creado_en: '2026-01-01' },
 ];
 
-async function abrirUsuarios(page: Page) {
+async function abrirUsuarios(page: Page, rolesFallan = false) {
   await setupAdminAuth(page);
   await setupAdminMocks(page);
   // Registradas después: tienen prioridad. Nada sale a una API real.
   await page.route('**/api/users**', (r) => r.fulfill(json({ success: true, data: USERS })));
-  await page.route('**/api/roles', (r) => r.fulfill(json({ success: true, data: ROLES })));
+  await page.route('**/api/roles', (r) => r.fulfill(rolesFallan
+    ? json({ success: false, message: 'Error al listar los roles' }, 500)
+    : json({ success: true, data: ROLES })));
   await page.goto('/admin');
   await page.locator('[data-testid="aside-nav-users"]:visible').first().click();
   await page.getByRole('button', { name: 'Tabla' }).click();
@@ -33,6 +36,10 @@ test.describe('Usuarios: asignar roles y alta de staff (E2E)', () => {
     await expect(fila(page, 'asis@ciebo.com').getByRole('combobox')).toHaveCount(1);
     await expect(fila(page, 'ana@ciebo.com').getByRole('combobox')).toHaveCount(0);
     await expect(fila(page, 'ana@ciebo.com').getByText('Contador')).toBeVisible();
+    // staff con rol personalizado: «Personal», no «Afiliado»
+    await expect(fila(page, 'ana@ciebo.com').getByText('Personal', { exact: true })).toBeVisible();
+    await expect(fila(page, 'viejo@ciebo.com').getByText('Personal', { exact: true })).toBeVisible();
+    await expect(fila(page, 'ana@ciebo.com').getByText('Afiliado', { exact: true })).toHaveCount(0);
     await expect(fila(page, 'admin@ciebo.com').getByRole('button', { name: 'Roles' })).toBeDisabled();
   });
 
@@ -63,6 +70,37 @@ test.describe('Usuarios: asignar roles y alta de staff (E2E)', () => {
     await dialog.getByRole('button', { name: 'Guardar roles' }).click();
     await expect(page.getByText('Roles de asis@ciebo.com actualizados')).toBeVisible();
     expect(body).toEqual({ roles: ['asistente', 'contador'] });
+  });
+
+  test('sin catálogo de roles no se puede asignar ni crear staff; Reintentar lo recupera', async ({ page }) => {
+    let puts = 0;
+    await page.route('**/api/roles/usuarios/**', (r) => { puts++; return r.fulfill(json({ success: true })); });
+    await abrirUsuarios(page, true);
+    await expect(page.locator('#roles-catalogo-estado')).toContainText('No se pudieron cargar los roles');
+    const roles = fila(page, 'asis@ciebo.com').getByRole('button', { name: 'Roles' });
+    await expect(roles).toBeDisabled();
+    await expect(roles).toHaveAccessibleDescription('No se pudieron cargar los roles');
+    await expect(page.getByRole('button', { name: 'Nuevo usuario de staff' })).toBeDisabled();
+    await roles.click({ force: true });
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(puts).toBe(0);
+
+    await page.route('**/api/roles', (r) => r.fulfill(json({ success: true, data: ROLES })));
+    await page.getByRole('button', { name: 'Reintentar' }).click();
+    await expect(roles).toBeEnabled();
+    await expect(page.locator('#roles-catalogo-estado')).toHaveCount(0);
+  });
+
+  test('un rol fuera del catálogo se avisa y no se guarda una lista vacía', async ({ page }) => {
+    await abrirUsuarios(page);
+    await expect(fila(page, 'admin@ciebo.com').getByRole('button', { name: 'Roles' })).toHaveAccessibleDescription('No puedes cambiar tus propios roles');
+    await fila(page, 'viejo@ciebo.com').getByRole('button', { name: 'Roles' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText(/se quitarán al guardar: tesorero_viejo/)).toBeVisible();
+    const guardar = dialog.getByRole('button', { name: 'Guardar roles' });
+    await expect(guardar).toBeDisabled();
+    await dialog.getByLabel('Contador').check();
+    await expect(guardar).toBeEnabled();
   });
 
   test('muestra el error del servidor al asignar', async ({ page }) => {

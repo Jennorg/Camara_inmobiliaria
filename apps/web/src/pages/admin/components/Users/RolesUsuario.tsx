@@ -14,6 +14,14 @@ const NIVEL_ADMIN = ['admin', 'super_admin']
 
 export const tieneRolCustom = (roles?: string[]) => (roles ?? []).some(r => !BASE.includes(r))
 
+/** Etiqueta de la columna Rol; el staff con rol personalizado no es «Afiliado». */
+export const etiquetaRol = (u: { rol: string; roles?: string[] }) =>
+  u.rol === 'super_admin' ? 'Super Admin'
+    : u.rol === 'admin' ? 'Admin'
+    : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin'
+    : u.rol === 'personal' || (tieneRolCustom(u.roles) && !u.roles?.includes('afiliado')) ? 'Personal'
+    : 'Afiliado'
+
 const FOCO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1'
 const CHECK = `h-4 w-4 rounded border-slate-300 accent-emerald-600 cursor-pointer ${FOCO}`
 const INPUT = 'w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus:border-emerald-400'
@@ -94,6 +102,9 @@ export function AsignarRolesModal({ usuario, catalogo, onClose, onSaved }: {
   const [marcados, setMarcados] = useState(actuales.filter(r => opciones.includes(r)))
   const [saving, setSaving] = useState(false)
   const conservados = actuales.filter(r => r === 'afiliado' || r === 'admin')
+  // Roles que ya no están en el catálogo (inactivos o borrados): el PUT los quitará.
+  const huerfanos = actuales.filter(r => !opciones.includes(r) && r !== 'afiliado' && r !== 'admin')
+  const sinSeleccion = huerfanos.length > 0 && marcados.length === 0
 
   const guardar = async () => {
     setSaving(true)
@@ -124,11 +135,17 @@ export function AsignarRolesModal({ usuario, catalogo, onClose, onSaved }: {
           {conservados.includes('admin') && ' El rol Admin solo se quita desde el selector de rol.'}
         </p>
       )}
+      {huerfanos.length > 0 && (
+        <p className='mt-3 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 leading-relaxed'>
+          No están en la lista de roles y se quitarán al guardar: {huerfanos.join(', ')}.
+          {sinSeleccion && ' Marca al menos un rol para poder guardar.'}
+        </p>
+      )}
       <div className='flex justify-end gap-3 mt-6'>
         <button type='button' onClick={onClose} disabled={saving} className={`px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl ${FOCO}`}>
           Cancelar
         </button>
-        <button type='button' onClick={guardar} disabled={saving} className={`px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black disabled:opacity-60 flex items-center gap-2 ${FOCO}`}>
+        <button type='button' onClick={guardar} disabled={saving || sinSeleccion} className={`px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black disabled:opacity-60 flex items-center gap-2 ${FOCO}`}>
           {saving ? <Loader2 size={14} className='animate-spin' /> : <ShieldCheck size={14} />}
           Guardar roles
         </button>
