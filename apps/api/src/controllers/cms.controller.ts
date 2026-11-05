@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { actasPublicadas } from '../services/asambleas.service.js';
 import { db } from '../lib/db.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -618,7 +619,9 @@ export const publicListNormativas = async (req: Request, res: Response) => {
     }
     sql += ` ORDER BY orden ASC, creado_en DESC`;
     const result = await db.execute({ sql, args });
-    return res.json({ success: true, data: result.rows });
+    // Las actas publicadas desde la gestión de asambleas se suman a las de «Actas de Asamblea»
+    const actas = !categoria || categoria === 'Actas de Asamblea' ? await actasPublicadas() : [];
+    return res.json({ success: true, data: [...actas, ...result.rows] });
   } catch (error) {
     console.error('publicListNormativas:', error);
     return res.status(500).json({ success: false, message: 'Error al obtener normativas' });

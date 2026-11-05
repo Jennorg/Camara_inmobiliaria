@@ -65,6 +65,7 @@ const icons = {
   ),
 }
 
+import AsambleasPanel from '@/pages/admin/components/Gestion/AsambleasPanel'
 import SuperAdminUsersPanel from '@/pages/admin/components/Users/SuperAdminUsersPanel'
 
 // ─── Map of nav id → rendered panel ──────────────────────────────────────────
@@ -94,6 +95,7 @@ const PANELS: Record<string, React.ReactNode> = {
   admin_users: <SuperAdminUsersPanel />,
   analytics: <AnalyticsPanel />,
   finanzas: <FinancePanel />,
+  asambleas: <AsambleasPanel />,
   denuncias: <DenunciasPanel />,
   settings: <Placeholder title='Settings' icon={icons.settings} />,
 }

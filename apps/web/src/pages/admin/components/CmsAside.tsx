@@ -186,6 +186,7 @@ interface NavGroup {
 
 const NAV_MAIN: NavGroup[] = [
   { id: 'finanzas', label: 'Finanzas', icon: icons.balance },
+  { id: 'asambleas', label: 'Gestión de Asambleas', icon: icons.fileDoc },
   { id: 'noticias', label: 'Noticias', icon: icons.news },
   {
     id: 'normativas',
@@ -375,7 +376,7 @@ const SidebarContent = ({
       <nav className="flex-1 py-1 flex flex-col gap-0 px-2 overflow-y-auto custom-scrollbar">
         {NAV_MAIN.filter(i => {
           if (isAsistente && !isAdmin) {
-            return ['afiliados', 'users', 'finanzas'].includes(i.id);
+            return ['afiliados', 'users', 'finanzas', 'asambleas'].includes(i.id);
           }
           if (i.id === 'admin_users') return user?.rol === 'super_admin';
           return true;

@@ -28,6 +28,7 @@ const NAV_META: Record<string, { title: string; subtitle: string }> = {
   admin_users: { title: 'Administradores', subtitle: 'Cuentas con acceso al panel administrativo' },
   users: { title: 'Usuarios', subtitle: 'Cuentas de acceso al sistema' },
   finanzas: { title: 'Finanzas', subtitle: 'Libros contables y flujo de caja' },
+  asambleas: { title: 'Gestión de Asambleas', subtitle: 'Actas, asistencia y quórum de asambleas ordinarias y extraordinarias' },
   analytics: { title: 'Análisis', subtitle: 'Métricas y rendimiento general' },
   settings: { title: 'Configuración del Sistema', subtitle: 'Ajustes del sistema y preferencias' },
   denuncias: { title: 'Denuncias', subtitle: 'Gestión y seguimiento de denuncias ciudadanas e institucionales' },
