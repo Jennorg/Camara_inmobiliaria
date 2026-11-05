@@ -115,7 +115,10 @@ type FiltroRol    = 'todos' | 'admin' | 'afiliado' | 'super_admin' | 'asistente'
 type FiltroActivo = 'todos' | 'activo' | 'inactivo'
 
 export default function UsersPanel() {
-  const { token, user, isSuperAdmin, isAdmin, impersonateUser } = useAuth()
+  const { token, user, isSuperAdmin, isAdmin, impersonateUser, puede } = useAuth()
+  const puedeEditar = puede('users', 'editar')
+  const puedeEliminar = puede('users', 'eliminar')
+  const sinPermiso = puedeEditar ? undefined : 'Sin permiso para editar'
   const [users, setUsers]       = useState<SystemUser[]>([])
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
@@ -782,7 +785,8 @@ export default function UsersPanel() {
                               <select
                                 value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
                                 onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
-                                disabled={updatingEmailId === u.id}
+                                disabled={updatingEmailId === u.id || !puedeEditar}
+                                title={sinPermiso}
                                 className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
                               >
                                 <option value='personal' className='bg-white text-slate-800 font-semibold'>
@@ -941,6 +945,8 @@ export default function UsersPanel() {
                       <td className='px-5 py-4'>
                         <button
                           type='button'
+                          disabled={!puedeEditar}
+                          title={sinPermiso}
                           onClick={() => toggleActive(u)}
                           className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:bg-slate-50 ${
                             u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
@@ -958,7 +964,7 @@ export default function UsersPanel() {
                       </td>
                       <td className='px-5 py-4 text-right'>
                         <div className='flex justify-end gap-2'>
-                          <button
+                          {puedeEditar && <button
                             type='button'
                             disabled={sendingInvite[u.id]}
                             onClick={() => setUserToInvite(u)}
@@ -971,15 +977,15 @@ export default function UsersPanel() {
                               <Mail size={14} className='shrink-0 text-slate-500' />
                             )}
                             <span>Invitar</span>
-                          </button>
-                          <button
+                          </button>}
+                          {puedeEditar && <button
                             type='button'
                             onClick={() => handleResetClick(u)}
                             className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 transition shadow-sm'
                           >
                             <KeyRound size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
                             Contraseña
-                          </button>
+                          </button>}
                           {isSuperAdmin && (<>
                             <button
                               type='button'
@@ -1010,6 +1016,10 @@ export default function UsersPanel() {
                                 )}
                                 <span>Ingresar</span>
                               </button>
+                            </>
+                          )}
+                          {puedeEliminar && (
+                            <>
                               <button
                                 type='button'
                                 onClick={() => setUserToDelete(u)}
@@ -1121,7 +1131,8 @@ export default function UsersPanel() {
                               <select
                                 value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
                                 onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
-                                disabled={updatingEmailId === u.id}
+                                disabled={updatingEmailId === u.id || !puedeEditar}
+                                title={sinPermiso}
                                 className='appearance-none text-[11.5px] font-bold text-slate-800 bg-white border border-slate-200 rounded-lg py-1 pl-2 pr-6 cursor-pointer max-w-full truncate hover:border-emerald-400 transition-colors shadow-2xs'
                               >
                                 <option value='personal' className='bg-white text-slate-800 font-semibold'>
@@ -1224,7 +1235,9 @@ export default function UsersPanel() {
                             <div className='flex items-center gap-1.5 flex-wrap'>
                               <button
                                 type='button'
-                                onClick={() => toggleActive(u)}
+                                disabled={!puedeEditar}
+                          title={sinPermiso}
+                          onClick={() => toggleActive(u)}
                                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
                                   u.activo ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-200 text-slate-500'
                                 }`}
@@ -1245,7 +1258,7 @@ export default function UsersPanel() {
 
                     {/* Acciones de la Tarjeta */}
                     <div className='flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100'>
-                      <button
+                      {puedeEditar && <button
                         type='button'
                         disabled={sendingInvite[u.id]}
                         onClick={() => setUserToInvite(u)}
@@ -1254,9 +1267,9 @@ export default function UsersPanel() {
                       >
                         {sendingInvite[u.id] ? <Loader2 size={13} className='animate-spin text-emerald-500' /> : <Mail size={13} className='text-slate-500' />}
                         <span>Invitar</span>
-                      </button>
+                      </button>}
 
-                      <button
+                      {puedeEditar && <button
                         type='button'
                         onClick={() => handleResetClick(u)}
                         className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-[11.5px] font-semibold hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer shadow-2xs flex-1'
@@ -1264,7 +1277,7 @@ export default function UsersPanel() {
                       >
                         <KeyRound size={13} className='text-slate-500' />
                         <span>Clave</span>
-                      </button>
+                      </button>}
 
                       {isSuperAdmin && (<>
                         <button
@@ -1294,6 +1307,10 @@ export default function UsersPanel() {
                             <span>Ingresar</span>
                           </button>
 
+                        </>
+                      )}
+                      {puedeEliminar && (
+                        <>
                           <button
                             type='button'
                             onClick={() => setUserToDelete(u)}
