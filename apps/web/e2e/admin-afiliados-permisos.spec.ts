@@ -54,6 +54,12 @@ for (const [nombre, acc, si] of [['solo «ver»', VER, false], ['las cuatro acci
       await (si ? expect(estado).toBeEnabled() : expect(estado).toBeDisabled());
       await presente(page.getByRole('button', { name: /Revisar y Validar Pago/ }), si);
       await presente(page.getByRole('button', { name: /Cobro en Taquilla/ }), si);
+      // Campos del perfil: editables solo con «editar»; sin permiso, solo lectura con motivo visible
+      for (const campo of ['Nombres', 'Apellidos', 'Teléfono']) {
+        const input = page.locator('div', { has: page.getByText(campo, { exact: true }) }).locator('input').last();
+        await (si ? expect(input).toBeEditable() : expect(input).not.toBeEditable());
+      }
+      if (!si) await expect(page.getByTitle('Sin permiso para editar').first()).toBeVisible();
     });
 
     test('los pagos dependen de finanzas, no de afiliados', async ({ page }) => {

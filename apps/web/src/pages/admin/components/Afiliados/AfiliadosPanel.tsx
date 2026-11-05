@@ -70,6 +70,7 @@ const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().
 export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeTabs = false }: AfiliadosPanelProps) {
   const { token, puede } = useAuth()
   const puedeEditar = puede('afiliados', 'editar')
+  const sinPermiso = puedeEditar ? undefined : 'Sin permiso para editar'
   const puedeResolver = puede('solicitudes_cambio', 'editar')
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
@@ -745,6 +746,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       value={selected.tipo_afiliado}
                       onChange={(e) => handleDropdownTypeChange(e.target.value)}
                       disabled={!puedeEditar}
+                      title={sinPermiso}
                       className="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-colors cursor-pointer text-[10px] font-black uppercase tracking-widest px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     >
                       <option value="Natural">Agente Independiente</option>
@@ -903,6 +905,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                           type="button"
                           onClick={() => handleStepClick(idx)}
                           disabled={!puedeEditar}
+                          title={sinPermiso}
                           className="flex flex-col items-center relative z-10 group cursor-pointer gap-2 focus:outline-none"
                         >
                           <div
@@ -967,6 +970,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       type="text"
                       value={selected.empresa_razon_social || ''}
                       onChange={(e) => updateField('empresa_razon_social', e.target.value)}
+                      readOnly={!puedeEditar}
+                      title={sinPermiso}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                       placeholder="Nombre del corporativo"
                     />
@@ -979,6 +984,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="text"
                     value={selected.nombres || ''}
                     onChange={(e) => updateField('nombres', e.target.value)}
+                    readOnly={!puedeEditar}
+                    title={sinPermiso}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                   />
                 </div>
@@ -988,6 +995,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="text"
                     value={selected.apellidos || ''}
                     onChange={(e) => updateField('apellidos', e.target.value)}
+                    readOnly={!puedeEditar}
+                    title={sinPermiso}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                   />
                 </div>
@@ -1007,6 +1016,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       type="text"
                       value={selected.cedula || ''}
                       onChange={(e) => updateField('cedula', e.target.value)}
+                      readOnly={!puedeEditar}
+                      title={sinPermiso}
                       className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                     />
                   </div>
@@ -1017,6 +1028,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="text"
                     value={selected.telefono || ''}
                     onChange={(e) => updateField('telefono', e.target.value)}
+                    readOnly={!puedeEditar}
+                    title={sinPermiso}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                   />
                 </div>
@@ -1026,6 +1039,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="text"
                     value={selected.fecha_nacimiento || ''}
                     onChange={(e) => updateField('fecha_nacimiento', e.target.value)}
+                    readOnly={!puedeEditar}
+                    title={sinPermiso}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors"
                     placeholder="DD-MM-YYYY"
                   />
@@ -1035,6 +1050,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   <textarea
                     value={selected.direccion || ''}
                     onChange={(e) => updateField('direccion', e.target.value)}
+                    readOnly={!puedeEditar}
+                    title={sinPermiso}
                     rows={2}
                     className="w-full rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-sm text-slate-700 focus:bg-white transition-colors resize-none"
                   />
@@ -1134,7 +1151,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   </div>
                 )}
 
-                {selected.tipo_afiliado === 'Corporativo' && (
+                {selected.tipo_afiliado === 'Corporativo' && puedeEditar && (
                   <div className="border-t border-slate-100 pt-4 space-y-4">
                     <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-bold">
                       Cargar/Actualizar Soportes de la Empresa
@@ -1190,6 +1207,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   value={selected.estatus}
                   onChange={(e) => updateField('estatus', e.target.value)}
                   disabled={!puedeEditar}
+                  title={sinPermiso}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700"
                 >
                   <option value="1_PREINSCRIPCION">1. Preinscripción</option>
@@ -1223,6 +1241,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     checked={!Boolean(selected.cibir_acreditado)}
                     onChange={(e) => updateField('cibir_acreditado', e.target.checked ? 0 : 1)}
                     disabled={!puedeEditar}
+                    title={sinPermiso}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
