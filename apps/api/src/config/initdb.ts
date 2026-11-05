@@ -846,7 +846,11 @@ async function run() {
   } catch (e) {
     // columna ya existe
   }
-  await sembrarRoles(db)
+  try {
+    await sembrarRoles(db)
+  } catch (e) {
+    console.error('Error sembrando roles:', e)
+  }
 
   console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')
   try {

@@ -2,8 +2,12 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { db } from '../lib/db.js'
+import type { Accion } from '../config/secciones.js'
+import { permisosDeRoles } from '../services/permisos.service.js'
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+export type BaseRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+// Admite roles personalizados (tabla roles) sin perder el autocompletado de los base.
+export type UserRole = BaseRole | (string & {})
 
 export interface JwtPayload {
   id: number
@@ -308,6 +312,36 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
 
     if (!hasAccess) {
       res.status(403).json({ success: false, message: 'Acceso denegado: permisos insuficientes' })
+      return
+    }
+    next()
+  }
+}
+
+const ACCION_POR_METODO: Record<string, Accion> = {
+  GET: 'ver', HEAD: 'ver', OPTIONS: 'ver', POST: 'crear', PUT: 'editar', PATCH: 'editar', DELETE: 'eliminar',
+}
+
+/**
+ * Middleware de autorización por casilla (sección × acción) según los roles del usuario.
+ * Sin `accion` se deduce del método HTTP.
+ */
+export const requirePermiso = (seccion: string, accion?: Accion) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'No autenticado' })
+      return
+    }
+    const acc = accion ?? ACCION_POR_METODO[req.method.toUpperCase()]
+    try {
+      const mapa = await permisosDeRoles(req.user.roles ?? [req.user.rol])
+      if (!acc || !mapa[seccion]?.[acc]) {
+        res.status(403).json({ success: false, message: 'Acceso denegado: permisos insuficientes' })
+        return
+      }
+    } catch (err) {
+      console.error('Error leyendo permisos:', err)
+      res.status(500).json({ success: false, message: 'Error verificando permisos' })
       return
     }
     next()
