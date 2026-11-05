@@ -39,8 +39,8 @@ describe('permisos: siembra', () => {
     expect(p.personal_admin).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
     expect(p.secretario).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
     expect(p.secretaria).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.personal).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, denuncias: ALL })
-    expect(p.personal_administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, denuncias: ALL })
+    expect(p.personal).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
+    expect(p.personal_administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
     expect(p.super_admin).toBeUndefined()
   })
 

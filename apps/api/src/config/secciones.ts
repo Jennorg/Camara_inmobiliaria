@@ -39,6 +39,7 @@ export const ROLES_SISTEMA_SEMILLA: Record<string, Record<string, Accion[]>> = {
   ),
   // afiliados/users/cibir: admin|asistente|administrativo; finanzas/denuncias/pagos: + personal_admin
   // finanzas (finanzas.routes + pagos /admin): requireRole con 'asistente' admitía a TODO el staff por la jerarquía.
+  // asambleas (asambleas.routes): adminRoles con 'asistente' admitía a TODO el staff, eliminar incluido.
   // denuncias (denuncias.routes /admin*): adminRoles con 'asistente' admitía a TODO el staff por la jerarquía.
   // users (users.routes): requireRole con 'asistente' admitía a TODO el staff; eliminar era solo admin.
   // afiliados (afiliados.routes): requireRole con 'asistente' admitía a TODO el staff; eliminar era solo admin.
@@ -47,8 +48,8 @@ export const ROLES_SISTEMA_SEMILLA: Record<string, Record<string, Accion[]>> = {
   personal_admin: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
   secretario: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
   secretaria: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
-  personal: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, denuncias: TODAS },
-  personal_administrativo: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, denuncias: TODAS },
+  personal: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
+  personal_administrativo: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS },
 }
 
 const NOMBRES: Record<string, string> = {
