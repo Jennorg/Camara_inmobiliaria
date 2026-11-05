@@ -40,7 +40,8 @@ const Quorum = ({ a }: { a: Pick<Asamblea, 'asistentes' | 'total_miembros' | 'qu
 )
 
 export default function AsambleasPanel() {
-  const { authHeaders } = useAuth()
+  const { authHeaders, puede } = useAuth()
+  const puedeCrear = puede('asambleas', 'crear')
   const [lista, setLista] = useState<Asamblea[] | null>(null)
   const [tipo, setTipo] = useState('')
   const [anio, setAnio] = useState('')
@@ -81,9 +82,9 @@ export default function AsambleasPanel() {
           </Etiqueta>
           {(tipo || anio) && <button type="button" onClick={() => { setTipo(''); setAnio('') }} className="self-end pb-2 text-[11px] font-bold text-emerald-700 hover:underline">Limpiar filtros</button>}
         </div>
-        <button type="button" onClick={() => setVista('nueva')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-700">
+        {puedeCrear && <button type="button" onClick={() => setVista('nueva')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-700">
           <Plus size={14} aria-hidden="true" /> Nueva asamblea
-        </button>
+        </button>}
       </div>
 
       {lista === null ? (
@@ -107,9 +108,9 @@ export default function AsambleasPanel() {
                   return <li key={txt as string} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1"><I size={12} className="text-emerald-600" aria-hidden="true" />{txt as string}</li>
                 })}
               </ul>
-              <button type="button" onClick={() => setVista('nueva')} className="mt-6 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm hover:bg-emerald-700">
+              {puedeCrear && <button type="button" onClick={() => setVista('nueva')} className="mt-6 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm hover:bg-emerald-700">
                 <Plus size={14} aria-hidden="true" /> Registrar la primera asamblea
-              </button>
+              </button>}
             </>
           )}
         </div>
@@ -139,8 +140,10 @@ export default function AsambleasPanel() {
 const VACIA = { tipo: 'Ordinaria' as Tipo, numero_acta: '', titulo: '', fecha: hoy(), hora: '', lugar: '', convocatoria: '', orden_del_dia: '', resumen: '', acuerdos: '', url_acta: '', quorum_pct: 50, total_miembros: '' as number | '', publicada: false }
 
 function Ficha({ id, onVolver, onCreada }: { id: number | 'nueva'; onVolver: () => void; onCreada: (id: number) => void }) {
-  const { authHeaders } = useAuth()
+  const { authHeaders, puede } = useAuth()
   const nueva = id === 'nueva'
+  const puedeGuardar = puede('asambleas', nueva ? 'crear' : 'editar')
+  const puedeEliminar = puede('asambleas', 'eliminar')
   const [det, setDet] = useState<Detalle | null>(null)
   const [f, setF] = useState(VACIA)
   const [guardando, setGuardando] = useState(false)
@@ -196,10 +199,12 @@ function Ficha({ id, onVolver, onCreada }: { id: number | 'nueva'; onVolver: () 
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={onVolver} className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900"><ArrowLeft size={14} aria-hidden="true" /> Volver al listado</button>
-        {!nueva && <button type="button" onClick={eliminar} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 size={13} aria-hidden="true" /> Eliminar</button>}
+        {!nueva && puedeEliminar && <button type="button" onClick={eliminar} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 size={13} aria-hidden="true" /> Eliminar</button>}
       </div>
 
       <form onSubmit={guardar} noValidate className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-6">
+        <fieldset disabled={!puedeGuardar} className="contents">
+        {!puedeGuardar && <p className="text-xs font-bold text-slate-600 sm:col-span-6">Sin permiso para editar: solo puedes consultar esta asamblea.</p>}
         <h3 className="text-base font-black text-slate-900 sm:col-span-6">{nueva ? 'Nueva asamblea' : 'Datos de la asamblea'}</h3>
         <Etiqueta id="a-tipo" texto="Tipo" ancho="sm:col-span-2"><select id="a-tipo" value={f.tipo} onChange={set('tipo')} className={CAMPO}><option>Ordinaria</option><option>Extraordinaria</option></select></Etiqueta>
         <Etiqueta id="a-acta" texto="N° de acta" ancho="sm:col-span-2"><input id="a-acta" value={f.numero_acta} onChange={set('numero_acta')} className={CAMPO} /></Etiqueta>
@@ -230,14 +235,15 @@ function Ficha({ id, onVolver, onCreada }: { id: number | 'nueva'; onVolver: () 
           <input type="checkbox" checked={f.publicada} onChange={e => setF(v => ({ ...v, publicada: e.target.checked }))} className="mt-0.5 h-4 w-4 accent-emerald-600" />
           <span><span className="block text-sm font-bold text-slate-800">Publicar en el sitio</span><span className="block text-[11px] text-slate-500">Aparece en «Actas de Asamblea» del Marco Legal. Requiere el acta en PDF.</span></span>
         </label>
-        <div className="flex justify-end sm:col-span-6">
+        {puedeGuardar && <div className="flex justify-end sm:col-span-6">
           <button type="submit" disabled={guardando || subiendo} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-700 disabled:opacity-60">
             {guardando && <Loader2 size={13} className="animate-spin" aria-hidden="true" />} {nueva ? 'Crear asamblea' : 'Guardar cambios'}
           </button>
-        </div>
+        </div>}
+        </fieldset>
       </form>
 
-      {!nueva && det && <Asistencia det={det} recargar={cargar} />}
+      {!nueva && det && <Asistencia det={det} recargar={cargar} puedeEditar={puedeGuardar} />}
     </div>
   )
 }
@@ -248,7 +254,7 @@ async function pedirRepresentante(actual = ''): Promise<string | null> {
   return r.isConfirmed ? String(r.value).trim() : null
 }
 
-function Asistencia({ det, recargar }: { det: Detalle; recargar: () => void }) {
+function Asistencia({ det, recargar, puedeEditar }: { det: Detalle; recargar: () => void; puedeEditar: boolean }) {
   const { authHeaders } = useAuth()
   const [q, setQ] = useState('')
   const [res, setRes] = useState<AfiliadoBusqueda[]>([])
@@ -281,7 +287,7 @@ function Asistencia({ det, recargar }: { det: Detalle; recargar: () => void }) {
       </div>
       <p className="mb-3 text-[11px] text-slate-500">Se necesitan {det.quorum_requeridos} de {det.total_miembros} miembros ({det.quorum_pct}%). Cuentan los presentes y los representados.</p>
 
-      <div className="relative mb-3">
+      {puedeEditar && <div className="relative mb-3">
         <label htmlFor="as-buscar" className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Agregar asistente</label>
         <input id="as-buscar" value={q} onChange={e => setQ(e.target.value)} autoComplete="off" placeholder="Nombre, cédula, RIF o código de afiliado…" className={CAMPO} />
         {res.length > 0 && (
@@ -299,18 +305,18 @@ function Asistencia({ det, recargar }: { det: Detalle; recargar: () => void }) {
             ))}
           </ul>
         )}
-      </div>
+      </div>}
 
       {det.asistencia.length === 0 ? <p className="py-4 text-center text-xs text-slate-400">Aún no hay asistentes registrados.</p> : (
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
           {det.asistencia.map(a => (
             <li key={a.id_afiliado} className="flex flex-wrap items-center gap-2 px-3 py-2">
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-800">{a.nombre}</span><span className="block text-[11px] text-slate-500">{a.codigo ?? 'Sin código'} · {a.documento ?? 'S/D'}{a.representante ? ` · Representado por ${a.representante}` : ''}</span></span>
-              <select aria-label={`Condición de ${a.nombre}`} value={a.condicion} onChange={async e => {
+              <select aria-label={`Condición de ${a.nombre}`} disabled={!puedeEditar} title={puedeEditar ? undefined : 'Sin permiso para editar'} value={a.condicion} onChange={async e => {
                 if (e.target.value === 'Presente') registrar(a.id_afiliado, 'Presente')
                 else { const r = await pedirRepresentante(a.representante ?? ''); if (r) registrar(a.id_afiliado, 'Representado', r) }
               }} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-slate-700"><option>Presente</option><option>Representado</option></select>
-              <button type="button" onClick={() => quitar(a.id_afiliado)} aria-label={`Quitar a ${a.nombre}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={14} aria-hidden="true" /></button>
+              {puedeEditar && <button type="button" onClick={() => quitar(a.id_afiliado)} aria-label={`Quitar a ${a.nombre}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={14} aria-hidden="true" /></button>}
             </li>
           ))}
         </ul>
