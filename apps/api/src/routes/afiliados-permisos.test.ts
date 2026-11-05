@@ -46,7 +46,7 @@ const RUTAS: [string, string, string, Accion][] = [
   ['post', '/api/afiliados/admin/solicitudes-cambio/1/resolver', 'solicitudes_cambio', 'editar'],
 ]
 
-const STAFF = ['administrativo', 'personal_admin', 'secretario', 'secretaria', 'personal', 'personal_administrativo']
+const STAFF = ['asistente', 'administrativo', 'personal_admin', 'secretario', 'secretaria', 'personal', 'personal_administrativo']
 
 const llamar = (m: string, url: string, auth?: string) => {
   const r = (request(app) as any)[m](url).send({})
@@ -90,9 +90,8 @@ describe('afiliados: permisos por sección', () => {
     }
   })
 
-  it('solicitudes_cambio: asistente 403, administrativo 200, resto del staff conserva acceso', async () => {
+  it('solicitudes_cambio: todo el staff (asistente incluido) conserva acceso', async () => {
     for (const [m, url] of RUTAS.filter(r => r[2] === 'solicitudes_cambio')) {
-      expect((await llamar(m, url, token(['asistente']))).status, `asistente ${url}`).toBe(403)
       for (const rol of STAFF) expect((await llamar(m, url, token([rol]))).status, `${rol} ${url}`).toBe(200)
     }
   })

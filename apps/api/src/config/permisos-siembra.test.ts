@@ -34,8 +34,7 @@ describe('permisos: siembra', () => {
     }
     const AF = 'ver,crear,editar'
     const SC = 'ver,editar'
-    // asistente: sin solicitudes_cambio ni denuncias por decisión del producto.
-    expect(p.asistente).toEqual({ afiliados: AF, users: AF, finanzas: ALL, asambleas: ALL })
+    expect(p.asistente).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
     expect(p.administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
     expect(p.personal_admin).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL, asambleas: ALL, denuncias: ALL })
     expect(p.secretario).toEqual({ afiliados: AF, solicitudes_cambio: SC, finanzas: ALL, asambleas: ALL })
