@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { createHash } from 'crypto'
 import { db } from '../lib/db.js'
-import { resetCredenciales } from '../lib/credentials.js'
+import { resetCredenciales, enviarInvitacion } from '../lib/credentials.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { isSuperAdmin, isAdmin, isAsistente, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
@@ -440,26 +440,7 @@ export const sendUserInvitation = async (req: Request, res: Response): Promise<v
     const user = check.rows[0] as any
     const nombre = user.nombre_completo || 'Usuario'
 
-    const { randomBytes } = await import('crypto')
-    const token = randomBytes(32).toString('hex')
-    const expStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 días de validez
-    const tokenHash = sha256(token)
-
-    // Eliminar tokens anteriores
-    await db.execute({
-      sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
-      args: [user.email]
-    })
-
-    // Insertar el nuevo token
-    await db.execute({
-      sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
-            VALUES (?, 'reset_password', ?, 0, ?)`,
-      args: [tokenHash, user.email, expStr]
-    })
-
-    const { enviarCorreoOnboardingMasivo } = await import('../lib/email.js')
-    await enviarCorreoOnboardingMasivo(nombre, user.email, token)
+    await enviarInvitacion({ email: user.email, nombre })
 
     res.status(200).json({
       success: true,
