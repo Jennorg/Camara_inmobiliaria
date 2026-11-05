@@ -219,6 +219,7 @@ interface PorCobrar {
 export function CuentasPorCobrar() {
   const { data, error, authHeaders } = useReporte<PorCobrar>(`${API_URL}/api/finanzas/cuentas-por-cobrar`)
   const [tramo, setTramo] = useState<string | null>(null)
+  const puedeRecordar = useAuth().puede('finanzas', 'editar')
 
   const recordar = async (idAfiliado: number) => {
     try {
@@ -268,7 +269,7 @@ export function CuentasPorCobrar() {
                 <td className="px-3 py-2 text-right font-bold tabular-nums">{usd(f.monto_usd)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{f.dias}</td>
                 <td className="px-3 py-2 text-right">
-                  {f.id_afiliado && (
+                  {f.id_afiliado && puedeRecordar && (
                     <button type="button" onClick={() => recordar(f.id_afiliado!)} aria-label={`Enviar recordatorio a ${f.nombre}`}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-700 bg-red-50 hover:bg-red-100">
                       <Send size={11} aria-hidden="true" /> Recordar

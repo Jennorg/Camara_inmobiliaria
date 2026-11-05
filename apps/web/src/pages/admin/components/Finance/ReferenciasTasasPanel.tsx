@@ -21,7 +21,8 @@ import Swal from 'sweetalert2';
 import type { ReferenciasSnapshotDTO, HistorialTasaDTO } from '@/types/tasas';
 
 export default function ReferenciasTasasPanel() {
-  const { authHeaders } = useAuth();
+  const { authHeaders, puede } = useAuth();
+  const puedeEditar = puede('finanzas', 'editar');
 
   // Estados de datos
   const [snapshot, setSnapshot] = useState<ReferenciasSnapshotDTO | null>(null);
@@ -193,7 +194,7 @@ export default function ReferenciasTasasPanel() {
           </p>
         </div>
 
-        <button
+        {puedeEditar && <button
           onClick={handleSincronizarEnVivo}
           disabled={syncing}
           data-testid="btn-sincronizar-tasas"
@@ -201,7 +202,7 @@ export default function ReferenciasTasasPanel() {
         >
           <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
           <span>{syncing ? 'Sincronizando...' : 'Sincronizar en Vivo Ahora'}</span>
-        </button>
+        </button>}
       </div>
 
       {/* ── CARDS DE COTIZACIÓN EN VIVO ── */}
@@ -229,7 +230,7 @@ export default function ReferenciasTasasPanel() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            {puedeEditar && <div className="flex items-center gap-1">
               <button
                 onClick={() => {
                   setEditingCodigo('USD_BCV');
@@ -249,7 +250,7 @@ export default function ReferenciasTasasPanel() {
                   Auto
                 </button>
               )}
-            </div>
+            </div>}
           </div>
 
           <div>
@@ -289,7 +290,7 @@ export default function ReferenciasTasasPanel() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            {puedeEditar && <div className="flex items-center gap-1">
               <button
                 onClick={() => {
                   setEditingCodigo('USDT_BINANCE');
@@ -309,7 +310,7 @@ export default function ReferenciasTasasPanel() {
                   Auto
                 </button>
               )}
-            </div>
+            </div>}
           </div>
 
           <div>

@@ -18,7 +18,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
   onClose,
   authHeaders: customAuthHeaders
 }) => {
-  const { token } = useAuth();
+  const { token, puede } = useAuth();
   const effectiveOpen = open ?? isOpen ?? false;
   const headers = customAuthHeaders || (token ? { Authorization: `Bearer ${token}` } : {});
 
@@ -243,7 +243,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
               role="switch"
               aria-checked={electronicos !== false}
               aria-labelledby="etiqueta-modalidad"
-              disabled={electronicos === null || guardandoModalidad}
+              disabled={electronicos === null || guardandoModalidad || !puede('finanzas', 'editar')}
               onClick={() => cambiarModalidad(electronicos === false)}
               className={`relative shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${electronicos === false ? 'bg-slate-300' : 'bg-emerald-600'}`}
             >
@@ -251,8 +251,8 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
             </button>
           </div>
           
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+          {/* Form: alta con «crear», edición con «editar» */}
+          {puede('finanzas', editingId !== null ? 'editar' : 'crear') && <form onSubmit={handleSubmit} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
               {editingId !== null ? <Edit2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
               <span>{editingId !== null ? 'Editar Cuenta Bancaria' : 'Agregar Nueva Cuenta'}</span>
@@ -386,7 +386,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                 <span>{editingId !== null ? 'Guardar Cambios' : 'Registrar Cuenta'}</span>
               </button>
             </div>
-          </form>
+          </form>}
 
           {/* List of accounts */}
           <div>
@@ -437,21 +437,21 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <button
+                      {puede('finanzas', 'editar') && <button
                         onClick={() => handleEdit(c)}
                         className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors"
                         title="Editar"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
+                      </button>}
+                      {puede('finanzas', 'eliminar') && <button
                         onClick={() => handleDelete(c.id_cuenta)}
                         className="p-2 rounded-xl hover:bg-rose-50 text-rose-500 transition-colors"
                         title="Eliminar"
                         aria-label={`Eliminar la cuenta ${c.banco}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 ))}
