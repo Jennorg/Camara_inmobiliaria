@@ -7,6 +7,8 @@ import { formatNombreCard, formatPrecioCurso, formatDateLatinaMes } from '@/util
 import DateInput from '@/components/ui/DateInput';
 import { matchesSearch } from '@/utils/searchUtils';
 import { Plus, Upload, Calendar, Users, Pencil, Lock, Unlock, Ban, Megaphone, UserPlus, Search, CheckCircle2, XCircle, X, User, ChevronDown, Trash2, ArrowUp, ArrowDown, AlertTriangle, GraduationCap, FileDown, Archive, Award, Loader2, Download, FileStack, Mail, CheckCheck } from 'lucide-react';
+import ImagenConSkeleton from '@/components/ImagenConSkeleton';
+import { Skeleton } from '@/components/Skeleton';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
@@ -806,7 +808,17 @@ const CursosAdminPanel = () => {
       />
 
       {loading ? (
-        <div className="flex justify-center p-10"><span className="text-sm text-slate-500 font-semibold">Cargando programas académicos...</span></div>
+        <div role="status" aria-label="Cargando programas académicos" className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-12">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white border border-slate-200/80 rounded-3xl p-4 space-y-3">
+              <Skeleton className="w-full aspect-[16/9] rounded-2xl" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-2 w-full rounded-full" />
+              <div className="flex justify-between pt-1"><Skeleton className="h-3 w-16" /><Skeleton className="h-5 w-20 rounded-full" /></div>
+            </div>
+          ))}
+        </div>
       ) : filteredCursos.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center text-slate-400 space-y-3">
           <GraduationCap size={40} className="mx-auto text-slate-300" />
@@ -831,10 +843,13 @@ const CursosAdminPanel = () => {
                   {/* Portada del curso */}
                   <div className="relative w-full aspect-[16/9] bg-slate-900/5 rounded-2xl overflow-hidden border border-slate-200/60 shadow-inner flex items-center justify-center">
                     {c.imagen_url ? (
-                      <img
+                      <ImagenConSkeleton
+                        key={c.imagen_url}
                         src={c.imagen_url}
                         alt={c.titulo || c.nombre}
-                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${c.estatus === 'Cerrado' ? 'grayscale opacity-60' : ''}`}
+                        className={`object-cover group-hover:scale-105 transition-transform duration-500 ${c.estatus === 'Cerrado' ? 'grayscale opacity-60' : ''}`}
+                        silueta={<GraduationCap size={32} strokeWidth={1.25} />}
+                        alternativa={<div className="flex flex-col items-center justify-center text-slate-400 space-y-1"><GraduationCap size={32} className="opacity-40" /><span className="text-[10px] font-medium opacity-70">Sin portada</span></div>}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
@@ -1102,7 +1117,7 @@ const CursosAdminPanel = () => {
                       className="relative w-36 h-24 shrink-0 rounded-lg border border-dashed border-slate-300 bg-slate-50 overflow-hidden flex items-center justify-center text-center"
                     >
                       {formData.imagen_url
-                        ? <img src={formData.imagen_url} alt="Portada del curso" className="w-full h-full object-cover" />
+                        ? <ImagenConSkeleton key={formData.imagen_url} src={formData.imagen_url} alt="Portada del curso" className="object-cover" silueta={<GraduationCap size={28} strokeWidth={1.25} />} />
                         : <span className="text-[11px] text-slate-500 px-2 leading-snug">Arrastra una imagen aquí</span>}
                       {uploading && (
                         <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
@@ -1338,7 +1353,7 @@ const CursosAdminPanel = () => {
                                 }}
                                 className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 shrink-0" />
                               <span className="w-8 h-8 rounded-full bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">
-                                {member.foto_url ? <img src={member.foto_url} alt="" className="w-full h-full object-cover" /> : <User size={14} className="text-slate-400" aria-hidden="true" />}
+                                {member.foto_url ? <ImagenConSkeleton key={member.foto_url} src={member.foto_url} alt="" className="object-cover" alternativa={<User size={14} className="text-slate-400" aria-hidden="true" />} /> : <User size={14} className="text-slate-400" aria-hidden="true" />}
                               </span>
                               <span className="min-w-0 flex-1">
                                 <span className="block text-[13px] font-medium text-slate-900 truncate">{member.nombre}</span>
