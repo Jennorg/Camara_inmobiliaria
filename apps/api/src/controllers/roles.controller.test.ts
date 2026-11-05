@@ -188,6 +188,11 @@ describe('asignación', () => {
     expect(await rolesDe(4)).toEqual(['super_admin'])
   })
 
+  it('asignar a un admin conserva admin', async () => {
+    expect((await request(app).put('/api/roles/usuarios/2').set('Authorization', SUPER).send({ roles: ['secretario'] })).status).toBe(200)
+    expect((await rolesDe(2)).sort()).toEqual(['admin', 'secretario'])
+  })
+
   it('no puede asignar admin/super_admin', async () => {
     for (const roles of [['admin'], ['super_admin'], ['personal', 'admin']]) {
       expect((await request(app).put('/api/roles/usuarios/5').set('Authorization', SUPER).send({ roles })).status).toBe(403)

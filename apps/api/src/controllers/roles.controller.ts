@@ -174,7 +174,8 @@ export const asignar = async (req: Request, res: Response) => {
     if (actuales.includes('super_admin')) throw fallo(403, 'No se pueden cambiar los roles de un súper administrador')
 
     const roles = await validarRoles(req.body?.roles, true)
-    if (actuales.includes('afiliado') && !roles.includes('afiliado')) roles.unshift('afiliado')
+    // afiliado y admin no se pierden aquí (admin solo se quita desde la gestión de usuarios)
+    for (const r of ['afiliado', 'admin']) if (actuales.includes(r) && !roles.includes(r)) roles.unshift(r)
     await db.execute({
       sql: `UPDATE users SET roles = ?, actualizado_en = strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ?`,
       args: [JSON.stringify(roles), idUser],
