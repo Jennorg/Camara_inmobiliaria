@@ -6,6 +6,7 @@ import { resetCredenciales } from '../lib/credentials.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { isSuperAdmin, isAdmin, isAsistente, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
+import { permisosDeRoles, rolPrimario } from '../services/permisos.service.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
@@ -338,17 +339,11 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
             ORDER BY u.creado_en DESC`,
       args: [],
     })
-    const rows = result.rows.map(r => {
+    const rows = await Promise.all(result.rows.map(async r => {
       const roles = parseRoles(r.roles)
-      const rol = roles.includes('super_admin')
-        ? 'super_admin'
-        : roles.includes('admin')
-          ? 'admin'
-          : roles.includes('asistente') || roles.includes('administrativo')
-            ? 'asistente'
-            : 'afiliado'
+      const rol = rolPrimario(roles, await permisosDeRoles(roles), 'afiliado')
       return { ...r, roles, rol }
-    })
+    }))
     res.status(200).json({ success: true, data: rows })
   } catch (error) {
     console.error('Error en getUsers:', error)
@@ -549,15 +544,8 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
     }
 
     const roles = parseRoles(targetRow.roles)
-    const rol = roles.includes('super_admin')
-      ? 'super_admin'
-      : roles.includes('admin')
-        ? 'admin'
-        : roles.includes('asistente') || roles.includes('administrativo')
-          ? 'asistente'
-          : roles.includes('afiliado')
-            ? 'afiliado'
-            : 'estudiante'
+    const permisos = await permisosDeRoles(roles)
+    const rol = rolPrimario(roles, permisos)
 
     const targetPayload: JwtPayload = {
       id: Number(targetRow.id),
@@ -568,7 +556,7 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
     }
 
     // Enriquecer el payload con id_afiliado, id_persona, id_empresa, etc.
-    const enrichedUser = await enrichUserPayload(targetPayload)
+    const enrichedUser = { ...(await enrichUserPayload(targetPayload)), permisos }
 
     // Firmar JWT con 8 horas de duración
     const token = jwt.sign(enrichedUser, env.JWT_SECRET, { expiresIn: '8h' })
