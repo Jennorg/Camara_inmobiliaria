@@ -34,13 +34,13 @@ describe('permisos: siembra', () => {
     }
     const AF = 'ver,crear,editar'
     const SC = 'ver,editar'
-    expect(p.asistente).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.personal_admin).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.secretario).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.secretaria).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.personal).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
-    expect(p.personal_administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL })
+    expect(p.asistente).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
+    expect(p.administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
+    expect(p.personal_admin).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
+    expect(p.secretario).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
+    expect(p.secretaria).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
+    expect(p.personal).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
+    expect(p.personal_administrativo).toEqual({ afiliados: AF, solicitudes_cambio: SC, users: AF, finanzas: ALL, asambleas: ALL, denuncias: ALL, formacion: AF, preinscripciones: AF, estudiantes: ALL })
     expect(p.super_admin).toBeUndefined()
   })
 

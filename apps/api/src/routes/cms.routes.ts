@@ -17,7 +17,8 @@ import type { Accion } from '../config/secciones.js';
 
 const router = Router();
 const auth = [requireAuth];
-// Mapa: ruta CMS → sección del panel. Hitos, páginas y configuración → «config»; cursos y convenios → «formacion».
+// Mapa: ruta CMS → sección del panel. Hitos, páginas, configuración, cursos y convenios → «config». Cursos/convenios del CMS
+// no van a «formacion»: el staff tiene esa sección (por academia/cibir) y el CMS era solo admin/super_admin.
 const permiso = (seccion: string, accion?: Accion) => [requireAuth, requirePermiso(seccion, accion)];
 
 // Normativas: la sección sale de la categoría (la del cuerpo al crear, la guardada al editar/eliminar).
@@ -58,15 +59,15 @@ router.delete('/noticias/:id', ...permiso('noticias'), deleteNoticia);
 
 // ── Cursos ────────────────────────────────────────────
 router.get('/cursos', getCursos);
-router.post('/cursos', ...permiso('formacion'), createCurso);
-router.put('/cursos/:id', ...permiso('formacion'), updateCurso);
-router.delete('/cursos/:id', ...permiso('formacion'), deleteCurso);
+router.post('/cursos', ...permiso('config'), createCurso);
+router.put('/cursos/:id', ...permiso('config'), updateCurso);
+router.delete('/cursos/:id', ...permiso('config'), deleteCurso);
 
 // ── Convenios ─────────────────────────────────────────
 router.get('/convenios', getConvenios);
-router.post('/convenios', ...permiso('formacion'), createConvenio);
-router.put('/convenios/:id', ...permiso('formacion'), updateConvenio);
-router.delete('/convenios/:id', ...permiso('formacion'), deleteConvenio);
+router.post('/convenios', ...permiso('config'), createConvenio);
+router.put('/convenios/:id', ...permiso('config'), updateConvenio);
+router.delete('/convenios/:id', ...permiso('config'), deleteConvenio);
 
 // ── Normativas (enlaces a documentos) ───────────────────
 router.get('/normativas', getNormativas);

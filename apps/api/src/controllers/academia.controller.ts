@@ -3916,11 +3916,6 @@ export const adminGetEstudiante = async (req: Request, res: Response): Promise<v
 }
 
 /**
- * Helpers re-exported to keep route files small.
- */
-export const academiaAdminGuards = [requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo')] as const
-
-/**
  * GET /api/academia/estudiantes/:id/documentos
  * Devuelve todos los documentos adjuntos de un estudiante.
  */

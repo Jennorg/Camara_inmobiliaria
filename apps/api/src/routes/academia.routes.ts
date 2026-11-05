@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireRole } from '../middlewares/auth.middleware.js'
+import { requireAuth, requirePermiso } from '../middlewares/auth.middleware.js'
 import {
   adminAsignarEstudianteACurso,
   adminAgendarEntrevista,
@@ -20,7 +20,6 @@ import {
   adminAprobarModulo,
   adminReenviarConfirmacionCurso,
   adminEstadoCorreo,
-  academiaAdminGuards,
   adminRemitirACibir,
   adminCambiarEtapaInscripcion,
   adminBuscarReferenciaAfiliado,
@@ -43,105 +42,110 @@ import { adminAsignarCohorte, adminCambiarEstadoCohorte, adminCrearCohorte, admi
 
 const router = Router()
 
-// Todo lo de este router es para panel administrativo
-router.use(...academiaAdminGuards)
+// Todo lo de este router es para panel administrativo. Mapa de secciones: cursos, inscripciones, módulos, profesores y
+// cohortes → formacion; lista y flujo de preinscripciones (aprobar, rechazar, remitir, agenda, etapa) → preinscripciones;
+// fichas y documentos de estudiantes → estudiantes. POST que reenvían correos (no crean) llevan «editar».
+router.use(requireAuth)
+const F = (accion?: 'ver' | 'crear' | 'editar' | 'eliminar') => requirePermiso('formacion', accion)
+const P = (accion?: 'ver' | 'crear' | 'editar' | 'eliminar') => requirePermiso('preinscripciones', accion)
+const E = (accion?: 'ver' | 'crear' | 'editar' | 'eliminar') => requirePermiso('estudiantes', accion)
 
 // GET /api/academia/cursos?estatus=Abierto&programaCodigo=PADI
-router.get('/cursos', adminListCursos)
+router.get('/cursos', F(), adminListCursos)
 // POST /api/academia/cursos
-router.post('/cursos', adminCreateCurso)
+router.post('/cursos', F(), adminCreateCurso)
 // PUT /api/academia/cursos/:id
-router.put('/cursos/:id', adminUpdateCurso)
+router.put('/cursos/:id', F(), adminUpdateCurso)
 // DELETE /api/academia/cursos/:id  (soft-delete → Cerrado)
-router.delete('/cursos/:id', requireRole('admin', 'super_admin'), adminDeleteCurso)
+router.delete('/cursos/:id', F(), adminDeleteCurso)
 
 // GET /api/academia/preinscripciones?programaCodigo=PADI&estatus=Preinscrito
-router.get('/preinscripciones', adminListPreinscripciones)
+router.get('/preinscripciones', P(), adminListPreinscripciones)
 
 // GET /api/academia/estudiantes?query=
-router.get('/estudiantes', adminListEstudiantes)
+router.get('/estudiantes', E(), adminListEstudiantes)
 
 // GET /api/academia/estudiantes/:id
-router.get('/estudiantes/:id', adminGetEstudiante)
+router.get('/estudiantes/:id', E(), adminGetEstudiante)
 
 // GET /api/academia/estudiantes/:id/documentos
-router.get('/estudiantes/:id/documentos', adminGetEstudianteDocumentos)
-router.post('/estudiantes/:id/documentos', adminAgregarEstudianteDocumento)
-router.delete('/estudiantes/:id/documentos/:idDocumento', adminQuitarEstudianteDocumento)
+router.get('/estudiantes/:id/documentos', E(), adminGetEstudianteDocumentos)
+router.post('/estudiantes/:id/documentos', E(), adminAgregarEstudianteDocumento)
+router.delete('/estudiantes/:id/documentos/:idDocumento', E(), adminQuitarEstudianteDocumento)
 
 // POST /api/academia/cursos/:id_curso/asignar
-router.post('/cursos/:id_curso/asignar', adminAsignarEstudianteACurso)
+router.post('/cursos/:id_curso/asignar', F(), adminAsignarEstudianteACurso)
 
 // PATCH /api/academia/inscripciones/:id/agendar-entrevista
-router.patch('/inscripciones/:id/agendar-entrevista', adminAgendarEntrevista)
+router.patch('/inscripciones/:id/agendar-entrevista', P(), adminAgendarEntrevista)
 
 // Agenda de entrevistas: disponibilidad y enlace de reserva (el aspirante reserva por /api/public/agenda)
-router.get('/agenda/disponibilidad', adminLeerDisponibilidad)
-router.put('/agenda/disponibilidad', adminGuardarDisponibilidad)
-router.post('/inscripciones/:id/enlace-agenda', adminEnviarEnlaceAgenda)
+router.get('/agenda/disponibilidad', P(), adminLeerDisponibilidad)
+router.put('/agenda/disponibilidad', P(), adminGuardarDisponibilidad)
+router.post('/inscripciones/:id/enlace-agenda', P('editar'), adminEnviarEnlaceAgenda)
 
 // PATCH /api/academia/inscripciones/:id/finalizar-entrevista
-router.patch('/inscripciones/:id/finalizar-entrevista', adminFinalizarEntrevista)
+router.patch('/inscripciones/:id/finalizar-entrevista', P(), adminFinalizarEntrevista)
 
 // POST /api/academia/inscripciones/:id/reenviar-confirmacion
-router.post('/inscripciones/:id/reenviar-confirmacion', adminReenviarConfirmacionCurso)
+router.post('/inscripciones/:id/reenviar-confirmacion', F('editar'), adminReenviarConfirmacionCurso)
 
 // GET /api/academia/correos/:emailId/estado
-router.get('/correos/:emailId/estado', adminEstadoCorreo)
+router.get('/correos/:emailId/estado', F(), adminEstadoCorreo)
 
 // PATCH /api/academia/inscripciones/:id/aprobar-directo
-router.patch('/inscripciones/:id/aprobar-directo', adminAprobarModulo)
+router.patch('/inscripciones/:id/aprobar-directo', P(), adminAprobarModulo)
 
 // PATCH /api/academia/inscripciones/:id/remitir-cibir
-router.patch('/inscripciones/:id/remitir-cibir', adminRemitirACibir)
+router.patch('/inscripciones/:id/remitir-cibir', P(), adminRemitirACibir)
 
 // Mantenemos /aprobar por compatibilidad temporal si es necesario, pero redirigimos a agendar
-router.patch('/inscripciones/:id/aprobar', adminAgendarEntrevista)
+router.patch('/inscripciones/:id/aprobar', P(), adminAgendarEntrevista)
 
 // PATCH /api/academia/inscripciones/:id/rechazar
-router.patch('/inscripciones/:id/rechazar', adminRechazarPreinscripcion)
+router.patch('/inscripciones/:id/rechazar', P(), adminRechazarPreinscripcion)
 
 // DELETE /api/academia/inscripciones/:id
-router.delete('/inscripciones/:id', requireRole('admin', 'super_admin'), adminDeleteInscripcion)
+router.delete('/inscripciones/:id', F(), adminDeleteInscripcion)
 
 // PUT /api/academia/inscripciones/:id/datos
-router.put('/inscripciones/:id/datos', adminUpdateInscripcionDatos)
+router.put('/inscripciones/:id/datos', F(), adminUpdateInscripcionDatos)
 
 // PATCH /api/academia/inscripciones/:id/completar
-router.patch('/inscripciones/:id/completar', adminCompletarCursoEstudiante)
+router.patch('/inscripciones/:id/completar', F(), adminCompletarCursoEstudiante)
 
 // Módulos de inscripciones
-router.get('/inscripciones/:id/modulos', adminGetModulosInscripcion)
-router.patch('/inscripciones/:id/modulos/:nombre/aprobar', adminAprobarModuloInscripcion)
-router.patch('/inscripciones/:id/modulos/:nombre/rechazar', adminRechazarModuloInscripcion)
-router.patch('/inscripciones/:id/modulos/aprobar-todos', adminAprobarTodosModulosInscripcion)
+router.get('/inscripciones/:id/modulos', F(), adminGetModulosInscripcion)
+router.patch('/inscripciones/:id/modulos/:nombre/aprobar', F(), adminAprobarModuloInscripcion)
+router.patch('/inscripciones/:id/modulos/:nombre/rechazar', F(), adminRechazarModuloInscripcion)
+router.patch('/inscripciones/:id/modulos/aprobar-todos', F(), adminAprobarTodosModulosInscripcion)
 
 // PATCH /api/academia/inscripciones/:id/cambiar-etapa
-router.patch('/inscripciones/:id/cambiar-etapa', adminCambiarEtapaInscripcion)
+router.patch('/inscripciones/:id/cambiar-etapa', P(), adminCambiarEtapaInscripcion)
 
 // GET /api/academia/afiliados/referencia
-router.get('/afiliados/referencia', adminBuscarReferenciaAfiliado)
+router.get('/afiliados/referencia', P(), adminBuscarReferenciaAfiliado)
 
 // PATCH /api/academia/inscripciones/:id/toggle-corredor
-router.patch('/inscripciones/:id/toggle-corredor', adminToggleCorredorStatus)
+router.patch('/inscripciones/:id/toggle-corredor', F(), adminToggleCorredorStatus)
 
 // Gestión de profesores
-router.get('/profesores', adminListProfesores)
-router.post('/profesores', adminCreateProfesor)
-router.delete('/profesores/:id', requireRole('admin', 'super_admin'), adminDeleteProfesor)
-router.get('/personas-disponibles', adminListPersonasDisponibles)
+router.get('/profesores', F(), adminListProfesores)
+router.post('/profesores', F(), adminCreateProfesor)
+router.delete('/profesores/:id', F(), adminDeleteProfesor)
+router.get('/personas-disponibles', F(), adminListPersonasDisponibles)
 // POST /api/academia/inscripciones/:id/reenviar-enlace
-router.post('/inscripciones/:id/reenviar-enlace', adminReenviarEnlaceExpediente)
+router.post('/inscripciones/:id/reenviar-enlace', P('editar'), adminReenviarEnlaceExpediente)
 
 // Cohortes de los programas CIBIR, PREANI, PEGI y PADI
-router.get('/cohortes', adminListCohortes)
-router.post('/cohortes', adminCrearCohorte)
-router.patch('/cohortes/:id/estado', adminCambiarEstadoCohorte)
-router.get('/cohortes/:id/inscritos.xlsx', adminExportarCohorte)
-router.patch('/inscripciones/:id/cohorte', adminAsignarCohorte)
+router.get('/cohortes', F(), adminListCohortes)
+router.post('/cohortes', F(), adminCrearCohorte)
+router.patch('/cohortes/:id/estado', F(), adminCambiarEstadoCohorte)
+router.get('/cohortes/:id/inscritos.xlsx', F(), adminExportarCohorte)
+router.patch('/inscripciones/:id/cohorte', F(), adminAsignarCohorte)
 
 // POST /api/academia/inscripciones/manual — agrega a una persona a CIBIR/PREANI/PEGI/PADI
-router.post('/inscripciones/manual', adminCrearInscripcionManual)
+router.post('/inscripciones/manual', F(), adminCrearInscripcionManual)
 
 export { router as academiaRoutes }
 
