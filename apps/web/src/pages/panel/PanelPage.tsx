@@ -316,7 +316,6 @@ const PanelPage = () => {
         { icon: DollarSign, label: 'Control de Finanzas' },
         { icon: ShieldCheck, label: 'Control de Acceso' },
         { icon: BookOpen, label: 'Gestión de Formación' },
-        { icon: Gavel, label: 'Tribunal de Ética' },
       ];
     }
 
@@ -502,6 +501,8 @@ const PanelPage = () => {
     if (activeTab === 'Mis Agentes') {
       return <div className="col-span-1 lg:col-span-3 h-full"><WidgetGestionAfiliadosCorp defaultTab={agentesCorpTab} /></div>;
     }
+    // El asistente (sin rol admin) no ve estas secciones aunque llegue por ?tab=
+    if (isAsistente && !isAdmin && ['Solicitudes de Agentes', 'Solicitudes de Cambio', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias'].includes(activeTab)) return null;
     if (activeTab === 'Solicitudes de Agentes') {
       return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
     }
