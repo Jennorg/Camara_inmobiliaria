@@ -68,7 +68,9 @@ interface AfiliadosPanelProps {
 const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().toLowerCase().startsWith('pendiente');
 
 export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeTabs = false }: AfiliadosPanelProps) {
-  const { token } = useAuth()
+  const { token, puede } = useAuth()
+  const puedeEditar = puede('afiliados', 'editar')
+  const puedeResolver = puede('solicitudes_cambio', 'editar')
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
     if (token) h.Authorization = `Bearer ${token}`
@@ -376,7 +378,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               >
                 Afiliados CIBIR
               </button>
-              <button
+              {puede('solicitudes_cambio', 'ver') && <button
                 type="button"
                 onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
                 className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors relative ${viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
@@ -388,7 +390,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     {solicitudes.length}
                   </span>
                 )}
-              </button>
+              </button>}
             </div>
           )}
 
@@ -694,7 +696,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               )}
 
               {/* Resolver Action */}
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
+              {puedeResolver && <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Resolver Solicitud (Administración)</h4>
 
                 <div className="flex flex-col gap-2">
@@ -722,7 +724,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     Rechazar
                   </button>
                 </div>
-              </div>
+              </div>}
             </div>
           )
         ) : !selected ? (
@@ -742,6 +744,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <select
                       value={selected.tipo_afiliado}
                       onChange={(e) => handleDropdownTypeChange(e.target.value)}
+                      disabled={!puedeEditar}
                       className="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-colors cursor-pointer text-[10px] font-black uppercase tracking-widest px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     >
                       <option value="Natural">Agente Independiente</option>
@@ -899,6 +902,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                           key={step.label}
                           type="button"
                           onClick={() => handleStepClick(idx)}
+                          disabled={!puedeEditar}
                           className="flex flex-col items-center relative z-10 group cursor-pointer gap-2 focus:outline-none"
                         >
                           <div
@@ -1185,6 +1189,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <select
                   value={selected.estatus}
                   onChange={(e) => updateField('estatus', e.target.value)}
+                  disabled={!puedeEditar}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700"
                 >
                   <option value="1_PREINSCRIPCION">1. Preinscripción</option>
@@ -1217,6 +1222,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="checkbox"
                     checked={!Boolean(selected.cibir_acreditado)}
                     onChange={(e) => updateField('cibir_acreditado', e.target.checked ? 0 : 1)}
+                    disabled={!puedeEditar}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
@@ -1253,14 +1259,14 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                         <p className="text-[11px] font-medium leading-tight">
                           {pagoPendiente.metodo_pago.toUpperCase()} · Ref: <strong>{pagoPendiente.referencia || 'S/R'}</strong> · Monto: <strong>{pagoPendiente.monto} {pagoPendiente.moneda}</strong>
                         </p>
-                        <button
+                        {puede('finanzas', 'editar') && <button
                           type="button"
                           onClick={() => { setSelectedPago(pagoPendiente); setShowVerificarModal(true); }}
                           className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm transition-colors"
                         >
                           <ShieldCheck size={14} />
                           <span>Revisar y Validar Pago</span>
-                        </button>
+                        </button>}
                       </div>
                     )}
 
@@ -1285,7 +1291,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
                     )}
 
-                    <div className="flex gap-2 pt-1">
+                    {puede('finanzas', 'crear') && <div className="flex gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => setShowCobroModal(true)}
@@ -1294,7 +1300,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                         <Banknote size={14} />
                         <span>Cobro en Taquilla (Efectivo/POS)</span>
                       </button>
-                    </div>
+                    </div>}
                   </div>
                 );
               })()}
@@ -1310,7 +1316,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 </div>
               )}
 
-              {(['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) || (selected.tipo_afiliado === 'Agente Corporativo' && selected.estatus === '2_EXPEDIENTE')) && (
+              {(['1_PREINSCRIPCION', '6_INSCRIPCION'].includes(selected.estatus) || (selected.tipo_afiliado === 'Agente Corporativo' && selected.estatus === '2_EXPEDIENTE')) && puedeEditar && (
                 <div className="flex gap-2 pt-2 border-t border-slate-50">
                   <button
                     onClick={() => procesar(selected.id_afiliado, 'aprobar')}

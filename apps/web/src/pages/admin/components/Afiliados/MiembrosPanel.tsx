@@ -300,7 +300,8 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
 
 
 export default function MiembrosPanel() {
-  const { token, isAdmin, isSuperAdmin } = useAuth()
+  const { token, puede } = useAuth()
+  const puedeEditar = puede('afiliados', 'editar')
   const authHeaders = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -1111,12 +1112,12 @@ export default function MiembrosPanel() {
               >
                 <FileDown size={18} />
               </button>
-              <button
+              {puede('afiliados', 'crear') && <button
                 onClick={openNewMemberModal}
                 className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-500/20"
               >
                 <UserPlus size={18} />
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -1383,14 +1384,14 @@ export default function MiembrosPanel() {
                       <span className="hidden sm:inline">Ver Carnet</span>
                       <span className="sm:hidden">Carnet</span>
                     </button>
-                    <button
+                    {puedeEditar && <button
                       onClick={() => handleEdit(selected)}
                       className="p-2.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 active:scale-95 transition-colors transition-transform"
                       title="Editar"
                     >
                       <Edit3 size={18} />
-                    </button>
-                    {(isAdmin || isSuperAdmin) && (
+                    </button>}
+                    {puede('afiliados', 'eliminar') && (
                       <button
                         onClick={() => handleDelete(selected.id_afiliado)}
                         className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors transition-transform"
@@ -1725,6 +1726,7 @@ export default function MiembrosPanel() {
                         className="w-full bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 hover:border-gray-200 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10"
                         value={isEditing ? (editForm.tipo_afiliado || selected.tipo_afiliado) : selected.tipo_afiliado}
                         onChange={(e) => handleDropdownTypeChange(e.target.value)}
+                        disabled={!puedeEditar}
                       >
                         <option value="Natural">Agente Independiente</option>
                         <option value="Agente Corporativo">Agente Corporativo</option>
