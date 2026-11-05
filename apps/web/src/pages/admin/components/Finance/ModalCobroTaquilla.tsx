@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, DollarSign, CreditCard, Banknote, Landmark, CheckCircle2, Loader2, Info } from 'lucide-react';
 import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { API_URL } from '@/config/env';
 import { MetodoPago, TipoConceptoPago, PagoDTO } from '@/types/pagos';
 import Swal from 'sweetalert2';
+import SelectorMesesPago, { mesesPagables } from '@/pages/landing/afiliado/components/SelectorMesesPago';
 
 /** Inscripción a un curso de pago que se cobra en taquilla (puede ser de alguien sin afiliación). */
 export interface CursoPorCobrar {
@@ -65,7 +66,15 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   // Mes que cubre la mensualidad (AAAA-MM) y cuántos meses seguidos paga
   const [periodo, setPeriodo] = useState<string>(new Date().toISOString().slice(0, 7));
   const [mesesCubiertos, setMesesCubiertos] = useState<number>(1);
+  // Cuota mensual vigente (arancel mensualidad_base); se actualiza al cargar los aranceles
+  const [montoMensual, setMontoMensual] = useState<number>(10);
   // La mensualidad se aplica al mes impago más antiguo: el servidor lo decide y aquí se muestra
+  const [mesesSolv, setMesesSolv] = useState<{ periodo: string; estado: string }[]>([]);
+  const lista = useMemo(() => mesesPagables(mesesSolv), [mesesSolv]);
+  const cambiarMeses = (n: number) => {
+    setMesesCubiertos(n);
+    handleMontoUSDChange(montoMensual * n);
+  };
   const [mesesDeudaAfiliado, setMesesDeudaAfiliado] = useState<number>(0);
 
   useEffect(() => {
@@ -78,6 +87,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         const impago = (json.data.meses as { periodo: string; estado: string }[]).find(m => m.estado === 'deuda')
           ?? (json.data.meses as { periodo: string; estado: string }[]).find(m => m.estado === 'por_pagar');
         if (impago) setPeriodo(impago.periodo);
+        setMesesSolv(json.data.meses);
         setMesesDeudaAfiliado(Number(json.data.meses_deuda) || 0);
       })
       .catch(() => {});
@@ -113,6 +123,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             if (json.success && Array.isArray(json.data)) {
               const aranceles = json.data;
               let suggestedMonto = 30;
+              const cuota = Number(aranceles.find((a: any) => a.codigo === 'mensualidad_base')?.monto_usd);
+              if (cuota > 0) setMontoMensual(cuota);
 
               if (conceptoDefault === 'formalizacion_afiliacion') {
                 const keyInscripcion = afiliadoTipo === 'Corporativo'
@@ -182,10 +194,10 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       setNotas('Formalización de Inscripción ($25) + Primera Mensualidad ($5)');
     } else if (c === 'curso_cibir') {
       handleMontoUSDChange(30);
-      setNotas('Arancel Curso de Inducción CIBIR');
+      setNotas('CIBIR + cuota de inscripción + primera mensualidad (sostenimiento)');
     } else if (c === 'mensualidad') {
       setMesesCubiertos(1);
-      handleMontoUSDChange(5);
+      handleMontoUSDChange(montoMensual);
       setNotas('Cuota mensual de membresía');
     }
   };
@@ -285,7 +297,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
 
   return (
     <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
-      <div className="relative bg-white w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100">
+      <div className="relative bg-white w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] border border-emerald-100">
         
         {/* Header */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
@@ -312,7 +324,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs overflow-y-auto min-h-0">
           
           {programaPorCobrar ? (
             <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
@@ -383,37 +395,13 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             </div>
 
             {tipoConcepto === 'mensualidad' && (
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <label className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Desde el mes</span>
-                  <input
-                    type="month"
-                    readOnly
-                    value={periodo}
-                    aria-describedby="ayuda-mes-cobro"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 cursor-not-allowed"
-                  />
-                  <span id="ayuda-mes-cobro" className="text-[10px] font-medium text-slate-500 block">
-                    {mesesDeudaAfiliado > 0
-                      ? `Se aplica a la deuda más antigua (${mesesDeudaAfiliado} ${mesesDeudaAfiliado === 1 ? 'mes' : 'meses'} en mora).`
-                      : 'Está al día: se aplica al mes pendiente más cercano.'}
-                  </span>
-                </label>
-                <label className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Meses pagados</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={24}
-                    value={mesesCubiertos}
-                    onChange={e => {
-                      const n = Math.min(24, Math.max(1, Math.trunc(Number(e.target.value)) || 1));
-                      setMesesCubiertos(n);
-                      handleMontoUSDChange(5 * n);
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </label>
+              <div className="pt-2">
+                <SelectorMesesPago lista={lista} meses={mesesCubiertos} onChange={cambiarMeses} />
+                <span className="mt-1 block text-[10px] font-medium text-slate-500">
+                  {mesesDeudaAfiliado > 0
+                    ? `Se aplica a la deuda más antigua (${mesesDeudaAfiliado} ${mesesDeudaAfiliado === 1 ? 'mes' : 'meses'} en mora).`
+                    : 'Está al día: lo que pase de hoy queda como adelanto.'} Total: ${(montoMensual * mesesCubiertos).toFixed(2)}
+                </span>
               </div>
             )}
           </div>
@@ -561,7 +549,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading || montoUSD <= 0}
+              disabled={loading || montoUSD <= 0 || (tipoConcepto === 'mensualidad' && mesesCubiertos < 1)}
               className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-200 transition-all disabled:opacity-50"
             >
               {loading ? (

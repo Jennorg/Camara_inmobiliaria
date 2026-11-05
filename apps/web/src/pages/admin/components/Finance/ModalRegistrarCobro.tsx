@@ -106,7 +106,8 @@ const ModalRegistrarCobro: React.FC<Props> = ({ open, onClose, onCobrado, authHe
 
   return (
     <>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+      {/* Con el formulario de cobro abierto se oculta (no se desmonta) para no apilar dos modales y conservar la búsqueda al volver */}
+      <div hidden={!!pagador || !!inscripcion} className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
         <div role="dialog" aria-modal="true" aria-labelledby="titulo-registrar-cobro" className="relative bg-white w-full max-w-2xl mx-auto rounded-[2rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100">
           <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
             <div className="flex items-center gap-2.5">

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
+import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 import { cleanSearchDigits, normalizeSearchText } from '@/utils/searchUtils'
 import { formatNombreCard } from '@/utils/formatters'
+import ModalCobroTaquilla from './ModalCobroTaquilla'
 import { accionDelMes, corregirMesSolvencia, type MesCorregible } from '@/utils/correccionesSolvencia'
 
 type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
@@ -82,6 +84,7 @@ export default function SolvenciaPanel() {
   const [soloMora, setSoloMora] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
+  const [pagando, setPagando] = useState<FilaSolvencia | null>(null)
 
   const cargar = useCallback(async () => {
     try {
@@ -279,10 +282,11 @@ export default function SolvenciaPanel() {
               <th className="px-3 py-3 text-left">Afiliado</th>
               {MESES.map(m => <th key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
               <th className="px-3 py-3 text-right">Deuda</th>
+              <th className="px-2 py-3 text-center w-12"><span className="sr-only">Registrar pago</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filas.length === 0 && <tr><td colSpan={15} className="p-6 text-center text-slate-400 font-medium">Sin afiliados para mostrar.</td></tr>}
+            {filas.length === 0 && <tr><td colSpan={16} className="p-6 text-center text-slate-400 font-medium">Sin afiliados para mostrar.</td></tr>}
             {filas.map(a => (
               <tr key={a.id_afiliado} className="hover:bg-slate-50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-400 tabular-nums">{a.codigo}</td>
@@ -305,6 +309,10 @@ export default function SolvenciaPanel() {
                     {a.solvente ? 'Solvente' : `$${a.deuda_usd.toFixed(2)}`}
                     {a.bloqueado && <span className="block text-[9px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
+                  <td className="px-2 py-2 text-center">
+                    <button type="button" onClick={() => setPagando(a)} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 cursor-pointer"><CalendarPlus size={14} aria-hidden="true" /></button>
+                  </td>
                 </tr>
             ))}
           </tbody>
@@ -320,6 +328,18 @@ export default function SolvenciaPanel() {
       <p className="text-xs text-slate-500 font-medium">
         Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso cuenta como deuda a partir del día {data.cobranza.diaVencimiento + 1}. Con más de {data.cobranza.mesesGracia} meses de deuda se bloquean el carnet, la constancia de solvencia y los certificados. Los afiliados sin historial importado deben desde el mes indicado arriba.
       </p>
+
+      {pagando && (
+        <ModalCobroTaquilla
+          open
+          onClose={() => setPagando(null)}
+          onSuccess={() => { toast.success('Pago registrado'); cargar() }}
+          afiliadoId={pagando.id_afiliado}
+          afiliadoNombre={pagando.nombre}
+          conceptoDefault="mensualidad"
+          authHeaders={authHeaders}
+        />
+      )}
     </div>
   )
 }
