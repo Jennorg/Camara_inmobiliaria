@@ -109,7 +109,10 @@ export interface SolvenciaAfiliado extends ResumenDeuda {
  * con tres consultas en total —no una por afiliado— para que sirva igual al panel y al cron.
  */
 export async function calcularSolvencias(ids?: number[]) {
-  const filtro = ids ? `AND a.id_afiliado IN (${ids.map(() => '?').join(',') || 'NULL'})` : `AND a.estatus = 'Afiliado' AND a.activo = 1`
+  // Solo se cobra a afiliados oficiales: estatus 'Afiliado' y con código asignado. Un aspirante (CIBIR, expediente…) no debe nada,
+  // aunque se consulte por id: sin esto se le contaba la deuda desde el mes de arranque, antes de su afiliación.
+  const oficial = `a.estatus = 'Afiliado' AND a.codigo IS NOT NULL AND TRIM(a.codigo) <> ''`
+  const filtro = ids ? `AND a.id_afiliado IN (${ids.map(() => '?').join(',') || 'NULL'}) AND ${oficial}` : `AND ${oficial} AND a.activo = 1`
   const filtroPagos = ids ? `AND id_afiliado IN (${ids.map(() => '?').join(',') || 'NULL'})` : ''
   const [config, monto, afs, pagos, hist] = await Promise.all([
     getConfigSolvencia(),
@@ -352,7 +355,8 @@ export async function emitirConstanciaSolvencia(idAfiliado: number) {
   if (afiliado.estatus !== 'Afiliado' || Number(afiliado.activo) !== 1) throw fallo(409, 'Solo los afiliados activos pueden emitir la constancia de solvencia')
 
   const { solvencias, hoy } = await calcularSolvencias([idAfiliado])
-  const s = solvencias.get(idAfiliado)!
+  const s = solvencias.get(idAfiliado)
+  if (!s) throw fallo(409, 'Solo los afiliados oficiales, con código asignado, pueden emitir la constancia de solvencia')
   if (s.mesesSinVerificar > 0) {
     throw fallo(409, s.mesesDeuda > 0
       ? `Tienes ${s.mesesDeuda} ${s.mesesDeuda === 1 ? 'mensualidad pendiente' : 'mensualidades pendientes'}: ponte al día para emitir la constancia`
