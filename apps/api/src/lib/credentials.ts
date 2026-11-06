@@ -1,5 +1,28 @@
 import bcrypt from 'bcryptjs'
+import { createHash, randomBytes } from 'crypto'
 import { db } from './db.js'
+import { enviarCorreoOnboardingMasivo } from './email.js'
+
+/**
+ * Invitación de acceso: guarda (hasheado) un token reset_password de 30 días, reemplazando
+ * los anteriores del email, y envía el correo de onboarding con el token en claro.
+ */
+export async function enviarInvitacion(user: { email: string; nombre: string }): Promise<void> {
+  const token = randomBytes(32).toString('hex')
+  const expStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  const tokenHash = createHash('sha256').update(token).digest('hex')
+
+  await db.execute({
+    sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
+    args: [user.email],
+  })
+  await db.execute({
+    sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
+          VALUES (?, 'reset_password', ?, 0, ?)`,
+    args: [tokenHash, user.email, expStr],
+  })
+  await enviarCorreoOnboardingMasivo(user.nombre, user.email, token)
+}
 
 const CORPORATIVO_TIPOS = new Set(['Corporativo', 'Agente Corporativo'])
 

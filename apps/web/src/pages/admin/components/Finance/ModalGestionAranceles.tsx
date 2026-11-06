@@ -18,7 +18,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
   onClose,
   authHeaders: customAuthHeaders
 }) => {
-  const { token } = useAuth();
+  const { token, puede } = useAuth();
   const effectiveOpen = open ?? isOpen ?? false;
   const headers = customAuthHeaders || (token ? { Authorization: `Bearer ${token}` } : {});
 
@@ -188,13 +188,14 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
                             <span className="text-base font-black font-mono text-emerald-800">
                               ${Number(a.monto_usd).toFixed(2)} USD
                             </span>
-                            <button
+                            {puede('finanzas', 'editar') && <button
                               onClick={() => handleStartEdit(a)}
                               className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800"
                               title="Modificar precio"
+                              aria-label={`Modificar precio de ${a.codigo}`}
                             >
                               <Edit2 className="w-3.5 h-3.5" />
-                            </button>
+                            </button>}
                           </div>
                         )}
                       </div>

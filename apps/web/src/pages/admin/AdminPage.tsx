@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import CmsHeader from '@/pages/admin/components/CmsHeader'
-import CmsAside from '@/pages/admin/components/CmsAside'
+import CmsAside, { primeraSeccionVisible } from '@/pages/admin/components/CmsAside'
 import CmsContent from '@/pages/admin/components/CmsContent'
 import SEO from '@/components/SEO'
 
@@ -42,8 +42,10 @@ const SIDEBAR_DEFAULT = 220
 import { useAuth } from '@/context/AuthContext'
 
 const AdminPage = () => {
-  const { isAsistente, isAdmin } = useAuth()
-  const [activeId, setActiveId] = useState(() => (isAsistente && !isAdmin ? 'afiliados' : 'analytics'))
+  const { puede } = useAuth()
+  // analytics y luego afiliados (aterrizaje histórico del asistente); si no, la primera sección visible
+  const [activeId, setActiveId] = useState(() =>
+    ['analytics', 'afiliados'].find(id => puede(id, 'ver')) ?? primeraSeccionVisible(puede) ?? 'analytics')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT)
   const [sidebarDragging, setSidebarDragging] = useState(false)

@@ -2,10 +2,11 @@ import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { createHash } from 'crypto'
 import { db } from '../lib/db.js'
-import { resetCredenciales } from '../lib/credentials.js'
+import { resetCredenciales, enviarInvitacion } from '../lib/credentials.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { isSuperAdmin, isAdmin, isAsistente, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
+import { permisosDeRoles, rolPrimario, puedePermiso } from '../services/permisos.service.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
@@ -338,17 +339,11 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
             ORDER BY u.creado_en DESC`,
       args: [],
     })
-    const rows = result.rows.map(r => {
+    const rows = await Promise.all(result.rows.map(async r => {
       const roles = parseRoles(r.roles)
-      const rol = roles.includes('super_admin')
-        ? 'super_admin'
-        : roles.includes('admin')
-          ? 'admin'
-          : roles.includes('asistente') || roles.includes('administrativo')
-            ? 'asistente'
-            : 'afiliado'
+      const rol = rolPrimario(roles, await permisosDeRoles(roles), 'afiliado')
       return { ...r, roles, rol }
-    })
+    }))
     res.status(200).json({ success: true, data: rows })
   } catch (error) {
     console.error('Error en getUsers:', error)
@@ -427,7 +422,7 @@ export const sendUserInvitation = async (req: Request, res: Response): Promise<v
     // Verificar que el usuario existe y obtener sus datos
     const check = await db.execute({ 
       sql: `SELECT u.id, u.email, 
-                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), '')) as nombre_completo,
+                   COALESCE(NULLIF(TRIM(e.razon_social), ''), NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), NULLIF(TRIM(u.nombre), '')) as nombre_completo,
                    a.id_afiliado
             FROM users u 
             LEFT JOIN afiliados a ON u.id = a.id_user 
@@ -445,26 +440,7 @@ export const sendUserInvitation = async (req: Request, res: Response): Promise<v
     const user = check.rows[0] as any
     const nombre = user.nombre_completo || 'Usuario'
 
-    const { randomBytes } = await import('crypto')
-    const token = randomBytes(32).toString('hex')
-    const expStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 días de validez
-    const tokenHash = sha256(token)
-
-    // Eliminar tokens anteriores
-    await db.execute({
-      sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
-      args: [user.email]
-    })
-
-    // Insertar el nuevo token
-    await db.execute({
-      sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
-            VALUES (?, 'reset_password', ?, 0, ?)`,
-      args: [tokenHash, user.email, expStr]
-    })
-
-    const { enviarCorreoOnboardingMasivo } = await import('../lib/email.js')
-    await enviarCorreoOnboardingMasivo(nombre, user.email, token)
+    await enviarInvitacion({ email: user.email, nombre })
 
     res.status(200).json({
       success: true,
@@ -484,7 +460,8 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { id } = req.params
 
-    if (isAsistente(req.user!)) {
+    // Aditivo: el personal base solo borra si la matriz le concede users/eliminar
+    if (isAsistente(req.user!) && !(await puedePermiso(req.user!, 'users', 'eliminar'))) {
       res.status(403).json({ success: false, message: 'Acceso denegado: El personal administrativo no tiene permisos para eliminar usuarios' })
       return
     }
@@ -549,15 +526,8 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
     }
 
     const roles = parseRoles(targetRow.roles)
-    const rol = roles.includes('super_admin')
-      ? 'super_admin'
-      : roles.includes('admin')
-        ? 'admin'
-        : roles.includes('asistente') || roles.includes('administrativo')
-          ? 'asistente'
-          : roles.includes('afiliado')
-            ? 'afiliado'
-            : 'estudiante'
+    const permisos = await permisosDeRoles(roles)
+    const rol = rolPrimario(roles, permisos)
 
     const targetPayload: JwtPayload = {
       id: Number(targetRow.id),
@@ -578,7 +548,7 @@ export const impersonateUser = async (req: Request, res: Response): Promise<void
       message: `Ingresando como ${enrichedUser.nombre_completo || enrichedUser.email}`,
       data: {
         token,
-        user: enrichedUser,
+        user: { ...enrichedUser, permisos },
         originalAdmin: {
           id: req.user!.id,
           email: req.user!.email,

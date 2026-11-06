@@ -55,7 +55,7 @@ import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
 import SettingsPanel from './components/SettingsPanel';
 import ImpersonationBanner from '@/components/ImpersonationBanner';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Navigate } from 'react-router-dom';
 import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
 import SEO from '@/components/SEO';
 
@@ -121,8 +121,10 @@ const Section = ({ label }: { label: string }) => (
 // ─── Panel unificado principal ────────────────────────────────────────────────
 
 const PanelPage = () => {
-  const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado, isImpersonating } = useAuth();
+  const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado, isImpersonating, tienePanelAdmin } = useAuth();
   const [searchParams] = useSearchParams();
+  // Usuario solo con roles personalizados: este panel no tiene nada para él, su vista es /admin.
+  const soloRolPersonalizado = tienePanelAdmin && !isAdmin && !isAsistente && !isAfiliado && !isEstudiante;
   const [activeTab, setActiveTab] = useState(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'formacion') return 'Catálogo Académico';
@@ -548,6 +550,9 @@ const PanelPage = () => {
     }
     return null;
   };
+
+  // Después de todos los hooks: redirige sin pintar el panel de afiliado.
+  if (soloRolPersonalizado) return <Navigate to="/admin" replace />;
 
   const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 

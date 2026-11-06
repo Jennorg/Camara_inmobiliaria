@@ -85,7 +85,8 @@ interface Props {
   /** Cohorte elegida; `null` = vista general, sin filtrar por cohorte */
   seleccion: number | null
   onSeleccionar: (id: number | null) => void
-  onGestionar: () => void
+  /** Sin permiso para crear o editar cohortes no se pasa y el botón no aparece */
+  onGestionar?: () => void
   /** Vuelve a la vista de todos los programas */
   onVolver: () => void
   /** Se están cargando los inscritos de la selección: muestra una línea de progreso en la franja */
@@ -242,14 +243,14 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
           <ArrowLeft size={14} aria-hidden="true" className="shrink-0" />
           <span className="truncate">Todos los programas</span>
         </button>
-        <button
+        {onGestionar && <button
           type="button"
           onClick={onGestionar}
           className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100 sm:w-full ${FOCO}`}
         >
           <Settings2 size={14} aria-hidden="true" className="shrink-0" />
           Gestionar cohortes
-        </button>
+        </button>}
       </div>
 
       <span

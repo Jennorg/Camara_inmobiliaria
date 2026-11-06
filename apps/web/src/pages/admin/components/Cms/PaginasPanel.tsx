@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { api, BtnPrimary, Loading } from '@/pages/admin/components/Cms/CmsShared'
 
 type PaginaRow = { slug: string; actualizado_en: string; contenido_len?: number }
@@ -6,6 +7,8 @@ type PaginaRow = { slug: string; actualizado_en: string; contenido_len?: number 
 const SLUG_HINT = `Slugs usados en rutas públicas: beneficios, requisitos, convenios-institucionales, convenios-comerciales, convenios-internacionales, normativas, galeria, comunicados, eventos, contacto, pegi, padi, preani`
 
 export function PaginasPanel() {
+  const { puede } = useAuth()
+  const puedeEditar = puede('config', 'editar') // páginas dinámicas se guardan con PUT (upsert)
   const [list, setList] = useState<PaginaRow[]>([])
   const [slug, setSlug] = useState('')
   const [jsonText, setJsonText] = useState('')
@@ -104,14 +107,14 @@ export function PaginasPanel() {
           <h3 className="text-sm font-bold text-slate-800">Páginas dinámicas (JSON)</h3>
           <p className="text-[11px] text-slate-400 mt-0.5 max-w-xl">{SLUG_HINT}</p>
         </div>
-        <div className="flex gap-2">
+        {puedeEditar && <div className="flex gap-2">
           <button type="button" onClick={crearNueva} className="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200">
             Plantilla nueva
           </button>
           <BtnPrimary onClick={save} disabled={saving || !slug.trim()}>
             {saving ? 'Guardando…' : 'Guardar'}
           </BtnPrimary>
-        </div>
+        </div>}
       </div>
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
@@ -139,6 +142,7 @@ export function PaginasPanel() {
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value.trim().toLowerCase())}
+              readOnly={!puedeEditar}
               placeholder="ej. beneficios"
               className="mt-1 w-full max-w-md rounded-xl border border-gray-200 px-3 py-2 text-sm"
             />
@@ -148,6 +152,7 @@ export function PaginasPanel() {
           <textarea
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
+            readOnly={!puedeEditar}
             rows={28}
             spellCheck={false}
             className="flex-1 min-h-[320px] w-full font-mono text-xs rounded-xl border border-gray-200 px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#00D084]/40 focus:border-[#00D084] resize-y bg-white"

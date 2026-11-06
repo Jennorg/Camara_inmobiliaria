@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { api, Loading } from '@/pages/admin/components/Cms/CmsShared'
 import {
   Instagram,
@@ -198,6 +199,8 @@ const getBrandIcon = (clave: string) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const ConfigPanel = () => {
+  const { puede } = useAuth()
+  const puedeEditar = puede('config', 'editar')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
@@ -294,7 +297,7 @@ export const ConfigPanel = () => {
             </div>
 
             {/* Quick Actions Header */}
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {puedeEditar && <div className="flex flex-wrap items-center gap-3 shrink-0">
               {totalDirty > 0 && (
                 <button
                   type="button"
@@ -336,7 +339,7 @@ export const ConfigPanel = () => {
                   </>
                 )}
               </button>
-            </div>
+            </div>}
           </div>
 
           {/* Search Bar & Status Bar */}
@@ -449,6 +452,7 @@ export const ConfigPanel = () => {
                                 type={k.type === 'social' ? 'url' : 'text'}
                                 value={val}
                                 onChange={e => handleChange(k.clave, e.target.value)}
+                                readOnly={!puedeEditar}
                                 placeholder={k.placeholder}
                                 className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                               />

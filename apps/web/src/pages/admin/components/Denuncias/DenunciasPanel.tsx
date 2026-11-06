@@ -127,7 +127,8 @@ const fmtDate = (s?: string | null) => {
 }
 
 export default function DenunciasPanel() {
-  const { authHeaders } = useAuth()
+  const { authHeaders, puede } = useAuth()
+  const puedeEditar = puede('denuncias', 'editar')
 
   const [loading, setLoading] = useState(true)
   const [denuncias, setDenuncias] = useState<DenunciaDTO[]>([])
@@ -451,8 +452,9 @@ export default function DenunciasPanel() {
                         )}
                       </h4>
                       <p className="mt-0.5 text-xs font-medium text-slate-600">{GUIA_ETAPA[detail.estatus]}</p>
+                      {!puedeEditar && <p className="mt-3 text-xs font-bold text-slate-600">Sin permiso para editar: solo puedes consultar el expediente.</p>}
                       <ul className="mt-3 space-y-2">
-                        {ACCIONES[detail.estatus].map(a => (
+                        {puedeEditar && ACCIONES[detail.estatus].map(a => (
                           <li key={a.titulo}>
                             <button
                               type="button"
@@ -484,7 +486,8 @@ export default function DenunciasPanel() {
                         <span className="sr-only">Prioridad</span>
                         <select
                           value={detail.prioridad}
-                          disabled={cerrado || procesando}
+                          disabled={cerrado || procesando || !puedeEditar}
+                          title={puedeEditar ? undefined : 'Sin permiso para editar'}
                           onChange={e => handleCambiarPrioridad(e.target.value as PrioridadDenuncia)}
                           className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 disabled:opacity-60 disabled:bg-slate-100"
                         >
@@ -633,15 +636,18 @@ export default function DenunciasPanel() {
               <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Notas Internas</span>
-                  <button
-                    onClick={handleGuardarNotas}
-                    className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
-                  >
-                    <Save size={12} /> Guardar
-                  </button>
+                  {puedeEditar && (
+                    <button
+                      onClick={handleGuardarNotas}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
+                    >
+                      <Save size={12} /> Guardar
+                    </button>
+                  )}
                 </div>
                 <textarea
                   aria-label="Notas internas"
+                  readOnly={!puedeEditar}
                   rows={3}
                   value={notaInterna}
                   onChange={e => setNotaInterna(e.target.value)}

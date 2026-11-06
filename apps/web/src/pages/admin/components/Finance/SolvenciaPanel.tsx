@@ -74,7 +74,9 @@ const CELDA: Record<EstadoMes, { clase: string; marca: string; titulo: string }>
 
 /** Matriz mes a mes de la solvencia de todos los afiliados; al abrir una fila se ve su línea de tiempo. */
 export default function SolvenciaPanel() {
-  const { authHeaders, token, isAdmin, isAsistente } = useAuth(); const isSuperAdmin = isAdmin || isAsistente
+  const { authHeaders, token, puede } = useAuth()
+  const puedeEditar = puede('finanzas', 'editar')
+  const puedeCrear = puede('finanzas', 'crear')
   const [anio, setAnio] = useState(new Date().getFullYear())
   const [data, setData] = useState<Resumen | null>(null)
   const [inicio, setInicio] = useState('')
@@ -185,13 +187,13 @@ export default function SolvenciaPanel() {
         <div className="flex items-end gap-2">
           <label className="space-y-1">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Sin historial, la deuda cuenta desde</span>
-            <input type="month" value={inicio} onChange={e => setInicio(e.target.value)}
+            <input type="month" readOnly={!puedeEditar} value={inicio} onChange={e => setInicio(e.target.value)}
               className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </label>
-          <button type="button" onClick={() => guardarConfig({ inicio })} disabled={guardando || !inicio || inicio === data.inicio}
+          {puedeEditar && <button type="button" onClick={() => guardarConfig({ inicio })} disabled={guardando || !inicio || inicio === data.inicio}
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none cursor-pointer">
             {guardando ? 'Guardando…' : 'Guardar'}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -208,17 +210,17 @@ export default function SolvenciaPanel() {
               <label key={c.key} className="space-y-1">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">{c.label}</span>
                 <input
-                  type="number" inputMode="numeric" min={c.min} max={c.max} step={1} required
+                  type="number" inputMode="numeric" readOnly={!puedeEditar} min={c.min} max={c.max} step={1} required
                   value={cobranza[c.key]}
                   onChange={e => setCobranza({ ...cobranza, [c.key]: e.currentTarget.valueAsNumber })}
                   className="w-28 px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </label>
             ))}
-            <button type="submit" disabled={guardando}
+            {puedeEditar && <button type="submit" disabled={guardando}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-40 cursor-pointer">
               {guardando ? 'Guardando…' : 'Guardar calendario'}
-            </button>
+            </button>}
           </form>
         </details>
       )}
@@ -259,10 +261,10 @@ export default function SolvenciaPanel() {
             )}
           </div>
         </div>
-        <button type="button" onClick={() => enviarRecordatorio()} disabled={enMora.length === 0}
+        {puedeEditar && <button type="button" onClick={() => enviarRecordatorio()} disabled={enMora.length === 0}
           className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[11px] font-black uppercase tracking-wider hover:bg-red-100 disabled:opacity-40 cursor-pointer">
           Recordar a morosos
-        </button>
+        </button>}
         <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
           <input type="checkbox" checked={soloMora} onChange={e => setSoloMora(e.target.checked)} className="accent-emerald-600" />
           Solo en mora
@@ -294,7 +296,7 @@ export default function SolvenciaPanel() {
                   {a.celdas.map((c, i) => (
                     <td key={i} className="px-1 py-2 text-center">
                       {c ? (
-                        isSuperAdmin ? (
+                        puedeEditar ? (
                           <button type="button" onClick={e => { e.stopPropagation(); corregirCelda(a.id_afiliado, i) }}
                             title={`${MESES[i]} ${anio}: ${CELDA[c].titulo} · clic para corregir`}
                             aria-label={`${MESES[i]} ${anio}: ${CELDA[c].titulo}. Corregir`}
@@ -310,8 +312,8 @@ export default function SolvenciaPanel() {
                     {a.bloqueado && <span className="block text-[9px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
                   <td className="px-2 py-2 text-center">
-                    <button type="button" onClick={() => setPagando(a)} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 cursor-pointer"><CalendarPlus size={14} aria-hidden="true" /></button>
+                    {puedeCrear && <button type="button" onClick={() => setPagando(a)} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 cursor-pointer"><CalendarPlus size={14} aria-hidden="true" /></button>}
                   </td>
                 </tr>
             ))}
@@ -319,7 +321,7 @@ export default function SolvenciaPanel() {
         </table>
       </div>
 
-      {isSuperAdmin && (
+      {puedeEditar && (
         <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
           Puedes corregir cualquier mes: haz clic en su casilla para anular el pago, marcarlo como pagado o quitar la marca.
         </p>

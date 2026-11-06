@@ -300,7 +300,9 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
 
 
 export default function MiembrosPanel() {
-  const { token, isAdmin, isSuperAdmin } = useAuth()
+  const { token, puede } = useAuth()
+  const puedeEditar = puede('afiliados', 'editar')
+  const sinPermiso = puedeEditar ? undefined : 'Sin permiso para editar'
   const authHeaders = useMemo(() => ({
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -598,7 +600,7 @@ export default function MiembrosPanel() {
   }
 
   const openImageEditor = (kind: ImageEditKind) => {
-    if (!selected) return
+    if (!selected || !puedeEditar) return
     setImageEditKind(kind)
     setImageError('')
     setImageFile(null)
@@ -1111,12 +1113,12 @@ export default function MiembrosPanel() {
               >
                 <FileDown size={18} />
               </button>
-              <button
+              {puede('afiliados', 'crear') && <button
                 onClick={openNewMemberModal}
                 className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors shadow-sm shadow-emerald-500/20"
               >
                 <UserPlus size={18} />
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -1383,14 +1385,14 @@ export default function MiembrosPanel() {
                       <span className="hidden sm:inline">Ver Carnet</span>
                       <span className="sm:hidden">Carnet</span>
                     </button>
-                    <button
+                    {puedeEditar && <button
                       onClick={() => handleEdit(selected)}
                       className="p-2.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 active:scale-95 transition-colors transition-transform"
                       title="Editar"
                     >
                       <Edit3 size={18} />
-                    </button>
-                    {(isAdmin || isSuperAdmin) && (
+                    </button>}
+                    {puede('afiliados', 'eliminar') && (
                       <button
                         onClick={() => handleDelete(selected.id_afiliado)}
                         className="p-2.5 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-100 active:scale-95 transition-colors transition-transform"
@@ -1431,6 +1433,7 @@ export default function MiembrosPanel() {
                           type="button"
                           className="w-24 h-24 rounded-[2rem] flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                           onClick={() => openImageEditor('logo')}
+                          disabled={!puedeEditar}
                           title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar el logo de la empresa" : "Haz clic para cambiar el logo comercial / personal"}
                         >
                           {selected.empresa_logo_url ? (
@@ -1446,14 +1449,14 @@ export default function MiembrosPanel() {
                             <Building2 size={36} className="text-emerald-900" />
                           )}
                         </button>
-                        <button
+                        {puedeEditar && (<button
                           type="button"
                           className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 shadow flex items-center justify-center hover:bg-emerald-50 transition-colors"
                           onClick={() => openImageEditor('logo')}
                           title={selected.tipo_afiliado === 'Corporativo' ? "Editar logo de la empresa" : "Editar logo de marca"}
                         >
                           <Edit3 size={12} className="text-slate-500" />
-                        </button>
+                        </button>)}
                       </div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
                         {selected.tipo_afiliado === 'Corporativo' ? 'Logo Empresa' : 'Logo Personal'}
@@ -1467,6 +1470,7 @@ export default function MiembrosPanel() {
                           type="button"
                           className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-slate-100 border-2 border-slate-200 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                           onClick={() => openImageEditor('foto')}
+                          disabled={!puedeEditar}
                           title={selected.tipo_afiliado === 'Corporativo' ? "Haz clic para cambiar la foto del representante" : "Haz clic para cambiar la foto de perfil"}
                         >
                           {selected.foto_url ? (
@@ -1489,14 +1493,14 @@ export default function MiembrosPanel() {
                             </span>
                           )}
                         </button>
-                        <button
+                        {puedeEditar && (<button
                           type="button"
                           className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
                           onClick={() => openImageEditor('foto')}
                           title={selected.tipo_afiliado === 'Corporativo' ? "Editar foto del representante" : "Editar foto de perfil"}
                         >
                           <Edit3 size={14} className="text-slate-500" />
-                        </button>
+                        </button>)}
                       </div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
                         {selected.tipo_afiliado === 'Corporativo' ? 'Representante' : 'Foto Perfil'}
@@ -1508,7 +1512,7 @@ export default function MiembrosPanel() {
                     <div
                       className="w-36 aspect-[4/5] rounded-t-2xl rounded-b-xl flex items-center justify-center overflow-hidden bg-emerald-50 border-2 border-emerald-100 shadow-inner cursor-pointer hover:border-emerald-300 transition-colors"
                       onClick={() => openImageEditor('foto')}
-                      title="Haz clic para cambiar la foto de perfil"
+                      title={puedeEditar ? "Haz clic para cambiar la foto de perfil" : sinPermiso}
                     >
                       {selected.foto_url ? (
                         <ImagenConSkeleton
@@ -1530,14 +1534,14 @@ export default function MiembrosPanel() {
                         </span>
                       )}
                     </div>
-                    <button
+                    {puedeEditar && (<button
                       type="button"
                       className="absolute -bottom-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-emerald-50 transition-colors"
                       onClick={() => openImageEditor('foto')}
                       title="Editar foto de perfil"
                     >
                       <Edit3 size={14} className="text-slate-500" />
-                    </button>
+                    </button>)}
                   </div>
                 )}
 
@@ -1725,6 +1729,8 @@ export default function MiembrosPanel() {
                         className="w-full bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 hover:border-gray-200 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10"
                         value={isEditing ? (editForm.tipo_afiliado || selected.tipo_afiliado) : selected.tipo_afiliado}
                         onChange={(e) => handleDropdownTypeChange(e.target.value)}
+                        disabled={!puedeEditar}
+                        title={sinPermiso}
                       >
                         <option value="Natural">Agente Independiente</option>
                         <option value="Agente Corporativo">Agente Corporativo</option>
@@ -1782,6 +1788,8 @@ export default function MiembrosPanel() {
                             updateField('cibir_acreditado', val);
                           }
                         }}
+                        disabled={!puedeEditar}
+                        title={sinPermiso}
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-emerald-600" />
@@ -2008,6 +2016,7 @@ export default function MiembrosPanel() {
             </div>
 
             <AdminDocumentosManager
+              puedeEditar={puedeEditar}
               afiliado={selected}
               token={token}
               onUpdateDocs={(updatedDocs) => {
@@ -3221,6 +3230,7 @@ interface AdminDocumentosManagerProps {
   afiliado: AfiliadoDTO;
   token: string | null;
   onUpdateDocs: (updatedDocs: any[]) => void;
+  puedeEditar: boolean;
 }
 
 const PREDEFINED_DOC_TYPES = [
@@ -3240,7 +3250,7 @@ const CORP_DOC_TYPES = [
   { key: 'titulo_representante', label: 'Título del Representante Legal', icon: GraduationCap, folder: 'documentos_empresa' },
 ];
 
-function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocumentosManagerProps) {
+function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: AdminDocumentosManagerProps) {
   const [activeUploadKey, setActiveUploadKey] = useState<string | null>(null);
   const [editingDoc, setEditingDoc] = useState<any | null>(null);
   const [customTitle, setCustomTitle] = useState<string>('');
@@ -3392,7 +3402,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocument
               {currentDocs.length} {currentDocs.length === 1 ? 'Archivo' : 'Archivos'}
             </span>
           )}
-          <button
+          {puedeEditar && <button
             type="button"
             onClick={() => {
               setShowAddMenu(!showAddMenu);
@@ -3403,11 +3413,11 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocument
           >
             <Upload size={14} />
             <span>+ Cargar Documento</span>
-          </button>
+          </button>}
         </div>
       </div>
 
-      {(showAddMenu || activeUploadKey) && (
+      {puedeEditar && (showAddMenu || activeUploadKey) && (
         <div className="p-4 bg-slate-50 border border-emerald-100 rounded-2xl space-y-3 animate-in fade-in duration-200">
           <div className="flex items-center justify-between">
             <p className="text-xs font-black text-slate-800 uppercase tracking-tight">
@@ -3522,7 +3532,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocument
                     <ExternalLink size={13} />
                     <span>Ver</span>
                   </a>
-                  <button
+                  {puedeEditar && <button
                     type="button"
                     onClick={() => { setEditingDoc(doc); setActiveUploadKey(doc.tipo_doc); setShowAddMenu(true); }}
                     className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-amber-600 hover:border-amber-300 transition-colors text-[10px] font-bold flex items-center gap-1 cursor-pointer"
@@ -3530,8 +3540,8 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocument
                   >
                     <Edit3 size={13} />
                     <span>Editar</span>
-                  </button>
-                  <button
+                  </button>}
+                  {puedeEditar && <button
                     type="button"
                     onClick={() => handleDeleteDoc(doc)}
                     className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors text-[10px] font-bold flex items-center gap-1 cursor-pointer"
@@ -3539,7 +3549,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocument
                   >
                     <Trash2 size={13} />
                     <span>Borrar</span>
-                  </button>
+                  </button>}
                 </div>
               </div>
             );
@@ -3555,7 +3565,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs }: AdminDocument
         </div>
       )}
 
-      {missingTypes.length > 0 && !showAddMenu && !activeUploadKey && (
+      {puedeEditar && missingTypes.length > 0 && !showAddMenu && !activeUploadKey && (
         <div className="pt-2 border-t border-slate-50">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Añadir más documentos al expediente:</p>
           <div className="flex flex-wrap gap-1.5">

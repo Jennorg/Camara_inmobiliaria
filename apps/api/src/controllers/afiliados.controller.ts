@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 import { env } from '../config/env.js';
 import { isAsistente, isStaff } from '../middlewares/auth.middleware.js';
+import { puedePermiso } from '../services/permisos.service.js';
 import { asegurarCohortes } from '../services/cohortes.service.js';
 import { esProgramaCohorte } from '../lib/cohortes.js';
 
@@ -296,12 +297,13 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
     const requesterRoles = req.user!.roles ?? [req.user!.rol]
 
     // Admins, SuperAdmins, Asistentes y Administrativos pueden consultar cualquier registro
-    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)) {
+    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)
+      && !(await puedePermiso(req.user!, 'afiliados', 'ver'))) {
       res.status(403).json({ success: false, message: 'Acceso denegado' })
       return
     }
 
-    const esPersonal = isStaff(req.user!)
+    const esPersonal = isStaff(req.user!) || await puedePermiso(req.user!, 'afiliados', 'ver')
     const bloqueo = await estadoBloqueo(Number(id))
 
     // Asegurar sincronización del certificado CIBIR
@@ -459,7 +461,7 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
     const { id } = req.params;
     const { tipo } = req.body; // 'personal' | 'empresa'
     const requesterId = req.user!.id_afiliado;
-    const isStaffUser = isStaff(req.user!);
+    const isStaffUser = isStaff(req.user!) || await puedePermiso(req.user!, 'afiliados', 'editar');
 
     if (!isStaffUser && requesterId !== Number(id)) {
       res.status(403).json({ success: false, message: 'No tienes permiso para realizar esta acción.' });
@@ -1765,7 +1767,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const { id } = req.params;
     const fields = req.body;
     const requesterId = req.user!.id_afiliado;
-    const isStaffMember = isStaff(req.user!);
+    const isStaffMember = isStaff(req.user!) || await puedePermiso(req.user!, 'afiliados', 'editar');
 
     // 1. Autorización: Personal administrativo (Staff: admin, super_admin, asistente, secretaria, personal, personal admin) o el propio afiliado
     if (!isStaffMember && requesterId !== Number(id)) {
@@ -3353,7 +3355,8 @@ export const convertirAgenteANatural = async (req: Request, res: Response): Prom
     const requesterRoles = req.user!.roles ?? [req.user!.rol];
 
     // Solo el propio afiliado, admin o asistente puede hacerlo
-    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)) {
+    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)
+      && !(await puedePermiso(req.user!, 'afiliados', 'editar'))) {
       res.status(403).json({ success: false, message: 'Acceso denegado' });
       return;
     }
