@@ -1008,7 +1008,7 @@ export const DirectivaPanel = () => {
               <span>Nuevo Miembro</span>
             </button>}
 
-            <button
+            {puedeCrear && <button
               type="button"
               onClick={() => {
                 const y = new Date().getFullYear().toString()
@@ -1032,7 +1032,7 @@ export const DirectivaPanel = () => {
             >
               <Calendar size={15} className="text-slate-500" />
               <span>Nueva Gestión</span>
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -1169,6 +1169,7 @@ export const DirectivaPanel = () => {
                         type="button"
                         onClick={() => toggleStatus(item)}
                         disabled={!puedeEditar}
+                        title={puedeEditar ? undefined : 'Sin permiso para editar'}
                         className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                           item.activo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-slate-100 text-slate-500'
                         }`}
@@ -1370,6 +1371,7 @@ export const DirectivaPanel = () => {
                         <button
                           onClick={() => toggleStatus(item)}
                           disabled={!puedeEditar}
+                        title={puedeEditar ? undefined : 'Sin permiso para editar'}
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
                             item.activo
                               ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'

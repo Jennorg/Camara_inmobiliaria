@@ -100,6 +100,7 @@ export const ConveniosPanel = () => {
   }, [selectedId, items])
 
   const openEdit = (item: ConvenioItem) => { 
+    if (!puedeEditar) return
     setSelectedId(item.id); 
     setForm({ 
       nombre: item.nombre, 
@@ -111,6 +112,7 @@ export const ConveniosPanel = () => {
   }
 
   const openNew = () => { 
+    if (!puedeCrear) return
     setSelectedId('new'); 
     setForm({ nombre: '', descripcion: '', logo_url: '', link_web: '' }); 
     setIsEditing(true) 

@@ -60,8 +60,8 @@ for (const [nombre, acc, si] of [['solo «ver»', VER, false], ['las cuatro acci
       await sesion(page, { directiva: acc }, 'directiva', 'Rosa Díaz');
       await presente(page.getByRole('button', { name: /Nuevo Miembro/ }), si);
       const tabla = page.locator('table'); // la vista móvil (tarjetas) queda oculta en escritorio
-      await presente(tabla.getByTitle('Editar'), si);
-      await presente(tabla.getByTitle('Eliminar'), si);
+      await presente(tabla.getByTitle('Editar', { exact: true }), si);
+      await presente(tabla.getByTitle('Eliminar', { exact: true }), si);
       await presente(tabla.getByTitle('Arrastrar para reordenar'), si);
       const estado = tabla.getByRole('button', { name: 'Activo' }).first();
       await (si ? expect(estado).toBeEnabled() : expect(estado).toBeDisabled());

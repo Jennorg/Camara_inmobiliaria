@@ -752,7 +752,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                           : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                       }`}
-                      title={isPublic ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
+                      title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : isPublic ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
                     >
                       {isPublic ? <Eye size={12} /> : <EyeOff size={12} />}
                       <span>{isPublic ? 'Público' : 'Oculto'}</span>
@@ -880,7 +880,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                             onClick={(e) => toggleVisibility(item, e)}
                       disabled={!can(item.categoria, 'editar')}
                             className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-100 shrink-0 transition-colors cursor-pointer"
-                            title="Clic para ocultar en el portal web"
+                            title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : "Clic para ocultar en el portal web"}
                           >
                             <Eye size={10} /> Público
                           </button>
@@ -890,7 +890,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                             onClick={(e) => toggleVisibility(item, e)}
                       disabled={!can(item.categoria, 'editar')}
                             className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-100 shrink-0 transition-colors cursor-pointer"
-                            title="Clic para mostrar en el portal web"
+                            title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : "Clic para mostrar en el portal web"}
                           >
                             <EyeOff size={10} /> Oculto
                           </button>
@@ -949,7 +949,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                           : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
                       }`}
-                      title={item.activo ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
+                      title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : item.activo ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
                     >
                       {item.activo ? <Eye size={14} /> : <EyeOff size={14} />}
                       <span>{item.activo ? 'Visible en Web' : 'Oculto en Web'}</span>
