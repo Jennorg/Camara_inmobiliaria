@@ -4,7 +4,7 @@ import { navPanel } from './helpers/panel-nav';
 
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
-const SECCIONES = [{ id: 'afiliados', label: 'Afiliados' }, { id: 'finanzas', label: 'Finanzas' }];
+const SECCIONES = [{ id: 'afiliados', etiqueta: 'Afiliados' }, { id: 'finanzas', etiqueta: 'Finanzas' }]; // forma real de GET /api/roles/secciones
 const ROLES = [
   { id: 1, clave: 'asistente', nombre: 'Asistente', es_sistema: 1, usuarios: 2, permisos: {} },
   { id: 2, clave: 'contador', nombre: 'Contador', es_sistema: 0, usuarios: 0, permisos: { finanzas: { ver: true, crear: true, editar: false, eliminar: false } } },

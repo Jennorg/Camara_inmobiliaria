@@ -44,7 +44,7 @@ const RolesPanel = () => {
         fetch(`${API_URL}/api/roles`, { headers: authHeaders }).then(r => r.json()),
       ])
       if (!rs.success || !rr.success) throw new Error(rs.message || rr.message || 'Error al cargar los roles')
-      setSecciones(rs.data)
+      setSecciones(rs.data.map((x: { id: string; etiqueta: string }) => ({ id: x.id, label: x.etiqueta })))
       setRoles(rr.data)
       setSelId(prev => seleccionar ?? (rr.data.some((r: Rol) => r.id === prev) ? prev : (rr.data[0]?.id ?? null)))
       setError('')
