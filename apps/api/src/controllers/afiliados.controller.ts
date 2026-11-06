@@ -2871,11 +2871,6 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
   try {
     const { id } = req.params;
 
-    if (isAsistente(req.user!)) {
-      res.status(403).json({ success: false, message: 'Acceso denegado: El personal administrativo no tiene permisos para eliminar registros' });
-      return;
-    }
-
     // 1. Obtener toda la información relacionada antes de borrar nada
     const check = await db.execute({
       sql: `SELECT a.id_afiliado, a.id_persona, a.id_user, a.id_empresa, a.tipo_afiliado,

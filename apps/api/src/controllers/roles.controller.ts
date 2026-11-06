@@ -9,7 +9,7 @@ import { invalidarCachePermisos, type MapaPermisos } from '../services/permisos.
 
 const EDITABLES = SECCIONES.filter(s => !SECCIONES_SOLO_SUPERADMIN.includes(s.id))
 // Roles base: un rol personalizado no puede adoptar su clave.
-const BASE = ['super_admin', 'admin', 'afiliado', 'estudiante', 'asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
+const BASE = ['super_admin', 'admin', 'afiliado', 'estudiante']
 const NIVEL_ADMIN = ['admin', 'super_admin'] // se asignan por el flujo de usuarios
 const BASE_LIBRES = ['afiliado', 'estudiante'] // asignables aunque no sean fila de roles
 

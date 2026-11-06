@@ -27,7 +27,7 @@ beforeAll(async () => {
   ], 'write')
   await mem.execute(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT, roles TEXT, activo INTEGER DEFAULT 1)`)
   await mem.execute(`INSERT INTO users (id, email, roles) VALUES (7, 'c@x.y', '["lector"]')`)
-  await sembrarRoles(mem)
+  await sembrarRoles(mem, { staffHistorico: true })
   await mem.batch([
     `INSERT INTO roles (clave, nombre) VALUES ('lector', 'Lector'), ('sin_ver', 'Sin ver')`,
     `INSERT INTO rol_permisos (id_rol, seccion, ver) SELECT id, 'noticias', 1 FROM roles WHERE clave = 'lector'`,
@@ -61,12 +61,15 @@ describe('rolPrimario', () => {
   it.each([
     [['super_admin', 'admin'], 'super_admin'],
     [['admin', 'afiliado'], 'admin'],
-    [['asistente'], 'asistente'],
-    [['administrativo'], 'asistente'],
     [['afiliado', 'lector'], 'afiliado'],
     [['estudiante'], 'estudiante'],
   ])('rol_base_%j_conserva_%s', async (roles, esperado) => {
     expect(rolPrimario(roles, await p(roles))).toBe(esperado)
+  })
+
+  it('asistente_ya_no_es_rol_base_cae_en_la_ruta_de_rol_personalizado', async () => {
+    expect(rolPrimario(['asistente'], await p(['asistente']))).toBe('personal')
+    expect(rolPrimario(['administrativo'], await p(['administrativo']))).toBe('personal')
   })
 
   it('rol_personalizado_con_ver_es_personal', async () => {

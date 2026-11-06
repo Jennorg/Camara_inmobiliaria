@@ -164,7 +164,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-const STAFF_ROLE_NAMES = ['asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
 const TOKEN_KEY = 'ciebo_token'
 const ORIGINAL_ADMIN_TOKEN_KEY = 'ciebo_original_admin_token'
 const ORIGINAL_ADMIN_INFO_KEY = 'ciebo_original_admin_info'
@@ -184,20 +183,13 @@ function normalizeUser(rawUser: any): AuthUser {
     ? rawUser.roles
     : [rawUser.rol ?? 'afiliado']
 
-  const isStaffRoleName = (r: string) => {
-    const norm = r.toLowerCase().trim().replace(/[\s_-]+/g, '_')
-    return ['asistente', 'administrativo', 'secretaria', 'secretario', 'personal', 'personal_admin', 'personal_administrativo'].includes(norm)
-  }
-
   const rol: UserRole = roles.includes('super_admin')
     ? 'super_admin'
     : roles.includes('admin')
       ? 'admin'
-      : roles.some(isStaffRoleName)
-        ? 'asistente'
-        : roles.includes('estudiante')
-          ? 'estudiante'
-          : 'afiliado'
+      : roles.includes('estudiante')
+        ? 'estudiante'
+        : 'afiliado'
 
   return { 
     ...rawUser, 
@@ -468,11 +460,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdminVal      = (user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) ?? false
   const isSuperAdminVal = user?.roles?.includes('super_admin') ?? false
-  const isAsistenteVal  = (user?.roles?.some(r => STAFF_ROLE_NAMES.includes(r.toLowerCase().trim().replace(/[\s_-]+/g, '_')))) ?? false
+  // Los nombres heredados (asistente, secretaria…) ya no son personal: solo cuenta la matriz de permisos.
+  const isAsistenteVal  = false
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
 
-  const rolLegacy: RolLegacy = isAdminVal ? 'admin' : isAsistenteVal ? 'asistente' : null
+  const rolLegacy: RolLegacy = isAdminVal ? 'admin' : null
   const tienePanelAdminVal = isSuperAdminVal || tieneAlgunVer(user?.permisos, rolLegacy)
   const puede = useCallback(
     (seccion: string, accion: Accion) => puedeEn(user?.permisos, seccion, accion, isSuperAdminVal, rolLegacy),

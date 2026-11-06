@@ -4,9 +4,8 @@ export type MapaPermisos = Record<string, Partial<Record<Accion, boolean>>>
 
 // Fallback legacy: solo cuando la respuesta no trae `permisos` (API vieja). `{}` NO activa el fallback.
 // Se puede eliminar cuando la API con permisos esté desplegada en todos lados.
-export type RolLegacy = 'admin' | 'asistente' | null
+export type RolLegacy = 'admin' | null
 const SOLO_SUPERADMIN = ['roles', 'admin_users']
-const SECCIONES_ASISTENTE_LEGACY = ['afiliados', 'users', 'finanzas', 'asambleas'] // el filtro viejo del aside
 
 export const puede = (
   permisos: MapaPermisos | undefined,
@@ -18,7 +17,6 @@ export const puede = (
   if (esSuperAdmin) return true
   if (permisos === undefined) {
     if (rolLegacy === 'admin') return !SOLO_SUPERADMIN.includes(seccion)
-    if (rolLegacy === 'asistente') return SECCIONES_ASISTENTE_LEGACY.includes(seccion)
     return false
   }
   return !!permisos[seccion]?.[accion]

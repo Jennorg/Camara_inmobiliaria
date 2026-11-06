@@ -5,8 +5,8 @@ import { db } from '../lib/db.js'
 import { resetCredenciales, enviarInvitacion } from '../lib/credentials.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
-import { isSuperAdmin, isAdmin, isAsistente, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
-import { permisosDeRoles, rolPrimario, puedePermiso } from '../services/permisos.service.js'
+import { isSuperAdmin, isAdmin, enrichUserPayload, JwtPayload } from '../middlewares/auth.middleware.js'
+import { permisosDeRoles, rolPrimario } from '../services/permisos.service.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
@@ -459,12 +459,6 @@ export const sendUserInvitation = async (req: Request, res: Response): Promise<v
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-
-    // Aditivo: el personal base solo borra si la matriz le concede users/eliminar
-    if (isAsistente(req.user!) && !(await puedePermiso(req.user!, 'users', 'eliminar'))) {
-      res.status(403).json({ success: false, message: 'Acceso denegado: El personal administrativo no tiene permisos para eliminar usuarios' })
-      return
-    }
 
     const userToUpdate = await db.execute({ sql: `SELECT roles FROM users WHERE id = ?`, args: [Number(id)] })
     if (userToUpdate.rows.length === 0) {

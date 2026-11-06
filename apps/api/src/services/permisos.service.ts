@@ -48,13 +48,12 @@ export async function permisosDeRoles(roles: string[]): Promise<MapaPermisos> {
 }
 
 /**
- * Rol primario (retrocompatibilidad con `rol`). Los roles base conservan su jerarquía;
+ * Rol primario (retrocompatibilidad con `rol`). Los roles base conservan su jerarquía (admin/afiliado/estudiante);
  * un rol personalizado con algún `ver` da 'personal'. Nunca toca `roles[]` (lo que autoriza requireRole).
  */
 export function rolPrimario(roles: string[], permisos: MapaPermisos, fallback = 'estudiante'): string {
   if (roles.includes('super_admin')) return 'super_admin'
   if (roles.includes('admin')) return 'admin'
-  if (roles.includes('asistente') || roles.includes('administrativo')) return 'asistente'
   if (roles.includes('afiliado')) return 'afiliado'
   if (roles.includes('estudiante')) return fallback // rol base: no pasa a 'personal'
   return Object.values(permisos).some(p => p.ver) ? 'personal' : fallback

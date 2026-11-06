@@ -31,7 +31,7 @@ beforeAll(async () => {
     PRIMARY KEY (id_rol, seccion)
   )`,
   ], 'write')
-  await sembrarRoles(mem)
+  await sembrarRoles(mem, { staffHistorico: true })
   await mem.batch([
     `INSERT INTO roles (clave, nombre, activo) VALUES ('lector', 'Lector', 1), ('apagado', 'Apagado', 0)`,
     `INSERT INTO rol_permisos (id_rol, seccion, ver) SELECT id, 'noticias', 1 FROM roles WHERE clave = 'lector'`,

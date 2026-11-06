@@ -63,7 +63,7 @@ beforeAll(async () => {
       (7, ' Mixto@Ciebo.ORG', 'h', '["afiliado"]'),
       (8, 'carrera@ciebo.org', 'h', '["afiliado"]')`,
   ], 'write')
-  await sembrarRoles(mem)
+  await sembrarRoles(mem, { staffHistorico: true })
 })
 
 beforeEach(() => { enviarCorreo.mockReset(); enviarCorreo.mockResolvedValue(undefined) })

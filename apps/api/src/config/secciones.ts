@@ -29,11 +29,17 @@ const TODAS: Accion[] = [...ACCIONES]
 const SIN_ELIMINAR: Accion[] = ['ver', 'crear', 'editar']
 const SOLO_VER_EDITAR: Accion[] = ['ver', 'editar']
 
-// Reproduce el acceso actual de las rutas (requireRole / adminRoles), no el de la UI.
+// Único rol de sistema que se siembra en producción (super_admin no es fila: acceso total). Los demás roles los crea el super_admin.
 export const ROLES_SISTEMA_SEMILLA: Record<string, Record<string, Accion[]>> = {
   admin: Object.fromEntries(
     SECCIONES.filter(s => !SECCIONES_SOLO_SUPERADMIN.includes(s.id)).map(s => [s.id, TODAS]),
   ),
+}
+
+// Roles de personal anteriores: ya NO se siembran; solo los usan las pruebas (sembrarRoles con staffHistorico)
+// para comprobar que cada ruta conserva el acceso que daba el guard viejo.
+// Reproduce el acceso actual de las rutas (requireRole / adminRoles), no el de la UI.
+export const STAFF_HISTORICO_PRUEBAS: Record<string, Record<string, Accion[]>> = {
   // afiliados/users/cibir: admin|asistente|administrativo; finanzas/denuncias/pagos: + personal_admin
   // finanzas (finanzas.routes + pagos /admin): requireRole con 'asistente' admitía a TODO el staff por la jerarquía.
   // asambleas (asambleas.routes): adminRoles con 'asistente' admitía a TODO el staff, eliminar incluido.
@@ -67,9 +73,10 @@ const NOMBRES: Record<string, string> = {
 type Db = { execute: (s: any) => Promise<any>; batch: (s: any[], mode?: any) => Promise<any> }
 
 // Idempotente: INSERT OR IGNORE, nunca pisa permisos editados.
-export async function sembrarRoles(db: Db): Promise<void> {
+export async function sembrarRoles(db: Db, opciones: { staffHistorico?: boolean } = {}): Promise<void> {
   const stmts: { sql: string; args: any[] }[] = []
-  for (const [clave, secs] of Object.entries(ROLES_SISTEMA_SEMILLA)) {
+  const semilla = opciones.staffHistorico ? { ...ROLES_SISTEMA_SEMILLA, ...STAFF_HISTORICO_PRUEBAS } : ROLES_SISTEMA_SEMILLA
+  for (const [clave, secs] of Object.entries(semilla)) {
     stmts.push({ sql: `INSERT OR IGNORE INTO roles (clave, nombre, es_sistema) VALUES (?, ?, 1)`, args: [clave, NOMBRES[clave] ?? clave] })
     for (const [seccion, acc] of Object.entries(secs)) {
       stmts.push({

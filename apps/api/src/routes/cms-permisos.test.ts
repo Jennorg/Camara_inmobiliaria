@@ -76,7 +76,7 @@ beforeAll(async () => {
     `CREATE TABLE cms_normativas (id_normativa INTEGER PRIMARY KEY, categoria TEXT)`,
     `INSERT INTO cms_normativas (id_normativa, categoria) VALUES (1, 'Leyes y Decretos'), (2, 'Reglamentos y Estatutos'), (3, 'Normas y Procedimientos'), (4, 'Actas de Asamblea'), (5, 'Otros'), (6, NULL)`,
   ], 'write')
-  await sembrarRoles(mem)
+  await sembrarRoles(mem, { staffHistorico: true })
   const secciones = [...new Set([...RUTAS.map(r => r[2]), ...SECCIONES_NORM])]
   for (const s of secciones) {
     for (const a of ACCIONES) {

@@ -18,12 +18,12 @@ async function permisos(db: ReturnType<typeof createClient>) {
 }
 
 describe('permisos: siembra', () => {
-  it('sembrar_roles_reproduce_acceso_actual', async () => {
+  it('sembrar_roles_con_staff_historico_reproduce_el_acceso_de_los_guards_viejos', async () => {
     const db = createClient({ url: ':memory:' })
     await db.batch(DDL, 'write')
-    await sembrarRoles(db)
+    await sembrarRoles(db, { staffHistorico: true })
     const n1 = (await db.execute(`SELECT COUNT(*) c FROM rol_permisos`)).rows[0].c
-    await sembrarRoles(db)
+    await sembrarRoles(db, { staffHistorico: true })
     expect((await db.execute(`SELECT COUNT(*) c FROM rol_permisos`)).rows[0].c).toBe(n1)
     expect((await db.execute(`SELECT COUNT(*) c FROM roles`)).rows[0].c).toBe(8)
 
@@ -47,9 +47,17 @@ describe('permisos: siembra', () => {
   it('no pisa permisos editados al volver a sembrar', async () => {
     const db = createClient({ url: ':memory:' })
     await db.batch(DDL, 'write')
-    await sembrarRoles(db)
+    await sembrarRoles(db, { staffHistorico: true })
     await db.execute(`UPDATE rol_permisos SET eliminar = 0 WHERE seccion = 'finanzas' AND id_rol = (SELECT id FROM roles WHERE clave='asistente')`)
-    await sembrarRoles(db)
+    await sembrarRoles(db, { staffHistorico: true })
     expect((await permisos(db)).asistente.finanzas).toBe('ver,crear,editar')
+  })
+
+  it('la siembra real solo crea el rol admin; el resto de roles los crea el super_admin', async () => {
+    const db = createClient({ url: ':memory:' })
+    await db.batch(DDL, 'write')
+    await sembrarRoles(db)
+    expect((await db.execute(`SELECT clave FROM roles`)).rows.map((r: any) => r.clave)).toEqual(['admin'])
+    expect((await db.execute(`SELECT COUNT(*) c FROM rol_permisos`)).rows[0].c).toBe(SECCIONES.length - 2)
   })
 })

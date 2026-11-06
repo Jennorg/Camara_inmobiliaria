@@ -28,7 +28,7 @@ beforeAll(async () => {
     `INSERT INTO users (id, email, roles) VALUES (77, 'a@x', '["afiliado"]'), (78, 'adm@x', '["admin"]')`,
     `INSERT INTO roles (clave, nombre) VALUES ('con_eliminar', 'e'), ('sin_eliminar', 's')`,
   ], 'write')
-  await sembrarRoles(mem)
+  await sembrarRoles(mem, { staffHistorico: true })
   await mem.execute(`INSERT INTO rol_permisos SELECT id, 'users', 1, 1, 1, 1 FROM roles WHERE clave='con_eliminar'`)
   await mem.execute(`INSERT INTO rol_permisos SELECT id, 'users', 1, 1, 1, 0 FROM roles WHERE clave='sin_eliminar'`)
   invalidarCachePermisos()
@@ -36,17 +36,9 @@ beforeAll(async () => {
 
 // Sin 404 de «no existe» se entiende que superó el control de rol (el usuario 77 existe y se borra).
 describe('deleteUser acepta eliminar por sección', () => {
-  it('asistente sin eliminar sigue bloqueado (403)', async () => {
-    expect((await llamar(deleteUser, ['asistente'])).statusCode).toBe(403)
-  })
-  it('asistente con eliminar concedido en la matriz pasa; un rol personalizado con eliminar también', async () => {
-    await mem.execute(`UPDATE rol_permisos SET eliminar = 1 WHERE seccion = 'users' AND id_rol = (SELECT id FROM roles WHERE clave='asistente')`)
-    invalidarCachePermisos()
-    expect((await llamar(deleteUser, ['asistente', ])).statusCode).toBe(200)
-    await mem.execute(`INSERT INTO users (id, email, roles) VALUES (77, 'a@x', '["afiliado"]')`)
+  // El control por matriz vive en la ruta (requirePermiso); el controlador ya no discrimina por nombre de rol.
+  it('un rol personalizado con eliminar borra a un afiliado', async () => {
     expect((await llamar(deleteUser, ['con_eliminar'])).statusCode).toBe(200)
-    await mem.execute(`UPDATE rol_permisos SET eliminar = 0 WHERE seccion = 'users' AND id_rol = (SELECT id FROM roles WHERE clave='asistente')`)
-    invalidarCachePermisos()
   })
   it('un rol personalizado con eliminar nunca borra a un admin', async () => {
     expect((await llamar(deleteUser, ['con_eliminar'], { params: { id: '78' } })).statusCode).toBe(403)

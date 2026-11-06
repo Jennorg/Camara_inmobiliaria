@@ -46,7 +46,7 @@ beforeAll(async () => {
     `CREATE TABLE roles (id INTEGER PRIMARY KEY, clave TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL, es_sistema INTEGER NOT NULL DEFAULT 0, activo INTEGER NOT NULL DEFAULT 1, creado_en TEXT)`,
     `CREATE TABLE rol_permisos (id_rol INTEGER NOT NULL, seccion TEXT NOT NULL, ver INTEGER NOT NULL DEFAULT 0, crear INTEGER NOT NULL DEFAULT 0, editar INTEGER NOT NULL DEFAULT 0, eliminar INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id_rol, seccion))`,
   ], 'write')
-  await sembrarRoles(mem)
+  await sembrarRoles(mem, { staffHistorico: true })
   for (const a of ACCIONES) {
     for (const [clave, casillas] of [[`solo_${a}_users`, [a]], [`sin_${a}_users`, ACCIONES.filter(x => x !== a)]] as const) {
       await mem.execute({ sql: `INSERT INTO roles (clave, nombre) VALUES (?, ?)`, args: [clave, clave] })
