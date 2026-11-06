@@ -31,15 +31,25 @@ async function abrirUsuarios(page: Page, rolesFallan = false) {
 const fila = (page: Page, email: string) => page.getByRole('row').filter({ hasText: email });
 
 test.describe('Usuarios: asignar roles y alta de staff (E2E)', () => {
-  test('el selector clásico no se ofrece a usuarios con rol personalizado', async ({ page }) => {
+  test('el selector de rol ofrece los roles creados y los asigna con PUT', async ({ page }) => {
     await abrirUsuarios(page);
-    await expect(fila(page, 'asis@ciebo.com').getByRole('combobox')).toHaveCount(1);
-    await expect(fila(page, 'ana@ciebo.com').getByRole('combobox')).toHaveCount(0);
-    await expect(fila(page, 'ana@ciebo.com').getByText('Contador')).toBeVisible();
-    // staff con rol personalizado: «Personal», no «Afiliado»
-    await expect(fila(page, 'ana@ciebo.com').getByText('Personal', { exact: true })).toBeVisible();
+    const selector = fila(page, 'ana@ciebo.com').getByRole('combobox');
+    await expect(selector).toHaveCount(1);
+    await expect(selector).toHaveValue('contador'); // su rol creado, no «Afiliado»
+    // opciones: Afiliado, roles creados (sin el antiguo «Personal Admin»), Admin y Super Admin
+    await expect(selector.locator('option')).toHaveText(['Afiliado', 'Asistente', 'Contador', 'Admin', 'Super Admin']);
+    let body: any;
+    await page.route('**/api/roles/usuarios/3', (r) => {
+      expect(r.request().method()).toBe('PUT');
+      body = r.request().postDataJSON();
+      return r.fulfill(json({ success: true, data: { id: 3, roles: ['asistente'] } }));
+    });
+    await selector.selectOption('asistente');
+    await expect.poll(() => body).toEqual({ roles: ['asistente'] });
+    // con un solo rol creado, el selector ya lo muestra (sin chip repetido)
+    await expect(fila(page, 'ana@ciebo.com').locator('span', { hasText: /^Contador$/ })).toHaveCount(0);
+    // un rol que ya no existe en el catálogo se ve como «Personal», no «Afiliado»
     await expect(fila(page, 'viejo@ciebo.com').getByText('Personal', { exact: true })).toBeVisible();
-    await expect(fila(page, 'ana@ciebo.com').getByText('Afiliado', { exact: true })).toHaveCount(0);
     await expect(fila(page, 'admin@ciebo.com').getByRole('button', { name: 'Roles' })).toBeDisabled();
   });
 

@@ -111,7 +111,7 @@ interface SystemUser {
   estatus_afiliado?: string | null
 }
 
-type FiltroRol    = 'todos' | 'admin' | 'afiliado' | 'super_admin' | 'asistente'
+type FiltroRol    = string // 'todos', un rol base o la clave de un rol creado
 type FiltroActivo = 'todos' | 'activo' | 'inactivo'
 
 export default function UsersPanel() {
@@ -174,6 +174,14 @@ export default function UsersPanel() {
 
   // ── Roles (solo super_admin) ────────────────────────────────────────────────
   const [catalogoRoles, setCatalogoRoles] = useState<RolCatalogo[]>([])
+  // Roles que crea el super_admin (admin y super_admin se manejan con el selector clásico)
+  const rolesCreados = catalogoRoles.filter(r => !['admin', 'super_admin'].includes(r.clave))
+  const creadosDe = (u: { roles?: string[] }) => (u.roles ?? []).filter(c => rolesCreados.some(r => r.clave === c))
+  // Selector de rol en la lista: un solo rol creado como máximo (varios se editan con el botón «Roles»)
+  const puedeSelectorRol = (u: { id: number; roles?: string[] }) =>
+    isSuperAdmin && u.id !== user?.id && (!tieneRolCustom(u.roles) || creadosDe(u).length === 1)
+  const valorRol = (u: { rol: string; roles?: string[] }) =>
+    creadosDe(u)[0] ?? (['admin', 'super_admin', 'afiliado'].includes(u.rol) ? u.rol : 'afiliado')
   const [rolesDe, setRolesDe] = useState<SystemUser | null>(null)
   const [nuevoStaff, setNuevoStaff] = useState(false)
   // Sin catálogo cargado no se puede editar: el modal enviaría una lista incompleta y borraría roles.
@@ -235,7 +243,10 @@ export default function UsersPanel() {
     const terms = q.split(/\s+/).filter(Boolean)
 
     return normalizedUsers.filter(u => {
-      if (filtroRol !== 'todos' && u.rol !== filtroRol) return false
+      if (filtroRol !== 'todos') {
+        const esBase = ['afiliado', 'admin', 'super_admin'].includes(filtroRol)
+        if (esBase ? u.rol !== filtroRol : !(u.roles ?? []).includes(filtroRol)) return false
+      }
       if (filtroEtapa !== 'todas' && u.estatus_afiliado !== filtroEtapa) return false
       if (filtroActivo === 'activo'   && !u.activo)   return false
       if (filtroActivo === 'inactivo' &&  u.activo)   return false
@@ -301,15 +312,19 @@ export default function UsersPanel() {
     load()
   }
 
-  const handleRoleChange = async (u: SystemUser, newRol: 'admin' | 'afiliado' | 'super_admin') => {
+  const handleRoleChange = async (u: SystemUser, newRol: string) => {
     if (saving) return
     setSaving(true)
     try {
-      const r = await fetch(`${API_URL}/api/users/${u.id}`, {
-        method: 'PATCH',
-        headers: authHeaders,
-        body: JSON.stringify({ rol: newRol }),
-      })
+      const esCreado = rolesCreados.some(r => r.clave === newRol)
+      // Un admin/super_admin conserva ese nivel al asignar roles: primero baja a afiliado y luego asigna el rol creado
+      if (esCreado && (u.rol === 'admin' || u.rol === 'super_admin')) {
+        const b = await fetch(`${API_URL}/api/users/${u.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ rol: 'afiliado' }) })
+        if (!b.ok) throw new Error(`HTTP error! status: ${b.status}`)
+      }
+      const r = esCreado
+        ? await fetch(`${API_URL}/api/roles/usuarios/${u.id}`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ roles: [newRol] }) })
+        : await fetch(`${API_URL}/api/users/${u.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ rol: newRol }) })
       if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
@@ -670,7 +685,7 @@ export default function UsersPanel() {
           >
             <option value='todos'>Todos los roles</option>
             <option value='afiliado'>Afiliado</option>
-            <option value='asistente'>Personal Admin</option>
+            {rolesCreados.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
             <option value='admin'>Admin</option>
             <option value='super_admin'>Super Admin</option>
           </select>
@@ -889,10 +904,10 @@ export default function UsersPanel() {
                           </p>
                         </td>
                       <td className='px-5 py-4'>
-                        {isSuperAdmin && u.id !== user?.id && !tieneRolCustom(u.roles) ? (
+                        {puedeSelectorRol(u) ? (
                           <div className='relative inline-flex items-center group/select'>
                             <select
-                              value={u.rol}
+                              value={valorRol(u)}
                               onChange={e => handleRoleChange(u, e.target.value as any)}
                               disabled={saving}
                               className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
@@ -906,7 +921,7 @@ export default function UsersPanel() {
                               }`}
                             >
                               <option value='afiliado'>Afiliado</option>
-                              <option value='asistente'>Personal Admin</option>
+                              {rolesCreados.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
                               <option value='admin'>Admin</option>
                               <option value='super_admin'>Super Admin</option>
                             </select>
@@ -940,7 +955,7 @@ export default function UsersPanel() {
                             {etiquetaRol(u)}
                           </span>
                         )}
-                        {isSuperAdmin && <div><ChipsRoles roles={u.roles} catalogo={catalogoRoles} /></div>}
+                        {isSuperAdmin && !(puedeSelectorRol(u) && creadosDe(u).length === 1) && <div><ChipsRoles roles={u.roles} catalogo={catalogoRoles} /></div>}
                       </td>
                       <td className='px-5 py-4'>
                         <button
@@ -1184,10 +1199,10 @@ export default function UsersPanel() {
                           {/* Rol */}
                           <div className='space-y-0.5 min-w-0'>
                             <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>ROL:</span>
-                            {isSuperAdmin && u.id !== user?.id && !tieneRolCustom(u.roles) ? (
+                            {puedeSelectorRol(u) ? (
                               <div className='relative inline-flex items-center group/select max-w-full'>
                                 <select
-                                  value={u.rol}
+                                  value={valorRol(u)}
                                   onChange={e => handleRoleChange(u, e.target.value as any)}
                                   disabled={saving}
                                   className={`appearance-none pl-2 pr-5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer focus:outline-none transition-colors max-w-full truncate ${
@@ -1201,7 +1216,7 @@ export default function UsersPanel() {
                                   }`}
                                 >
                                   <option value='afiliado'>Afiliado</option>
-                                  <option value='asistente'>Personal Admin</option>
+                                  {rolesCreados.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
                                   <option value='admin'>Admin</option>
                                   <option value='super_admin'>Super Admin</option>
                                 </select>
@@ -1226,7 +1241,7 @@ export default function UsersPanel() {
                                 {etiquetaRol(u)}
                               </span>
                             )}
-                            {isSuperAdmin && <ChipsRoles roles={u.roles} catalogo={catalogoRoles} />}
+                            {isSuperAdmin && !(puedeSelectorRol(u) && creadosDe(u).length === 1) && <ChipsRoles roles={u.roles} catalogo={catalogoRoles} />}
                           </div>
 
                           {/* Estado Activo / Estatus */}
