@@ -423,8 +423,8 @@ export default function PreinscripcionesPrincipalesPanel({
     const m = (c: string) => Number(json.data?.find((a: { codigo: string }) => a.codigo === c)?.monto_usd ?? 0)
     const insc = m(tipo === 'Corporativo' ? 'inscripcion_corporativo' : tipo === 'Agente Corporativo' ? 'inscripcion_agente' : 'inscripcion_natural')
     const mens = m('mensualidad_base')
-    const total = m('curso_cibir')
-    return { insc, mens, total, cibir: total - insc - mens }
+    const cibir = m('curso_cibir')
+    return { insc, mens, cibir, total: cibir + insc + mens }
   }
   const lineas = (items: [string, number][]) =>
     `<div style="text-align:left;font-size:14px">${items.map(([t, v]) => `<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${t}</span><b>$${v.toFixed(2)}</b></div>`).join('')}

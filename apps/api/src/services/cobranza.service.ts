@@ -93,7 +93,7 @@ export async function getMontoMensual(): Promise<number> {
 const PAGOS_SQL = `SELECT id_pago, id_afiliado, numero_recibo, estatus, periodo, meses_cubiertos, monto_usd_equivalente, fecha_pago
                    FROM pagos
                    WHERE eliminado_en IS NULL AND periodo IS NOT NULL
-                     AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion')
+                     AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion', 'curso_cibir')
                      AND estatus IN ('Verificado', 'Pendiente')`
 
 const HISTORIAL_SQL = `SELECT id_afiliado, periodo, estado, COALESCE(fuente, '') LIKE 'manual:%' AS manual FROM solvencia_historial`

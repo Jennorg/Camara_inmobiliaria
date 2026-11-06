@@ -38,6 +38,11 @@ interface ModalCobroTaquillaProps {
   authHeaders: Record<string, string>;
 }
 
+const cuotaInscripcionDe = (aranceles: any[], tipo: string) => {
+  const key = tipo === 'Corporativo' ? 'inscripcion_corporativo' : tipo === 'Agente Corporativo' ? 'inscripcion_agente' : 'inscripcion_natural';
+  return Number(aranceles.find(a => a.codigo === key)?.monto_usd ?? 10);
+};
+
 export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   open,
   onClose,
@@ -68,6 +73,10 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   const [mesesCubiertos, setMesesCubiertos] = useState<number>(1);
   // Cuota mensual vigente (arancel mensualidad_base); se actualiza al cargar los aranceles
   const [montoMensual, setMontoMensual] = useState<number>(10);
+  // Arancel del curso CIBIR y cuota de inscripción: el cobro del CIBIR es la suma de ambos con la primera mensualidad
+  const [arancelCibir, setArancelCibir] = useState<number>(60);
+  const [cuotaInscripcion, setCuotaInscripcion] = useState<number>(10);
+  const totalCibir = arancelCibir + cuotaInscripcion + montoMensual;
   // La mensualidad se aplica al mes impago más antiguo: el servidor lo decide y aquí se muestra
   const [mesesSolv, setMesesSolv] = useState<{ periodo: string; estado: string }[]>([]);
   const lista = useMemo(() => mesesPagables(mesesSolv), [mesesSolv]);
@@ -125,6 +134,11 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
               let suggestedMonto = 30;
               const cuota = Number(aranceles.find((a: any) => a.codigo === 'mensualidad_base')?.monto_usd);
               if (cuota > 0) setMontoMensual(cuota);
+              const keyInsc = afiliadoTipo === 'Corporativo' ? 'inscripcion_corporativo' : afiliadoTipo === 'Agente Corporativo' ? 'inscripcion_agente' : 'inscripcion_natural';
+              const insc = Number(aranceles.find((a: any) => a.codigo === keyInsc)?.monto_usd);
+              const cibirCurso = Number(aranceles.find((a: any) => a.codigo === 'curso_cibir')?.monto_usd);
+              if (insc >= 0) setCuotaInscripcion(insc);
+              if (cibirCurso >= 0) setArancelCibir(cibirCurso);
 
               if (conceptoDefault === 'formalizacion_afiliacion') {
                 const keyInscripcion = afiliadoTipo === 'Corporativo'
@@ -139,7 +153,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 suggestedMonto = pInsc + pMens;
               } else if (conceptoDefault === 'curso_cibir') {
                 const arCibir = aranceles.find((a: any) => a.codigo === 'curso_cibir');
-                suggestedMonto = arCibir ? Number(arCibir.monto_usd) : 30;
+                suggestedMonto = (arCibir ? Number(arCibir.monto_usd) : 60) + cuotaInscripcionDe(aranceles, afiliadoTipo) + (cuota > 0 ? cuota : 10);
               } else if (conceptoDefault === 'mensualidad') {
                 const arMens = aranceles.find((a: any) => a.codigo === 'mensualidad_base');
                 suggestedMonto = arMens ? Number(arMens.monto_usd) : 5;
@@ -193,8 +207,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       handleMontoUSDChange(30);
       setNotas('Formalización de Inscripción ($25) + Primera Mensualidad ($5)');
     } else if (c === 'curso_cibir') {
-      handleMontoUSDChange(30);
-      setNotas('CIBIR + cuota de inscripción + primera mensualidad (sostenimiento)');
+      handleMontoUSDChange(totalCibir);
+      setNotas(`CIBIR $${arancelCibir.toFixed(2)} + cuota de inscripción $${cuotaInscripcion.toFixed(2)} + primera mensualidad $${montoMensual.toFixed(2)}`);
     } else if (c === 'mensualidad') {
       setMesesCubiertos(1);
       handleMontoUSDChange(montoMensual);

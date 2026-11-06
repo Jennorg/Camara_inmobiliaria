@@ -39,7 +39,7 @@ import { crearVerificacionPreinscripcionPrograma, upsertEstudianteByEmail } from
 import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
 import { autoAsignarEdicionCibir } from '../services/cibir.service.js';
-import { MENSAJE_PAGO_CIBIR_REQUERIDO, puedeEntrarACibir, reportarPagoDigital, validarMontoArancel } from '../services/pagos.service.js';
+import { MENSAJE_PAGO_CIBIR_REQUERIDO, acreditarPrimeraCuotaDelCibir, puedeEntrarACibir, reportarPagoDigital, validarMontoArancel } from '../services/pagos.service.js';
 import { MENSAJE_SOLO_ADMINISTRACION, pagosElectronicosHabilitados } from '../services/config-pagos.service.js';
 import { estadoBloqueo } from '../services/cobranza.service.js';
 
@@ -988,6 +988,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     });
 
     const afiliadoActualizado = updateResult.rows[0];
+    await acreditarPrimeraCuotaDelCibir(Number(id)).catch(e => console.error('acreditarPrimeraCuotaDelCibir:', e));
 
     // Sincronizar la inscripción al programa 'AFILIACION'
     try {
@@ -1720,6 +1721,7 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     }
 
     const afi = result.rows[0] as any;
+    if (estatus === 'Afiliado') await acreditarPrimeraCuotaDelCibir(Number(id)).catch(e => console.error('acreditarPrimeraCuotaDelCibir:', e));
 
     // Sincronizar la inscripción al programa 'AFILIACION' si cambia a Afiliado o Rechazado
     if (estatus === 'Afiliado' || estatus === 'Rechazado') {
