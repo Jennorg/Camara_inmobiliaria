@@ -14,11 +14,11 @@ interface ConvenioItem {
 }
 
 export const ConveniosPanel = () => {
-  // Convenios se administran desde la sección Formación
+  // Convenios del CMS: sección «config» (no «formacion»: el staff la tiene por academia y el CMS es solo admin)
   const { puede } = useAuth()
-  const puedeCrear = puede('formacion', 'crear')
-  const puedeEditar = puede('formacion', 'editar')
-  const puedeEliminar = puede('formacion', 'eliminar')
+  const puedeCrear = puede('config', 'crear')
+  const puedeEditar = puede('config', 'editar')
+  const puedeEliminar = puede('config', 'eliminar')
   const [items, setItems] = useState<ConvenioItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)

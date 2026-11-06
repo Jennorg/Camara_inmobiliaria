@@ -269,7 +269,10 @@ const MontoUsd = ({ id, value, onChange, required }: { id: string; value: string
 );
 
 const CursosAdminPanel = () => {
-  const { token } = useAuth();
+  const { token, puede } = useAuth();
+  const puedeCrear = puede('formacion', 'crear');
+  const puedeEditar = puede('formacion', 'editar');
+  const puedeEliminar = puede('formacion', 'eliminar');
   const [cursos, setCursos] = useState<CursoDB[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingCurso, setViewingCurso] = useState<CursoDB | null>(null);
@@ -803,7 +806,7 @@ const CursosAdminPanel = () => {
         searchPlaceholder="Buscar por título, categoría o instructor..."
         viewMode={viewMode}
         onViewModeChange={changeViewMode}
-        actionButtonText="Nuevo Curso"
+        actionButtonText={puedeCrear ? 'Nuevo Curso' : undefined}
         onActionClick={() => handleOpenModal()}
       />
 
@@ -925,15 +928,15 @@ const CursosAdminPanel = () => {
                   </button>
 
                   <div className="flex items-center gap-1">
-                    <button
+                    {puedeEditar && <button
                       type="button"
                       onClick={() => handleOpenModal(c)}
                       className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                       title="Editar curso"
                     >
                       <Pencil size={14} />
-                    </button>
-                    <button
+                    </button>}
+                    {puedeEditar && <button
                       type="button"
                       disabled={processingCourseId?.id === c.id_curso}
                       onClick={() => handleToggleStatus(c)}
@@ -950,8 +953,8 @@ const CursosAdminPanel = () => {
                       ) : (
                         <Lock size={14} />
                       )}
-                    </button>
-                    <button
+                    </button>}
+                    {puedeEliminar && <button
                       type="button"
                       disabled={processingCourseId?.id === c.id_curso}
                       onClick={() => handleDelete(c.id_curso)}
@@ -963,7 +966,7 @@ const CursosAdminPanel = () => {
                       ) : (
                         <Trash2 size={14} />
                       )}
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </div>
@@ -1035,14 +1038,14 @@ const CursosAdminPanel = () => {
                             <Users size={12} />
                             <span>Inscritos</span>
                           </button>
-                          <button
+                          {puedeEditar && <button
                             onClick={() => handleOpenModal(c)}
                             className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                             title="Editar curso"
                           >
                             <Pencil size={14} />
-                          </button>
-                          {c.estatus === 'Cerrado' ? (
+                          </button>}
+                          {puedeEditar && (c.estatus === 'Cerrado' ? (
                             <button
                               disabled={processingCourseId?.id === c.id_curso}
                               onClick={() => handleToggleStatus(c)}
@@ -1068,8 +1071,8 @@ const CursosAdminPanel = () => {
                                 <Lock size={14} />
                               )}
                             </button>
-                          )}
-                          <button
+                          ))}
+                          {puedeEliminar && <button
                             disabled={processingCourseId?.id === c.id_curso}
                             onClick={() => handleDelete(c.id_curso)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
@@ -1080,7 +1083,7 @@ const CursosAdminPanel = () => {
                             ) : (
                               <Trash2 size={14} />
                             )}
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -1311,7 +1314,7 @@ const CursosAdminPanel = () => {
                           className={`${INPUT_BASE} w-full sm:w-52 sm:shrink-0`}>
                           <option value="">Sin profesor</option>
                           {profesores.map(p => <option key={p.id_profesor} value={p.id_profesor}>{p.nombres} {p.apellidos} {p.codigo_afiliado ? `(${p.codigo_afiliado})` : ''}</option>)}
-                          <option value="NEW_PROFESOR">Crear profesor nuevo…</option>
+                          {puede('formacion', 'crear') && <option value="NEW_PROFESOR">Crear profesor nuevo…</option>}
                         </select>
                         <button type="button" aria-label={`Quitar el módulo ${index + 1}`}
                           onClick={() => setFormData({ ...formData, modulos: formData.modulos.filter((_, idx) => idx !== index).map((m, idx) => ({ ...m, orden: idx })) })}
@@ -1638,6 +1641,12 @@ const CursosAdminPanel = () => {
 };
 
 const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack: () => void, token: string | null }) => {
+  const { puede } = useAuth();
+  const puedeInscribir = puede('formacion', 'crear');
+  const puedeEditar = puede('formacion', 'editar');
+  const puedeEliminar = puede('formacion', 'eliminar');
+  // Validar y rechazar/revocar usan los endpoints de preinscripciones (aprobar-directo, rechazar)
+  const puedeResolver = puede('preinscripciones', 'editar');
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -2532,13 +2541,13 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             )}
           </div>
 
-          <button
+          {puedeInscribir && <button
             onClick={handleOpenEnrollModal}
             className="flex items-center gap-2 bg-[#00D084] hover:bg-[#00B870] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md shadow-[#00D084]/20 transition-colors transition-transform active:scale-95 cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Inscribir Estudiante</span>
-          </button>
+          </button>}
 
           {!(Number(curso.solo_informativo) === 1 || curso.solo_informativo === true || (curso.estatus as string) === 'Solo Informativo') && (
             <div className="hidden sm:flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
@@ -2651,7 +2660,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               )}
             </div>
 
-            <button
+            {puedeEditar && <button
               type="button"
               onClick={handleBatchGraduar}
               disabled={isProcessingBatch || isGeneratingZip}
@@ -2663,9 +2672,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 <CheckCircle2 size={14} />
               )}
               <span>{batchActionType === 'graduar' ? 'Graduando...' : `Graduar (${selectedIds.length})`}</span>
-            </button>
+            </button>}
 
-            <button
+            {puedeResolver && <button
               type="button"
               onClick={handleBatchRevocar}
               disabled={isProcessingBatch || isGeneratingZip}
@@ -2677,9 +2686,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 <XCircle size={14} />
               )}
               <span>{batchActionType === 'revocar' ? 'Revocando...' : `Revocar (${selectedIds.length})`}</span>
-            </button>
+            </button>}
 
-            <button
+            {puedeEliminar && <button
               type="button"
               onClick={handleBatchEliminar}
               disabled={isProcessingBatch || isGeneratingZip}
@@ -2691,7 +2700,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 <Trash2 size={14} />
               )}
               <span>{batchActionType === 'eliminar' ? 'Eliminando...' : `Eliminar (${selectedIds.length})`}</span>
-            </button>
+            </button>}
 
             <div className="w-px h-6 bg-gray-200 mx-1" />
 
@@ -2875,7 +2884,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                             return (
                               <>
-                                {requiereAprobacion && r.estatus === 'Preinscrito' && (
+                                {puedeResolver && requiereAprobacion && r.estatus === 'Preinscrito' && (
                                   <>
                                     <button
                                       type="button"
@@ -2909,7 +2918,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     </button>
                                   </>
                                 )}
-                                {r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (requiereAprobacion ? r.estatus === 'Inscrito' : true) && r.completado !== 1 && (
+                                {puedeEditar && r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (requiereAprobacion ? r.estatus === 'Inscrito' : true) && r.completado !== 1 && (
                                   <>
                                     <button
                                       type="button"
@@ -2929,7 +2938,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                         </>
                                       )}
                                     </button>
-                                    {requiereAprobacion && (
+                                    {puedeResolver && requiereAprobacion && (
                                     <button
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'rechazar')}
@@ -2962,7 +2971,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     <Award size={13} />
                                   </a>
                                 )}
-                                {r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (
+                                {puedeEditar && r.estatus !== 'Rechazado' && r.estatus !== 'Cancelado' && (
                                   <button
                                     type="button"
                                     disabled={isRowDisabled || !r.estudiante_email || correoEstado[r.id_inscripcion] === 'enviando'}
@@ -2973,7 +2982,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     {correoEstado[r.id_inscripcion] === 'enviando' ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />}
                                   </button>
                                 )}
-                                <button
+                                {puedeEditar && <button
                                   type="button"
                                   disabled={isRowDisabled}
                                   onClick={() => handleOpenEditModal(r)}
@@ -2981,8 +2990,8 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                   title="Editar información del participante"
                                 >
                                   <Pencil size={13} />
-                                </button>
-                                <button
+                                </button>}
+                                {puedeEliminar && <button
                                   type="button"
                                   disabled={isRowDisabled}
                                   onClick={() => handleDeleteInscripcion(r.id_inscripcion, r.estudiante_nombre)}
@@ -2990,7 +2999,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                   title="Eliminar participante del curso"
                                 >
                                   {isDeleting ? <Loader2 size={13} className="animate-spin text-rose-600" /> : <Trash2 size={13} />}
-                                </button>
+                                </button>}
                               </>
                             );
                           })()}
