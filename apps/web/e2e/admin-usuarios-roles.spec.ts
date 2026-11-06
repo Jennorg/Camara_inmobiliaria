@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { setupAdminAuth, setupAdminMocks } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -23,8 +24,8 @@ async function abrirUsuarios(page: Page, rolesFallan = false) {
   await page.route('**/api/roles', (r) => r.fulfill(rolesFallan
     ? json({ success: false, message: 'Error al listar los roles' }, 500)
     : json({ success: true, data: ROLES })));
-  await page.goto('/admin');
-  await page.locator('[data-testid="aside-nav-users"]:visible').first().click();
+  await page.goto('/panel');
+  await navPanel(page, 'users').click();
   await page.getByRole('button', { name: 'Tabla' }).click();
 }
 

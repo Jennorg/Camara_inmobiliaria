@@ -1,4 +1,5 @@
 import { test, expect, Page, Locator } from '@playwright/test';
+import { navPanel } from './helpers/panel-nav';
 
 type Acciones = Partial<Record<'ver' | 'crear' | 'editar' | 'eliminar', boolean>>;
 
@@ -64,8 +65,8 @@ async function sesion(page: Page, finanzas: Acciones) {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, token: 'mock_jwt_rol', user: usuario(finanzas) }) }),
     );
   }
-  await page.goto('/admin');
-  await page.locator('[data-testid="aside-nav-finanzas"]:visible').first().click();
+  await page.goto('/panel');
+  await navPanel(page, 'finanzas').click();
   await expect(page.getByRole('heading', { name: 'Centro de Control Financiero' })).toBeVisible();
 }
 

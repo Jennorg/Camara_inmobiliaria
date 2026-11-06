@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupAdminAuth, setupAdminMocks } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 test.describe('Módulo Administrativo: Denuncias, Administradores y Usuarios del Sistema (E2E)', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,10 +9,10 @@ test.describe('Módulo Administrativo: Denuncias, Administradores y Usuarios del
   });
 
   test('debe navegar al panel de Denuncias y visualizar los expedientes éticos registrados', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navDenuncias = page.locator('[data-testid="aside-nav-denuncias"]:visible');
+    const navDenuncias = navPanel(page, 'denuncias');
     await expect(navDenuncias).toBeVisible();
     await navDenuncias.click();
 
@@ -22,10 +23,10 @@ test.describe('Módulo Administrativo: Denuncias, Administradores y Usuarios del
   });
 
   test('debe navegar al panel de Administradores y listar las cuentas con permisos elevados', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navAdminUsers = page.locator('[data-testid="aside-nav-admin_users"]:visible');
+    const navAdminUsers = navPanel(page, 'admin_users');
     if (await navAdminUsers.isVisible()) {
       await navAdminUsers.click();
 
@@ -36,10 +37,10 @@ test.describe('Módulo Administrativo: Denuncias, Administradores y Usuarios del
   });
 
   test('debe navegar al panel de Usuarios generales y permitir visualizar sus roles', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navUsers = page.locator('[data-testid="aside-nav-users"]:visible');
+    const navUsers = navPanel(page, 'users');
     if (await navUsers.isVisible()) {
       await navUsers.click();
 

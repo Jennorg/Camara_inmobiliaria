@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { setupAdminAuth, setupAdminMocks } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
@@ -18,8 +19,8 @@ async function abrirRoles(page: Page) {
     if (r.request().method() === 'POST') return r.fulfill(json({ success: true, data: { id: 3, clave: 'nuevo', nombre: 'Nuevo' } }, 201));
     return r.fulfill(json({ success: true, data: ROLES }));
   });
-  await page.goto('/admin');
-  await page.locator('[data-testid="aside-nav-roles"]:visible').first().click();
+  await page.goto('/panel');
+  await navPanel(page, 'roles').click();
 }
 
 test.describe('Panel de roles y permisos (E2E)', () => {

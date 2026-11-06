@@ -42,6 +42,9 @@ import { AfiliadoDTO } from '@/types/afiliados';
 
 // Componentes Administrativos
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel';
+import RolesPanel from '@/pages/admin/components/Roles/RolesPanel';
+import SuperAdminUsersPanel from '@/pages/admin/components/Users/SuperAdminUsersPanel';
+import EstudiantesRegularesPanel from '@/pages/admin/components/Estudiantes/EstudiantesRegularesPanel';
 import { DirectivaPanel } from '@/pages/admin/components/Cms/DirectivaPanel';
 import AnalyticsPanel from '@/pages/admin/components/Analytics/AnalyticsPanel';
 import FormacionPanel from '@/pages/admin/components/Formacion/FormacionPanel';
@@ -55,7 +58,7 @@ import CmsDashboard from '@/pages/admin/components/dashboard/CmsDashboard';
 import CmsArticlesPanel, { type CmsTab } from '@/pages/admin/components/Cms/CmsArticlesPanel';
 import SettingsPanel from './components/SettingsPanel';
 import ImpersonationBanner from '@/components/ImpersonationBanner';
-import { useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { BatchDownloadProvider } from '@/context/BatchDownloadContext';
 import SEO from '@/components/SEO';
 
@@ -76,27 +79,35 @@ const NAV_AFILIADO = [
   // { icon: Gavel, label: 'Sistema de Denuncias' },
 ];
 
-const NAV_ADMIN_CORE = [
-  { icon: Users, label: 'Directorio de Miembros' },
-  { icon: DollarSign, label: 'Control de Finanzas' },
-  { icon: ShieldCheck, label: 'Control de Acceso' },
-  { icon: ClipboardList, label: 'Preinscripciones' },
-  { icon: BookOpen, label: 'Gestión de Formación' },
-  { icon: UserPlus, label: 'Solicitudes de Agentes' },
-  { icon: UserCheck, label: 'Solicitudes de Cambio' },
-  { icon: Gavel, label: 'Tribunal de Ética' },
-  { icon: BarChart, label: 'Análisis y Métricas' },
+// Ítems de staff: cada uno se muestra solo si el usuario puede `ver` su sección (ids en apps/api/src/config/secciones.ts).
+type NavStaff = { id?: string; icon: React.ElementType; label: string; seccion: string };
+
+const NAV_ADMIN_CORE: NavStaff[] = [
+  { icon: Users, label: 'Directorio de Miembros', seccion: 'afiliados' },
+  { icon: CheckCircle, label: 'Afiliaciones', seccion: 'afiliaciones' },
+  { icon: DollarSign, label: 'Control de Finanzas', seccion: 'finanzas' },
+  { icon: FileText, label: 'Gestión de Asambleas', seccion: 'asambleas' },
+  { icon: ShieldCheck, label: 'Control de Acceso', seccion: 'users' },
+  { icon: ClipboardList, label: 'Preinscripciones', seccion: 'preinscripciones' },
+  { icon: BookOpen, label: 'Gestión de Formación', seccion: 'formacion' },
+  { icon: GraduationCap, label: 'Estudiantes', seccion: 'estudiantes' },
+  { icon: UserPlus, label: 'Solicitudes de Agentes', seccion: 'afiliados' },
+  { icon: UserCheck, label: 'Solicitudes de Cambio', seccion: 'solicitudes_cambio' },
+  { icon: Gavel, label: 'Tribunal de Ética', seccion: 'denuncias' },
+  { icon: BarChart, label: 'Análisis y Métricas', seccion: 'analytics' },
 ];
 
-const NAV_CMS = [
-  { id: 'CMS · Noticias', icon: Newspaper, label: 'Noticias' },
-  { id: 'CMS · Marco Legal', icon: FileText, label: 'Marco Legal' },
-  { id: 'CMS · Convenios', icon: Handshake, label: 'Convenios' },
-  { id: 'CMS · Configuración', icon: Settings, label: 'Configuración' },
+const NAV_CMS: NavStaff[] = [
+  { id: 'CMS · Noticias', icon: Newspaper, label: 'Noticias', seccion: 'noticias' },
+  { id: 'CMS · Marco Legal', icon: FileText, label: 'Marco Legal', seccion: 'marco_legal' },
+  { id: 'CMS · Convenios', icon: Handshake, label: 'Convenios', seccion: 'config' },
+  { id: 'CMS · Configuración', icon: Settings, label: 'Configuración', seccion: 'config' },
 ];
 
-const NAV_SUPER_ADMIN = [
-  { icon: UserCog, label: 'Junta Directiva' },
+const NAV_SUPER_ADMIN: NavStaff[] = [
+  { icon: UserCog, label: 'Junta Directiva', seccion: 'directiva' },
+  { icon: ShieldCheck, label: 'Roles y permisos', seccion: 'roles' },
+  { icon: UserCog, label: 'Administradores', seccion: 'admin_users' },
 ];
 
 const NAV_DIVIDER_ADMIN = { icon: ShieldCheck, label: '— Administración —', isDivider: true };
@@ -121,16 +132,24 @@ const Section = ({ label }: { label: string }) => (
 // ─── Panel unificado principal ────────────────────────────────────────────────
 
 const PanelPage = () => {
-  const { user, token, logout, isAdmin, isSuperAdmin, isAsistente, isEstudiante, isAfiliado, isImpersonating, tienePanelAdmin } = useAuth();
+  const { user, token, logout, isAdmin, isEstudiante, isAfiliado, tienePanelAdmin, puede } = useAuth();
   const [searchParams] = useSearchParams();
-  // Usuario solo con roles personalizados: este panel no tiene nada para él, su vista es /admin.
-  const soloRolPersonalizado = tienePanelAdmin && !isAdmin && !isAsistente && !isAfiliado && !isEstudiante;
+  // Todos los afiliados, personas con id_afiliado o tipo_afiliado ven los ítems de afiliado
+  const isConsideredAfiliado = (user?.roles && Array.isArray(user.roles) && user.roles.includes('afiliado')) || !!user?.id_afiliado || !!user?.tipo_afiliado;
+  // Ítems de staff visibles según la matriz de permisos
+  const verStaff = (items: NavStaff[]) => (tienePanelAdmin ? items.filter(i => puede(i.seccion, 'ver')) : []);
+  const staffCore = verStaff([...NAV_ADMIN_CORE, ...NAV_SUPER_ADMIN]);
+  const staffCms = verStaff(NAV_CMS);
+  const primerStaff = [...staffCore, ...staffCms][0];
+  // Solo staff (sin afiliado ni estudiante): aterriza en su primer ítem de staff
+  const soloStaff = !!primerStaff && !isConsideredAfiliado && !isEstudiante;
   const [activeTab, setActiveTab] = useState(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'formacion') return 'Catálogo Académico';
     if (tabParam === 'finanzas') return 'Control de Finanzas';
     if (tabParam === 'denuncias') return 'Tribunal de Ética';
-    return (isAdmin || isAsistente) ? 'Directorio de Miembros' : 'Mi Expediente';
+    if (soloStaff) return primerStaff.id || primerStaff.label;
+    return isAdmin && puede('afiliados', 'ver') ? 'Directorio de Miembros' : 'Mi Expediente';
   });
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -151,11 +170,11 @@ const PanelPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!token || (!isAdmin && !isAsistente)) return;
+    if (!token || !tienePanelAdmin) return;
     let active = true;
 
     // 1. Solicitudes de Cambio pendientes
-    apiFetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
+    if (puede('solicitudes_cambio', 'ver')) apiFetch(`${API_URL}/api/afiliados/admin/solicitudes-cambio`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(d => {
@@ -170,7 +189,7 @@ const PanelPage = () => {
       .catch(() => {});
 
     // 2. Preinscripciones pendientes
-    apiFetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
+    if (puede('preinscripciones', 'ver')) apiFetch(`${API_URL}/api/academia/preinscripciones?estatus=Preinscrito`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(d => {
@@ -185,7 +204,7 @@ const PanelPage = () => {
       .catch(() => {});
 
     return () => { active = false; };
-  }, [token, isAdmin, isAsistente]);
+  }, [token, tienePanelAdmin, puede]);
 
   const [agentesCorp, setAgentesCorp] = useState<any[]>([]);
   const [loadingAgentes, setLoadingAgentes] = useState(false);
@@ -279,17 +298,14 @@ const PanelPage = () => {
   /** Afiliado oficial: se resuelve con el registro real traído de la API, no con el token. */
   const isAfiliadoActivo = afiliado?.estatus === 'Afiliado';
 
-  // Construir nav items dinámicamente según roles
+  // Construir nav items: afiliado/estudiante según roles, staff según la matriz de permisos
   const buildNavItems = () => {
     let baseItems: any[] = [];
-    
-    // Todos los afiliados, personas con id_afiliado, o tipo_afiliado y admins son considerados afiliados para la vista
-    const isConsideredAfiliado = (user?.roles && Array.isArray(user.roles) && user.roles.includes('afiliado')) || !!user?.id_afiliado || !!user?.tipo_afiliado || isAdmin;
 
     // Base de navegación pública o afiliada
     if (isConsideredAfiliado) {
-      // Acceso completo para Naturales y Corporativos (y admins)
-      // La solvencia es por afiliación: un admin sin afiliado propio no la tiene
+      // Acceso completo para Naturales y Corporativos
+      // La solvencia es por afiliación: sin afiliado propio no la tiene
       baseItems = NAV_AFILIADO.filter(i => i.label !== 'Estado de Cuenta' || !!(user?.id_afiliado || afiliado?.id_afiliado));
     } else if (isEstudiante && (!user?.roles || user.roles.length <= 1)) {
       // Exclusivo estudiante
@@ -312,78 +328,33 @@ const PanelPage = () => {
       });
     }
 
-    // Si es asistente/secretario (sin rol admin), mostrar Directorio de Miembros, Control de Acceso y Gestión de Formación
-    if (isAsistente && !isAdmin) {
-      return [
-        { icon: Users, label: 'Directorio de Miembros' },
-        { icon: DollarSign, label: 'Control de Finanzas' },
-        { icon: FileText, label: 'Gestión de Asambleas' },
-        { icon: ShieldCheck, label: 'Control de Acceso' },
-        { icon: BookOpen, label: 'Gestión de Formación' },
-        { icon: Gavel, label: 'Tribunal de Ética' },
-      ];
-    }
+    // Configuración de la cuenta: para todos
+    baseItems.push({ icon: Settings, label: 'Configuración' });
 
-    // Item de Configuración para afiliados normales y admins (omitir para asistente puro)
-    if (!isAsistente || isAdmin) {
-      baseItems.push({ icon: Settings, label: 'Configuración' });
-    }
+    const conConteo = (i: NavStaff) => {
+      const count = i.label === 'Preinscripciones' ? preinscripcionesCount : i.label === 'Solicitudes de Cambio' ? solicitudesCambioCount : 0;
+      return count > 0 ? { ...i, count, hasPendingDot: true } : i;
+    };
 
-    if (isAdmin) {
-      const navAdminCoreWithCounts = [
-        { icon: Users, label: 'Directorio de Miembros' },
-        { icon: DollarSign, label: 'Control de Finanzas' },
-        { icon: FileText, label: 'Gestión de Asambleas' },
-        { icon: ShieldCheck, label: 'Control de Acceso' },
-        { 
-          icon: ClipboardList, 
-          label: 'Preinscripciones', 
-          count: preinscripcionesCount > 0 ? preinscripcionesCount : undefined,
-          hasPendingDot: preinscripcionesCount > 0
-        },
-        { icon: BookOpen, label: 'Gestión de Formación' },
-        { icon: UserPlus, label: 'Solicitudes de Agentes' },
-        { 
-          icon: UserCheck, 
-          label: 'Solicitudes de Cambio', 
-          count: solicitudesCambioCount > 0 ? solicitudesCambioCount : undefined,
-          hasPendingDot: solicitudesCambioCount > 0
-        },
-        { icon: Gavel, label: 'Tribunal de Ética' },
-        { icon: BarChart, label: 'Análisis y Métricas' },
-      ];
-
-      let adminItems = [
-        NAV_DIVIDER_ADMIN as any,
-        ...navAdminCoreWithCounts,
-      ];
-      if (isSuperAdmin) {
-        adminItems = [...adminItems, ...NAV_SUPER_ADMIN];
-      }
-      if (isAdmin) {
-        adminItems = [
-          ...adminItems,
-          NAV_DIVIDER_CMS as any,
-          ...NAV_CMS
-        ];
-      }
-      return [...baseItems, ...adminItems];
-    }
-    return baseItems;
+    // Cada separador solo aparece si hay algún ítem visible debajo
+    return [
+      ...baseItems,
+      ...(staffCore.length ? [NAV_DIVIDER_ADMIN, ...staffCore.map(conConteo)] : []),
+      ...(staffCms.length ? [NAV_DIVIDER_CMS, ...staffCms] : []),
+    ];
   };
 
   const navItems = buildNavItems();
   
   useEffect(() => {
     if (navItems.length > 0) {
-      const validLabels = navItems.filter((i: any) => !i.isDivider).map((i: any) => i.label);
+      const validLabels = navItems.filter((i: any) => !i.isDivider).map((i: any) => i.id || i.label);
       if (!validLabels.includes(activeTab)) {
-        setActiveTab(validLabels[0] || 'Mi Expediente');
+        setActiveTab(soloStaff ? (primerStaff.id || primerStaff.label) : validLabels[0] || 'Mi Expediente');
       }
     }
   }, [user?.id, user?.rol]);
 
-  const isConsideredAfiliadoContent = (user?.roles && Array.isArray(user.roles) && user.roles.includes('afiliado')) || !!user?.id_afiliado || !!user?.tipo_afiliado || isAdmin;
 
   // ── Renderizado del contenido activo ────────────────────────────────────────
 
@@ -398,7 +369,7 @@ const PanelPage = () => {
             </div>
           )}
           
-          {isConsideredAfiliadoContent && (
+          {isConsideredAfiliado && (
             <>
               {user?.tipo_afiliado === 'Corporativo' && (
                 <div className="lg:col-span-3">
@@ -507,18 +478,23 @@ const PanelPage = () => {
     if (activeTab === 'Mis Agentes') {
       return <div className="col-span-1 lg:col-span-3 h-full"><WidgetGestionAfiliadosCorp defaultTab={agentesCorpTab} /></div>;
     }
+    if (activeTab === 'Configuración') return <SettingsPanel />;
+
+    // 2. Sección Administrativa: solo ítems de staff visibles en la navegación (también si llega por ?tab=)
+    if (![...staffCore, ...staffCms].some(i => (i.id || i.label) === activeTab)) return null;
+
     if (activeTab === 'Solicitudes de Agentes') {
       return <div className="col-span-1 lg:col-span-3 h-full"><AdminMisAgentesPanel /></div>;
     }
     if (activeTab === 'Solicitudes de Cambio') {
       return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><AfiliadosPanel defaultViewMode="solicitudes" hideViewModeTabs /></div>;
     }
-    if (activeTab === 'Configuración') return <SettingsPanel />;
-
-    // 2. Sección Administrativa
-    if (!isAdmin && !isAsistente) return null;
+    if (activeTab === 'Afiliaciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><AfiliadosPanel /></div>;
+    if (activeTab === 'Estudiantes') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><EstudiantesRegularesPanel /></div>;
+    if (activeTab === 'Administradores') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><SuperAdminUsersPanel /></div>;
 
     if (activeTab === 'Directorio de Miembros') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><MiembrosPanel /></div>;
+    if (activeTab === 'Roles y permisos') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><RolesPanel /></div>;
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;
     if (activeTab === 'Preinscripciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><PreinscripcionesPrincipalesPanel /></div>;
     if (activeTab === 'Junta Directiva') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs p-6 overflow-hidden"><DirectivaPanel /></div>;
@@ -551,10 +527,7 @@ const PanelPage = () => {
     return null;
   };
 
-  // Después de todos los hooks: redirige sin pintar el panel de afiliado.
-  if (soloRolPersonalizado) return <Navigate to="/admin" replace />;
-
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Roles y permisos', 'Administradores', 'Afiliaciones', 'Estudiantes', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <BatchDownloadProvider>

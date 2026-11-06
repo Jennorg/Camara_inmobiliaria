@@ -149,7 +149,7 @@ interface AuthContextValue {
   isAsistente: boolean
   isAfiliado: boolean
   isEstudiante: boolean
-  /** super_admin o `ver` en al menos una sección: puede entrar a /admin. */
+  /** super_admin o `ver` en al menos una sección: ve el grupo de staff en /panel. */
   tienePanelAdmin: boolean
   puede: (seccion: string, accion: Accion) => boolean
   refreshUser: () => Promise<void>
@@ -326,28 +326,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearOriginalAdminStorage()
     setOriginalAdmin(null)
 
-    // Varios roles con un rol personalizado de staff (p. ej. afiliado + lector): el lobby ofrece ambas vistas.
-    // admin/super_admin/staff conocidos siguen yendo a /panel como antes. Se calcula sobre el usuario recién logueado.
-    const norm = (r: string) => r.toLowerCase().trim().replace(/[\s_-]+/g, '_')
-    const rolConocidoDeStaff = newUser.roles.some(r => ['admin', 'super_admin', ...STAFF_ROLE_NAMES].includes(norm(r)))
-    if (newUser.roles.length > 1 && !rolConocidoDeStaff && tieneAlgunVer(newUser.permisos)) {
-      navigate('/lobby')
-      return
-    }
-
-    // Selector general si tiene múltiples roles al panel unificado
-    if (newUser.roles.length > 1) {
-      navigate('/panel')
-      return
-    }
-
-    // Redirección directa si solo tiene 1 rol
-    if (newUser.rol === 'admin') {
-      navigate('/admin')
-      return
-    }
-
-    if (newUser.rol === 'estudiante') {
+    // Todos entran a /panel; su navegación sale de los roles y de la matriz de permisos.
+    if (newUser.roles.length <= 1 && newUser.rol === 'estudiante') {
       navigate('/panel?tab=formacion')
       return
     }

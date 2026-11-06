@@ -1,4 +1,5 @@
 import { test, expect, Page, Locator } from '@playwright/test';
+import { navPanel } from './helpers/panel-nav';
 
 type Acciones = Partial<Record<'ver' | 'crear' | 'editar' | 'eliminar', boolean>>;
 type Permisos = Record<string, Acciones>;
@@ -29,8 +30,8 @@ async function sesion(page: Page, permisos: Permisos, seccion: string, esperar: 
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, token: 'mock_jwt_rol', user: usuario(permisos) }) }),
     );
   }
-  await page.goto('/admin');
-  await page.locator(`[data-testid="aside-nav-${seccion}"]:visible`).first().click();
+  await page.goto('/panel');
+  await navPanel(page, seccion).click();
   await expect(page.getByText(esperar).locator('visible=true').first()).toBeVisible();
 }
 

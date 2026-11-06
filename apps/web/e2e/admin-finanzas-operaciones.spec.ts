@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupAdminAuth, setupAdminMocks } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 test.describe('Módulo Administrativo: Finanzas, Cobros y Cotizaciones de Referencia (E2E)', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,10 +9,10 @@ test.describe('Módulo Administrativo: Finanzas, Cobros y Cotizaciones de Refere
   });
 
   test('debe navegar al panel de Finanzas y visualizar el cintillo superior de tasas activas y métricas de balance', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navFinanzas = page.locator('[data-testid="aside-nav-finanzas"]:visible');
+    const navFinanzas = navPanel(page, 'finanzas');
     await expect(navFinanzas).toBeVisible();
     await navFinanzas.click();
 
@@ -27,10 +28,10 @@ test.describe('Módulo Administrativo: Finanzas, Cobros y Cotizaciones de Refere
   });
 
   test('debe abrir el Modal de Registrar Compra / Gasto y precargar automáticamente la tasa BCV', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navFinanzas = page.locator('[data-testid="aside-nav-finanzas"]:visible');
+    const navFinanzas = navPanel(page, 'finanzas');
     await navFinanzas.click();
 
     // Botón de registrar compra / gasto
@@ -48,10 +49,10 @@ test.describe('Módulo Administrativo: Finanzas, Cobros y Cotizaciones de Refere
   });
 
   test('debe acceder a la pestaña Tasas & Conversor y realizar cálculos en vivo con el spread indicado', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navFinanzas = page.locator('[data-testid="aside-nav-finanzas"]:visible');
+    const navFinanzas = navPanel(page, 'finanzas');
     await navFinanzas.click();
 
     // Pestaña Tasas & Conversor

@@ -12,6 +12,10 @@ export interface NavItem {
   children?: NavItem[];
 }
 
+/** 'CMS · Configuración' → 'cms-configuracion' (testids estables de la navegación). */
+const slugNav = (s: string) =>
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 interface DashboardSidebarProps {
   navItems: NavItem[];
   activeTab: string;
@@ -145,6 +149,7 @@ const SidebarContent = ({
           ) : (
             <React.Fragment key={item.id ? `id-${item.id}` : `label-${item.label}`}>
               <button
+                data-testid={`panel-nav-${slugNav(itemId)}`}
                 onClick={() => {
                   onTabChange(itemId);
                   if (hasChildren) toggleExpand(itemId);

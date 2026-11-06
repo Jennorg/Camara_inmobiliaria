@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { setupAdminAuth, setupAfiliadoAuth } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 test.describe('Autenticación y Control de Acceso (E2E)', () => {
-  test('debe bloquear acceso no autenticado a /admin y redirigir', async ({ page }) => {
+  test('debe bloquear acceso no autenticado a /panel y redirigir', async ({ page }) => {
     // Interceptar refresh para que responda 401 (sin sesión)
     await page.route('**/api/auth/refresh', async (route) => {
       await route.fulfill({
@@ -12,33 +13,31 @@ test.describe('Autenticación y Control de Acceso (E2E)', () => {
       });
     });
 
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    // Debe ser redirigido a / o lobby (no permanecer en /admin)
-    await expect(page).not.toHaveURL(/\/admin$/);
+    // Debe ser redirigido a / (no permanecer en /panel)
+    await expect(page).not.toHaveURL(/\/panel/);
   });
 
   test('debe permitir acceso al panel administrativo para usuarios con rol super_admin', async ({ page }) => {
     await setupAdminAuth(page);
 
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    // Debe permanecer en /admin y mostrar elementos del sidebar administrativo
-    await expect(page).toHaveURL(/\/admin/);
-    const sidebarElement = page.locator('[data-testid="aside-nav-analytics"]:visible, [data-testid="aside-nav-afiliados"]:visible').first();
-    await expect(sidebarElement).toBeVisible();
+    // Debe permanecer en /panel y mostrar elementos del sidebar administrativo
+    await expect(page).toHaveURL(/\/panel/);
+    await expect(navPanel(page, 'analytics')).toBeVisible();
   });
 
-  test('debe restringir acceso a /admin para usuarios con rol exclusivo de afiliado', async ({ page }) => {
+  test('la ruta antigua /admin lleva a /panel', async ({ page }) => {
     await setupAfiliadoAuth(page);
 
     await page.goto('/admin');
     await page.waitForLoadState('domcontentloaded');
 
-    // Los afiliados normales no tienen roles administrativos, deben ser redirigidos fuera de /admin (ej. a /panel o /)
-    await expect(page).not.toHaveURL(/\/admin$/);
+    await expect(page).toHaveURL(/\/panel/);
   });
 
   test('debe cerrar sesión correctamente al presionar Cerrar Sesión', async ({ page }) => {
@@ -52,7 +51,7 @@ test.describe('Autenticación y Control de Acceso (E2E)', () => {
       });
     });
 
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
     // Localizar botón de logout visible en el sidebar
@@ -60,8 +59,8 @@ test.describe('Autenticación y Control de Acceso (E2E)', () => {
     if (await btnLogout.isVisible()) {
       await btnLogout.click();
       await page.waitForLoadState('domcontentloaded');
-      // Al cerrar sesión debe salir de /admin
-      await expect(page).not.toHaveURL(/\/admin$/);
+      // Al cerrar sesión debe salir de /panel
+      await expect(page).not.toHaveURL(/\/panel/);
     }
   });
 });
