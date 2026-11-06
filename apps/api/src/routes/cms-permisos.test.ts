@@ -66,8 +66,8 @@ const RUTAS: [string, string, string, Accion][] = [
 
 const PUBLICAS = ['/api/cms/noticias', '/api/cms/cursos', '/api/cms/convenios', '/api/cms/normativas', '/api/cms/directiva', '/api/cms/hitos', '/api/cms/paginas/inicio']
 
-const SECCIONES_NORM = ['leyes', 'reglamentos', 'normas', 'actas']
-const CATEGORIA: Record<string, string> = { leyes: 'Leyes y Decretos', reglamentos: 'Reglamentos y Estatutos', normas: 'Normas y Procedimientos', actas: 'Actas de Asamblea' }
+const SECCIONES_NORM = ['marco_legal']
+const CATEGORIAS = ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea'] // las cuatro comparten la sección marco_legal
 
 beforeAll(async () => {
   await mem.batch([
@@ -104,7 +104,7 @@ describe('cms: permisos por sección', () => {
   it('el staff conserva su acceso de antes: ninguno (el CMS era solo admin/super_admin)', async () => {
     const rutas = [...RUTAS.map(([m, u]) => [m, u]), ['post', '/api/cms/normativas'], ['delete', '/api/cms/normativas/1']]
     for (const [m, url] of rutas) {
-      for (const rol of STAFF) expect((await llamar(m, url, token([rol]), { categoria: CATEGORIA.leyes })).status, `${rol} ${m} ${url}`).toBe(403)
+      for (const rol of STAFF) expect((await llamar(m, url, token([rol]), { categoria: CATEGORIAS[0] })).status, `${rol} ${m} ${url}`).toBe(403)
     }
   })
 
@@ -114,12 +114,11 @@ describe('cms: permisos por sección', () => {
 })
 
 describe('cms: normativas según la categoría', () => {
-  for (const s of SECCIONES_NORM) {
-    const cat = CATEGORIA[s]
-    const id = SECCIONES_NORM.indexOf(s) + 1
-    it(`${s}: crear, editar, eliminar, reordenar y lote`, async () => {
-      const solo = (a: Accion) => token([`solo_${a}_${s}`])
-      const sin = (a: Accion) => token([`sin_${a}_${s}`])
+  CATEGORIAS.forEach((cat, i) => {
+    const id = i + 1
+    it(`${cat}: crear, editar, eliminar, reordenar y lote con marco_legal`, async () => {
+      const solo = (a: Accion) => token([`solo_${a}_marco_legal`])
+      const sin = (a: Accion) => token([`sin_${a}_marco_legal`])
       // crear: categoría del cuerpo
       expect((await llamar('post', '/api/cms/normativas', solo('crear'), { categoria: cat })).status).toBe(200)
       expect((await llamar('post', '/api/cms/normativas', sin('crear'), { categoria: cat })).status).toBe(403)
@@ -133,19 +132,18 @@ describe('cms: normativas según la categoría', () => {
       expect((await llamar('put', '/api/cms/normativas-reorder', solo('editar'), { items: [{ id, orden: 1 }] })).status).toBe(200)
       expect((await llamar('put', '/api/cms/normativas-reorder', sin('editar'), { items: [{ id, orden: 1 }] })).status).toBe(403)
     })
-  }
+  })
 
-  it('el permiso de una categoría no sirve para otra', async () => {
-    expect((await llamar('post', '/api/cms/normativas', token(['solo_crear_leyes']), { categoria: CATEGORIA.actas })).status).toBe(403)
-    expect((await llamar('put', '/api/cms/normativas/2', token(['solo_editar_leyes']), { categoria: CATEGORIA.leyes })).status).toBe(403) // el registro es de reglamentos
-    expect((await llamar('put', '/api/cms/normativas/1', token(['solo_editar_leyes']), { categoria: CATEGORIA.actas })).status).toBe(403) // mover a otra categoría
-    expect((await llamar('delete', '/api/cms/normativas/2', token(['solo_eliminar_leyes']))).status).toBe(403)
-    expect((await llamar('post', '/api/cms/normativas-batch-delete', token(['solo_eliminar_leyes']), { ids: [1, 2] })).status).toBe(403)
-    expect((await llamar('put', '/api/cms/normativas-reorder', token(['solo_editar_leyes']), { items: [{ id: 1, orden: 1 }, { id: 2, orden: 2 }] })).status).toBe(403)
+  it('un permiso de marco_legal sirve para las cuatro categorías, pero no para «Otros»', async () => {
+    const t = token(['solo_editar_marco_legal'])
+    expect((await llamar('put', '/api/cms/normativas/2', t, { categoria: CATEGORIAS[1] })).status).toBe(200) // registro de reglamentos
+    expect((await llamar('put', '/api/cms/normativas/1', t, { categoria: CATEGORIAS[3] })).status).toBe(200) // mover a actas
+    expect((await llamar('put', '/api/cms/normativas/5', t, { categoria: CATEGORIAS[0] })).status).toBe(403) // el registro es «Otros»
+    expect((await llamar('put', '/api/cms/normativas/1', t, { categoria: 'Otros' })).status).toBe(403) // mover a «Otros»
   })
 
   it('categoría ausente, «Otros» o desconocida: solo admin/super_admin (nunca abre)', async () => {
-    const todo = token(['solo_crear_leyes', 'solo_editar_leyes', 'solo_eliminar_leyes', 'solo_crear_actas'])
+    const todo = token(['solo_crear_marco_legal', 'solo_editar_marco_legal', 'solo_eliminar_marco_legal'])
     for (const body of [{}, { categoria: 'Otros' }, { categoria: 'Inventada' }]) {
       expect((await llamar('post', '/api/cms/normativas', todo, body)).status).toBe(403)
       expect((await llamar('post', '/api/cms/normativas', token(['admin']), body)).status).toBe(200)

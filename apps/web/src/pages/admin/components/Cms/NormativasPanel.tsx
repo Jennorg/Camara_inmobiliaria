@@ -17,7 +17,7 @@ interface NormativaItem {
 
 // La sección de permisos sale de la categoría (igual que en la API); «Otros» o sin categoría: solo admin/super_admin.
 const SECCION_POR_CATEGORIA: Record<string, string> = {
-  'Leyes y Decretos': 'leyes', 'Reglamentos y Estatutos': 'reglamentos', 'Normas y Procedimientos': 'normas', 'Actas de Asamblea': 'actas',
+  'Leyes y Decretos': 'marco_legal', 'Reglamentos y Estatutos': 'marco_legal', 'Normas y Procedimientos': 'marco_legal', 'Actas de Asamblea': 'marco_legal',
 }
 const CATEGORIAS = ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Otros']
 

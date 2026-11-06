@@ -112,11 +112,11 @@ describe('roles', () => {
     expect((await permisos.permisosDeRoles(['editor_de_noticias'])).noticias).toEqual({ ver: true, crear: true, editar: false, eliminar: false })
 
     const u = await request(app).put(`/api/roles/${id}`).set('Authorization', SUPER)
-      .send({ nombre: 'Editor', permisos: { leyes: { ver: true, editar: true } } })
+      .send({ nombre: 'Editor', permisos: { marco_legal: { ver: true, editar: true } } })
     expect(u.status).toBe(200)
 
     const m = await permisos.permisosDeRoles(['editor_de_noticias'])
-    expect(m.leyes).toEqual({ ver: true, crear: false, editar: true, eliminar: false })
+    expect(m.marco_legal).toEqual({ ver: true, crear: false, editar: true, eliminar: false })
     expect(m.noticias).toEqual({ ver: false, crear: false, editar: false, eliminar: false }) // no enviada => todo a 0
     // nunca borra filas: la de noticias queda en 0
     expect(await flags(id, 'noticias')).toMatchObject({ ver: 0, crear: 0, editar: 0, eliminar: 0 })
@@ -124,7 +124,7 @@ describe('roles', () => {
     const l = await request(app).get('/api/roles').set('Authorization', SUPER)
     const fila = l.body.data.find((r: any) => r.id === id)
     expect(fila).toMatchObject({ clave: 'editor_de_noticias', nombre: 'Editor', es_sistema: 0, usuarios: 0 })
-    expect(fila.permisos.leyes).toEqual({ ver: true, crear: false, editar: true, eliminar: false })
+    expect(fila.permisos.marco_legal).toEqual({ ver: true, crear: false, editar: true, eliminar: false })
     expect(fila.permisos.roles).toBeUndefined()
     expect(l.body.data.find((r: any) => r.clave === 'admin').usuarios).toBe(2) // incluye roles legado no-JSON
   })
@@ -164,7 +164,7 @@ describe('roles', () => {
   it('no_borra_rol_de_sistema_ni_con_usuarios', async () => {
     expect((await request(app).delete(`/api/roles/${await idDe('asistente')}`).set('Authorization', SUPER)).status).toBe(400)
 
-    const c = await request(app).post('/api/roles').set('Authorization', SUPER).send({ nombre: 'Temporal', permisos: { media: { ver: true } } })
+    const c = await request(app).post('/api/roles').set('Authorization', SUPER).send({ nombre: 'Temporal', permisos: { noticias: { ver: true } } })
     const id = c.body.data.id
     // falso positivo de LIKE: 'temporal_x' no es 'temporal'
     await mem.execute(`INSERT INTO users (id, email, password_hash, roles) VALUES (20, 't@x', 'h', '["temporal_x"]')`)
@@ -172,7 +172,7 @@ describe('roles', () => {
     expect((await request(app).delete(`/api/roles/${id}`).set('Authorization', SUPER)).status).toBe(409)
 
     await mem.execute(`DELETE FROM users WHERE id = 21`)
-    expect((await permisos.permisosDeRoles(['temporal'])).media?.ver).toBe(true)
+    expect((await permisos.permisosDeRoles(['temporal'])).noticias?.ver).toBe(true)
     expect((await request(app).delete(`/api/roles/${id}`).set('Authorization', SUPER)).status).toBe(200)
     expect(await permisos.permisosDeRoles(['temporal'])).toEqual({}) // caché invalidada
     expect((await mem.execute({ sql: 'SELECT COUNT(*) AS n FROM rol_permisos WHERE id_rol = ?', args: [id] })).rows[0].n).toBe(0)

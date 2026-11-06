@@ -24,7 +24,7 @@ const permiso = (seccion: string, accion?: Accion) => [requireAuth, requirePermi
 // Normativas: la sección sale de la categoría (la del cuerpo al crear, la guardada al editar/eliminar).
 // «Otros», sin categoría, desconocida o sin registro: solo admin/super_admin (nunca se abre).
 const SECCION_NORMATIVA: Record<string, string> = {
-  'Leyes y Decretos': 'leyes', 'Reglamentos y Estatutos': 'reglamentos', 'Normas y Procedimientos': 'normas', 'Actas de Asamblea': 'actas',
+  'Leyes y Decretos': 'marco_legal', 'Reglamentos y Estatutos': 'marco_legal', 'Normas y Procedimientos': 'marco_legal', 'Actas de Asamblea': 'marco_legal',
 };
 const soloAdmin = requireRole('admin', 'super_admin');
 const guardadas = async (ids: unknown): Promise<unknown[]> => {

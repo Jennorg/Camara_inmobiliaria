@@ -49,7 +49,7 @@ for (const [nombre, acc, si] of [['solo «ver»', VER, false], ['las cuatro acci
     });
 
     test('leyes: nuevo, editar, eliminar y selección', async ({ page }) => {
-      await sesion(page, { leyes: acc }, 'leyes', 'LEY UNO');
+      await sesion(page, { marco_legal: acc }, 'leyes', 'LEY UNO');
       await presente(page.getByRole('button', { name: /Nuevo Documento/ }), si);
       await presente(page.getByTitle('Editar documento'), si);
       await presente(page.getByTitle('Eliminar documento'), si);
@@ -76,11 +76,11 @@ for (const [nombre, acc, si] of [['solo «ver»', VER, false], ['las cuatro acci
   });
 }
 
-test('el permiso de otra categoría no habilita controles: leyes completo, reglamentos solo ver', async ({ page }) => {
-  await sesion(page, { leyes: TODO, reglamentos: VER }, 'reglamentos', 'REGLAMENTO UNO');
-  await expect(page.getByRole('button', { name: /Nuevo Documento/ })).toHaveCount(0);
-  await expect(page.getByTitle('Editar documento')).toHaveCount(0);
-  await expect(page.getByTitle('Eliminar documento')).toHaveCount(0);
+test('un solo permiso de Marco Legal cubre todas sus categorías (reglamentos)', async ({ page }) => {
+  await sesion(page, { marco_legal: TODO }, 'reglamentos', 'REGLAMENTO UNO');
+  await expect(page.getByRole('button', { name: /Nuevo Documento/ })).toBeVisible();
+  await expect(page.getByTitle('Editar documento').first()).toBeVisible();
+  await expect(page.getByTitle('Eliminar documento').first()).toBeVisible();
 });
 
 test('eliminar depende de «eliminar», no de «editar» (noticias)', async ({ page }) => {
