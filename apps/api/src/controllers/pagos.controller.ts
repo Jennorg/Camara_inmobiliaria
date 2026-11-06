@@ -764,7 +764,7 @@ export const getCobrosAfiliacion = async (req: Request, res: Response): Promise<
   }
 };
 
-/** PATCH /api/pagos/admin/:id/anular  { motivo } — solo superadmin */
+/** PATCH /api/pagos/admin/:id/anular  { motivo } — admin y asistentes */
 export const adminAnularPago = async (req: Request, res: Response): Promise<void> => {
   try {
     const idPago = Number(req.params.id);
@@ -782,7 +782,7 @@ export const adminAnularPago = async (req: Request, res: Response): Promise<void
   }
 };
 
-/** PUT /api/pagos/admin/solvencia/afiliado/:idAfiliado/mes  { periodo: 'AAAA-MM', pagado: boolean } — solo superadmin */
+/** PUT /api/pagos/admin/solvencia/afiliado/:idAfiliado/mes  { periodo: 'AAAA-MM', pagado: boolean } — admin y asistentes */
 export const adminMarcarMesSolvencia = async (req: Request, res: Response): Promise<void> => {
   try {
     const idAfiliado = Number(req.params.idAfiliado);

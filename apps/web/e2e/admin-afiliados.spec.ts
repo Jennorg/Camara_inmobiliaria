@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupAdminAuth, setupAdminMocks } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 test.describe('Módulo Administrativo: Gestión de Afiliados y Solicitudes de Cambio (E2E)', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,11 +9,11 @@ test.describe('Módulo Administrativo: Gestión de Afiliados y Solicitudes de Ca
   });
 
   test('debe navegar al panel de Afiliados y visualizar el listado con sus estatus de solvencia', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
     // Navegar a Afiliados mediante el sidebar visible
-    const navAfiliados = page.locator('[data-testid="aside-nav-afiliados"]:visible');
+    const navAfiliados = navPanel(page, 'afiliados');
     await expect(navAfiliados).toBeVisible();
     await navAfiliados.click();
 
@@ -27,10 +28,10 @@ test.describe('Módulo Administrativo: Gestión de Afiliados y Solicitudes de Ca
   });
 
   test('debe permitir filtrar afiliados por estado y tipo de membresía', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navAfiliados = page.locator('[data-testid="aside-nav-afiliados"]:visible');
+    const navAfiliados = navPanel(page, 'afiliados');
     await navAfiliados.click();
 
     // Filtros de estatus (Todos / Solventes / No Solventes)
@@ -42,11 +43,11 @@ test.describe('Módulo Administrativo: Gestión de Afiliados y Solicitudes de Ca
   });
 
   test('debe navegar a la sección de Solicitudes de Cambio de datos', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
     // Clic en Solicitudes de Cambio en el menú lateral
-    const navSolicitudes = page.locator('[data-testid="aside-nav-solicitudes_cambio"]:visible');
+    const navSolicitudes = navPanel(page, 'solicitudes_cambio');
     await expect(navSolicitudes).toBeVisible();
     await navSolicitudes.click();
 

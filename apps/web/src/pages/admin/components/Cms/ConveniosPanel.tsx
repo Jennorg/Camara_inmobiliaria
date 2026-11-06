@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useAuth } from '@/context/AuthContext'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { Edit, Upload, CheckCircle, Trash2, Globe, ArrowLeft, Loader2, Handshake } from 'lucide-react'
 import { sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
@@ -13,6 +14,11 @@ interface ConvenioItem {
 }
 
 export const ConveniosPanel = () => {
+  // Convenios del CMS: sección «config» (no «formacion»: el staff la tiene por academia y el CMS es solo admin)
+  const { puede } = useAuth()
+  const puedeCrear = puede('config', 'crear')
+  const puedeEditar = puede('config', 'editar')
+  const puedeEliminar = puede('config', 'eliminar')
   const [items, setItems] = useState<ConvenioItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
@@ -94,6 +100,7 @@ export const ConveniosPanel = () => {
   }, [selectedId, items])
 
   const openEdit = (item: ConvenioItem) => { 
+    if (!puedeEditar) return
     setSelectedId(item.id); 
     setForm({ 
       nombre: item.nombre, 
@@ -105,6 +112,7 @@ export const ConveniosPanel = () => {
   }
 
   const openNew = () => { 
+    if (!puedeCrear) return
     setSelectedId('new'); 
     setForm({ nombre: '', descripcion: '', logo_url: '', link_web: '' }); 
     setIsEditing(true) 
@@ -297,7 +305,7 @@ export const ConveniosPanel = () => {
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </BtnPrimary>
-          {selectedId && selectedId !== 'new' && (
+          {puedeEliminar && selectedId && selectedId !== 'new' && (
             <BtnDanger
               onClick={() => remove(selectedId)}
               className="!rounded-xl !py-3 flex-1 bg-red-50 text-red-500 hover:bg-red-100"
@@ -379,7 +387,7 @@ export const ConveniosPanel = () => {
         searchPlaceholder="Buscar por nombre o descripción..."
         viewMode={viewMode}
         onViewModeChange={changeViewMode}
-        actionButtonText="Nuevo Convenio"
+        actionButtonText={puedeCrear ? 'Nuevo Convenio' : undefined}
         onActionClick={openNew}
       />
 
@@ -407,24 +415,24 @@ export const ConveniosPanel = () => {
                   )}
 
                   {/* Acciones flotantes en la esquina superior */}
-                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 shadow-sm">
-                    <button
+                  {(puedeEditar || puedeEliminar) && <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200/80 shadow-sm">
+                    {puedeEditar && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); openEdit(item); }}
                       className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                       title="Editar convenio"
                     >
                       <Edit size={14} />
-                    </button>
-                    <button
+                    </button>}
+                    {puedeEliminar && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); remove(item.id); }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                       title="Eliminar convenio"
                     >
                       <Trash2 size={14} />
-                    </button>
-                  </div>
+                    </button>}
+                  </div>}
                 </div>
 
                 <div className="space-y-1 px-1">
@@ -481,8 +489,8 @@ export const ConveniosPanel = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Editar"><Edit size={14} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); remove(item.id); }} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={14} /></button>
+                  {puedeEditar && <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Editar"><Edit size={14} /></button>}
+                  {puedeEliminar && <button onClick={(e) => { e.stopPropagation(); remove(item.id); }} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={14} /></button>}
                 </div>
               </div>
             )}
@@ -504,8 +512,8 @@ export const ConveniosPanel = () => {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                     <BtnSecondary onClick={() => openEdit(item)} className="!py-2 px-4 !text-xs">Editar</BtnSecondary>
-                     <BtnDanger onClick={() => remove(item.id)} className="!py-2 px-4 !text-xs">Eliminar</BtnDanger>
+                     {puedeEditar && <BtnSecondary onClick={() => openEdit(item)} className="!py-2 px-4 !text-xs">Editar</BtnSecondary>}
+                     {puedeEliminar && <BtnDanger onClick={() => remove(item.id)} className="!py-2 px-4 !text-xs">Eliminar</BtnDanger>}
                   </div>
                 </div>
 

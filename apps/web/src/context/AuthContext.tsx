@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_URL } from '@/config/env'
+import { puede as puedeEn, tieneAlgunVer, type Accion, type MapaPermisos, type RolLegacy } from '@/lib/permisos'
 
 // ── Interceptor de Fetch Global (Manejo de Access + Refresh Tokens) ────────────
 
@@ -102,7 +103,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Res
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+type BaseRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+// Los roles personalizados tienen cualquier clave; se conserva el autocompletado de los conocidos.
+export type UserRole = BaseRole | (string & {})
 
 export interface AuthUser {
   id: number
@@ -127,6 +130,8 @@ export interface AuthUser {
   nivel_profesional?: string
   es_corredor_inmobiliario?: boolean
   estatus?: string
+  /** Permisos por sección del panel admin (unión de los roles del usuario). */
+  permisos?: MapaPermisos
 }
 
 interface AuthContextValue {
@@ -144,6 +149,9 @@ interface AuthContextValue {
   isAsistente: boolean
   isAfiliado: boolean
   isEstudiante: boolean
+  /** super_admin o `ver` en al menos una sección: ve el grupo de staff en /panel. */
+  tienePanelAdmin: boolean
+  puede: (seccion: string, accion: Accion) => boolean
   refreshUser: () => Promise<void>
   /** Impersonación */
   isImpersonating: boolean
@@ -175,20 +183,13 @@ function normalizeUser(rawUser: any): AuthUser {
     ? rawUser.roles
     : [rawUser.rol ?? 'afiliado']
 
-  const isStaffRoleName = (r: string) => {
-    const norm = r.toLowerCase().trim().replace(/[\s_-]+/g, '_')
-    return ['asistente', 'administrativo', 'secretaria', 'secretario', 'personal', 'personal_admin', 'personal_administrativo'].includes(norm)
-  }
-
   const rol: UserRole = roles.includes('super_admin')
     ? 'super_admin'
     : roles.includes('admin')
       ? 'admin'
-      : roles.some(isStaffRoleName)
-        ? 'asistente'
-        : roles.includes('estudiante')
-          ? 'estudiante'
-          : 'afiliado'
+      : roles.includes('estudiante')
+        ? 'estudiante'
+        : 'afiliado'
 
   return { 
     ...rawUser, 
@@ -325,19 +326,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearOriginalAdminStorage()
     setOriginalAdmin(null)
 
-    // Selector general si tiene múltiples roles al panel unificado
-    if (newUser.roles.length > 1) {
-      navigate('/panel')
-      return
-    }
-
-    // Redirección directa si solo tiene 1 rol
-    if (newUser.rol === 'admin') {
-      navigate('/admin')
-      return
-    }
-
-    if (newUser.rol === 'estudiante') {
+    // Todos entran a /panel; su navegación sale de los roles y de la matriz de permisos.
+    if (newUser.roles.length <= 1 && newUser.rol === 'estudiante') {
       navigate('/panel?tab=formacion')
       return
     }
@@ -450,10 +440,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdminVal      = (user?.roles?.includes('admin') || user?.roles?.includes('super_admin')) ?? false
   const isSuperAdminVal = user?.roles?.includes('super_admin') ?? false
-  const staffRoleNames  = ['asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
-  const isAsistenteVal  = (user?.roles?.some(r => staffRoleNames.includes(r.toLowerCase().trim().replace(/[\s_-]+/g, '_')))) ?? false
+  // Los nombres heredados (asistente, secretaria…) ya no son personal: solo cuenta la matriz de permisos.
+  const isAsistenteVal  = false
   const isAfiliadoVal   = user?.roles?.includes('afiliado') ?? false
   const isEstudianteVal = user?.roles?.includes('estudiante') ?? false
+
+  const rolLegacy: RolLegacy = isAdminVal ? 'admin' : null
+  const tienePanelAdminVal = isSuperAdminVal || tieneAlgunVer(user?.permisos, rolLegacy)
+  const puede = useCallback(
+    (seccion: string, accion: Accion) => puedeEn(user?.permisos, seccion, accion, isSuperAdminVal, rolLegacy),
+    [user, isSuperAdminVal, rolLegacy],
+  )
 
   const isImpersonatingVal = Boolean(originalAdmin && user && user.id !== originalAdmin.id)
 
@@ -467,6 +464,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAsistente: isAsistenteVal,
     isAfiliado: isAfiliadoVal,
     isEstudiante: isEstudianteVal,
+    tienePanelAdmin: tienePanelAdminVal,
+    puede,
     refreshUser,
     isImpersonating: isImpersonatingVal,
     originalAdmin: isImpersonatingVal ? originalAdmin : null,
@@ -475,7 +474,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }), [
     user, token, authHeaders, isLoading, login, logout,
     hasRole, isAdminVal, isSuperAdminVal, isAsistenteVal,
-    isAfiliadoVal, isEstudianteVal, refreshUser,
+    isAfiliadoVal, isEstudianteVal, tienePanelAdminVal, puede, refreshUser,
     isImpersonatingVal, originalAdmin, impersonateUser, stopImpersonation
   ])
 

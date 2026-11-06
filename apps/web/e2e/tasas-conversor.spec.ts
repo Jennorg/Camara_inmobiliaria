@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navPanel } from './helpers/panel-nav';
 
 test.describe('Módulo Financiero - Referencias y Conversor Automático', () => {
   test.beforeEach(async ({ page }) => {
@@ -133,11 +134,11 @@ test.describe('Módulo Financiero - Referencias y Conversor Automático', () => 
   });
 
   test('debe navegar al módulo de Finanzas y visualizar la pestaña Tasas & Conversor con cotizaciones', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
     // Buscar y hacer clic en la sección de Finanzas en el sidebar
-    const btnFinanzas = page.locator('[data-testid="aside-nav-finanzas"]:visible');
+    const btnFinanzas = navPanel(page, 'finanzas');
     await expect(btnFinanzas).toBeVisible();
     await btnFinanzas.click();
 
@@ -161,10 +162,10 @@ test.describe('Módulo Financiero - Referencias y Conversor Automático', () => 
   });
 
   test('debe realizar conversiones interactivas de Dólares a Bolívares y USDT a Bolívares', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const btnFinanzas = page.locator('[data-testid="aside-nav-finanzas"]:visible');
+    const btnFinanzas = navPanel(page, 'finanzas');
     await expect(btnFinanzas).toBeVisible();
     await btnFinanzas.click();
 
@@ -191,10 +192,10 @@ test.describe('Módulo Financiero - Referencias y Conversor Automático', () => 
   });
 
   test('debe aplicar atajos de aranceles rápidos ($5, $25, $30)', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const btnFinanzas = page.locator('[data-testid="aside-nav-finanzas"]:visible');
+    const btnFinanzas = navPanel(page, 'finanzas');
     await expect(btnFinanzas).toBeVisible();
     await btnFinanzas.click();
 

@@ -25,7 +25,8 @@ import {
   Filter, 
   X,
   CreditCard,
-  Ban
+  Ban,
+  GraduationCap,
 } from 'lucide-react'
 import SolvenciaPanel from './SolvenciaPanel'
 import { API_URL } from '@/config/env'
@@ -41,7 +42,7 @@ import Paginacion, { type PaginacionDTO } from '@/pages/admin/components/Finance
 import ModalRegistrarCobro from '@/pages/admin/components/Finance/ModalRegistrarCobro'
 import ReferenciasTasasPanel from '@/pages/admin/components/Finance/ReferenciasTasasPanel'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
-import { CuentasPorCobrar, EgresosPorConcepto, IngresosPorConcepto, descargarXlsx } from './ReportesControl'
+import { CuentasPorCobrar, EgresosPorConcepto, IngresosPorCohorte, IngresosPorConcepto, descargarXlsx } from './ReportesControl'
 import ModalReporte from '@/pages/admin/components/Finance/ModalReporte'
 import type { PagoDTO } from '@/types/pagos'
 import { BinanceIcon } from '@/components/icons/BinanceIcon'
@@ -127,7 +128,9 @@ const fmtDate = (s: string) => {
 }
 
 export default function FinancePanel() {
-  const { authHeaders, isSuperAdmin } = useAuth()
+  const { authHeaders, puede } = useAuth()
+  const puedeCrear = puede('finanzas', 'crear')
+  const puedeEditar = puede('finanzas', 'editar')
 
   const [tab, setTab] = useState<FinanceTab>('dashboard')
   const [loading, setLoading] = useState(false)
@@ -164,6 +167,7 @@ export default function FinancePanel() {
   const [modalCobroOpen, setModalCobroOpen] = useState(false)
   const [modalIngresosOpen, setModalIngresosOpen] = useState(false)
   const [modalEgresosOpen, setModalEgresosOpen] = useState(false)
+  const [modalCohortesOpen, setModalCohortesOpen] = useState(false)
   const [modalCuentasOpen, setModalCuentasOpen] = useState(false)
   const [modalArancelesOpen, setModalArancelesOpen] = useState(false)
   
@@ -296,7 +300,7 @@ export default function FinancePanel() {
   useEffect(() => { if (tab === 'libro_venta') fetchLibroVentas() }, [tab, fetchLibroVentas])
   useEffect(() => { if (tab === 'libro_compra') fetchLibroCompras() }, [tab, fetchLibroCompras])
 
-  // Anular un pago del libro de ventas (solo superadmin)
+  // Anular un pago del libro de ventas
   const handleAnularPago = async (idPago: number, recibo: string) => {
     const r = await Swal.fire({
       title: `Anular pago ${recibo}`,
@@ -467,6 +471,7 @@ export default function FinancePanel() {
             <DollarSign size={14} className="text-emerald-600" />
             Aranceles
           </button>
+          {puedeCrear && <>
           <button
             onClick={() => setModalCobroOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm"
@@ -481,6 +486,7 @@ export default function FinancePanel() {
             <Plus size={15} aria-hidden="true" />
             Registrar compra / gasto
           </button>
+          </>}
         </div>
       </div>
 
@@ -929,6 +935,13 @@ export default function FinancePanel() {
               </select>
 
               <button
+                onClick={() => setModalCohortesOpen(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <GraduationCap size={13} aria-hidden="true" />
+                Ingresos por cohorte
+              </button>
+              <button
                 onClick={() => setModalIngresosOpen(true)}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-sm"
               >
@@ -998,10 +1011,10 @@ export default function FinancePanel() {
                           {fmt(item.monto_usd)}
                         </td>
                         <td className="py-3 px-4 text-center">
-                          {item.id_pago && isSuperAdmin && (
+                          {item.id_pago && puedeEditar && (
                             <button
                               onClick={() => handleAnularPago(item.id_pago!, item.documento)}
-                              title="Anular pago (superadmin)"
+                              title="Anular pago"
                               aria-label={`Anular pago ${item.documento}`}
                               className="mr-1 p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors inline-flex align-middle"
                             >
@@ -1089,13 +1102,13 @@ export default function FinancePanel() {
                 <FileSpreadsheet size={13} className="text-emerald-600" />
                 Excel
               </button>
-              <button
+              {puedeCrear && <button
                 onClick={() => setModalGastoOpen(true)}
                 className="px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 <Plus size={13} aria-hidden="true" />
                 Nuevo gasto
-              </button>
+              </button>}
             </div>
           </div>
 
@@ -1166,10 +1179,11 @@ export default function FinancePanel() {
                             )}
                           </td>
                           <td className="py-3 px-4 text-center">
-                            {!esAnulado && (
+                            {!esAnulado && puedeEditar && (
                               <button
                                 onClick={() => handleAnularGasto(item.id_movimiento)}
                                 title="Anular Gasto"
+                                aria-label={`Anular gasto ${item.nro_factura_documento}`}
                                 className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               >
                                 <Ban size={14} />
@@ -1231,6 +1245,11 @@ export default function FinancePanel() {
       <ModalReporte open={modalIngresosOpen} onClose={() => setModalIngresosOpen(false)} icono={<TrendingUp className="w-5 h-5" aria-hidden="true" />}
         titulo="Ingresos por concepto" subtitulo={`Ingresos verificados de ${selectedYear}, por mes`}>
         <IngresosPorConcepto anio={selectedYear} />
+      </ModalReporte>
+
+      <ModalReporte open={modalCohortesOpen} onClose={() => setModalCohortesOpen(false)} icono={<GraduationCap className="w-5 h-5" aria-hidden="true" />}
+        titulo="Ingresos por cohorte" subtitulo="Ingresos verificados de CIBIR, PREANI, PEGI y PADI, por cohorte">
+        <IngresosPorCohorte />
       </ModalReporte>
 
       <ModalReporte open={modalEgresosOpen} onClose={() => setModalEgresosOpen(false)} icono={<TrendingDown className="w-5 h-5" aria-hidden="true" />}

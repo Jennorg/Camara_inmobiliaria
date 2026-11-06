@@ -19,7 +19,8 @@ import {
   Building2,
   Briefcase,
   User,
-  BookUser
+  BookUser,
+  UserPlus
 } from 'lucide-react'
 
 function getTipoAfiliadoMeta(tipo?: string | null, rol?: string) {
@@ -85,11 +86,13 @@ const ic = 'shrink-0 opacity-95'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { toast } from 'sonner'
+import { AsignarRolesModal, ChipsRoles, NuevoStaffModal, etiquetaRol, tieneRolCustom, type RolCatalogo } from './RolesUsuario'
 
 interface SystemUser {
   id: number
   email: string
   rol: 'admin' | 'afiliado' | 'super_admin' | 'asistente' | 'administrativo'
+  roles?: string[]
   activo: number
   creado_en: string
   id_afiliado: number | null
@@ -108,11 +111,14 @@ interface SystemUser {
   estatus_afiliado?: string | null
 }
 
-type FiltroRol    = 'todos' | 'admin' | 'afiliado' | 'super_admin' | 'asistente'
+type FiltroRol    = string // 'todos', un rol base o la clave de un rol creado
 type FiltroActivo = 'todos' | 'activo' | 'inactivo'
 
 export default function UsersPanel() {
-  const { token, user, isSuperAdmin, isAdmin, impersonateUser } = useAuth()
+  const { token, user, isSuperAdmin, isAdmin, impersonateUser, puede } = useAuth()
+  const puedeEditar = puede('users', 'editar')
+  const puedeEliminar = puede('users', 'eliminar')
+  const sinPermiso = puedeEditar ? undefined : 'Sin permiso para editar'
   const [users, setUsers]       = useState<SystemUser[]>([])
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
@@ -166,6 +172,39 @@ export default function UsersPanel() {
 
   useEffect(() => { load() }, [load])
 
+  // ── Roles (solo super_admin) ────────────────────────────────────────────────
+  const [catalogoRoles, setCatalogoRoles] = useState<RolCatalogo[]>([])
+  // Roles que crea el super_admin (admin y super_admin se manejan con el selector clásico)
+  const rolesCreados = catalogoRoles.filter(r => !['admin', 'super_admin'].includes(r.clave))
+  const creadosDe = (u: { roles?: string[] }) => (u.roles ?? []).filter(c => rolesCreados.some(r => r.clave === c))
+  // Selector de rol en la lista: un solo rol creado como máximo (varios se editan con el botón «Roles»)
+  const puedeSelectorRol = (u: { id: number; roles?: string[] }) =>
+    isSuperAdmin && u.id !== user?.id && (!tieneRolCustom(u.roles) || creadosDe(u).length === 1)
+  const valorRol = (u: { rol: string; roles?: string[] }) =>
+    creadosDe(u)[0] ?? (['admin', 'super_admin', 'afiliado'].includes(u.rol) ? u.rol : 'afiliado')
+  const [rolesDe, setRolesDe] = useState<SystemUser | null>(null)
+  const [nuevoStaff, setNuevoStaff] = useState(false)
+  // Sin catálogo cargado no se puede editar: el modal enviaría una lista incompleta y borraría roles.
+  const [estadoCatalogo, setEstadoCatalogo] = useState<'cargando' | 'ok' | 'error'>('cargando')
+  const cargarCatalogo = useCallback(async () => {
+    setEstadoCatalogo('cargando')
+    try {
+      const r = await fetch(`${API_URL}/api/roles`, { headers: authHeaders })
+      const d = await r.json()
+      if (!r.ok || !d.success) throw new Error()
+      setCatalogoRoles(d.data)
+      setEstadoCatalogo('ok')
+    } catch {
+      setEstadoCatalogo('error')
+    }
+  }, [authHeaders])
+  useEffect(() => { if (isSuperAdmin) cargarCatalogo() }, [isSuperAdmin, cargarCatalogo])
+  const motivoCatalogo = estadoCatalogo === 'cargando' ? 'Cargando roles…' : estadoCatalogo === 'error' ? 'No se pudieron cargar los roles' : ''
+  const motivoSinRoles = (u: SystemUser) =>
+    u.id === user?.id ? 'No puedes cambiar tus propios roles'
+      : u.roles?.includes('super_admin') || u.rol === 'super_admin' ? 'Los roles de un súper administrador no se cambian aquí'
+      : motivoCatalogo
+
   // ── Pre-procesado de llaves de búsqueda ─────────────────────────────────────
   const normalizedUsers = useMemo(() => {
     return users.map(u => {
@@ -204,7 +243,10 @@ export default function UsersPanel() {
     const terms = q.split(/\s+/).filter(Boolean)
 
     return normalizedUsers.filter(u => {
-      if (filtroRol !== 'todos' && u.rol !== filtroRol) return false
+      if (filtroRol !== 'todos') {
+        const esBase = ['afiliado', 'admin', 'super_admin'].includes(filtroRol)
+        if (esBase ? u.rol !== filtroRol : !(u.roles ?? []).includes(filtroRol)) return false
+      }
       if (filtroEtapa !== 'todas' && u.estatus_afiliado !== filtroEtapa) return false
       if (filtroActivo === 'activo'   && !u.activo)   return false
       if (filtroActivo === 'inactivo' &&  u.activo)   return false
@@ -270,15 +312,19 @@ export default function UsersPanel() {
     load()
   }
 
-  const handleRoleChange = async (u: SystemUser, newRol: 'admin' | 'afiliado' | 'super_admin') => {
+  const handleRoleChange = async (u: SystemUser, newRol: string) => {
     if (saving) return
     setSaving(true)
     try {
-      const r = await fetch(`${API_URL}/api/users/${u.id}`, {
-        method: 'PATCH',
-        headers: authHeaders,
-        body: JSON.stringify({ rol: newRol }),
-      })
+      const esCreado = rolesCreados.some(r => r.clave === newRol)
+      // Un admin/super_admin conserva ese nivel al asignar roles: primero baja a afiliado y luego asigna el rol creado
+      if (esCreado && (u.rol === 'admin' || u.rol === 'super_admin')) {
+        const b = await fetch(`${API_URL}/api/users/${u.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ rol: 'afiliado' }) })
+        if (!b.ok) throw new Error(`HTTP error! status: ${b.status}`)
+      }
+      const r = esCreado
+        ? await fetch(`${API_URL}/api/roles/usuarios/${u.id}`, { method: 'PUT', headers: authHeaders, body: JSON.stringify({ roles: [newRol] }) })
+        : await fetch(`${API_URL}/api/users/${u.id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ rol: newRol }) })
       if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`)
       const d = await r.json()
       if (d.success) {
@@ -433,10 +479,36 @@ export default function UsersPanel() {
           >
             <RefreshCw size={16} strokeWidth={2} className={ic} /> Actualizar
           </button>
+          {isSuperAdmin && (
+            <button
+              type='button'
+              onClick={() => setNuevoStaff(true)}
+              disabled={!!motivoCatalogo}
+              aria-describedby={motivoCatalogo ? 'roles-catalogo-estado' : undefined}
+              className='flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1'
+            >
+              <UserPlus size={16} strokeWidth={2} className={ic} /> Nuevo usuario de staff
+            </button>
+          )}
         </div>
       </div>
+      {isSuperAdmin && motivoCatalogo && (
+        <p id='roles-catalogo-estado' role='status' className='flex items-center justify-end gap-2 text-xs font-semibold text-slate-500'>
+          {motivoCatalogo}{estadoCatalogo === 'error' && '. No se pueden asignar roles ni crear usuarios de staff.'}
+          {estadoCatalogo === 'error' && (
+            <button type='button' onClick={cargarCatalogo} className='px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'>
+              Reintentar
+            </button>
+          )}
+        </p>
+      )}
 
-
+      {rolesDe && (
+        <AsignarRolesModal usuario={rolesDe} catalogo={catalogoRoles} onClose={() => setRolesDe(null)} onSaved={load} />
+      )}
+      {nuevoStaff && (
+        <NuevoStaffModal catalogo={catalogoRoles} onClose={() => setNuevoStaff(false)} onSaved={load} />
+      )}
 
       {/* Reset password modal */}
       {resettingUser && (
@@ -613,7 +685,7 @@ export default function UsersPanel() {
           >
             <option value='todos'>Todos los roles</option>
             <option value='afiliado'>Afiliado</option>
-            <option value='asistente'>Personal Admin</option>
+            {rolesCreados.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
             <option value='admin'>Admin</option>
             <option value='super_admin'>Super Admin</option>
           </select>
@@ -728,7 +800,8 @@ export default function UsersPanel() {
                               <select
                                 value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
                                 onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
-                                disabled={updatingEmailId === u.id}
+                                disabled={updatingEmailId === u.id || !puedeEditar}
+                                title={sinPermiso}
                                 className='appearance-none text-sm font-semibold text-slate-700 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 rounded-sm py-0.5 pl-1.5 -ml-1.5 pr-6 cursor-pointer max-w-[240px] truncate hover:bg-slate-100 hover:text-slate-900 transition-colors'
                               >
                                 <option value='personal' className='bg-white text-slate-800 font-semibold'>
@@ -831,10 +904,10 @@ export default function UsersPanel() {
                           </p>
                         </td>
                       <td className='px-5 py-4'>
-                        {isSuperAdmin && u.id !== user?.id ? (
+                        {puedeSelectorRol(u) ? (
                           <div className='relative inline-flex items-center group/select'>
                             <select
-                              value={u.rol}
+                              value={valorRol(u)}
                               onChange={e => handleRoleChange(u, e.target.value as any)}
                               disabled={saving}
                               className={`appearance-none inline-flex items-center gap-1.5 pl-3 pr-8 py-1.5 rounded-xl text-xs font-bold border cursor-pointer focus:outline-none focus:ring-4 transition-colors ${
@@ -848,7 +921,7 @@ export default function UsersPanel() {
                               }`}
                             >
                               <option value='afiliado'>Afiliado</option>
-                              <option value='asistente'>Personal Admin</option>
+                              {rolesCreados.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
                               <option value='admin'>Admin</option>
                               <option value='super_admin'>Super Admin</option>
                             </select>
@@ -879,13 +952,16 @@ export default function UsersPanel() {
                             ) : (
                               <UserCircle2 size={14} strokeWidth={2} className='shrink-0 text-emerald-600' />
                             )}
-                            {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
+                            {etiquetaRol(u)}
                           </span>
                         )}
+                        {isSuperAdmin && !(puedeSelectorRol(u) && creadosDe(u).length === 1) && <div><ChipsRoles roles={u.roles} catalogo={catalogoRoles} /></div>}
                       </td>
                       <td className='px-5 py-4'>
                         <button
                           type='button'
+                          disabled={!puedeEditar}
+                          title={sinPermiso}
                           onClick={() => toggleActive(u)}
                           className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition hover:bg-slate-50 ${
                             u.activo ? 'border-emerald-200/80 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/80'
@@ -903,7 +979,7 @@ export default function UsersPanel() {
                       </td>
                       <td className='px-5 py-4 text-right'>
                         <div className='flex justify-end gap-2'>
-                          <button
+                          {puedeEditar && <button
                             type='button'
                             disabled={sendingInvite[u.id]}
                             onClick={() => setUserToInvite(u)}
@@ -916,15 +992,29 @@ export default function UsersPanel() {
                               <Mail size={14} className='shrink-0 text-slate-500' />
                             )}
                             <span>Invitar</span>
-                          </button>
-                          <button
+                          </button>}
+                          {puedeEditar && <button
                             type='button'
                             onClick={() => handleResetClick(u)}
                             className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 transition shadow-sm'
                           >
                             <KeyRound size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
                             Contraseña
-                          </button>
+                          </button>}
+                          {isSuperAdmin && (<>
+                            <button
+                              type='button'
+                              disabled={!!motivoSinRoles(u)}
+                              onClick={() => setRolesDe(u)}
+                              className='inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'
+                              title={motivoSinRoles(u) || 'Asignar roles'}
+                              aria-describedby={motivoSinRoles(u) ? `roles-motivo-${u.id}` : undefined}
+                            >
+                              <ShieldCheck size={14} strokeWidth={2} className='shrink-0 text-slate-500' />
+                              Roles
+                            </button>
+                            {motivoSinRoles(u) && <span id={`roles-motivo-${u.id}`} className='sr-only'>{motivoSinRoles(u)}</span>}
+                          </>)}
                           {(isAdmin || isSuperAdmin) && (
                             <>
                               <button
@@ -941,6 +1031,10 @@ export default function UsersPanel() {
                                 )}
                                 <span>Ingresar</span>
                               </button>
+                            </>
+                          )}
+                          {puedeEliminar && (
+                            <>
                               <button
                                 type='button'
                                 onClick={() => setUserToDelete(u)}
@@ -1052,7 +1146,8 @@ export default function UsersPanel() {
                               <select
                                 value={u.empresa_email && u.email?.trim().toLowerCase() === u.empresa_email?.trim().toLowerCase() ? 'empresa' : 'personal'}
                                 onChange={e => handleEmailTipoChange(u, e.target.value as 'personal' | 'empresa')}
-                                disabled={updatingEmailId === u.id}
+                                disabled={updatingEmailId === u.id || !puedeEditar}
+                                title={sinPermiso}
                                 className='appearance-none text-[11.5px] font-bold text-slate-800 bg-white border border-slate-200 rounded-lg py-1 pl-2 pr-6 cursor-pointer max-w-full truncate hover:border-emerald-400 transition-colors shadow-2xs'
                               >
                                 <option value='personal' className='bg-white text-slate-800 font-semibold'>
@@ -1104,10 +1199,10 @@ export default function UsersPanel() {
                           {/* Rol */}
                           <div className='space-y-0.5 min-w-0'>
                             <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>ROL:</span>
-                            {isSuperAdmin && u.id !== user?.id ? (
+                            {puedeSelectorRol(u) ? (
                               <div className='relative inline-flex items-center group/select max-w-full'>
                                 <select
-                                  value={u.rol}
+                                  value={valorRol(u)}
                                   onChange={e => handleRoleChange(u, e.target.value as any)}
                                   disabled={saving}
                                   className={`appearance-none pl-2 pr-5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer focus:outline-none transition-colors max-w-full truncate ${
@@ -1121,7 +1216,7 @@ export default function UsersPanel() {
                                   }`}
                                 >
                                   <option value='afiliado'>Afiliado</option>
-                                  <option value='asistente'>Personal Admin</option>
+                                  {rolesCreados.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
                                   <option value='admin'>Admin</option>
                                   <option value='super_admin'>Super Admin</option>
                                 </select>
@@ -1143,9 +1238,10 @@ export default function UsersPanel() {
                                     : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                 }`}
                               >
-                                {u.rol === 'super_admin' ? 'Super Admin' : u.rol === 'admin' ? 'Admin' : u.rol === 'asistente' || u.rol === 'administrativo' ? 'Personal Admin' : 'Afiliado'}
+                                {etiquetaRol(u)}
                               </span>
                             )}
+                            {isSuperAdmin && !(puedeSelectorRol(u) && creadosDe(u).length === 1) && <ChipsRoles roles={u.roles} catalogo={catalogoRoles} />}
                           </div>
 
                           {/* Estado Activo / Estatus */}
@@ -1154,7 +1250,9 @@ export default function UsersPanel() {
                             <div className='flex items-center gap-1.5 flex-wrap'>
                               <button
                                 type='button'
-                                onClick={() => toggleActive(u)}
+                                disabled={!puedeEditar}
+                          title={sinPermiso}
+                          onClick={() => toggleActive(u)}
                                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
                                   u.activo ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-200 text-slate-500'
                                 }`}
@@ -1175,7 +1273,7 @@ export default function UsersPanel() {
 
                     {/* Acciones de la Tarjeta */}
                     <div className='flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100'>
-                      <button
+                      {puedeEditar && <button
                         type='button'
                         disabled={sendingInvite[u.id]}
                         onClick={() => setUserToInvite(u)}
@@ -1184,9 +1282,9 @@ export default function UsersPanel() {
                       >
                         {sendingInvite[u.id] ? <Loader2 size={13} className='animate-spin text-emerald-500' /> : <Mail size={13} className='text-slate-500' />}
                         <span>Invitar</span>
-                      </button>
+                      </button>}
 
-                      <button
+                      {puedeEditar && <button
                         type='button'
                         onClick={() => handleResetClick(u)}
                         className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-[11.5px] font-semibold hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer shadow-2xs flex-1'
@@ -1194,7 +1292,22 @@ export default function UsersPanel() {
                       >
                         <KeyRound size={13} className='text-slate-500' />
                         <span>Clave</span>
-                      </button>
+                      </button>}
+
+                      {isSuperAdmin && (<>
+                        <button
+                          type='button'
+                          disabled={!!motivoSinRoles(u)}
+                          onClick={() => setRolesDe(u)}
+                          className='inline-flex items-center justify-center gap-1 py-1.5 px-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-[11.5px] font-semibold hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500'
+                          title={motivoSinRoles(u) || 'Asignar roles'}
+                          aria-describedby={motivoSinRoles(u) ? `roles-motivo-${u.id}` : undefined}
+                        >
+                          <ShieldCheck size={13} className='text-slate-500' />
+                          <span>Roles</span>
+                        </button>
+                        {motivoSinRoles(u) && <span id={`roles-motivo-${u.id}`} className='sr-only'>{motivoSinRoles(u)}</span>}
+                      </>)}
 
                       {(isAdmin || isSuperAdmin) && (
                         <>
@@ -1209,6 +1322,10 @@ export default function UsersPanel() {
                             <span>Ingresar</span>
                           </button>
 
+                        </>
+                      )}
+                      {puedeEliminar && (
+                        <>
                           <button
                             type='button'
                             onClick={() => setUserToDelete(u)}

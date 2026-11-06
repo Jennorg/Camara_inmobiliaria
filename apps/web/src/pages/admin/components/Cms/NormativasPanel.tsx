@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import type { Accion } from '@/lib/permisos'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 
 interface NormativaItem {
@@ -13,7 +15,18 @@ interface NormativaItem {
   activo: boolean | number
 }
 
+// La sección de permisos sale de la categoría (igual que en la API); «Otros» o sin categoría: solo admin/super_admin.
+const SECCION_POR_CATEGORIA: Record<string, string> = {
+  'Leyes y Decretos': 'marco_legal', 'Reglamentos y Estatutos': 'marco_legal', 'Normas y Procedimientos': 'marco_legal', 'Actas de Asamblea': 'marco_legal',
+}
+const CATEGORIAS = ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Otros']
+
 export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) => {
+  const { puede, isAdmin } = useAuth()
+  const can = (categoria: string | null | undefined, accion: Accion) => {
+    const seccion = SECCION_POR_CATEGORIA[categoria ?? '']
+    return seccion ? puede(seccion, accion) : isAdmin
+  }
   const [items, setItems] = useState<NormativaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
@@ -168,7 +181,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   }
 
   const handleDrop = (srcIdx: number, dropIndex: number) => {
-    if (srcIdx === dropIndex || srcIdx < 0 || srcIdx >= filteredItems.length) return
+    if (!puedeReordenar || srcIdx === dropIndex || srcIdx < 0 || srcIdx >= filteredItems.length) return
     const newFiltered = [...filteredItems]
     const [moved] = newFiltered.splice(srcIdx, 1)
     newFiltered.splice(dropIndex, 0, moved)
@@ -189,10 +202,10 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredItems.length) {
+    if (selectedIds.length === eliminables.length) {
       setSelectedIds([])
     } else {
-      setSelectedIds(filteredItems.map(it => it.id))
+      setSelectedIds(eliminables.map(it => it.id))
     }
   }
 
@@ -270,6 +283,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   }
 
   const openEdit = (item: NormativaItem) => {
+    if (!can(item.categoria, 'editar')) return
     setSelectedId(item.id)
     setForm({
       titulo: item.titulo,
@@ -357,6 +371,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
 
   const toggleVisibility = async (item: NormativaItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    if (!can(item.categoria, 'editar')) return
     const newActivo = !(item.activo === 1 || item.activo === true)
     setItems(prev => prev.map(it => String(it.id) === String(item.id) ? { ...it, activo: newActivo } : it))
     try {
@@ -407,6 +422,11 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       (it.categoria && it.categoria.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesTab && matchesSearch
   })
+
+  // Solo lo que el usuario puede borrar se puede marcar; reordenar exige «editar» en todas las categorías visibles.
+  const eliminables = filteredItems.filter(it => can(it.categoria, 'eliminar'))
+  const puedeReordenar = filteredItems.every(it => can(it.categoria, 'editar'))
+  const puedeCrear = fixedCategory ? can(fixedCategory, 'crear') : CATEGORIAS.some(c => can(c, 'crear'))
 
   const formBody = () => (
     <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-colors duration-200 ${
@@ -539,11 +559,8 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               className="w-full text-sm rounded-xl border border-slate-200 px-3 py-3 text-slate-700 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-semibold"
             >
               <option value="">Selecciona una categoría</option>
-              <option value="Leyes y Decretos">Leyes y Decretos</option>
-              <option value="Reglamentos y Estatutos">Reglamentos y Estatutos</option>
-              <option value="Normas y Procedimientos">Normas y Procedimientos</option>
-              <option value="Actas de Asamblea">Actas de Asamblea</option>
-              <option value="Otros">Otros</option>
+              {/* Solo categorías donde puede guardar (la API exige la sección de la categoría) */}
+              {CATEGORIAS.filter(c => c === form.categoria || can(c, selectedId === 'new' ? 'crear' : 'editar')).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </FormField>
         </div>
@@ -557,7 +574,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
         >
           {saving ? 'Guardando cambios...' : 'Confirmar y Guardar'}
         </BtnPrimary>
-        {selectedId && selectedId !== 'new' && (
+        {selectedId && selectedId !== 'new' && can(items.find(it => String(it.id) === String(selectedId))?.categoria, 'eliminar') && (
           <BtnDanger
             onClick={() => {
               const item = items.find(it => String(it.id) === String(selectedId))
@@ -633,7 +650,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
         searchPlaceholder="Buscar por título o categoría..."
         viewMode={viewMode}
         onViewModeChange={changeViewMode}
-        actionButtonText="Nuevo Documento"
+        actionButtonText={puedeCrear ? 'Nuevo Documento' : undefined}
         onActionClick={openNew}
       />
 
@@ -665,17 +682,17 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       )}
 
       {/* Control bar de selección múltiple */}
-      {filteredItems.length > 0 && (
+      {eliminables.length > 0 && (
         <div className="px-4 py-2 bg-slate-50/80 border border-slate-200/60 rounded-2xl flex items-center justify-between gap-3 text-xs">
           <label className="flex items-center gap-2 cursor-pointer select-none font-bold text-slate-600">
             <input
               type="checkbox"
-              checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
+              checked={eliminables.length > 0 && selectedIds.length === eliminables.length}
               onChange={toggleSelectAll}
               className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
             />
             <span>
-              {selectedIds.length === filteredItems.length ? 'Desmarcar todos' : 'Seleccionar todos'} ({selectedIds.length}/{filteredItems.length})
+              {selectedIds.length === eliminables.length ? 'Desmarcar todos' : 'Seleccionar todos'} ({selectedIds.length}/{eliminables.length})
             </span>
           </label>
 
@@ -712,13 +729,14 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                   {/* Top Bar with Selection Checkbox, Category Badge & Visibility Badge */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <input
+                      {can(item.categoria, 'eliminar') && <input
                         type="checkbox"
                         checked={isSelected}
                         onClick={(e) => e.stopPropagation()}
                         onChange={() => toggleSelect(item.id)}
+                        aria-label={`Seleccionar ${item.titulo}`}
                         className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
-                      />
+                      />}
                       <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100/80 shadow-2xs truncate max-w-[150px]">
                         <FileText size={12} className="text-rose-500 shrink-0" strokeWidth={2.5} />
                         <span className="truncate">{item.categoria || 'Normativa'}</span>
@@ -728,12 +746,13 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                     <button
                       type="button"
                       onClick={(e) => toggleVisibility(item, e)}
+                      disabled={!can(item.categoria, 'editar')}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border cursor-pointer transition-colors shrink-0 ${
                         isPublic
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                           : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                       }`}
-                      title={isPublic ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
+                      title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : isPublic ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
                     >
                       {isPublic ? <Eye size={12} /> : <EyeOff size={12} />}
                       <span>{isPublic ? 'Público' : 'Oculto'}</span>
@@ -764,22 +783,22 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                   )}
 
                   <div className="flex items-center gap-1">
-                    <button
+                    {can(item.categoria, 'editar') && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); openEdit(item); }}
                       className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                       title="Editar documento"
                     >
                       <Edit size={14} />
-                    </button>
-                    <button
+                    </button>}
+                    {can(item.categoria, 'eliminar') && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); remove(item); }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                       title="Eliminar documento"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </div>
@@ -802,7 +821,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
               const isPublic = item.activo === 1 || item.activo === true
               return (
                 <div 
-                  draggable
+                  draggable={puedeReordenar}
                   onDragStart={(e) => {
                     e.dataTransfer.setData('text/plain', String(index))
                     e.dataTransfer.effectAllowed = 'move'
@@ -827,20 +846,21 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Grip / Drag & Drop handle */}
-                    <div 
+                    {puedeReordenar && <div 
                       className="p-1 text-slate-300 group-hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 hover:bg-slate-100 rounded-md transition-colors"
                       title="Arrastrar para reordenar"
                     >
                       <GripVertical size={16} />
-                    </div>
+                    </div>}
 
-                    <input
+                    {can(item.categoria, 'eliminar') && <input
                       type="checkbox"
                       checked={selectedIds.includes(item.id)}
                       onClick={(e) => e.stopPropagation()}
                       onChange={() => toggleSelect(item.id)}
+                      aria-label={`Seleccionar ${item.titulo}`}
                       className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
-                    />
+                    />}
 
                     <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500 shrink-0">
                       <FileText size={18} strokeWidth={2.5} />
@@ -858,8 +878,9 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                           <button
                             type="button"
                             onClick={(e) => toggleVisibility(item, e)}
+                      disabled={!can(item.categoria, 'editar')}
                             className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-100 shrink-0 transition-colors cursor-pointer"
-                            title="Clic para ocultar en el portal web"
+                            title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : "Clic para ocultar en el portal web"}
                           >
                             <Eye size={10} /> Público
                           </button>
@@ -867,8 +888,9 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                           <button
                             type="button"
                             onClick={(e) => toggleVisibility(item, e)}
+                      disabled={!can(item.categoria, 'editar')}
                             className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-100 shrink-0 transition-colors cursor-pointer"
-                            title="Clic para mostrar en el portal web"
+                            title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : "Clic para mostrar en el portal web"}
                           >
                             <EyeOff size={10} /> Oculto
                           </button>
@@ -883,22 +905,22 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                   </div>
 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button
+                    {can(item.categoria, 'editar') && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); openEdit(item); }}
                       className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
                       title="Editar documento"
                     >
                       <Edit size={14} />
-                    </button>
-                    <button
+                    </button>}
+                    {can(item.categoria, 'eliminar') && <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); remove(item); }}
                       className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
                       title="Eliminar documento"
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </button>}
                   </div>
                 </div>
               )
@@ -921,18 +943,19 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
                     <button
                       type="button"
                       onClick={(e) => toggleVisibility(item, e)}
+                      disabled={!can(item.categoria, 'editar')}
                       className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-black transition-all cursor-pointer shadow-xs ${
                         item.activo
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                           : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
                       }`}
-                      title={item.activo ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
+                      title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : item.activo ? 'Clic para ocultar en la web' : 'Clic para mostrar en la web'}
                     >
                       {item.activo ? <Eye size={14} /> : <EyeOff size={14} />}
                       <span>{item.activo ? 'Visible en Web' : 'Oculto en Web'}</span>
                     </button>
-                    <BtnSecondary onClick={() => openEdit(item)} className="!py-2 px-4 !text-xs font-bold">Editar</BtnSecondary>
-                    <BtnDanger onClick={() => remove(item)} className="!py-2 px-4 !text-xs font-bold">Eliminar</BtnDanger>
+                    {can(item.categoria, 'editar') && <BtnSecondary onClick={() => openEdit(item)} className="!py-2 px-4 !text-xs font-bold">Editar</BtnSecondary>}
+                    {can(item.categoria, 'eliminar') && <BtnDanger onClick={() => remove(item)} className="!py-2 px-4 !text-xs font-bold">Eliminar</BtnDanger>}
                   </div>
                 </div>
 

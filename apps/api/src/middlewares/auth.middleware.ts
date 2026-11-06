@@ -2,8 +2,12 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { db } from '../lib/db.js'
+import type { Accion } from '../config/secciones.js'
+import { permisosDeRoles, puedePermiso, puedeAlgunPermiso, SECCIONES_AFILIADO } from '../services/permisos.service.js'
 
-export type UserRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+export type BaseRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
+// Admite roles personalizados (tabla roles) sin perder el autocompletado de los base.
+export type UserRole = BaseRole | (string & {})
 
 export interface JwtPayload {
   id: number
@@ -277,7 +281,7 @@ export const enrichUser = async (req: Request, res: Response, next: NextFunction
 /**
  * Middleware de autorización por rol.
  * Usa el array `roles` del JWT.
- * super_admin y admin tienen herencia sobre asistente.
+ * super_admin hereda de admin.
  */
 export const requireRole = (...allowedRoles: UserRole[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -288,26 +292,49 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
 
     const userRoles = req.user.roles ?? [req.user.rol]
 
-    const staffRoles: UserRole[] = ['asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin', 'personal_administrativo']
-
-    // Construir lista efectiva de roles permitidos según jerarquía
+    // Solo coincide con los roles listados (+ super_admin si se lista 'admin'); no hay jerarquía de personal.
     const effectiveAllowed = [...allowedRoles]
     if (allowedRoles.includes('admin') && !effectiveAllowed.includes('super_admin')) {
       effectiveAllowed.push('super_admin')
-    }
-    
-    if (allowedRoles.some(r => staffRoles.includes(r))) {
-      for (const r of staffRoles) {
-        if (!effectiveAllowed.includes(r)) effectiveAllowed.push(r)
-      }
-      if (!effectiveAllowed.includes('admin')) effectiveAllowed.push('admin')
-      if (!effectiveAllowed.includes('super_admin')) effectiveAllowed.push('super_admin')
     }
 
     const hasAccess = userRoles.some(r => effectiveAllowed.includes(r))
 
     if (!hasAccess) {
       res.status(403).json({ success: false, message: 'Acceso denegado: permisos insuficientes' })
+      return
+    }
+    next()
+  }
+}
+
+const ACCION_POR_METODO: Record<string, Accion> = {
+  GET: 'ver', HEAD: 'ver', OPTIONS: 'ver', POST: 'crear', PUT: 'editar', PATCH: 'editar', DELETE: 'eliminar',
+}
+
+/**
+ * Middleware de autorización por casilla (sección × acción) según los roles del usuario.
+ * Sin `accion` se deduce del método HTTP.
+ */
+export const requirePermiso = (seccion: string, accion?: Accion) => requireAlgunPermiso([seccion], accion)
+
+/** Como requirePermiso, pero basta la casilla en cualquiera de las secciones (rutas compartidas entre pantallas). */
+export const requireAlgunPermiso = (secciones: string[], accion?: Accion) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'No autenticado' })
+      return
+    }
+    const acc = accion ?? ACCION_POR_METODO[req.method.toUpperCase()]
+    try {
+      const mapa = await permisosDeRoles(req.user.roles ?? [req.user.rol])
+      if (!acc || !secciones.some(s => mapa[s]?.[acc])) {
+        res.status(403).json({ success: false, message: 'Acceso denegado: permisos insuficientes' })
+        return
+      }
+    } catch (err) {
+      console.error('Error leyendo permisos:', err)
+      res.status(500).json({ success: false, message: 'Error verificando permisos' })
       return
     }
     next()
@@ -322,20 +349,15 @@ export const hasRole = (user: JwtPayload, role: UserRole): boolean => {
 
 export const isSuperAdmin = (user: JwtPayload): boolean => hasRole(user, 'super_admin')
 export const isAdmin      = (user: JwtPayload): boolean => hasRole(user, 'admin') || hasRole(user, 'super_admin')
-export const isAsistente  = (user: JwtPayload): boolean => 
-  hasRole(user, 'asistente') || 
-  hasRole(user, 'administrativo') || 
-  hasRole(user, 'secretario') || 
-  hasRole(user, 'secretaria') || 
-  hasRole(user, 'personal') || 
-  hasRole(user, 'personal_admin') || 
-  hasRole(user, 'personal_administrativo')
-export const isStaff      = (user: JwtPayload): boolean => isAdmin(user) || isAsistente(user)
+// Los nombres heredados (asistente, secretaria, personal…) ya no son personal por sí mismos: son claves de
+// rol personalizado como cualquier otra y sus poderes salen solo de la matriz de permisos (rol_permisos).
+export const isAsistente  = (_user: JwtPayload): boolean => false
+export const isStaff      = (user: JwtPayload): boolean => isAdmin(user)
 export const isAfiliado   = (user: JwtPayload): boolean => hasRole(user, 'afiliado')
 
-/** El personal administrativo accede a cualquier afiliado; el resto, solo al suyo (afiliados.id_user). */
+/** Admin o quien tenga finanzas/afiliados/afiliaciones `ver` en la matriz accede a cualquier afiliado; el resto, solo al suyo (afiliados.id_user). */
 export const puedeAccederAfiliado = async (user: JwtPayload, idAfiliado: number): Promise<boolean> => {
-  if (isStaff(user)) return true
+  if (isStaff(user) || await puedePermiso(user, 'finanzas', 'ver') || await puedeAlgunPermiso(user, SECCIONES_AFILIADO, 'ver')) return true
   const r = await db.execute({ sql: `SELECT 1 FROM afiliados WHERE id_afiliado = ? AND id_user = ? AND eliminado_en IS NULL`, args: [idAfiliado, user.id] })
   return r.rows.length > 0
 }

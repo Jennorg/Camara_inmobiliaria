@@ -219,6 +219,16 @@ export async function calcularMontoFormalizacion(tipoAfiliado: string = 'Natural
   };
 }
 
+/**
+ * Lo que se cobra al entrar al CIBIR: el arancel del curso MÁS la cuota de inscripción y la primera cuota de sostenimiento
+ * (esas dos se suman, no se descuentan del arancel).
+ */
+export async function calcularMontoCibir(tipoAfiliado: string = 'Natural') {
+  const [aranceles, formalizacion] = await Promise.all([getAranceles(), calcularMontoFormalizacion(tipoAfiliado)]);
+  const cibir = Number((aranceles.find((x: any) => x.codigo === 'curso_cibir') as any)?.monto_usd ?? 0);
+  return { cibir, inscripcion: formalizacion.cuotaInscripcion, mensualidad: formalizacion.primeraMensualidad, total: cibir + formalizacion.totalUSD };
+}
+
 /** Tolerancia (USD) para el redondeo al convertir bolívares con la tasa del día */
 const TOLERANCIA_USD = 0.5;
 
@@ -234,7 +244,11 @@ export async function montoEsperadoUsd(params: { tipo_concepto: string; id_afili
   }
   const aranceles = await getAranceles();
   const monto = (codigo: string) => Number((aranceles.find((x: any) => x.codigo === codigo) as any)?.monto_usd ?? 0);
-  if (params.tipo_concepto === 'curso_cibir') return monto('curso_cibir') || null;
+  if (params.tipo_concepto === 'curso_cibir') {
+    const a = await db.execute({ sql: `SELECT tipo_afiliado FROM afiliados WHERE id_afiliado = ?`, args: [params.id_afiliado] });
+    const { cibir, total } = await calcularMontoCibir(String(a.rows[0]?.tipo_afiliado || 'Natural'));
+    return cibir > 0 ? total : null;
+  }
   if (params.tipo_concepto === 'mensualidad') {
     const meses = Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1));
     return monto('mensualidad_base') * meses || null;
@@ -286,6 +300,23 @@ export async function puedeEntrarACibir(params: { idAfiliado?: number | null; id
   return r.rows.length > 0;
 }
 
+/**
+ * El arancel CIBIR cobrado de una vez incluye la cuota de inscripción y la primera cuota de sostenimiento. Al pasar a
+ * Afiliado, esa primera cuota cubre el mes de afiliación (como lo haría la formalización); si ya pagó la formalización aparte no se duplica.
+ */
+export async function acreditarPrimeraCuotaDelCibir(idAfiliado: number): Promise<void> {
+  const a = await db.execute({ sql: `SELECT tipo_afiliado FROM afiliados WHERE id_afiliado = ?`, args: [idAfiliado] });
+  const { cibir, total } = await calcularMontoCibir(String(a.rows[0]?.tipo_afiliado || 'Natural'));
+  if (cibir <= 0) return;
+  await db.execute({
+    sql: `UPDATE pagos SET periodo = ?2, meses_cubiertos = 1
+          WHERE id_pago = (SELECT id_pago FROM pagos WHERE id_afiliado = ?1 AND tipo_concepto = 'curso_cibir' AND estatus IN ('Verificado', 'Pendiente')
+                             AND eliminado_en IS NULL AND periodo IS NULL AND monto_usd_equivalente + ?4 >= ?3 ORDER BY id_pago LIMIT 1)
+            AND NOT EXISTS (SELECT 1 FROM pagos WHERE id_afiliado = ?1 AND tipo_concepto = 'formalizacion_afiliacion' AND estatus IN ('Verificado', 'Pendiente') AND eliminado_en IS NULL)`,
+    args: [idAfiliado, new Date().toISOString().slice(0, 7), total, TOLERANCIA_USD],
+  });
+}
+
 export type EstadoCobro = 'pagado' | 'por_verificar' | 'pendiente' | 'no_aplica';
 
 /**
@@ -313,7 +344,8 @@ export async function cobrosAfiliacion(idAfiliado: number) {
   };
   const enProceso = ['1_PREINSCRIPCION', '2_EXPEDIENTE', '3_ENTREVISTA', '4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(String(a.estatus));
   const formalizacion = await calcularMontoFormalizacion(String(a.tipo_afiliado || 'Natural'));
-  const cibirMonto = Number((aranceles.find((x: any) => x.codigo === 'curso_cibir') as any)?.monto_usd ?? 0);
+  const cibirBloque = await calcularMontoCibir(String(a.tipo_afiliado || 'Natural'));
+  const cibirMonto = cibirBloque.total;
 
   return [
     {
@@ -321,12 +353,13 @@ export async function cobrosAfiliacion(idAfiliado: number) {
       etiqueta: 'Formalización de afiliación',
       detalle: `Cuota de inscripción $${formalizacion.cuotaInscripcion.toFixed(2)} + primera cuota de sostenimiento $${formalizacion.primeraMensualidad.toFixed(2)}`,
       monto_usd: formalizacion.totalUSD,
-      estado: (enProceso ? (estadoDePagos('formalizacion_afiliacion') ?? 'pendiente') : (estadoDePagos('formalizacion_afiliacion') ?? 'no_aplica')) as EstadoCobro,
+      // El cobro del CIBIR incluye la inscripción y la primera cuota, así que cubre la formalización
+      estado: (estadoDePagos('formalizacion_afiliacion') ?? estadoDePagos('curso_cibir') ?? (enProceso ? 'pendiente' : 'no_aplica')) as EstadoCobro,
     },
     {
       concepto: 'curso_cibir' as const,
       etiqueta: 'CIBIR',
-      detalle: 'Arancel del Curso de Iniciación en Bienes Raíces',
+      detalle: `CIBIR $${cibirBloque.cibir.toFixed(2)} + inscripción $${cibirBloque.inscripcion.toFixed(2)} + primera cuota de sostenimiento $${cibirBloque.mensualidad.toFixed(2)}`,
       monto_usd: cibirMonto,
       estado: (estadoDePagos('curso_cibir') ?? (['5_CIBIR', '6_INSCRIPCION'].includes(String(a.estatus)) && Number(a.cibir_acreditado) !== 1 && cibirMonto > 0 ? 'pendiente' : 'no_aplica')) as EstadoCobro,
     },
@@ -829,7 +862,7 @@ export async function marcarMesSolvencia(idAfiliado: number, periodo: string, pa
   }
   const real = await db.execute({
     sql: `SELECT 1 FROM pagos
-          WHERE id_afiliado = ? AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion') AND estatus IN ('Verificado', 'Pendiente')
+          WHERE id_afiliado = ? AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion', 'curso_cibir') AND estatus IN ('Verificado', 'Pendiente')
             AND eliminado_en IS NULL AND periodo IS NOT NULL AND periodo <= ?
             AND strftime('%Y-%m', date(periodo || '-01', '+' || (COALESCE(meses_cubiertos, 1) - 1) || ' months')) >= ?
           LIMIT 1`,

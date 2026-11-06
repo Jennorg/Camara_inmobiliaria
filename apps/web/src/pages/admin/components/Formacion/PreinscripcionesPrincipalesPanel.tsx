@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import { ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Search, Building2, CheckCircle2, Clock, Mail, Loader2 } from 'lucide-react'
+import { X, Pencil, Trash2, Plus, ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Building2, CheckCircle2, Clock, Mail, Loader2 } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { toast } from 'sonner'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { etiquetaDocumento, formatNombreCard } from '@/utils/formatters'
-import { matchesSearch } from '@/utils/searchUtils'
+import { matchesSearch, cleanSearchDigits } from '@/utils/searchUtils'
 import { formatDateLatina } from '@/utils/formatters'
 import DisponibilidadEntrevistasModal from './DisponibilidadEntrevistasModal'
 import GestionCohortesModal from './GestionCohortesModal'
+import AgregarInscritoModal from './AgregarInscritoModal'
 import CohortesNavegador, { AlturaSuave, CohortesPorPrograma, type Cohorte } from './CohortesNavegador'
+import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
 import type { PagoDTO } from '@/types/pagos'
@@ -23,6 +26,14 @@ const AFILIACION_STEPS_FLOW = [
   { label: 'Inscripción', desc: 'Aprobación final y pago de arancel', icon: CreditCard, labelShort: 'Inscr.' },
   { label: 'Afiliación', desc: 'Miembro activo de la Cámara', icon: Check, labelShort: 'Afil.' }
 ]
+
+const CRITERIOS_BUSQUEDA = {
+  nombre: { label: 'Nombre', placeholder: 'Buscar por nombre o empresa...' },
+  cedula: { label: 'Cédula', placeholder: 'Buscar por cédula...' },
+  rif: { label: 'RIF', placeholder: 'Buscar por RIF...' },
+  codigo: { label: 'Código', placeholder: 'Buscar por N° de afiliado...' },
+  correo: { label: 'Correo', placeholder: 'Buscar por correo...' },
+} as const
 
 type ProgramaCodigo = 'CIBIR' | 'PADI' | 'PEGI' | 'PREANI' | 'AFILIACION'
 type Estatus = 'Preinscrito' | 'Entrevista' | 'Inscrito' | 'Rechazado' | 'Cancelado'
@@ -39,6 +50,9 @@ type Row = {
   estudiante_email: string
   estudiante_telefono: string | null
   estudiante_cedula: string | null
+  estudiante_cedula_num?: string | null
+  estudiante_rif?: string | null
+  afiliado_codigo?: string | null
   entrevista_fecha?: string
   entrevista_hora?: string
   entrevista_lugar?: string
@@ -71,6 +85,32 @@ type Row = {
 }
 
 /** Etapas del trámite de acreditación; es el filtro de estado cuando en CIBIR se elige la vía Acreditación */
+type CobroItem = { clave: 'formalizacion_afiliacion' | 'curso_cibir' | 'programa'; etiqueta: string; detalle: string; pagado: boolean; disponible: boolean }
+
+/** Cobros de caja que aplican hoy a esta persona (y si ya están pagados) */
+const cobrosDe = (r: Row): CobroItem[] => {
+  const enCurso = ['Preinscrito', 'Entrevista', 'Inscrito'].includes(r.estatus)
+  const items: CobroItem[] = []
+  if (r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION') {
+    items.push({ clave: 'formalizacion_afiliacion', etiqueta: 'Formalización de afiliación', detalle: 'Inscripción + primera cuota. Al cobrarla pasa a Afiliado.', pagado: false, disponible: true })
+  }
+  const cibirAplica = !r.cibir_acreditado && (
+    (r.programa_codigo === 'AFILIACION' && ['4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(r.afiliado_estatus || '')) ||
+    // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
+    (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
+    (r.programa_codigo === 'CIBIR' && enCurso && Number(r.completado) !== 1))
+  if (cibirAplica && r.id_afiliado) {
+    items.push({ clave: 'curso_cibir', etiqueta: 'Arancel CIBIR', detalle: 'Se exige para pasar a la etapa CIBIR.', pagado: !!r.pago_cibir, disponible: true })
+  }
+  if (['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && enCurso) {
+    items.push({ clave: 'programa', etiqueta: `Arancel ${r.programa_codigo}`, detalle: 'Se cobra a la persona inscrita al programa.', pagado: !!r.pago_programa, disponible: true })
+  }
+  return items
+}
+
+/** Debe si tiene algún cobro aplicable sin pagar */
+const debe = (r: Row) => cobrosDe(r).some(c => c.disponible && !c.pagado)
+
 const ETAPAS_ACRED = ['Todas', 'Sin expediente', 'En revisión', 'Entrevista', 'Verificación', 'Por acreditar', 'Acreditado', 'Rechazado'] as const
 type EtapaAcred = typeof ETAPAS_ACRED[number]
 const TIPOS_ACRED = ['Agente Indep.', 'Agente Corp.', 'Corporativo'] as const
@@ -125,8 +165,11 @@ export default function PreinscripcionesPrincipalesPanel({
   const { token } = useAuth()
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
   type UiEstatus = typeof UI_ESTATUS[number]
-  const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Pendiente')
+  const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Inscrito')
+  const [pagoSel, setPagoSel] = useState<'Todos' | 'Deben' | 'No deben'>('Deben')
   const [search, setSearch] = useState('')
+  const [criterio, setCriterio] = useState<keyof typeof CRITERIOS_BUSQUEDA>('nombre')
+  const [menuCriterio, setMenuCriterio] = useState(false)
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -176,11 +219,113 @@ export default function PreinscripcionesPrincipalesPanel({
   const seleccionarCohorte = (id: number | null) => {
     setCohorteFiltro(id)
     setUiEstatus('Todos') // una cohorte cerrada no tiene "pendientes": mostrar a todos, no el filtro por defecto
+    setPagoSel('Todos')
     setSelected(null)
   }
 
   const mostrarError = (e: unknown, fallback: string) =>
     Swal.fire({ title: 'Error', text: e instanceof Error ? e.message : fallback, icon: 'error', confirmButtonColor: '#dc2626' })
+
+  /** Edición en línea de los datos del aspirante (persona o empresa) con PUT /inscripciones/:id/datos */
+  const [edit, setEdit] = useState<{ id: number; nombres: string; apellidos: string; nombre: string; pref: string; ced: string; email: string; tel: string; nivel: string; profesion: string; ano: string; corredor: boolean } | null>(null)
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
+  const esEmpresaRow = (r: Row) => !r.estudiante_nombres && !r.estudiante_apellidos
+
+  const iniciarEdicion = (r: Row) => {
+    const [pref, ...resto] = (r.estudiante_cedula ?? '').split('-')
+    setEdit({
+      id: r.id_inscripcion, nombres: r.estudiante_nombres ?? '', apellidos: r.estudiante_apellidos ?? '', nombre: r.estudiante_nombre ?? '',
+      pref: resto.length ? pref : 'V', ced: resto.length ? resto.join('-') : (r.estudiante_cedula ?? ''), email: r.estudiante_email ?? '', tel: r.estudiante_telefono ?? '',
+      nivel: r.estudiante_nivel_profesional ?? '', profesion: r.estudiante_profesion ?? '', ano: r.ano_inicio_servicio != null ? String(r.ano_inicio_servicio) : '', corredor: !!r.estudiante_es_corredor_inmobiliario,
+    })
+  }
+
+  const guardarEdicion = async (r: Row) => {
+    if (!edit) return
+    const email = edit.email.trim()
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error('Correo inválido'); return }
+    if (esEmpresaRow(r) ? !edit.nombre.trim() : !edit.nombres.trim()) { toast.error('El nombre es obligatorio'); return }
+    setGuardandoEdit(true)
+    try {
+      const resp = await fetch(`${API_URL}/api/academia/inscripciones/${r.id_inscripcion}/datos`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ nombres: edit.nombres, apellidos: edit.apellidos, nombreCompleto: edit.nombre, cedulaPrefix: edit.pref, cedulaRif: edit.ced, email, telefono: edit.tel, ...(esEmpresaRow(r) ? {} : { nivelAcademico: edit.nivel, profesion: edit.profesion, esCorredor: edit.corredor }), anoInicioServicio: edit.ano }),
+      })
+      const j = await resp.json().catch(() => null)
+      if (!resp.ok || !j?.success) throw new Error(j?.message || 'No se pudieron guardar los datos')
+      toast.success('Datos actualizados')
+      setEdit(null)
+      await fetchData(true)
+      setSelected(null) // la ficha se vuelve a abrir desde la lista ya refrescada
+    } catch (e) {
+      Swal.fire('Error', e instanceof Error ? e.message : 'No se pudieron guardar los datos', 'error')
+    } finally {
+      setGuardandoEdit(false)
+    }
+  }
+
+  const editando = (r: Row) => edit?.id === r.id_inscripcion
+  const inputEd = (k: 'nombres' | 'apellidos' | 'nombre' | 'ced' | 'email' | 'tel' | 'profesion' | 'ano', etiqueta: string, type = 'text') => (
+    <input aria-label={etiqueta} type={type} value={edit?.[k] ?? ''} onChange={e => setEdit(v => v && { ...v, [k]: e.target.value })}
+      className="w-full text-sm rounded-lg border border-gray-200 px-2 py-1 text-slate-700 focus:border-emerald-500 outline-none" />
+  )
+  const NIVELES = ['Bachiller', 'TSU', 'Nivel Profesional', 'Postgrado', 'Doctorado']
+  const nivelEd = () => (
+    <select aria-label="Nivel académico" value={edit?.nivel ?? ''} onChange={e => setEdit(v => v && { ...v, nivel: e.target.value })}
+      className="w-full text-sm rounded-lg border border-gray-200 px-2 py-1 text-slate-700 bg-white focus:border-emerald-500 outline-none">
+      <option value="">No indicado</option>
+      {edit?.nivel && !NIVELES.includes(edit.nivel) && <option value={edit.nivel}>{edit.nivel}</option>}
+      {NIVELES.map(n => <option key={n} value={n}>{n}</option>)}
+    </select>
+  )
+  const cedulaEd = () => (
+    <div className="flex gap-1.5">
+      <input aria-label="Tipo" value={edit?.pref ?? ''} maxLength={1} onChange={e => setEdit(v => v && { ...v, pref: e.target.value.toUpperCase() })}
+        className="w-10 text-sm text-center rounded-lg border border-gray-200 px-1 py-1 text-slate-700 focus:border-emerald-500 outline-none" />
+      {inputEd('ced', 'Número')}
+    </div>
+  )
+
+  const TIPOS_SOPORTE = ['cv', 'titulo', 'registro_mercantil', 'rif_empresa', 'titulo_representante', 'especializacion', 'curso_extra', 'diplomado', 'referencia_afiliado_1', 'referencia_afiliado_2', 'otro_documento']
+  const [tipoSoporte, setTipoSoporte] = useState('otro_documento')
+  const [subiendoDoc, setSubiendoDoc] = useState(false)
+
+  /** Sube el archivo al almacenamiento y lo agrega al expediente del aspirante */
+  const agregarSoporte = async (r: Row, file: File) => {
+    if (file.size > 15 * 1024 * 1024) { toast.error('El archivo supera los 15 MB'); return }
+    setSubiendoDoc(true)
+    try {
+      const url = await uploadFileStorage(file, 'expedientes')
+      const resp = await fetch(`${API_URL}/api/academia/estudiantes/${r.id_estudiante}/documentos`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ tipo_doc: tipoSoporte, url, nombre_archivo: file.name }),
+      })
+      const j = await resp.json().catch(() => null)
+      if (!resp.ok || !j?.success) throw new Error(j?.message || 'No se pudo agregar el soporte')
+      toast.success('Soporte agregado')
+      await Promise.all([fetchDocumentos(r.id_estudiante), fetchData(true)])
+    } catch (e) {
+      Swal.fire('Error', e instanceof Error ? e.message : 'No se pudo agregar el soporte', 'error')
+    } finally {
+      setSubiendoDoc(false)
+    }
+  }
+
+  const quitarSoporte = async (r: Row, doc: { id_documento: number; tipo_doc: string }) => {
+    const c = await Swal.fire({ title: 'Quitar soporte', text: `Se quitará "${etiquetaDocumento(doc.tipo_doc)}" del expediente.`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Quitar', cancelButtonText: 'Cancelar', confirmButtonColor: '#dc2626' })
+    if (!c.isConfirmed) return
+    try {
+      const resp = await fetch(`${API_URL}/api/academia/estudiantes/${r.id_estudiante}/documentos/${doc.id_documento}`, { method: 'DELETE', headers: { ...authHeaders } })
+      const j = await resp.json().catch(() => null)
+      if (!resp.ok || !j?.success) throw new Error(j?.message || 'No se pudo quitar el soporte')
+      toast.success('Soporte quitado')
+      await Promise.all([fetchDocumentos(r.id_estudiante), fetchData(true)])
+    } catch (e) {
+      Swal.fire('Error', e instanceof Error ? e.message : 'No se pudo quitar el soporte', 'error')
+    }
+  }
+
+  const [agregandoInscrito, setAgregandoInscrito] = useState(false)
 
   const cambiarCohorte = async (r: Row, valor: string) => {
     setSavingCohorte(true)
@@ -271,6 +416,46 @@ export default function PreinscripcionesPrincipalesPanel({
       setReciboPago(pago)
     }
   }
+  /** Acción que continúa cuando el cobro abierto desde una confirmación se registra (remitir a CIBIR) */
+  const despuesDelCobro = useRef<(() => void) | null>(null)
+  const montos = async (tipo?: string | null) => {
+    const json = await (await fetch(`${API_URL}/api/pagos/aranceles`)).json()
+    const m = (c: string) => Number(json.data?.find((a: { codigo: string }) => a.codigo === c)?.monto_usd ?? 0)
+    const insc = m(tipo === 'Corporativo' ? 'inscripcion_corporativo' : tipo === 'Agente Corporativo' ? 'inscripcion_agente' : 'inscripcion_natural')
+    const mens = m('mensualidad_base')
+    const cibir = m('curso_cibir')
+    return { insc, mens, cibir, total: cibir + insc + mens }
+  }
+  const lineas = (items: [string, number][]) =>
+    `<div style="text-align:left;font-size:14px">${items.map(([t, v]) => `<div style="display:flex;justify-content:space-between;padding:2px 0"><span>${t}</span><b>$${v.toFixed(2)}</b></div>`).join('')}
+     <div style="display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px"><span>Total</span><b>$${items.reduce((t, [, v]) => t + v, 0).toFixed(2)}</b></div></div>`
+
+  /** Aprobar la acreditación: se confirma el cobro de la inscripción y la primera mensualidad, que se registra al aprobar */
+  const aprobarAcreditacion = async (r: Row) => {
+    const { insc, mens } = await montos(r.afiliado_tipo).catch(() => ({ insc: 0, mens: 0 }))
+    const res = await Swal.fire({
+      title: 'Aprobar acreditación y cobrar', icon: 'question', showCancelButton: true, showDenyButton: true,
+      html: `<p style="margin-bottom:10px">Se aprueba la acreditación de <b>${r.estudiante_nombre}</b> y se cobra:</p>${lineas([['Cuota de inscripción', insc], ['Primera mensualidad (sostenimiento)', mens]])}`,
+      confirmButtonText: 'Aprobar y cobrar', denyButtonText: 'Aprobar sin cobrar', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (res.isDismissed) return
+    if (await aprobarDirecto(r.id_inscripcion) && res.isConfirmed) setCobro('formalizacion_afiliacion')
+  }
+
+  /** Remitir a CIBIR: se confirma el cobro del bloque completo (CIBIR + inscripción + primera mensualidad) y luego se remite */
+  const confirmarRemision = async (r: Row) => {
+    if (r.pago_cibir) { remitirACibir(r.id_inscripcion); return }
+    const { insc, mens, cibir } = await montos(r.afiliado_tipo).catch(() => ({ insc: 0, mens: 0, cibir: 0 }))
+    const res = await Swal.fire({
+      title: 'Remitir a CIBIR y cobrar', icon: 'question', showCancelButton: true,
+      html: `<p style="margin-bottom:10px">Para remitir a <b>${r.estudiante_nombre}</b> se cobra el bloque completo del CIBIR:</p>${lineas([['Curso CIBIR', cibir], ['Cuota de inscripción', insc], ['Primera mensualidad (sostenimiento)', mens]])}`,
+      confirmButtonText: 'Registrar cobro y remitir', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!res.isConfirmed) return
+    despuesDelCobro.current = () => remitirACibir(r.id_inscripcion)
+    setCobro('curso_cibir')
+  }
+
   const ofrecerCobroCibir = async (mensaje: string) => {
     const r = await Swal.fire({
       title: 'Falta el pago del CIBIR', text: mensaje, icon: 'info', showCancelButton: true,
@@ -555,8 +740,8 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
-  const aprobarDirecto = async (id: number) => {
-    if (processingAction) return
+  const aprobarDirecto = async (id: number): Promise<boolean> => {
+    if (processingAction) return false
     setProcessingAction('aprobarDirecto')
     try {
       Swal.fire({
@@ -581,8 +766,10 @@ export default function PreinscripcionesPrincipalesPanel({
       })
 
       await fetchData(true)
+      return true
     } catch (e: any) {
       Swal.fire({ title: 'Error', text: e.message || 'Error al aprobar', icon: 'error' })
+      return false
     } finally {
       setProcessingAction(null)
     }
@@ -809,6 +996,11 @@ export default function PreinscripcionesPrincipalesPanel({
     return c
   }, [baseRows])
 
+  const countsPago = useMemo(() => {
+    const deben = baseRows.filter(debe).length
+    return { Todos: baseRows.length, Deben: deben, 'No deben': baseRows.length - deben }
+  }, [baseRows])
+
   const filteredRows = useMemo(() => {
     let result = baseRows
 
@@ -818,14 +1010,18 @@ export default function PreinscripcionesPrincipalesPanel({
     } else if (uiEstatus !== 'Todos') {
       result = result.filter(r => estadoUi(r) === uiEstatus)
     }
+    if (pagoSel !== 'Todos') result = result.filter(r => debe(r) === (pagoSel === 'Deben'))
     if (!search.trim()) return result
-    return result.filter(r =>
-      matchesSearch(
-        [r.estudiante_nombre, r.estudiante_email, r.estudiante_cedula, r.empresa_vinculada_nombre],
-        search
-      )
-    )
-  }, [baseRows, search, uiEstatus, esAcred, etapaAcredSel])
+    const q = search.trim()
+    const digitos = cleanSearchDigits(q)
+    return result.filter(r => {
+      if (criterio === 'nombre') return matchesSearch([r.estudiante_nombre, r.empresa_vinculada_nombre], q)
+      if (criterio === 'cedula') return digitos !== '' && cleanSearchDigits(r.estudiante_cedula_num).includes(digitos)
+      if (criterio === 'rif') return digitos !== '' && cleanSearchDigits(r.estudiante_rif).includes(digitos)
+      if (criterio === 'correo') return (r.estudiante_email ?? '').toLowerCase().includes(q.toLowerCase())
+      return (r.afiliado_codigo ?? '') === q
+    })
+  }, [baseRows, search, criterio, uiEstatus, pagoSel, esAcred, etapaAcredSel])
 
   const getStatusLabelAndStyles = (estatus: Estatus, afiliadoEstatus?: string, numDocumentos: number = 1, completado?: unknown) => {
     // Si es un trámite de afiliación o tiene estatus en la tabla de afiliados, mostrar su etapa real
@@ -896,6 +1092,10 @@ export default function PreinscripcionesPrincipalesPanel({
           ) : null}
         </AlturaSuave>
       </div>
+      {agregandoInscrito && PROGRAMAS_CON_COHORTE.includes(programa) && (
+        <AgregarInscritoModal programa={programa} authHeaders={authHeaders} onCerrar={() => setAgregandoInscrito(false)}
+          onCreado={tipo => { setAgregandoInscrito(false); toast.success('Inscrito agregado'); if (tipo === 'afiliacion') setPrograma('AFILIACION'); else fetchData(true) }} />
+      )}
       {gestionandoCohortes && PROGRAMAS_CON_COHORTE.includes(programa) && (
         <GestionCohortesModal
           programa={programa}
@@ -910,15 +1110,44 @@ export default function PreinscripcionesPrincipalesPanel({
       {/* Listado lateral */}
       <div className={['flex flex-col bg-white border-r border-gray-100 overflow-hidden min-h-0', selected ? 'hidden sm:flex' : 'flex'].join(' ')}>
         <div className="px-3 pt-3 pb-2 border-b border-gray-100 flex flex-col gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          {PROGRAMAS_CON_COHORTE.includes(programa) && (
+            <button type="button" onClick={() => setAgregandoInscrito(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider cursor-pointer">
+              <Plus size={13} aria-hidden="true" /> Agregar inscrito a {programa}
+            </button>
+          )}
+          <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl focus-within:bg-white h-8">
+            <div className="relative shrink-0 border-r border-gray-200 h-full flex items-center">
+              <button type="button" onClick={() => setMenuCriterio(v => !v)} aria-haspopup="listbox" aria-expanded={menuCriterio}
+                className="flex items-center gap-0.5 px-2 h-full text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 cursor-pointer">
+                <span>{CRITERIOS_BUSQUEDA[criterio].label}</span>
+                <ChevronDown className={`w-2.5 h-2.5 text-slate-400 transition-transform ${menuCriterio ? 'rotate-180' : ''}`} />
+              </button>
+              {menuCriterio && (
+                <>
+                  <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setMenuCriterio(false)} />
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px]">
+                    {(Object.keys(CRITERIOS_BUSQUEDA) as (keyof typeof CRITERIOS_BUSQUEDA)[]).map(k => (
+                      <button key={k} type="button" onClick={() => { setCriterio(k); setMenuCriterio(false) }}
+                        className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider cursor-pointer ${criterio === k ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+                        {CRITERIOS_BUSQUEDA[k].label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <input
               type="text"
-              placeholder="Buscar aspirante..."
+              placeholder={CRITERIOS_BUSQUEDA[criterio].placeholder}
+              aria-label="Buscar aspirante"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full text-xs rounded-xl border border-gray-200 pl-8 pr-3 py-2 text-slate-700 bg-gray-50 focus:bg-white transition-colors"
+              className="flex-1 min-w-0 bg-transparent text-xs pl-2 pr-7 text-slate-700 outline-none"
             />
+            {search && (
+              <button type="button" aria-label="Limpiar búsqueda" onClick={() => setSearch('')} className="absolute right-2 text-slate-400 hover:text-slate-700 cursor-pointer"><X size={13} /></button>
+            )}
           </div>
 
           {(() => {
@@ -938,9 +1167,19 @@ export default function PreinscripcionesPrincipalesPanel({
                     opciones: ETAPAS_ACRED.map(e => ({ valor: e as string, texto: `${e === 'Todas' ? 'Todas las etapas' : e} (${countsAcred[e]})` })) }
                 : { id: 'estado-lista', etiqueta: 'Estado', ancho: 'col-span-2', valor: uiEstatus as string, cambiar: (v: string) => setUiEstatus(v as UiEstatus),
                     opciones: UI_ESTATUS.map(e => ({ valor: e as string, texto: `${e === 'Todos' ? 'Todos los estados' : e} (${counts[e] || 0})` })) },
+              { id: 'pago-lista', etiqueta: 'Pagos', ancho: 'col-span-2', valor: pagoSel as string, cambiar: (v: string) => {
+                  setPagoSel(v as typeof pagoSel)
+                  // Los cobros se miran sobre quienes ya están dentro del programa: se muestran los inscritos
+                  if (v !== 'Todos' && !esAcred) setUiEstatus('Inscrito')
+                },
+                opciones: [
+                  { valor: 'Todos', texto: `Todos (${countsPago.Todos})` },
+                  { valor: 'Deben', texto: `Con pago pendiente (${countsPago.Deben})` },
+                  { valor: 'No deben', texto: `Sin pago pendiente (${countsPago['No deben']})` },
+                ] },
               ...filtrosAcred,
             ]
-            const hayFiltro = viaCibir !== 'Todas' || (esAcred ? etapaAcredSel !== 'Todas' || !!tipoAcredSel : uiEstatus !== 'Todos')
+            const hayFiltro = pagoSel !== 'Todos' || viaCibir !== 'Todas' || (esAcred ? etapaAcredSel !== 'Todas' || !!tipoAcredSel : uiEstatus !== 'Todos')
             return (
             <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 pt-1">
               {campos.map(f => (
@@ -961,7 +1200,7 @@ export default function PreinscripcionesPrincipalesPanel({
               {hayFiltro && (
                 <button
                   type="button"
-                  onClick={() => { setEtapaAcredSel('Todas'); setTipoAcredSel(''); setUiEstatus('Todos'); setViaCibir('Todas') }}
+                  onClick={() => { setEtapaAcredSel('Todas'); setTipoAcredSel(''); setUiEstatus('Todos'); setViaCibir('Todas'); setPagoSel('Todos') }}
                   className="col-span-2 self-start text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
                 >
                   Limpiar filtros
@@ -1046,9 +1285,16 @@ export default function PreinscripcionesPrincipalesPanel({
                       )}
                     </span>
 
-                    {/* Indicador de Estado Único */}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusObj.styles}`}>
-                      {statusObj.label}
+                    {/* Indicador de Estado Único (+ pago pendiente si tiene un cobro sin pagar) */}
+                    <span className="flex items-center gap-1 shrink-0">
+                      {debe(r) && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
+                          Pago pendiente
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
+                        {statusObj.label}
+                      </span>
                     </span>
                   </div>
 
@@ -1126,23 +1372,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
             {/* Cobros de caja de esta persona: se registran aquí, sin ir a Finanzas */}
             {(() => {
-              const r = selected
-              const enCurso = ['Preinscrito', 'Entrevista', 'Inscrito'].includes(r.estatus)
-              const items: { clave: 'formalizacion_afiliacion' | 'curso_cibir' | 'programa'; etiqueta: string; detalle: string; pagado: boolean; disponible: boolean }[] = []
-              if (r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION') {
-                items.push({ clave: 'formalizacion_afiliacion', etiqueta: 'Formalización de afiliación', detalle: 'Inscripción + primera cuota. Al cobrarla pasa a Afiliado.', pagado: false, disponible: true })
-              }
-              const cibirAplica = !r.cibir_acreditado && (
-                (r.programa_codigo === 'AFILIACION' && ['4_VERIFICACION', '5_CIBIR', '6_INSCRIPCION'].includes(r.afiliado_estatus || '')) ||
-                // quien opta por acreditación puede pagar el arancel antes de ser remitido a CIBIR
-                (r.programa_codigo === 'AFILIACION' && !!r.apto_acreditacion && enCurso) ||
-                (r.programa_codigo === 'CIBIR' && enCurso && Number(r.completado) !== 1))
-              if (cibirAplica && r.id_afiliado) {
-                items.push({ clave: 'curso_cibir', etiqueta: 'Arancel CIBIR', detalle: 'Se exige para pasar a la etapa CIBIR.', pagado: !!r.pago_cibir, disponible: true })
-              }
-              if (['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && enCurso) {
-                items.push({ clave: 'programa', etiqueta: `Arancel ${r.programa_codigo}`, detalle: 'Se cobra a la persona inscrita al programa.', pagado: !!r.pago_programa, disponible: true })
-              }
+              const items = cobrosDe(selected)
               if (items.length === 0) return null
               return (
                 <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 mb-4 space-y-2">
@@ -1247,25 +1477,40 @@ export default function PreinscripcionesPrincipalesPanel({
             {selected.tipo_estudiante === 'Corporativo' || selected.estudiante_cedula?.startsWith('J') ? (
               <>
                 {/* Sección Empresa */}
-                <div className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
+                <div className="bg-white rounded-2xl p-4 relative border border-gray-100 mb-3">
+                  {edit?.id === selected.id_inscripcion ? (
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <button type="button" disabled={guardandoEdit} onClick={() => guardarEdicion(selected)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-60 cursor-pointer">{guardandoEdit ? 'Guardando…' : 'Guardar'}</button>
+                    <button type="button" disabled={guardandoEdit} onClick={() => setEdit(null)} className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wider cursor-pointer">Cancelar</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => iniciarEdicion(selected)} aria-label="Editar datos" title="Editar datos"
+                    className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"><Pencil size={14} aria-hidden="true" /></button>
+                )}
                   <div className="flex items-center gap-2 mb-3">
                     <Building2 className="w-4 h-4 text-slate-500" />
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Información de la Empresa</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {editando(selected) && (
+                      <div className="flex flex-col gap-0.5 sm:col-span-2">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Razón social</span>
+                        {inputEd('nombre', 'Razón social')}
+                      </div>
+                    )}
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">RIF</span>
-                      <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>
+                      {editando(selected) ? cedulaEd() : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>}
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
-                      <span className="text-sm text-slate-700 font-medium break-all">
+                      {editando(selected) ? inputEd('tel', 'Teléfono') : <span className="text-sm text-slate-700 font-medium break-all">
                         {selected.estudiante_telefono || 'No indicado'}
-                      </span>
+                      </span>}
                     </div>
                     <div className="flex flex-col gap-0.5 sm:col-span-2">
                       <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
-                      <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>
+                      {editando(selected) ? inputEd('email', 'Correo', 'email') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>}
                     </div>
                   </div>
                 </div>
@@ -1316,26 +1561,35 @@ export default function PreinscripcionesPrincipalesPanel({
               </>
             ) : (
               /* Vista Normal (Persona Natural) */
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div className="bg-white rounded-2xl p-4 relative border border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                {edit?.id === selected.id_inscripcion ? (
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <button type="button" disabled={guardandoEdit} onClick={() => guardarEdicion(selected)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-60 cursor-pointer">{guardandoEdit ? 'Guardando…' : 'Guardar'}</button>
+                    <button type="button" disabled={guardandoEdit} onClick={() => setEdit(null)} className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wider cursor-pointer">Cancelar</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => iniciarEdicion(selected)} aria-label="Editar datos" title="Editar datos"
+                    className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"><Pencil size={14} aria-hidden="true" /></button>
+                )}
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nombres</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nombres || 'No indicado'}</span>
+                  {editando(selected) ? inputEd('nombres', 'Nombres') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nombres || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Apellidos</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_apellidos || 'No indicado'}</span>
+                  {editando(selected) ? inputEd('apellidos', 'Apellidos') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_apellidos || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>
+                  {editando(selected) ? cedulaEd() : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_telefono || 'No indicado'}</span>
+                  {editando(selected) ? inputEd('tel', 'Teléfono') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_telefono || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>
+                  {editando(selected) ? inputEd('email', 'Correo', 'email') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
@@ -1343,16 +1597,16 @@ export default function PreinscripcionesPrincipalesPanel({
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nivel Académico</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nivel_profesional || 'No indicado'}</span>
+                  {editando(selected) ? nivelEd() : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nivel_profesional || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Profesión</span>
-                  <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_profesion || 'No indicado'}</span>
+                  {editando(selected) ? inputEd('profesion', 'Profesión') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_profesion || 'No indicado'}</span>}
                 </div>
-                {selected.ano_inicio_servicio !== undefined && selected.ano_inicio_servicio !== null && (
+                {(editando(selected) || (selected.ano_inicio_servicio !== undefined && selected.ano_inicio_servicio !== null)) && (
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Año Inicio de Servicio</span>
-                    <span className="text-sm text-slate-700 font-medium break-all">{selected.ano_inicio_servicio}</span>
+                    {editando(selected) ? inputEd('ano', 'Año de inicio de servicio', 'number') : <span className="text-sm text-slate-700 font-medium break-all">{selected.ano_inicio_servicio}</span>}
                   </div>
                 )}
                 <div className="sm:col-span-2 flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl mt-2">
@@ -1361,7 +1615,12 @@ export default function PreinscripcionesPrincipalesPanel({
                     <span className="text-[10px] text-slate-400">Información sobre si el aspirante ejerce en el sector</span>
                   </div>
                   <div>
-                    {selected.estudiante_es_corredor_inmobiliario ? (
+                    {editando(selected) ? (
+                      <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                        <input type="checkbox" checked={edit?.corredor ?? false} onChange={e => setEdit(v => v && { ...v, corredor: e.target.checked })} className="w-4 h-4 accent-emerald-600" />
+                        Es asesor
+                      </label>
+                    ) : selected.estudiante_es_corredor_inmobiliario ? (
                       <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider">
                         Sí, es Asesor
                       </span>
@@ -1377,7 +1636,21 @@ export default function PreinscripcionesPrincipalesPanel({
 
             {/* Documentos */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-4">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Documentación Adjunta</span>
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documentación Adjunta</span>
+                <div className="flex items-center gap-1.5">
+                  <select aria-label="Tipo de soporte" value={tipoSoporte} onChange={e => setTipoSoporte(e.target.value)} disabled={subiendoDoc}
+                    className="text-[11px] font-bold rounded-lg border border-gray-200 bg-white text-slate-700 px-2 py-1">
+                    {TIPOS_SOPORTE.map(t => <option key={t} value={t}>{etiquetaDocumento(t)}</option>)}
+                  </select>
+                  <label className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer ${subiendoDoc ? 'opacity-60 pointer-events-none' : ''}`}>
+                    {subiendoDoc ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <Plus size={12} aria-hidden="true" />}
+                    {subiendoDoc ? 'Subiendo…' : 'Agregar'}
+                    <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={subiendoDoc}
+                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) agregarSoporte(selected, f) }} />
+                  </label>
+                </div>
+              </div>
               {loadingDocs ? <div className="py-8 text-center animate-pulse"><Loader2 className="animate-spin mx-auto text-slate-300" /></div> : documentos.length === 0 ? <div className="py-4 text-center text-xs text-slate-300 italic">Sin documentos</div> : (
                 <div className="flex flex-col gap-2">
                   {documentos.map(doc => (
@@ -1386,6 +1659,8 @@ export default function PreinscripcionesPrincipalesPanel({
                         <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                         <span className="text-xs font-bold truncate">{etiquetaDocumento(doc.tipo_doc)}</span>
                       </a>
+                      <button type="button" onClick={() => quitarSoporte(selected, doc)} aria-label={`Quitar ${etiquetaDocumento(doc.tipo_doc)}`} title="Quitar soporte"
+                        className="ml-2 p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer order-last"><Trash2 size={13} aria-hidden="true" /></button>
                       {['referencia_afiliado_1', 'referencia_afiliado_2'].includes(doc.tipo_doc) && doc.nombre_archivo && (
                         <button 
                           onClick={() => handleVerReferencia(doc.nombre_archivo!)}
@@ -1429,7 +1704,7 @@ export default function PreinscripcionesPrincipalesPanel({
                               {selected.apto_acreditacion ? (
                                 <>
                                   <button 
-                                    onClick={() => aprobarDirecto(selected.id_inscripcion)} 
+                                    onClick={() => aprobarAcreditacion(selected)} 
                                     disabled={processingAction !== null}
                                     className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                   >
@@ -1443,7 +1718,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                     )}
                                   </button>
                                   <button 
-                                    onClick={() => remitirACibir(selected.id_inscripcion)} 
+                                    onClick={() => confirmarRemision(selected)} 
                                     disabled={processingAction !== null}
                                     className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                   >
@@ -1459,7 +1734,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                 </>
                               ) : (
                                 <button 
-                                  onClick={() => remitirACibir(selected.id_inscripcion)} 
+                                  onClick={() => confirmarRemision(selected)} 
                                   disabled={processingAction !== null}
                                   className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                 >
@@ -1728,8 +2003,8 @@ export default function PreinscripcionesPrincipalesPanel({
       {cobro && selected && (
         <ModalCobroTaquilla
           open
-          onClose={() => setCobro(null)}
-          onSuccess={(pago) => { setCobro(null); abrirRecibo(pago); fetchData(true) }}
+          onClose={() => { despuesDelCobro.current = null; setCobro(null) }}
+          onSuccess={(pago) => { const luego = despuesDelCobro.current; despuesDelCobro.current = null; setCobro(null); abrirRecibo(pago); fetchData(true); luego?.() }}
           afiliadoId={selected.id_afiliado ?? null}
           afiliadoNombre={formatNombreCard(selected.estudiante_nombres, selected.estudiante_apellidos)}
           afiliadoTipo={selected.afiliado_tipo ?? undefined}

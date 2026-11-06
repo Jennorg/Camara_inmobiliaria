@@ -14,7 +14,6 @@ import MisionVisionPage from '@/pages/landing/mision-vision/MisionVisionPage'
 import JuntaDirectivaPage from '@/pages/landing/junta-directiva/JuntaDirectivaPage'
 import HistoriaPage from '@/pages/landing/historia/HistoriaPage'
 import CivPage from '@/pages/landing/courses/CIV/CivPage'
-import AdminPage from '@/pages/admin/AdminPage'
 import DireccionPage from '@/pages/landing/direccion/DireccionPage'
 import PropositoPage from '@/pages/landing/proposito/PropositoPage'
 import PanelPage from '@/pages/panel/PanelPage'
@@ -27,7 +26,6 @@ import PadiPage from '@/pages/landing/courses/PADI/PadiPage'
 import VerificarPreinscripcionProgramaPage from '@/pages/landing/courses/VerificarPreinscripcionProgramaPage'
 import AgendarEntrevistaPage from '@/pages/agendar/AgendarEntrevistaPage'
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
-import LobbyPage from '@/pages/lobby/LobbyPage'
 import ComprobantePublicoPage from '@/pages/comprobante/ComprobantePublicoPage'
 import ConstanciaSolvenciaPage from '@/pages/comprobante/ConstanciaSolvenciaPage'
 import CertificadoAfiliacionPage from '@/pages/comprobante/CertificadoAfiliacionPage'
@@ -98,15 +96,11 @@ function AppRoutes() {
           {/* ── Panel Unificado (afiliado + admin en una sola vista) ── */}
           <Route element={<ProtectedRoute />}>
             <Route path='/panel' element={<PanelPage />} />
-            <Route path='/lobby' element={<LobbyPage />} />
-          </Route>
-
-          {/* ── CMS Visual Editor / Intranet Administrativa ── */}
-          <Route element={<ProtectedRoute requiredRoles={['admin', 'super_admin', 'asistente', 'administrativo', 'secretario', 'secretaria', 'personal', 'personal_admin']} />}>
-            <Route path='/admin' element={<AdminPage />} />
           </Route>
 
           {/* Redireccion de rutas antiguas al panel unificado */}
+          <Route path='/admin' element={<Navigate to='/panel' replace />} />
+          <Route path='/lobby' element={<Navigate to='/panel' replace />} />
           <Route path='/afiliado' element={<Navigate to='/panel' replace />} />
         </Routes>
     </>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole, UserRole } from '../middlewares/auth.middleware.js';
+import { requireAuth, requirePermiso } from '../middlewares/auth.middleware.js';
 import {
   getResumenFinanciero,
   getLibroVentas,
@@ -14,36 +14,42 @@ import {
   resetTasaManual,
   getHistorialTasas,
   getIngresosPorConcepto,
+  getIngresosPorCohorte,
+  getNombrePorRif,
   getEgresosPorConcepto,
   getCuentasPorCobrar,
   exportarXlsx
 } from '../controllers/finanzas.controller.js';
 
 const router = Router();
-const adminRoles: UserRole[] = ['admin', 'super_admin', 'asistente', 'administrativo', 'personal_admin'];
+const finanzas = requirePermiso('finanzas'); // acción según el verbo HTTP
+// Sincronizar o fijar/restablecer una tasa cambia la referencia, no crea ni borra registros.
+const editarTasas = requirePermiso('finanzas', 'editar');
 
-// Todas las rutas de finanzas requieren autenticación y rol administrativo / contable
-router.use(requireAuth, requireRole(...adminRoles));
+// Permiso por ruta (no router.use): las tasas usan una acción distinta a la de su verbo.
+router.use(requireAuth);
 
-router.get('/resumen', getResumenFinanciero);
-router.get('/libro-ventas', getLibroVentas);
-router.get('/libro-compras', getLibroCompras);
-router.post('/movimientos', crearMovimiento);
-router.put('/movimientos/:id', actualizarMovimiento);
-router.patch('/movimientos/:id/anular', anularMovimiento);
-router.delete('/movimientos/:id', eliminarMovimiento);
+router.get('/resumen', finanzas, getResumenFinanciero);
+router.get('/libro-ventas', finanzas, getLibroVentas);
+router.get('/libro-compras', finanzas, getLibroCompras);
+router.post('/movimientos', finanzas, crearMovimiento);
+router.put('/movimientos/:id', finanzas, actualizarMovimiento);
+router.patch('/movimientos/:id/anular', finanzas, anularMovimiento);
+router.delete('/movimientos/:id', finanzas, eliminarMovimiento);
 
 // ── Reportes de control ──
-router.get('/ingresos-por-concepto', getIngresosPorConcepto);
-router.get('/egresos-por-concepto', getEgresosPorConcepto);
-router.get('/cuentas-por-cobrar', getCuentasPorCobrar);
-router.get('/export/:reporte.xlsx', exportarXlsx);
+router.get('/ingresos-por-concepto', finanzas, getIngresosPorConcepto);
+router.get('/ingresos-por-cohorte', finanzas, getIngresosPorCohorte);
+router.get('/nombre-por-rif', finanzas, getNombrePorRif);
+router.get('/egresos-por-concepto', finanzas, getEgresosPorConcepto);
+router.get('/cuentas-por-cobrar', finanzas, getCuentasPorCobrar);
+router.get('/export/:reporte.xlsx', finanzas, exportarXlsx);
 
 // ── Rutas de referencias y tasas de cambio ──
-router.get('/referencias', getTasasReferencias);
-router.post('/referencias/sync', sincronizarTasasEnVivo);
-router.put('/referencias/:codigo', actualizarTasaManual);
-router.delete('/referencias/:codigo/manual', resetTasaManual);
-router.get('/referencias/historial', getHistorialTasas);
+router.get('/referencias', finanzas, getTasasReferencias);
+router.post('/referencias/sync', editarTasas, sincronizarTasasEnVivo);
+router.put('/referencias/:codigo', editarTasas, actualizarTasaManual);
+router.delete('/referencias/:codigo/manual', editarTasas, resetTasaManual);
+router.get('/referencias/historial', finanzas, getHistorialTasas);
 
 export default router;

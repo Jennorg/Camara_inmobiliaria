@@ -1,7 +1,7 @@
 import { db } from '../lib/db.js';
 import { COLUMNA_FECHA_CUOTA, cuotasImportadas, cuotasImportadasPorPeriodo, fechaCuota } from './cuotas-importadas.service.js';
 import { SQL_JOIN_PAGADOR } from './pagos.service.js';
-import { CONCEPTOS_REPORTE, ETIQUETA_CONCEPTO, conceptoReporte, type ConceptoReporte } from '../lib/conceptos.js';
+import { CONCEPTOS_REPORTE, ETIQUETA_CONCEPTO, conceptoReporte, repartoConcepto, type ConceptoReporte } from '../lib/conceptos.js';
 
 export interface FiltrosFinanzas {
   anio?: number;
@@ -170,7 +170,7 @@ export const finanzasService = {
       e.cantidad += cantidad;
     };
 
-    for (const r of pagosRes.rows as any[]) sumarIngreso(Number(r.mes) - 1, conceptoReporte(r.tipo_concepto, r.codigo_arancel), Number(r.total), Number(r.n));
+    for (const r of pagosRes.rows as any[]) for (const [c, parte] of repartoConcepto(r.tipo_concepto, r.codigo_arancel)) sumarIngreso(Number(r.mes) - 1, c, Number(r.total) * parte, Number(r.n));
     for (const r of manualesRes.rows as any[]) sumarIngreso(Number(r.mes) - 1, 'otros', Number(r.total), Number(r.n));
     for (const [periodo, c] of importadas) sumarIngreso(Number(periodo.slice(5, 7)) - 1, 'mensualidad', c.total, c.n);
     for (const r of egresosRes.rows as any[]) {

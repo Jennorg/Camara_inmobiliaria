@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useAuth } from '@/context/AuthContext'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { 
@@ -33,7 +34,9 @@ const PragmaticNewsCard = ({
   onReorder, 
   onSelect, 
   onEdit, 
-  onRemove 
+  onRemove,
+  puedeEditar,
+  puedeEliminar
 }: {
   item: NoticiaItem;
   index: number;
@@ -41,6 +44,8 @@ const PragmaticNewsCard = ({
   onSelect: (id: string | number) => void;
   onEdit: (item: NoticiaItem, e: React.MouseEvent) => void;
   onRemove: (item: NoticiaItem, e: React.MouseEvent) => void;
+  puedeEditar: boolean;
+  puedeEliminar: boolean;
 }) => {
   const cardRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLDivElement>(null)
@@ -49,7 +54,7 @@ const PragmaticNewsCard = ({
 
   useEffect(() => {
     const el = cardRef.current
-    if (!el) return
+    if (!el || !puedeEditar) return // sin «editar» no hay reordenamiento (y sin handle todo el elemento sería arrastrable)
 
     const unbindDraggable = draggable({
       element: el,
@@ -79,7 +84,7 @@ const PragmaticNewsCard = ({
       unbindDraggable()
       unbindDropTarget()
     }
-  }, [index, item.id, onReorder])
+  }, [index, item.id, onReorder, puedeEditar])
 
   const isSoloImg = item.tag === 'solo_imagen' || item.extracto === '[SOLO_IMAGEN]';
 
@@ -153,7 +158,7 @@ const PragmaticNewsCard = ({
       {/* FOOTER DE LA CARD CON DRAG HANDLE DE PRAGMATIC DND Y BOTONES DE ACCIÓN */}
       <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between gap-2">
         {/* Pragmatic Drag & Drop Handle */}
-        <div
+        {puedeEditar ? <div
           ref={handleRef}
           onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 font-extrabold text-[9px] uppercase tracking-wider cursor-grab active:cursor-grabbing transition-colors border border-slate-200/60 select-none"
@@ -161,26 +166,26 @@ const PragmaticNewsCard = ({
         >
           <GripVertical size={13} className="shrink-0" />
           <span>Arrastrar</span>
-        </div>
+        </div> : <span />}
 
         {/* Acciones principales */}
         <div className="flex items-center gap-0.5">
-          <button
+          {puedeEditar && <button
             type="button"
             onClick={(e) => onEdit(item, e)}
             className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
             title="Editar noticia"
           >
             <Edit3 size={14} />
-          </button>
-          <button
+          </button>}
+          {puedeEliminar && <button
             type="button"
             onClick={(e) => onRemove(item, e)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
             title="Eliminar noticia"
           >
             <Trash2 size={14} />
-          </button>
+          </button>}
         </div>
       </div>
     </div>
@@ -194,7 +199,9 @@ const PragmaticNewsListItem = ({
   onReorder, 
   onSelect, 
   onEdit, 
-  onRemove 
+  onRemove,
+  puedeEditar,
+  puedeEliminar
 }: {
   item: NoticiaItem;
   index: number;
@@ -202,6 +209,8 @@ const PragmaticNewsListItem = ({
   onSelect: (id: string | number) => void;
   onEdit: (item: NoticiaItem, e: React.MouseEvent) => void;
   onRemove: (item: NoticiaItem, e: React.MouseEvent) => void;
+  puedeEditar: boolean;
+  puedeEliminar: boolean;
 }) => {
   const rowRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLDivElement>(null)
@@ -210,7 +219,7 @@ const PragmaticNewsListItem = ({
 
   useEffect(() => {
     const el = rowRef.current
-    if (!el) return
+    if (!el || !puedeEditar) return
 
     const unbindDraggable = draggable({
       element: el,
@@ -240,7 +249,7 @@ const PragmaticNewsListItem = ({
       unbindDraggable()
       unbindDropTarget()
     }
-  }, [index, item.id, onReorder])
+  }, [index, item.id, onReorder, puedeEditar])
 
   return (
     <div
@@ -256,14 +265,14 @@ const PragmaticNewsListItem = ({
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {/* Handle de arrastre de Pragmatic DnD */}
-        <div
+        {puedeEditar && <div
           ref={handleRef}
           onClick={(e) => e.stopPropagation()}
           className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 cursor-grab active:cursor-grabbing transition-colors shrink-0"
           title="Arrastrar para reordenar"
         >
           <GripVertical size={16} />
-        </div>
+        </div>}
 
         {/* Thumbnail Mini */}
         <div className="w-12 h-16 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
@@ -283,20 +292,22 @@ const PragmaticNewsListItem = ({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <button
+        {puedeEditar && <button
           type="button"
           onClick={(e) => onEdit(item, e)}
           className="p-2 rounded-xl text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+          title="Editar noticia"
         >
           <Edit3 size={16} />
-        </button>
-        <button
+        </button>}
+        {puedeEliminar && <button
           type="button"
           onClick={(e) => onRemove(item, e)}
           className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+          title="Eliminar noticia"
         >
           <Trash2 size={16} />
-        </button>
+        </button>}
       </div>
     </div>
   )
@@ -304,6 +315,10 @@ const PragmaticNewsListItem = ({
 
 // ── Panel Principal de Noticias ─────────────────────────────────────────────
 export const NoticiasPanel = () => {
+  const { puede } = useAuth()
+  const puedeCrear = puede('noticias', 'crear')
+  const puedeEditar = puede('noticias', 'editar')
+  const puedeEliminar = puede('noticias', 'eliminar')
   const [items, setItems] = useState<NoticiaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
@@ -898,8 +913,8 @@ export const NoticiasPanel = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <BtnSecondary onClick={() => openEdit(selectedItem)}>Editar</BtnSecondary>
-              <BtnDanger onClick={() => remove(selectedItem)}>Eliminar</BtnDanger>
+              {puedeEditar && <BtnSecondary onClick={() => openEdit(selectedItem)}>Editar</BtnSecondary>}
+              {puedeEliminar && <BtnDanger onClick={() => remove(selectedItem)}>Eliminar</BtnDanger>}
             </div>
           </div>
 
@@ -972,7 +987,7 @@ export const NoticiasPanel = () => {
         searchPlaceholder="Buscar por título, categoría..."
         viewMode={viewMode}
         onViewModeChange={changeViewMode}
-        actionButtonText="Nueva Noticia"
+        actionButtonText={puedeCrear ? 'Nueva Noticia' : undefined}
         onActionClick={openNew}
       />
 
@@ -991,12 +1006,12 @@ export const NoticiasPanel = () => {
               ? 'Prueba cambiando la búsqueda.' 
               : 'Empieza publicando la primera noticia o afiche para la landing.'}
           </p>
-          <button
+          {puedeCrear && <button
             onClick={openNew}
             className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors"
           >
             + Crear Noticia
-          </button>
+          </button>}
         </div>
       ) : viewMode === 'grid' ? (
         /* VISTA GRID CON CARDS PRAGMATIC DRAG AND DROP */
@@ -1010,6 +1025,8 @@ export const NoticiasPanel = () => {
               onSelect={(id) => setSelectedId(id)}
               onEdit={openEdit}
               onRemove={remove}
+              puedeEditar={puedeEditar}
+              puedeEliminar={puedeEliminar}
             />
           ))}
         </div>
@@ -1025,6 +1042,8 @@ export const NoticiasPanel = () => {
               onSelect={(id) => setSelectedId(id)}
               onEdit={openEdit}
               onRemove={remove}
+              puedeEditar={puedeEditar}
+              puedeEliminar={puedeEliminar}
             />
           ))}
         </div>

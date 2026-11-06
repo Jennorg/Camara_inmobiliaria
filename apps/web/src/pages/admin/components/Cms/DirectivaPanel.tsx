@@ -329,7 +329,10 @@ function purgeCache() {
 }
 
 export const DirectivaPanel = () => {
-  const { token } = useAuth()
+  const { token, puede } = useAuth()
+  const puedeCrear = puede('directiva', 'crear')
+  const puedeEditar = puede('directiva', 'editar')
+  const puedeEliminar = puede('directiva', 'eliminar')
 
   const [panelState, dispatchPanel] = useReducer(panelReducer, null, () => ({
     items: [],
@@ -997,15 +1000,15 @@ export const DirectivaPanel = () => {
           </div>
 
           <div className="flex items-center flex-wrap gap-2.5">
-            <button
+            {puedeCrear && <button
               onClick={openNewModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-colors transition-transform shadow-md shadow-emerald-600/20"
             >
               <Plus size={16} />
               <span>Nuevo Miembro</span>
-            </button>
+            </button>}
 
-            <button
+            {puedeCrear && <button
               type="button"
               onClick={() => {
                 const y = new Date().getFullYear().toString()
@@ -1029,7 +1032,7 @@ export const DirectivaPanel = () => {
             >
               <Calendar size={15} className="text-slate-500" />
               <span>Nueva Gestión</span>
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -1082,7 +1085,7 @@ export const DirectivaPanel = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
+              {puedeEditar && <button
                 type="button"
                 onClick={() => {
                   const parsed = parsePeriodo(selectedPeriodFilter)
@@ -1095,7 +1098,7 @@ export const DirectivaPanel = () => {
                 className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition-colors shadow-xs"
               >
                 Editar Fechas
-              </button>
+              </button>}
 
             </div>
           </div>
@@ -1117,13 +1120,13 @@ export const DirectivaPanel = () => {
             <h3 className="text-base font-bold text-slate-800">No se encontraron autoridades</h3>
             <p className="text-xs text-slate-400 mt-1">No hay miembros registrados para este período o filtro de búsqueda.</p>
           </div>
-          <button
+          {puedeCrear && <button
             onClick={openNewModal}
             className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors shadow-md shadow-emerald-600/20 flex items-center gap-2"
           >
             <Plus size={16} />
             <span>Agregar Primer Miembro</span>
-          </button>
+          </button>}
         </div>
       ) : (
         <>
@@ -1165,6 +1168,8 @@ export const DirectivaPanel = () => {
                       <button
                         type="button"
                         onClick={() => toggleStatus(item)}
+                        disabled={!puedeEditar}
+                        title={puedeEditar ? undefined : 'Sin permiso para editar'}
                         className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                           item.activo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-slate-100 text-slate-500'
                         }`}
@@ -1174,7 +1179,7 @@ export const DirectivaPanel = () => {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <button
+                      {puedeEditar && <button
                         type="button"
                         disabled={index === 0}
                         onClick={() => moveItem(index, 'up')}
@@ -1182,8 +1187,8 @@ export const DirectivaPanel = () => {
                         title="Mover arriba"
                       >
                         <ArrowUp size={13} />
-                      </button>
-                      <button
+                      </button>}
+                      {puedeEditar && <button
                         type="button"
                         disabled={index === filteredItems.length - 1}
                         onClick={() => moveItem(index, 'down')}
@@ -1191,23 +1196,23 @@ export const DirectivaPanel = () => {
                         title="Mover abajo"
                       >
                         <ArrowDown size={13} />
-                      </button>
-                      <button
+                      </button>}
+                      {puedeEditar && <button
                         type="button"
                         onClick={() => openEditModal(item)}
                         className="p-1.5 text-blue-600 hover:bg-blue-50 border border-blue-100 rounded-lg transition"
                         title="Editar"
                       >
                         <Edit3 size={13} />
-                      </button>
-                      <button
+                      </button>}
+                      {puedeEliminar && <button
                         type="button"
                         onClick={() => remove(item.id)}
                         className="p-1.5 text-rose-600 hover:bg-rose-50 border border-rose-100 rounded-lg transition"
                         title="Eliminar"
                       >
                         <Trash2 size={13} />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 </div>
@@ -1236,7 +1241,7 @@ export const DirectivaPanel = () => {
                   return (
                     <tr
                       key={item.id}
-                      draggable
+                      draggable={puedeEditar}
                       onDragStart={(e) => {
                         setDraggedIndex(index);
                         createDragGhost(e, item, rank);
@@ -1286,12 +1291,12 @@ export const DirectivaPanel = () => {
                     >
                       <td className="px-5 py-3.5 text-center font-bold text-slate-400">
                         <div className="flex items-center justify-center gap-1.5">
-                          <div 
+                          {puedeEditar && <div 
                             className="p-1 rounded-lg text-slate-300 group-hover:text-slate-500 hover:bg-slate-100 cursor-grab active:cursor-grabbing transition-colors shrink-0" 
                             title="Arrastrar para reordenar"
                           >
                             <GripVertical size={14} />
-                          </div>
+                          </div>}
 
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border min-w-[34px] text-center flex items-center justify-center gap-1 transition-colors ${
                             movedRowId === item.id 
@@ -1307,7 +1312,7 @@ export const DirectivaPanel = () => {
                             <span>#{rank}</span>
                           </span>
 
-                          <div className="flex flex-col gap-0.5 ml-0.5">
+                          {puedeEditar && <div className="flex flex-col gap-0.5 ml-0.5">
                             <button
                               type="button"
                               disabled={index === 0}
@@ -1326,7 +1331,7 @@ export const DirectivaPanel = () => {
                             >
                               <ArrowDown size={11} />
                             </button>
-                          </div>
+                          </div>}
                         </div>
                       </td>
 
@@ -1365,6 +1370,8 @@ export const DirectivaPanel = () => {
                       <td className="px-5 py-3.5 text-center">
                         <button
                           onClick={() => toggleStatus(item)}
+                          disabled={!puedeEditar}
+                        title={puedeEditar ? undefined : 'Sin permiso para editar'}
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
                             item.activo
                               ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -1377,20 +1384,20 @@ export const DirectivaPanel = () => {
 
                       <td className="px-5 py-3.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
-                          <button
+                          {puedeEditar && <button
                             onClick={() => openEditModal(item)}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Editar"
                           >
                             <Edit3 size={15} />
-                          </button>
-                          <button
+                          </button>}
+                          {puedeEliminar && <button
                             onClick={() => remove(item.id)}
                             className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Eliminar"
                           >
                             <Trash2 size={15} />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -1713,7 +1720,7 @@ export const DirectivaPanel = () => {
                 {saving ? 'Guardando...' : 'Guardar Autoridad'}
               </button>
               
-              {editingItem && (
+              {editingItem && puedeEliminar && (
                 <button
                   type="button"
                   onClick={() => remove(editingItem.id)}

@@ -6,6 +6,7 @@ import { db } from '../lib/db.js'
 import { env } from '../config/env.js'
 import type { JwtPayload, UserRole } from '../middlewares/auth.middleware.js'
 import { enrichUserPayload } from '../middlewares/auth.middleware.js'
+import { permisosDeRoles, rolPrimario } from '../services/permisos.service.js'
 
 /** Hashea un token en crudo con SHA-256 (para almacenar en reset_token_hash). */
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
@@ -103,15 +104,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const roles = parseRoles(user.roles)
 
     // El rol primario (para retrocompatibilidad) es el "más alto" en jerarquía
-    const rolPrimary: UserRole = roles.includes('super_admin')
-      ? 'super_admin'
-      : roles.includes('admin')
-        ? 'admin'
-        : roles.includes('asistente') || roles.includes('administrativo')
-          ? 'asistente'
-          : roles.includes('afiliado')
-            ? 'afiliado'
-            : 'estudiante'
+    const permisos = await permisosDeRoles(roles)
+    const rolPrimary: UserRole = rolPrimario(roles, permisos)
 
     // Generar JWT (el JWT base solo contiene lo esencial)
     const payload: JwtPayload = {
@@ -138,7 +132,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
 
     // Enriquecer el usuario para retornarlo en la respuesta del login
-    const enrichedUser = await enrichUserPayload({ ...payload })
+    const enrichedUser = { ...(await enrichUserPayload({ ...payload })), permisos }
 
     res.status(200).json({
       success: true,
@@ -180,7 +174,8 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    res.status(200).json({ success: true, user: req.user })
+    const permisos = await permisosDeRoles(req.user.roles)
+    res.status(200).json({ success: true, user: { ...req.user, rol: rolPrimario(req.user.roles, permisos), permisos } })
   } catch (error) {
     console.error('Error en getMe:', error)
     res.status(500).json({ success: false, message: 'Error interno del servidor' })
@@ -489,15 +484,8 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     
     // Generar nuevo Access Token (30 minutos)
     const roles = parseRoles(user.roles);
-    const rolPrimary: UserRole = roles.includes('super_admin')
-      ? 'super_admin'
-      : roles.includes('admin')
-        ? 'admin'
-        : roles.includes('asistente') || roles.includes('administrativo')
-          ? 'asistente'
-          : roles.includes('afiliado')
-            ? 'afiliado'
-            : 'estudiante';
+    const permisos = await permisosDeRoles(roles)
+    const rolPrimary: UserRole = rolPrimario(roles, permisos)
         
     const payload: JwtPayload = {
       id: user.id as number,
@@ -510,7 +498,7 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       expiresIn: '30m'
     });
     
-    const enrichedUser = await enrichUserPayload({ ...payload });
+    const enrichedUser = { ...(await enrichUserPayload({ ...payload })), permisos };
     
     res.status(200).json({
       success: true,

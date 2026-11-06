@@ -25,7 +25,8 @@ export const getSolvenciaAfiliado = async (req: Request, res: Response): Promise
     }
 
     const { inicio, cobranza, hoy, montoMensual, solvencias } = await calcularSolvencias([idAfiliado])
-    const s = solvencias.get(idAfiliado)!
+    // Un aspirante (sin afiliación oficial ni código) no tiene cuotas: se responde «al día» y sin meses.
+    const s = solvencias.get(idAfiliado) ?? { mesesDeuda: 0, montoUsd: 0, mesMasAntiguo: null, bloqueado: false, meses: [] }
     res.json({
       success: true,
       data: {

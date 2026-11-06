@@ -28,7 +28,9 @@ type Inscripcion = {
 }
 
 export default function EstudiantesRegularesPanel() {
-  const { token } = useAuth()
+  const { token, puede } = useAuth()
+  // Aprobar y rechazar usan los endpoints de preinscripciones (/aprobar, /rechazar)
+  const puedeResolver = puede('preinscripciones', 'editar')
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {}
     if (token) h.Authorization = `Bearer ${token}`
@@ -207,7 +209,7 @@ export default function EstudiantesRegularesPanel() {
                           {new Date(i.creado_en).toLocaleString('es-ES')} · Estatus: <span className="font-semibold">{i.estatus}</span>
                         </p>
                       </div>
-                      {i.estatus === 'Preinscrito' && (
+                      {puedeResolver && i.estatus === 'Preinscrito' && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => procesar(i.id_inscripcion, 'aprobar')}

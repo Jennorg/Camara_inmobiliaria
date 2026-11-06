@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
 import { env } from '../config/env.js';
-import { isAsistente, isStaff } from '../middlewares/auth.middleware.js';
+import { isStaff } from '../middlewares/auth.middleware.js';
+import { puedeAlgunPermiso, SECCIONES_AFILIADO } from '../services/permisos.service.js';
 import { asegurarCohortes } from '../services/cohortes.service.js';
 import { esProgramaCohorte } from '../lib/cohortes.js';
 
@@ -38,7 +39,7 @@ import { crearVerificacionPreinscripcionPrograma, upsertEstudianteByEmail } from
 import { NotificationService } from '../services/notification.service.js';
 import { ensureCibirCertificate, syncCibirCertificateState } from '../lib/certificados.js';
 import { autoAsignarEdicionCibir } from '../services/cibir.service.js';
-import { MENSAJE_PAGO_CIBIR_REQUERIDO, puedeEntrarACibir, reportarPagoDigital, validarMontoArancel } from '../services/pagos.service.js';
+import { MENSAJE_PAGO_CIBIR_REQUERIDO, acreditarPrimeraCuotaDelCibir, puedeEntrarACibir, reportarPagoDigital, validarMontoArancel } from '../services/pagos.service.js';
 import { MENSAJE_SOLO_ADMINISTRACION, pagosElectronicosHabilitados } from '../services/config-pagos.service.js';
 import { estadoBloqueo } from '../services/cobranza.service.js';
 
@@ -295,13 +296,14 @@ export const getAfiliadoById = async (req: Request, res: Response): Promise<void
     const requesterId = req.user!.id_afiliado
     const requesterRoles = req.user!.roles ?? [req.user!.rol]
 
-    // Admins, SuperAdmins, Asistentes y Administrativos pueden consultar cualquier registro
-    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)) {
+    // Admins, SuperAdmins y quien tenga afiliados/ver pueden consultar cualquier registro
+    if (!requesterRoles.some(r => ['admin', 'super_admin'].includes(r)) && requesterId !== Number(id)
+      && !(await puedeAlgunPermiso(req.user!, SECCIONES_AFILIADO, 'ver'))) {
       res.status(403).json({ success: false, message: 'Acceso denegado' })
       return
     }
 
-    const esPersonal = isStaff(req.user!)
+    const esPersonal = isStaff(req.user!) || await puedeAlgunPermiso(req.user!, SECCIONES_AFILIADO, 'ver')
     const bloqueo = await estadoBloqueo(Number(id))
 
     // Asegurar sincronización del certificado CIBIR
@@ -459,7 +461,7 @@ export const cambiarAccesoEmail = async (req: Request, res: Response): Promise<v
     const { id } = req.params;
     const { tipo } = req.body; // 'personal' | 'empresa'
     const requesterId = req.user!.id_afiliado;
-    const isStaffUser = isStaff(req.user!);
+    const isStaffUser = isStaff(req.user!) || await puedeAlgunPermiso(req.user!, SECCIONES_AFILIADO, 'editar');
 
     if (!isStaffUser && requesterId !== Number(id)) {
       res.status(403).json({ success: false, message: 'No tienes permiso para realizar esta acción.' });
@@ -986,6 +988,7 @@ export const aprobarAfiliado = async (req: Request, res: Response) => {
     });
 
     const afiliadoActualizado = updateResult.rows[0];
+    await acreditarPrimeraCuotaDelCibir(Number(id)).catch(e => console.error('acreditarPrimeraCuotaDelCibir:', e));
 
     // Sincronizar la inscripción al programa 'AFILIACION'
     try {
@@ -1718,6 +1721,7 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
     }
 
     const afi = result.rows[0] as any;
+    if (estatus === 'Afiliado') await acreditarPrimeraCuotaDelCibir(Number(id)).catch(e => console.error('acreditarPrimeraCuotaDelCibir:', e));
 
     // Sincronizar la inscripción al programa 'AFILIACION' si cambia a Afiliado o Rechazado
     if (estatus === 'Afiliado' || estatus === 'Rechazado') {
@@ -1765,7 +1769,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     const { id } = req.params;
     const fields = req.body;
     const requesterId = req.user!.id_afiliado;
-    const isStaffMember = isStaff(req.user!);
+    const isStaffMember = isStaff(req.user!) || await puedeAlgunPermiso(req.user!, SECCIONES_AFILIADO, 'editar');
 
     // 1. Autorización: Personal administrativo (Staff: admin, super_admin, asistente, secretaria, personal, personal admin) o el propio afiliado
     if (!isStaffMember && requesterId !== Number(id)) {
@@ -2447,7 +2451,7 @@ export const updateAfiliado = async (req: Request, res: Response) => {
 /** Helper para autorizar si un usuario puede gestionar la empresa dada (admin, agente asignado, o representante legal/dueño) */
 async function canManageEmpresa(reqUser: any, targetIdEmpresa: number): Promise<boolean> {
   if (!reqUser) return false;
-  if (isStaff(reqUser)) return true;
+  if (isStaff(reqUser) || await puedeAlgunPermiso(reqUser, SECCIONES_AFILIADO, 'editar')) return true;
 
   if (reqUser.id_empresa && Number(reqUser.id_empresa) === Number(targetIdEmpresa)) return true;
 
@@ -2866,11 +2870,6 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 export const deleteAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-
-    if (isAsistente(req.user!)) {
-      res.status(403).json({ success: false, message: 'Acceso denegado: El personal administrativo no tiene permisos para eliminar registros' });
-      return;
-    }
 
     // 1. Obtener toda la información relacionada antes de borrar nada
     const check = await db.execute({
@@ -3352,8 +3351,9 @@ export const convertirAgenteANatural = async (req: Request, res: Response): Prom
     const requesterId = req.user!.id_afiliado;
     const requesterRoles = req.user!.roles ?? [req.user!.rol];
 
-    // Solo el propio afiliado, admin o asistente puede hacerlo
-    if (!requesterRoles.some(r => ['admin', 'super_admin', 'asistente', 'administrativo'].includes(r)) && requesterId !== Number(id)) {
+    // Solo el propio afiliado, admin o quien tenga afiliados/editar puede hacerlo
+    if (!requesterRoles.some(r => ['admin', 'super_admin'].includes(r)) && requesterId !== Number(id)
+      && !(await puedeAlgunPermiso(req.user!, SECCIONES_AFILIADO, 'editar'))) {
       res.status(403).json({ success: false, message: 'Acceso denegado' });
       return;
     }

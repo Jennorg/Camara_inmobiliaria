@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
+import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 import { cleanSearchDigits, normalizeSearchText } from '@/utils/searchUtils'
 import { formatNombreCard } from '@/utils/formatters'
+import ModalCobroTaquilla from './ModalCobroTaquilla'
 import { accionDelMes, corregirMesSolvencia, type MesCorregible } from '@/utils/correccionesSolvencia'
 
 type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
@@ -50,12 +52,14 @@ interface Resumen {
   afiliados: FilaSolvencia[]
 }
 
-type CriterioBusqueda = 'nombre' | 'cedula' | 'codigo'
+type CriterioBusqueda = 'nombre' | 'cedula' | 'rif' | 'codigo' | 'correo'
 
 const CRITERIOS: { key: CriterioBusqueda; label: string; placeholder: string }[] = [
   { key: 'nombre', label: 'Nombre', placeholder: 'Buscar por nombre o empresa...' },
-  { key: 'cedula', label: 'Cédula', placeholder: 'Buscar por cédula o RIF...' },
+  { key: 'cedula', label: 'Cédula', placeholder: 'Buscar por cédula...' },
+  { key: 'rif', label: 'RIF', placeholder: 'Buscar por RIF...' },
   { key: 'codigo', label: 'Código', placeholder: 'Buscar por N° de afiliado...' },
+  { key: 'correo', label: 'Correo', placeholder: 'Buscar por correo...' },
 ]
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -70,7 +74,9 @@ const CELDA: Record<EstadoMes, { clase: string; marca: string; titulo: string }>
 
 /** Matriz mes a mes de la solvencia de todos los afiliados; al abrir una fila se ve su línea de tiempo. */
 export default function SolvenciaPanel() {
-  const { authHeaders, token, isSuperAdmin } = useAuth()
+  const { authHeaders, token, puede } = useAuth()
+  const puedeEditar = puede('finanzas', 'editar')
+  const puedeCrear = puede('finanzas', 'crear')
   const [anio, setAnio] = useState(new Date().getFullYear())
   const [data, setData] = useState<Resumen | null>(null)
   const [inicio, setInicio] = useState('')
@@ -80,6 +86,7 @@ export default function SolvenciaPanel() {
   const [soloMora, setSoloMora] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
+  const [pagando, setPagando] = useState<FilaSolvencia | null>(null)
 
   const cargar = useCallback(async () => {
     try {
@@ -103,7 +110,9 @@ export default function SolvenciaPanel() {
         const texto = normalizeSearchText(`${a.nombres ?? ''} ${a.apellidos ?? ''} ${a.razon_social ?? ''}`)
         return terminos.every(t => texto.includes(t))
       }
-      if (criterio === 'cedula') return digitos !== '' && (cleanSearchDigits(a.cedula).includes(digitos) || cleanSearchDigits(a.rif).includes(digitos))
+      if (criterio === 'cedula') return digitos !== '' && cleanSearchDigits(a.cedula).includes(digitos)
+      if (criterio === 'rif') return digitos !== '' && cleanSearchDigits(a.rif).includes(digitos)
+      if (criterio === 'correo') return (a.email ?? '').toLowerCase().includes(busqueda.trim().toLowerCase())
       return (a.codigo ?? '') === busqueda.trim()
     }
     return (data?.afiliados ?? []).filter(a => (!soloMora || !a.solvente) && (!busqueda.trim() || coincide(a)))
@@ -178,13 +187,13 @@ export default function SolvenciaPanel() {
         <div className="flex items-end gap-2">
           <label className="space-y-1">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Sin historial, la deuda cuenta desde</span>
-            <input type="month" value={inicio} onChange={e => setInicio(e.target.value)}
+            <input type="month" readOnly={!puedeEditar} value={inicio} onChange={e => setInicio(e.target.value)}
               className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </label>
-          <button type="button" onClick={() => guardarConfig({ inicio })} disabled={guardando || !inicio || inicio === data.inicio}
+          {puedeEditar && <button type="button" onClick={() => guardarConfig({ inicio })} disabled={guardando || !inicio || inicio === data.inicio}
             className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-40 disabled:pointer-events-none cursor-pointer">
             {guardando ? 'Guardando…' : 'Guardar'}
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -201,17 +210,17 @@ export default function SolvenciaPanel() {
               <label key={c.key} className="space-y-1">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">{c.label}</span>
                 <input
-                  type="number" inputMode="numeric" min={c.min} max={c.max} step={1} required
+                  type="number" inputMode="numeric" readOnly={!puedeEditar} min={c.min} max={c.max} step={1} required
                   value={cobranza[c.key]}
                   onChange={e => setCobranza({ ...cobranza, [c.key]: e.currentTarget.valueAsNumber })}
                   className="w-28 px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </label>
             ))}
-            <button type="submit" disabled={guardando}
+            {puedeEditar && <button type="submit" disabled={guardando}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider disabled:opacity-40 cursor-pointer">
               {guardando ? 'Guardando…' : 'Guardar calendario'}
-            </button>
+            </button>}
           </form>
         </details>
       )}
@@ -252,10 +261,10 @@ export default function SolvenciaPanel() {
             )}
           </div>
         </div>
-        <button type="button" onClick={() => enviarRecordatorio()} disabled={enMora.length === 0}
+        {puedeEditar && <button type="button" onClick={() => enviarRecordatorio()} disabled={enMora.length === 0}
           className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-red-700 text-[11px] font-black uppercase tracking-wider hover:bg-red-100 disabled:opacity-40 cursor-pointer">
           Recordar a morosos
-        </button>
+        </button>}
         <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
           <input type="checkbox" checked={soloMora} onChange={e => setSoloMora(e.target.checked)} className="accent-emerald-600" />
           Solo en mora
@@ -275,10 +284,11 @@ export default function SolvenciaPanel() {
               <th className="px-3 py-3 text-left">Afiliado</th>
               {MESES.map(m => <th key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
               <th className="px-3 py-3 text-right">Deuda</th>
+              <th className="px-2 py-3 text-center w-12"><span className="sr-only">Registrar pago</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filas.length === 0 && <tr><td colSpan={15} className="p-6 text-center text-slate-400 font-medium">Sin afiliados para mostrar.</td></tr>}
+            {filas.length === 0 && <tr><td colSpan={16} className="p-6 text-center text-slate-400 font-medium">Sin afiliados para mostrar.</td></tr>}
             {filas.map(a => (
               <tr key={a.id_afiliado} className="hover:bg-slate-50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-400 tabular-nums">{a.codigo}</td>
@@ -286,7 +296,7 @@ export default function SolvenciaPanel() {
                   {a.celdas.map((c, i) => (
                     <td key={i} className="px-1 py-2 text-center">
                       {c ? (
-                        isSuperAdmin ? (
+                        puedeEditar ? (
                           <button type="button" onClick={e => { e.stopPropagation(); corregirCelda(a.id_afiliado, i) }}
                             title={`${MESES[i]} ${anio}: ${CELDA[c].titulo} · clic para corregir`}
                             aria-label={`${MESES[i]} ${anio}: ${CELDA[c].titulo}. Corregir`}
@@ -301,21 +311,37 @@ export default function SolvenciaPanel() {
                     {a.solvente ? 'Solvente' : `$${a.deuda_usd.toFixed(2)}`}
                     {a.bloqueado && <span className="block text-[9px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
+                  <td className="px-2 py-2 text-center">
+                    {puedeCrear && <button type="button" onClick={() => setPagando(a)} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 cursor-pointer"><CalendarPlus size={14} aria-hidden="true" /></button>}
+                  </td>
                 </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {isSuperAdmin && (
+      {puedeEditar && (
         <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-          Como superadmin puedes corregir cualquier mes: haz clic en su casilla para anular el pago, marcarlo como pagado o quitar la marca.
+          Puedes corregir cualquier mes: haz clic en su casilla para anular el pago, marcarlo como pagado o quitar la marca.
         </p>
       )}
 
       <p className="text-xs text-slate-500 font-medium">
         Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso cuenta como deuda a partir del día {data.cobranza.diaVencimiento + 1}. Con más de {data.cobranza.mesesGracia} meses de deuda se bloquean el carnet, la constancia de solvencia y los certificados. Los afiliados sin historial importado deben desde el mes indicado arriba.
       </p>
+
+      {pagando && (
+        <ModalCobroTaquilla
+          open
+          onClose={() => setPagando(null)}
+          onSuccess={() => { toast.success('Pago registrado'); cargar() }}
+          afiliadoId={pagando.id_afiliado}
+          afiliadoNombre={pagando.nombre}
+          conceptoDefault="mensualidad"
+          authHeaders={authHeaders}
+        />
+      )}
     </div>
   )
 }

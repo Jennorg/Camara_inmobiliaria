@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { setupAdminAuth, setupAdminMocks } from './helpers/mock-api';
+import { navPanel } from './helpers/panel-nav';
 
 test.describe('Módulo Administrativo: Formación, Cursos y Preinscripciones (E2E)', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,10 +9,10 @@ test.describe('Módulo Administrativo: Formación, Cursos y Preinscripciones (E2
   });
 
   test('debe navegar al panel de Formación y alternar entre Cursos y Ediciones CIBIR', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navFormacion = page.locator('[data-testid="aside-nav-formacion"]:visible');
+    const navFormacion = navPanel(page, 'formacion');
     await expect(navFormacion).toBeVisible();
     await navFormacion.click();
 
@@ -28,10 +29,10 @@ test.describe('Módulo Administrativo: Formación, Cursos y Preinscripciones (E2
   });
 
   test('debe navegar a la sección de Preinscripciones y listar los aspirantes', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navPreins = page.locator('[data-testid="aside-nav-preinscripciones"]:visible');
+    const navPreins = navPanel(page, 'preinscripciones');
     await expect(navPreins).toBeVisible();
     await navPreins.click();
 
@@ -42,10 +43,10 @@ test.describe('Módulo Administrativo: Formación, Cursos y Preinscripciones (E2
   });
 
   test('debe navegar al panel de Estudiantes Regulares', async ({ page }) => {
-    await page.goto('/admin');
+    await page.goto('/panel');
     await page.waitForLoadState('domcontentloaded');
 
-    const navEstudiantes = page.locator('[data-testid="aside-nav-estudiantes"]:visible');
+    const navEstudiantes = navPanel(page, 'estudiantes');
     await expect(navEstudiantes).toBeVisible();
     await navEstudiantes.click();
 

@@ -10,18 +10,18 @@ import {
   resolverSolicitudCambioEmpresa, listarSolicitudesCambioAdmin, resolverSolicitudCambioAdmin,
   cambiarMembresiaDirectoAdmin, cambiarAccesoEmail
 } from '../controllers/afiliados.controller.js';
-import { requireAuth, requireRole, enrichUser } from '../middlewares/auth.middleware.js';
+import { requireAuth, requirePermiso, requireAlgunPermiso, enrichUser } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// GET /api/afiliados
-router.get('/', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), getAfiliados);
+// GET /api/afiliados — lo usan el Directorio, Afiliaciones y otros paneles: basta cualquiera de las dos secciones
+router.get('/', requireAuth, requireAlgunPermiso(['afiliados', 'afiliaciones'], 'ver'), getAfiliados);
 
 // POST /api/afiliados (Direct Creation)
-router.post('/', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), createAfiliado);
+router.post('/', requireAuth, requirePermiso('afiliados', 'crear'), createAfiliado);
 
 // GET /api/afiliados/cibir/solicitudes
-router.get('/cibir/solicitudes', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), getSolicitudesCibir);
+router.get('/cibir/solicitudes', requireAuth, requirePermiso('afiliaciones', 'ver'), getSolicitudesCibir);
 
 // GET /api/afiliados/me/certificados — comprobantes digitales del usuario autenticado
 router.get('/me/certificados', requireAuth, enrichUser, getMisCertificados);
@@ -42,7 +42,7 @@ router.post('/registro/verificar', verificarEmail);
 router.post('/formalizar', requireAuth, enrichUser, formalizarInscripcion);
 
 // PATCH /api/afiliados/:id/acceso-panel — Contraseña de acceso al panel (admin)
-router.patch('/:id/acceso-panel', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), establecerAccesoPanel);
+router.patch('/:id/acceso-panel', requireAuth, requirePermiso('afiliaciones', 'editar'), establecerAccesoPanel);
 
 // PATCH /api/afiliados/:id/acceso-email — Cambiar correo de acceso (dueño o admin)
 router.patch('/:id/acceso-email', requireAuth, enrichUser, cambiarAccesoEmail);
@@ -51,16 +51,16 @@ router.patch('/:id/acceso-email', requireAuth, enrichUser, cambiarAccesoEmail);
 router.patch('/:id', requireAuth, enrichUser, updateAfiliado);
 
 // DELETE /api/afiliados/:id (Solo admin y super_admin pueden eliminar registros)
-router.delete('/:id', requireAuth, requireRole('admin', 'super_admin'), deleteAfiliado);
+router.delete('/:id', requireAuth, requirePermiso('afiliados', 'eliminar'), deleteAfiliado);
 
 // PATCH /api/afiliados/:id/estatus — Actualización granular del proceso de 9 pasos
-router.patch('/:id/estatus', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), updateEstatusAfiliado);
+router.patch('/:id/estatus', requireAuth, requirePermiso('afiliaciones', 'editar'), updateEstatusAfiliado);
 
 // PATCH /api/afiliados/:id/aprobar
-router.patch('/:id/aprobar', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), aprobarAfiliado);
+router.patch('/:id/aprobar', requireAuth, requirePermiso('afiliaciones', 'editar'), aprobarAfiliado);
 
 // PATCH /api/afiliados/:id/rechazar
-router.patch('/:id/rechazar', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), rechazarAfiliado);
+router.patch('/:id/rechazar', requireAuth, requirePermiso('afiliaciones', 'editar'), rechazarAfiliado);
 
 // ── Invitaciones Corporativas ──────────────────────────────────────────────────
 // POST /api/afiliados/:id/invitacion — Genera link reutilizable (admin o afiliado corp)
@@ -115,13 +115,13 @@ router.get('/empresa/solicitudes-cambio', requireAuth, enrichUser, listarSolicit
 router.post('/empresa/solicitudes-cambio/:id/resolver', requireAuth, enrichUser, resolverSolicitudCambioEmpresa);
 
 // GET /api/afiliados/admin/solicitudes-cambio — Listar todas las solicitudes pendientes de Admin
-router.get('/admin/solicitudes-cambio', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), listarSolicitudesCambioAdmin);
+router.get('/admin/solicitudes-cambio', requireAuth, requirePermiso('solicitudes_cambio', 'ver'), listarSolicitudesCambioAdmin);
 
 // POST /api/afiliados/admin/solicitudes-cambio/:id/resolver — Aprobar o rechazar solicitud como Admin
-router.post('/admin/solicitudes-cambio/:id/resolver', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), resolverSolicitudCambioAdmin);
+router.post('/admin/solicitudes-cambio/:id/resolver', requireAuth, requirePermiso('solicitudes_cambio', 'editar'), resolverSolicitudCambioAdmin);
 
-// POST /api/afiliados/admin/:id/cambiar-membresia — Cambiar membresía directamente desde admin
-router.post('/admin/:id/cambiar-membresia', requireAuth, requireRole('admin', 'super_admin', 'asistente', 'administrativo'), cambiarMembresiaDirectoAdmin);
+// POST /api/afiliados/admin/:id/cambiar-membresia — Cambiar membresía directamente desde admin (Directorio y Afiliaciones)
+router.post('/admin/:id/cambiar-membresia', requireAuth, requireAlgunPermiso(['afiliados', 'afiliaciones'], 'editar'), cambiarMembresiaDirectoAdmin);
 
 export { router as afiliadosRoutes };
 
