@@ -69,3 +69,12 @@ export async function puedePermiso(user: { roles?: string[]; rol?: string }, sec
     return false
   }
 }
+
+/** Directorio de Miembros y proceso de Afiliaciones: los datos de un afiliado los abre cualquiera de las dos. */
+export const SECCIONES_AFILIADO = ['afiliados', 'afiliaciones']
+
+/** ¿Tiene la casilla en alguna de las secciones? Mismas reglas que puedePermiso. */
+export async function puedeAlgunPermiso(user: { roles?: string[]; rol?: string }, secciones: string[], accion: Accion): Promise<boolean> {
+  for (const s of secciones) if (await puedePermiso(user, s, accion)) return true
+  return false
+}

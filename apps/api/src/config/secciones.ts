@@ -46,17 +46,18 @@ export const STAFF_HISTORICO_PRUEBAS: Record<string, Record<string, Accion[]>> =
   // denuncias (denuncias.routes /admin*): adminRoles con 'asistente' admitía a TODO el staff por la jerarquía.
   // users (users.routes): requireRole con 'asistente' admitía a TODO el staff; eliminar era solo admin.
   // afiliados (afiliados.routes): requireRole con 'asistente' admitía a TODO el staff; eliminar era solo admin.
+  // afiliaciones: se separó de afiliados (proceso de afiliación); mismo acceso que afiliados.
   // formacion/preinscripciones/estudiantes (academia.routes + cibir.routes): el guard de router admitía a TODO el staff;
   //   los DELETE de cursos, inscripciones y profesores eran solo admin (formacion sin «eliminar»); borrar un documento de
   //   estudiante lo podía hacer el staff (estudiantes con «eliminar»).
   // cms/uploads: solo admin/super_admin (el staff no recibe noticias, leyes, directiva, config ni media). analytics: sin guard de rol.
-  asistente: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
-  administrativo: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
-  personal_admin: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
-  secretario: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
-  secretaria: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
-  personal: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
-  personal_administrativo: { afiliados: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  asistente: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  administrativo: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  personal_admin: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  secretario: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  secretaria: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  personal: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
+  personal_administrativo: { afiliados: SIN_ELIMINAR, afiliaciones: SIN_ELIMINAR, solicitudes_cambio: SOLO_VER_EDITAR, users: SIN_ELIMINAR, finanzas: TODAS, asambleas: TODAS, denuncias: TODAS, formacion: SIN_ELIMINAR, preinscripciones: SIN_ELIMINAR, estudiantes: TODAS },
 }
 
 const NOMBRES: Record<string, string> = {

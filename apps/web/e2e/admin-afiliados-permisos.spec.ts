@@ -20,7 +20,7 @@ const SOLICITUD = {
   afiliado_email: 'l@x.com', afiliado_telefono: null, creado_en: '2026-10-02T10:00:00Z',
 };
 
-async function sesion(page: Page, permisos: Permisos, seccion: 'afiliados' | 'solicitudes_cambio') {
+async function sesion(page: Page, permisos: Permisos, seccion: 'afiliaciones' | 'solicitudes_cambio') {
   await page.setViewportSize({ width: 1280, height: 800 });
   // Ninguna llamada sale del navegador: lo no mockeado responde vacío.
   await page.route((url) => url.pathname.startsWith('/api/'), (route) => route.fulfill(json([])));
@@ -44,9 +44,9 @@ const VER: Acciones = { ver: true };
 const TODO: Acciones = { ver: true, crear: true, editar: true, eliminar: true };
 
 for (const [nombre, acc, si] of [['solo «ver»', VER, false], ['las cuatro acciones', TODO, true]] as const) {
-  test.describe(`Afiliados con ${nombre} (E2E)`, () => {
+  test.describe(`Afiliaciones con ${nombre} (E2E)`, () => {
     test('detalle: aprobar/rechazar, proceso y pagos', async ({ page }) => {
-      await sesion(page, { afiliados: acc, finanzas: acc }, 'afiliados');
+      await sesion(page, { afiliaciones: acc, finanzas: acc }, 'afiliaciones');
       await page.getByRole('button', { name: /Luis Pérez/ }).click();
       await expect(page.getByText('Gestión del Proceso')).toBeVisible();
       await presente(page.getByRole('button', { name: /Aprobar Directo/ }), si);
@@ -63,8 +63,8 @@ for (const [nombre, acc, si] of [['solo «ver»', VER, false], ['las cuatro acci
       if (!si) await expect(page.getByTitle('Sin permiso para editar').first()).toBeVisible();
     });
 
-    test('los pagos dependen de finanzas, no de afiliados', async ({ page }) => {
-      await sesion(page, { afiliados: TODO, finanzas: VER }, 'afiliados');
+    test('los pagos dependen de finanzas, no de afiliaciones', async ({ page }) => {
+      await sesion(page, { afiliaciones: TODO, finanzas: VER }, 'afiliaciones');
       await page.getByRole('button', { name: /Luis Pérez/ }).click();
       await expect(page.getByRole('button', { name: /Aprobar Directo/ })).toBeVisible();
       await expect(page.getByRole('button', { name: /Revisar y Validar Pago/ })).toHaveCount(0);

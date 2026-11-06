@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { db } from '../lib/db.js'
 import type { Accion } from '../config/secciones.js'
-import { permisosDeRoles } from '../services/permisos.service.js'
+import { permisosDeRoles, puedePermiso, puedeAlgunPermiso, SECCIONES_AFILIADO } from '../services/permisos.service.js'
 
 export type BaseRole = 'admin' | 'afiliado' | 'super_admin' | 'estudiante' | 'asistente' | 'administrativo' | 'secretario' | 'secretaria' | 'personal' | 'personal_admin' | 'personal_administrativo'
 // Admite roles personalizados (tabla roles) sin perder el autocompletado de los base.
@@ -316,7 +316,10 @@ const ACCION_POR_METODO: Record<string, Accion> = {
  * Middleware de autorización por casilla (sección × acción) según los roles del usuario.
  * Sin `accion` se deduce del método HTTP.
  */
-export const requirePermiso = (seccion: string, accion?: Accion) => {
+export const requirePermiso = (seccion: string, accion?: Accion) => requireAlgunPermiso([seccion], accion)
+
+/** Como requirePermiso, pero basta la casilla en cualquiera de las secciones (rutas compartidas entre pantallas). */
+export const requireAlgunPermiso = (secciones: string[], accion?: Accion) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
       res.status(401).json({ success: false, message: 'No autenticado' })
@@ -325,7 +328,7 @@ export const requirePermiso = (seccion: string, accion?: Accion) => {
     const acc = accion ?? ACCION_POR_METODO[req.method.toUpperCase()]
     try {
       const mapa = await permisosDeRoles(req.user.roles ?? [req.user.rol])
-      if (!acc || !mapa[seccion]?.[acc]) {
+      if (!acc || !secciones.some(s => mapa[s]?.[acc])) {
         res.status(403).json({ success: false, message: 'Acceso denegado: permisos insuficientes' })
         return
       }
@@ -352,9 +355,9 @@ export const isAsistente  = (_user: JwtPayload): boolean => false
 export const isStaff      = (user: JwtPayload): boolean => isAdmin(user)
 export const isAfiliado   = (user: JwtPayload): boolean => hasRole(user, 'afiliado')
 
-/** El personal administrativo accede a cualquier afiliado; el resto, solo al suyo (afiliados.id_user). */
+/** Admin o quien tenga finanzas/afiliados/afiliaciones `ver` en la matriz accede a cualquier afiliado; el resto, solo al suyo (afiliados.id_user). */
 export const puedeAccederAfiliado = async (user: JwtPayload, idAfiliado: number): Promise<boolean> => {
-  if (isStaff(user)) return true
+  if (isStaff(user) || await puedePermiso(user, 'finanzas', 'ver') || await puedeAlgunPermiso(user, SECCIONES_AFILIADO, 'ver')) return true
   const r = await db.execute({ sql: `SELECT 1 FROM afiliados WHERE id_afiliado = ? AND id_user = ? AND eliminado_en IS NULL`, args: [idAfiliado, user.id] })
   return r.rows.length > 0
 }

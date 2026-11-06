@@ -69,7 +69,7 @@ const isCleanEmail = (e?: string | null) => !!e && e.trim() !== '' && !e.trim().
 
 export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeTabs = false }: AfiliadosPanelProps) {
   const { token, puede } = useAuth()
-  const puedeEditar = puede('afiliados', 'editar')
+  const puedeEditar = puede('afiliaciones', 'editar')
   const sinPermiso = puedeEditar ? undefined : 'Sin permiso para editar'
   const puedeResolver = puede('solicitudes_cambio', 'editar')
   const authHeaders = useMemo(() => {

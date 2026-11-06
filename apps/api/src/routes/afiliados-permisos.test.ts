@@ -31,20 +31,23 @@ app.use('/api/afiliados', afiliadosRoutes)
 
 const token = (roles: string[]) => `Bearer ${jwt.sign({ id: 9, email: 'u@x', roles, rol: roles[0] }, env.JWT_SECRET)}`
 
-// Ruta migrada → [sección, acción]. Las que cambian estado (PATCH/POST de aprobar, etc.) exigen «editar».
-const RUTAS: [string, string, string, Accion][] = [
-  ['get', '/api/afiliados', 'afiliados', 'ver'],
-  ['post', '/api/afiliados', 'afiliados', 'crear'],
-  ['get', '/api/afiliados/cibir/solicitudes', 'afiliados', 'ver'],
-  ['patch', '/api/afiliados/1/acceso-panel', 'afiliados', 'editar'],
-  ['delete', '/api/afiliados/1', 'afiliados', 'eliminar'],
-  ['patch', '/api/afiliados/1/estatus', 'afiliados', 'editar'],
-  ['patch', '/api/afiliados/1/aprobar', 'afiliados', 'editar'],
-  ['patch', '/api/afiliados/1/rechazar', 'afiliados', 'editar'],
-  ['post', '/api/afiliados/admin/1/cambiar-membresia', 'afiliados', 'editar'],
-  ['get', '/api/afiliados/admin/solicitudes-cambio', 'solicitudes_cambio', 'ver'],
-  ['post', '/api/afiliados/admin/solicitudes-cambio/1/resolver', 'solicitudes_cambio', 'editar'],
+// Ruta migrada → [secciones que la abren (basta una), acción]. Las que cambian estado exigen «editar».
+// «afiliados» = Directorio de Miembros; «afiliaciones» = proceso de afiliación. Compartidas: cualquiera de las dos.
+const AMBAS = ['afiliados', 'afiliaciones']
+const RUTAS: [string, string, string[], Accion][] = [
+  ['get', '/api/afiliados', AMBAS, 'ver'],
+  ['post', '/api/afiliados', ['afiliados'], 'crear'],
+  ['get', '/api/afiliados/cibir/solicitudes', ['afiliaciones'], 'ver'],
+  ['patch', '/api/afiliados/1/acceso-panel', ['afiliaciones'], 'editar'],
+  ['delete', '/api/afiliados/1', ['afiliados'], 'eliminar'],
+  ['patch', '/api/afiliados/1/estatus', ['afiliaciones'], 'editar'],
+  ['patch', '/api/afiliados/1/aprobar', ['afiliaciones'], 'editar'],
+  ['patch', '/api/afiliados/1/rechazar', ['afiliaciones'], 'editar'],
+  ['post', '/api/afiliados/admin/1/cambiar-membresia', AMBAS, 'editar'],
+  ['get', '/api/afiliados/admin/solicitudes-cambio', ['solicitudes_cambio'], 'ver'],
+  ['post', '/api/afiliados/admin/solicitudes-cambio/1/resolver', ['solicitudes_cambio'], 'editar'],
 ]
+const SECCIONES_AF = ['afiliados', 'afiliaciones', 'solicitudes_cambio']
 
 const STAFF = ['asistente', 'administrativo', 'personal_admin', 'secretario', 'secretaria', 'personal', 'personal_administrativo']
 
@@ -58,8 +61,8 @@ beforeAll(async () => {
     `CREATE TABLE roles (id INTEGER PRIMARY KEY, clave TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL, es_sistema INTEGER NOT NULL DEFAULT 0, activo INTEGER NOT NULL DEFAULT 1, creado_en TEXT)`,
     `CREATE TABLE rol_permisos (id_rol INTEGER NOT NULL, seccion TEXT NOT NULL, ver INTEGER NOT NULL DEFAULT 0, crear INTEGER NOT NULL DEFAULT 0, editar INTEGER NOT NULL DEFAULT 0, eliminar INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id_rol, seccion))`,
   ], 'write')
-  await sembrarRoles(mem)
-  for (const seccion of ['afiliados', 'solicitudes_cambio']) {
+  await sembrarRoles(mem, { staffHistorico: true })
+  for (const seccion of SECCIONES_AF) {
     for (const a of ACCIONES) {
       for (const [clave, casillas] of [[`solo_${a}_${seccion}`, [a]], [`sin_${a}_${seccion}`, ACCIONES.filter(x => x !== a)]] as const) {
         await mem.execute({ sql: `INSERT INTO roles (clave, nombre) VALUES (?, ?)`, args: [clave, clave] })
@@ -73,32 +76,53 @@ beforeAll(async () => {
 })
 
 describe('afiliados: permisos por sección', () => {
-  it.each(RUTAS)('%s %s exige %s/%s', async (m, url, seccion, accion) => {
+  it.each(RUTAS)('%s %s exige %s/%s', async (m, url, secciones, accion) => {
     expect((await llamar(m, url)).status).toBe(401)
-    expect((await llamar(m, url, token([`solo_${accion}_${seccion}`]))).status).toBe(200)
-    expect((await llamar(m, url, token([`sin_${accion}_${seccion}`]))).status).toBe(403)
+    for (const s of SECCIONES_AF) {
+      expect((await llamar(m, url, token([`solo_${accion}_${s}`]))).status, `solo_${accion}_${s}`).toBe(secciones.includes(s) ? 200 : 403)
+      expect((await llamar(m, url, token([`sin_${accion}_${s}`]))).status, `sin_${accion}_${s}`).toBe(403)
+    }
     expect((await llamar(m, url, token(['super_admin']))).status).toBe(200)
     expect((await llamar(m, url, token(['admin']))).status).toBe(200)
     expect((await llamar(m, url, token(['afiliado']))).status).toBe(403)
     expect((await llamar(m, url, token(['estudiante']))).status).toBe(403)
   })
 
-  it('afiliados: asistente y administrativo siguen igual salvo eliminar (antes solo admin)', async () => {
-    for (const [m, url, seccion, accion] of RUTAS.filter(r => r[2] === 'afiliados')) {
+  it('solo afiliaciones/editar: aprueba, rechaza, cambia estatus y membresía; no toca rutas del Directorio', async () => {
+    const t = token(['solo_editar_afiliaciones'])
+    for (const p of ['aprobar', 'rechazar', 'estatus', 'acceso-panel']) expect((await llamar('patch', `/api/afiliados/1/${p}`, t)).status, p).toBe(200)
+    expect((await llamar('post', '/api/afiliados/admin/1/cambiar-membresia', t)).status).toBe(200)
+    for (const a of ACCIONES) {
+      const ta = token([`solo_${a}_afiliaciones`])
+      expect((await llamar('post', '/api/afiliados', ta)).status, a).toBe(403)
+      expect((await llamar('delete', '/api/afiliados/1', ta)).status, a).toBe(403)
+    }
+  })
+
+  it('solo afiliados (cualquier casilla): 403 en las rutas del proceso de afiliación', async () => {
+    for (const a of ACCIONES) {
+      const t = token([`solo_${a}_afiliados`])
+      for (const p of ['aprobar', 'rechazar', 'estatus', 'acceso-panel']) expect((await llamar('patch', `/api/afiliados/1/${p}`, t)).status, `${a} ${p}`).toBe(403)
+      expect((await llamar('get', '/api/afiliados/cibir/solicitudes', t)).status, a).toBe(403)
+    }
+  })
+
+  it('asistente y administrativo siguen igual salvo eliminar (antes solo admin)', async () => {
+    for (const [m, url, secciones, accion] of RUTAS.filter(r => r[2].includes('afiliados') || r[2].includes('afiliaciones'))) {
       const esperado = accion === 'eliminar' ? 403 : 200
-      for (const rol of ['asistente', 'administrativo']) expect((await llamar(m, url, token([rol]))).status, `${rol} ${m} ${url}`).toBe(esperado)
+      for (const rol of ['asistente', 'administrativo']) expect((await llamar(m, url, token([rol]))).status, `${rol} ${m} ${url} ${secciones}`).toBe(esperado)
     }
   })
 
   it('solicitudes_cambio: todo el staff (asistente incluido) conserva acceso', async () => {
-    for (const [m, url] of RUTAS.filter(r => r[2] === 'solicitudes_cambio')) {
+    for (const [m, url] of RUTAS.filter(r => r[2][0] === 'solicitudes_cambio')) {
       for (const rol of STAFF) expect((await llamar(m, url, token([rol]))).status, `${rol} ${url}`).toBe(200)
     }
   })
 
-  it('el resto de staff conserva afiliados (sin eliminar)', async () => {
-    for (const [m, url, , accion] of RUTAS.filter(r => r[2] === 'afiliados')) {
-      for (const rol of STAFF) expect((await llamar(m, url, token([rol]))).status, `${rol} ${url}`).toBe(accion === 'eliminar' ? 403 : 200)
+  it('el resto de staff conserva afiliados y afiliaciones (sin eliminar)', async () => {
+    for (const [m, url, secciones, accion] of RUTAS.filter(r => r[2][0] !== 'solicitudes_cambio')) {
+      for (const rol of STAFF) expect((await llamar(m, url, token([rol]))).status, `${rol} ${url} ${secciones}`).toBe(accion === 'eliminar' ? 403 : 200)
     }
   })
 

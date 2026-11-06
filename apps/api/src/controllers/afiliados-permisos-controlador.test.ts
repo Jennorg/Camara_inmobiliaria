@@ -5,7 +5,8 @@ const mem = createClient({ url: ':memory:' })
 vi.mock('../lib/db.js', () => ({ db: mem }))
 
 const { puedePermiso, invalidarCachePermisos } = await import('../services/permisos.service.js')
-const { getAfiliadoById, updateAfiliado, cambiarAccesoEmail, convertirAgenteANatural } = await import('./afiliados.controller.js')
+const { getAfiliadoById, updateAfiliado, cambiarAccesoEmail, convertirAgenteANatural, listarAfiliadosCorporativos } = await import('./afiliados.controller.js')
+const { puedeAccederAfiliado } = await import('../middlewares/auth.middleware.js')
 
 const res = () => {
   const r: any = { statusCode: 200 }
@@ -24,9 +25,11 @@ beforeAll(async () => {
   await mem.batch([
     `CREATE TABLE roles (id INTEGER PRIMARY KEY, clave TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL, es_sistema INTEGER NOT NULL DEFAULT 0, activo INTEGER NOT NULL DEFAULT 1, creado_en TEXT)`,
     `CREATE TABLE rol_permisos (id_rol INTEGER NOT NULL, seccion TEXT NOT NULL, ver INTEGER NOT NULL DEFAULT 0, crear INTEGER NOT NULL DEFAULT 0, editar INTEGER NOT NULL DEFAULT 0, eliminar INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id_rol, seccion))`,
-    `INSERT INTO roles (clave, nombre) VALUES ('solo_ver', 'v'), ('con_editar', 'e'), ('sin_nada', 'n')`,
+    `INSERT INTO roles (clave, nombre) VALUES ('solo_ver', 'v'), ('con_editar', 'e'), ('sin_nada', 'n'), ('afi_ver', 'av'), ('afi_editar', 'ae')`,
     `INSERT INTO rol_permisos SELECT id, 'afiliados', 1, 0, 0, 0 FROM roles WHERE clave='solo_ver'`,
     `INSERT INTO rol_permisos SELECT id, 'afiliados', 1, 0, 1, 0 FROM roles WHERE clave='con_editar'`,
+    `INSERT INTO rol_permisos SELECT id, 'afiliaciones', 1, 0, 0, 0 FROM roles WHERE clave='afi_ver'`,
+    `INSERT INTO rol_permisos SELECT id, 'afiliaciones', 1, 0, 1, 0 FROM roles WHERE clave='afi_editar'`,
   ], 'write')
 })
 
@@ -69,5 +72,27 @@ describe('controladores de afiliados aceptan permisos por sección', () => {
   })
   it('el dueño del registro sigue pasando sin permisos', async () => {
     expect((await llamar(updateAfiliado, ['afiliado'], { params: { id: '1' } })).statusCode).not.toBe(403)
+  })
+})
+
+// La sección «afiliaciones» (proceso de afiliación) abre los mismos controles que «afiliados» con la misma acción.
+describe('controladores de afiliados aceptan también la sección afiliaciones', () => {
+  it('getAfiliadoById: afiliaciones/ver pasa el control', async () => {
+    expect((await llamar(getAfiliadoById, ['afi_ver'])).statusCode).not.toBe(403)
+  })
+  it('updateAfiliado, cambiarAccesoEmail, convertirAgenteANatural: afiliaciones solo ver → 403; con editar pasa', async () => {
+    for (const fn of [updateAfiliado, cambiarAccesoEmail, convertirAgenteANatural]) {
+      expect((await llamar(fn, ['afi_ver'], { body: { tipo: 'personal' } })).statusCode).toBe(403)
+      expect((await llamar(fn, ['afi_editar'], { body: { tipo: 'personal' } })).statusCode).not.toBe(403)
+    }
+  })
+  it('canManageEmpresa (listarAfiliadosCorporativos): afiliaciones/editar pasa; sin permiso → 403', async () => {
+    expect((await llamar(listarAfiliadosCorporativos, ['afi_editar'])).statusCode).not.toBe(403)
+    expect((await llamar(listarAfiliadosCorporativos, ['con_editar'])).statusCode).not.toBe(403)
+    expect((await llamar(listarAfiliadosCorporativos, ['sin_nada'])).statusCode).toBe(403)
+  })
+  it('puedeAccederAfiliado: afiliaciones/ver o afiliados/ver acceden a cualquier afiliado', async () => {
+    expect(await puedeAccederAfiliado(user(['afi_ver']), 77)).toBe(true)
+    expect(await puedeAccederAfiliado(user(['solo_ver']), 77)).toBe(true)
   })
 })

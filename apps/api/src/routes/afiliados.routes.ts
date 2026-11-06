@@ -10,18 +10,18 @@ import {
   resolverSolicitudCambioEmpresa, listarSolicitudesCambioAdmin, resolverSolicitudCambioAdmin,
   cambiarMembresiaDirectoAdmin, cambiarAccesoEmail
 } from '../controllers/afiliados.controller.js';
-import { requireAuth, requirePermiso, enrichUser } from '../middlewares/auth.middleware.js';
+import { requireAuth, requirePermiso, requireAlgunPermiso, enrichUser } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-// GET /api/afiliados
-router.get('/', requireAuth, requirePermiso('afiliados', 'ver'), getAfiliados);
+// GET /api/afiliados — lo usan el Directorio, Afiliaciones y otros paneles: basta cualquiera de las dos secciones
+router.get('/', requireAuth, requireAlgunPermiso(['afiliados', 'afiliaciones'], 'ver'), getAfiliados);
 
 // POST /api/afiliados (Direct Creation)
 router.post('/', requireAuth, requirePermiso('afiliados', 'crear'), createAfiliado);
 
 // GET /api/afiliados/cibir/solicitudes
-router.get('/cibir/solicitudes', requireAuth, requirePermiso('afiliados', 'ver'), getSolicitudesCibir);
+router.get('/cibir/solicitudes', requireAuth, requirePermiso('afiliaciones', 'ver'), getSolicitudesCibir);
 
 // GET /api/afiliados/me/certificados — comprobantes digitales del usuario autenticado
 router.get('/me/certificados', requireAuth, enrichUser, getMisCertificados);
@@ -42,7 +42,7 @@ router.post('/registro/verificar', verificarEmail);
 router.post('/formalizar', requireAuth, enrichUser, formalizarInscripcion);
 
 // PATCH /api/afiliados/:id/acceso-panel — Contraseña de acceso al panel (admin)
-router.patch('/:id/acceso-panel', requireAuth, requirePermiso('afiliados', 'editar'), establecerAccesoPanel);
+router.patch('/:id/acceso-panel', requireAuth, requirePermiso('afiliaciones', 'editar'), establecerAccesoPanel);
 
 // PATCH /api/afiliados/:id/acceso-email — Cambiar correo de acceso (dueño o admin)
 router.patch('/:id/acceso-email', requireAuth, enrichUser, cambiarAccesoEmail);
@@ -54,13 +54,13 @@ router.patch('/:id', requireAuth, enrichUser, updateAfiliado);
 router.delete('/:id', requireAuth, requirePermiso('afiliados', 'eliminar'), deleteAfiliado);
 
 // PATCH /api/afiliados/:id/estatus — Actualización granular del proceso de 9 pasos
-router.patch('/:id/estatus', requireAuth, requirePermiso('afiliados', 'editar'), updateEstatusAfiliado);
+router.patch('/:id/estatus', requireAuth, requirePermiso('afiliaciones', 'editar'), updateEstatusAfiliado);
 
 // PATCH /api/afiliados/:id/aprobar
-router.patch('/:id/aprobar', requireAuth, requirePermiso('afiliados', 'editar'), aprobarAfiliado);
+router.patch('/:id/aprobar', requireAuth, requirePermiso('afiliaciones', 'editar'), aprobarAfiliado);
 
 // PATCH /api/afiliados/:id/rechazar
-router.patch('/:id/rechazar', requireAuth, requirePermiso('afiliados', 'editar'), rechazarAfiliado);
+router.patch('/:id/rechazar', requireAuth, requirePermiso('afiliaciones', 'editar'), rechazarAfiliado);
 
 // ── Invitaciones Corporativas ──────────────────────────────────────────────────
 // POST /api/afiliados/:id/invitacion — Genera link reutilizable (admin o afiliado corp)
@@ -120,8 +120,8 @@ router.get('/admin/solicitudes-cambio', requireAuth, requirePermiso('solicitudes
 // POST /api/afiliados/admin/solicitudes-cambio/:id/resolver — Aprobar o rechazar solicitud como Admin
 router.post('/admin/solicitudes-cambio/:id/resolver', requireAuth, requirePermiso('solicitudes_cambio', 'editar'), resolverSolicitudCambioAdmin);
 
-// POST /api/afiliados/admin/:id/cambiar-membresia — Cambiar membresía directamente desde admin
-router.post('/admin/:id/cambiar-membresia', requireAuth, requirePermiso('afiliados', 'editar'), cambiarMembresiaDirectoAdmin);
+// POST /api/afiliados/admin/:id/cambiar-membresia — Cambiar membresía directamente desde admin (Directorio y Afiliaciones)
+router.post('/admin/:id/cambiar-membresia', requireAuth, requireAlgunPermiso(['afiliados', 'afiliaciones'], 'editar'), cambiarMembresiaDirectoAdmin);
 
 export { router as afiliadosRoutes };
 
