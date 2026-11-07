@@ -505,14 +505,10 @@ const PanelPage = () => {
     if (activeTab === 'Gestión de Formación') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><FormacionPanel /></div>;
 
     // 3. Sección CMS (Incrustada)
-    if (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea'].includes(activeTab)) {
+    if (activeTab.startsWith('CMS ·')) {
       const tabMap: Record<string, CmsTab> = {
         'CMS · Noticias': 'noticias',
         'CMS · Marco Legal': 'normativas',
-        'Leyes y Decretos': 'leyes',
-        'Reglamentos y Estatutos': 'reglamentos',
-        'Normas y Procedimientos': 'normas',
-        'Actas de Asamblea': 'actas',
         'CMS · Convenios': 'convenios',
         'CMS · Directiva': 'directiva',
         'CMS · Configuración': 'config',
@@ -527,7 +523,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Directorio de Miembros', 'Control de Acceso', 'Roles y permisos', 'Administradores', 'Afiliaciones', 'Estudiantes', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Directorio de Miembros', 'Control de Acceso', 'Roles y permisos', 'Administradores', 'Afiliaciones', 'Estudiantes', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <BatchDownloadProvider>

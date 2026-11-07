@@ -16,6 +16,7 @@ import { asegurarEsquemaCohortes } from '../lib/cohortes.js'
 import { asegurarTiposCuenta } from '../lib/cuentas.js'
 import { asegurarEsquemaDenuncias } from '../lib/denuncias-esquema.js'
 import { sembrarRoles } from './secciones.js'
+import { DDL_SECCIONES_NORMATIVA, sembrarSeccionesNormativa } from './secciones-normativa.js'
 
 const statements = [
   `PRAGMA foreign_keys = ON`,
@@ -730,6 +731,8 @@ const statements = [
     eliminado_en      TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_cms_normativas_activas ON cms_normativas(eliminado_en) WHERE eliminado_en IS NULL`,
+  // Secciones del Marco Legal (categorías de cms_normativas; públicas o privadas)
+  DDL_SECCIONES_NORMATIVA,
 
   // ===========================================================
   // CMS - CONFIGURACIÓN
@@ -850,6 +853,11 @@ async function run() {
     await sembrarRoles(db)
   } catch (e) {
     console.error('Error sembrando roles:', e)
+  }
+  try {
+    await sembrarSeccionesNormativa(db)
+  } catch (e) {
+    console.error('Error sembrando secciones del Marco Legal:', e)
   }
 
   console.log('  ⚠ Cleaning up cedula and rif_numero (removing prefixes and non-digits)...')

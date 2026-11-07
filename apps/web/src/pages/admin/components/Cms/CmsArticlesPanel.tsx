@@ -7,7 +7,7 @@ import { NormativasPanel } from '@/pages/admin/components/Cms/NormativasPanel'
 import { ConveniosPanel } from '@/pages/admin/components/Cms/ConveniosPanel'
 import { LandingPreviewPane } from '@/pages/admin/components/Cms/LandingPreviewPane'
 
-export type CmsTab = 'noticias' | 'normativas' | 'directiva' | 'config' | 'paginas' | 'leyes' | 'reglamentos' | 'normas' | 'actas' | 'cursos' | 'hitos' | 'convenios';
+export type CmsTab = 'noticias' | 'normativas' | 'directiva' | 'config' | 'paginas' | 'cursos' | 'hitos' | 'convenios';
 
 /** Maps each CMS tab to its relevant landing section anchor */
 const SECTION_ANCHORS: Record<CmsTab, string> = {
@@ -16,10 +16,6 @@ const SECTION_ANCHORS: Record<CmsTab, string> = {
   directiva: '#directiva',
   config: '',
   paginas: '',
-  leyes: '',
-  reglamentos: '',
-  normas: '',
-  actas: '',
   cursos: '',
   hitos: '',
   convenios: '',
@@ -130,10 +126,6 @@ export default function CmsArticlesPanel({ externalTab = 'config' }: { externalT
         <div key={externalTab} className="flex-1 w-full h-full min-w-0 overflow-y-auto relative cms-fade-up">
           {externalTab === 'noticias' && <NoticiasPanel />}
           {externalTab === 'normativas' && <NormativasPanel />}
-          {externalTab === 'leyes' && <NormativasPanel fixedCategory="Leyes y Decretos" />}
-          {externalTab === 'reglamentos' && <NormativasPanel fixedCategory="Reglamentos y Estatutos" />}
-          {externalTab === 'normas' && <NormativasPanel fixedCategory="Normas y Procedimientos" />}
-          {externalTab === 'actas' && <NormativasPanel fixedCategory="Actas de Asamblea" />}
           {externalTab === 'directiva' && <DirectivaPanel />}
           {externalTab === 'convenios' && <ConveniosPanel />}
         </div>

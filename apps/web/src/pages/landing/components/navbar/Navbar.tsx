@@ -8,6 +8,7 @@ import RegisterModal from '@/pages/landing/components/RegisterModal'
 import NavItem from './NavItem'
 import AffiliationTicker from './AffiliationTicker'
 import { NAV_ITEMS } from './navData'
+import { useSeccionesMarcoLegal } from '@/pages/landing/marco-legal/useSeccionesMarcoLegal'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 import { Menu, X, LogOut, Moon, Sun, User } from 'lucide-react'
@@ -42,8 +43,16 @@ const Navbar = ({
     return () => { active = false; };
   }, []);
 
+  const { secciones: seccionesMarcoLegal } = useSeccionesMarcoLegal();
+
   const buildDynamicNavItems = () => {
     return NAV_ITEMS.map(item => {
+      if (item.title === 'Marco Legal') {
+        return {
+          ...item,
+          items: [...(seccionesMarcoLegal ?? []).map(s => ({ label: s.nombre, path: `/marco-legal/${s.slug}` })), ...item.items]
+        };
+      }
       if (item.title === 'Formación') {
         return {
           ...item,
