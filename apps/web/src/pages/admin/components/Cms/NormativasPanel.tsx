@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import type { Accion } from '@/lib/permisos'
-import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
+import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
+import { SeccionesMarcoLegal, type SeccionNormativa } from '@/pages/admin/components/Cms/SeccionesMarcoLegal'
 
 interface NormativaItem {
   id: string | number
@@ -15,22 +16,21 @@ interface NormativaItem {
   activo: boolean | number
 }
 
-// La sección de permisos sale de la categoría (igual que en la API); «Otros» o sin categoría: solo admin/super_admin.
-const SECCION_POR_CATEGORIA: Record<string, string> = {
-  'Leyes y Decretos': 'marco_legal', 'Reglamentos y Estatutos': 'marco_legal', 'Normas y Procedimientos': 'marco_legal', 'Actas de Asamblea': 'marco_legal',
-}
-const CATEGORIAS = ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Otros']
+// «Otros» no es una sección: categoría reservada solo para admin/super_admin y nunca pública.
+const OTROS = 'Otros'
 
-export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) => {
+export const NormativasPanel = () => {
   const { puede, isAdmin } = useAuth()
-  const can = (categoria: string | null | undefined, accion: Accion) => {
-    const seccion = SECCION_POR_CATEGORIA[categoria ?? '']
-    return seccion ? puede(seccion, accion) : isAdmin
-  }
+  const [secciones, setSecciones] = useState<SeccionNormativa[]>([])
+  const nombresSecciones = secciones.map(s => s.nombre)
+  // Igual que la API: una sección existente → marco_legal; «Otros», sin categoría o desconocida → solo admin.
+  const can = (categoria: string | null | undefined, accion: Accion) =>
+    categoria && nombresSecciones.includes(categoria) ? puede('marco_legal', accion) : isAdmin
+  const categorias = [...nombresSecciones, OTROS]
   const [items, setItems] = useState<NormativaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
-  const [activeTab, setActiveTab] = useState<string>(fixedCategory || 'Todas')
+  const [activeTab, setActiveTab] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
     if (typeof window !== 'undefined') {
@@ -50,7 +50,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     titulo: '',
     descripcion: '',
     url_archivo: '',
-    categoria: fixedCategory || '',
+    categoria: '',
     orden: 0,
     activo: true,
   })
@@ -253,15 +253,19 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     }
   }
 
-  const tabs = ['Todas', 'Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Otros']
+  const tabs = ['Todas', ...categorias]
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await api.get('/api/cms/normativas')
+      const [data, secs] = await Promise.all([
+        api.get('/api/cms/normativas'),
+        api.get('/api/cms/normativas-secciones').catch(() => null),
+      ])
       if (data.success && Array.isArray(data.data)) {
         setItems(data.data.map((it: any) => ({ ...it, id: it.id_normativa })))
       }
+      if (secs?.success && Array.isArray(secs.data)) setSecciones(secs.data)
     } finally {
       setLoading(false)
     }
@@ -270,17 +274,8 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     load()
   }, [load])
 
-  const [prevFixedCategory, setPrevFixedCategory] = useState(fixedCategory)
-  if (prevFixedCategory !== fixedCategory) {
-    setPrevFixedCategory(fixedCategory)
-    if (fixedCategory) {
-      setActiveTab(fixedCategory)
-      setForm(p => ({ ...p, categoria: fixedCategory }))
-      setSelectedId(null)
-      setIsEditing(false)
-      setSelectedIds([])
-    }
-  }
+  // Si la pestaña activa dejó de existir (sección renombrada o eliminada), volver a «Todas».
+  if (activeTab !== 'Todas' && !loading && !tabs.includes(activeTab)) setActiveTab('Todas')
 
   const openEdit = (item: NormativaItem) => {
     if (!can(item.categoria, 'editar')) return
@@ -331,7 +326,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
       titulo: '', 
       descripcion: '', 
       url_archivo: '', 
-      categoria: fixedCategory || (activeTab !== 'Todas' ? activeTab : ''), 
+      categoria: activeTab !== 'Todas' ? activeTab : '', 
       orden: items.length, 
       activo: true 
     })
@@ -426,7 +421,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
   // Solo lo que el usuario puede borrar se puede marcar; reordenar exige «editar» en todas las categorías visibles.
   const eliminables = filteredItems.filter(it => can(it.categoria, 'eliminar'))
   const puedeReordenar = filteredItems.every(it => can(it.categoria, 'editar'))
-  const puedeCrear = fixedCategory ? can(fixedCategory, 'crear') : CATEGORIAS.some(c => can(c, 'crear'))
+  const puedeCrear = categorias.some(c => can(c, 'crear'))
 
   const formBody = () => (
     <div className={`flex flex-col gap-6 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl transition-colors duration-200 ${
@@ -560,7 +555,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
             >
               <option value="">Selecciona una categoría</option>
               {/* Solo categorías donde puede guardar (la API exige la sección de la categoría) */}
-              {CATEGORIAS.filter(c => c === form.categoria || can(c, selectedId === 'new' ? 'crear' : 'editar')).map(c => <option key={c} value={c}>{c}</option>)}
+              {categorias.filter(c => c === form.categoria || can(c, selectedId === 'new' ? 'crear' : 'editar')).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </FormField>
         </div>
@@ -643,7 +638,7 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
     <div className="flex flex-col h-full relative p-4 sm:p-5 pb-16 sm:pb-24 space-y-4 max-w-[1600px] mx-auto w-full">
       <CmsPanelHeader
         icon={<FileText size={22} />}
-        title={fixedCategory || "Marco Legal & Normativas"}
+        title="Marco Legal & Normativas"
         subtitle="Administra las leyes, reglamentos, estatutos y documentos del portal web"
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -654,7 +649,8 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
         onActionClick={openNew}
       />
 
-      {!fixedCategory && (
+      <SeccionesMarcoLegal secciones={secciones} onCambio={load} />
+
         <div className="flex-shrink-0 px-4 pt-2 bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto no-scrollbar">
           <div className="flex gap-6">
             {tabs.map(tab => (
@@ -679,7 +675,6 @@ export const NormativasPanel = ({ fixedCategory }: { fixedCategory?: string }) =
             ))}
           </div>
         </div>
-      )}
 
       {/* Control bar de selección múltiple */}
       {eliminables.length > 0 && (

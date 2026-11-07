@@ -20,9 +20,11 @@ vi.mock('../controllers/cms.controller.js', () => mockear([
   'getConfig', 'upsertConfig', 'upsertConfigBatch', 'deleteConfig',
   'getPaginasList', 'getPaginaBySlug', 'upsertPagina', 'deletePagina',
   'getNormativas', 'createNormativa', 'updateNormativa', 'deleteNormativa', 'deleteBatchNormativas', 'reorderNormativas',
+  'listSeccionesNormativa', 'createSeccionNormativa', 'updateSeccionNormativa', 'deleteSeccionNormativa',
 ]))
 
 const { env } = await import('../config/env.js')
+const { sembrarSeccionesNormativa } = await import('../config/secciones-normativa.js')
 const { cmsRoutes } = await import('./cms.routes.js')
 
 const app = express()
@@ -62,11 +64,15 @@ const RUTAS: [string, string, string, Accion][] = [
   ['get', '/api/cms/paginas', 'config', 'ver'],
   ['put', '/api/cms/paginas/inicio', 'config', 'editar'],
   ['delete', '/api/cms/paginas/inicio', 'config', 'eliminar'],
+  ['get', '/api/cms/normativas', 'marco_legal', 'ver'], // incluye ocultos y secciones privadas
+  ['get', '/api/cms/normativas-secciones', 'marco_legal', 'ver'],
+  ['post', '/api/cms/normativas-secciones', 'marco_legal', 'crear'],
+  ['put', '/api/cms/normativas-secciones/1', 'marco_legal', 'editar'],
+  ['delete', '/api/cms/normativas-secciones/1', 'marco_legal', 'eliminar'],
 ]
 
-const PUBLICAS = ['/api/cms/noticias', '/api/cms/cursos', '/api/cms/convenios', '/api/cms/normativas', '/api/cms/directiva', '/api/cms/hitos', '/api/cms/paginas/inicio']
+const PUBLICAS = ['/api/cms/noticias', '/api/cms/cursos', '/api/cms/convenios', '/api/cms/directiva', '/api/cms/hitos', '/api/cms/paginas/inicio']
 
-const SECCIONES_NORM = ['marco_legal']
 const CATEGORIAS = ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea'] // las cuatro comparten la sección marco_legal
 
 beforeAll(async () => {
@@ -76,8 +82,9 @@ beforeAll(async () => {
     `CREATE TABLE cms_normativas (id_normativa INTEGER PRIMARY KEY, categoria TEXT)`,
     `INSERT INTO cms_normativas (id_normativa, categoria) VALUES (1, 'Leyes y Decretos'), (2, 'Reglamentos y Estatutos'), (3, 'Normas y Procedimientos'), (4, 'Actas de Asamblea'), (5, 'Otros'), (6, NULL)`,
   ], 'write')
+  await sembrarSeccionesNormativa(mem) // las cuatro originales
   await sembrarRoles(mem, { staffHistorico: true })
-  const secciones = [...new Set([...RUTAS.map(r => r[2]), ...SECCIONES_NORM])]
+  const secciones = [...new Set(RUTAS.map(r => r[2]))]
   for (const s of secciones) {
     for (const a of ACCIONES) {
       for (const [clave, casillas] of [[`solo_${a}_${s}`, [a]], [`sin_${a}_${s}`, ACCIONES.filter(x => x !== a)]] as const) {

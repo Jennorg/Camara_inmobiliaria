@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import bgBolivar from '@/assets/Pzo.webp'
 import Navbar from '@/pages/landing/components/navbar/Navbar'
@@ -7,9 +7,10 @@ import Footer from '@/pages/landing/components/Footer'
 import SEO from '@/components/SEO'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
+import { useSeccionesMarcoLegal } from './useSeccionesMarcoLegal'
 
 interface NormativaPublic {
-  id: number
+  id_normativa: number | string
   titulo: string
   descripcion: string | null
   url_archivo: string
@@ -17,23 +18,12 @@ interface NormativaPublic {
   orden: number
 }
 
-const CATEGORY_MAP: Record<string, { label: string; subtitle: string }> = {
-  'leyes-y-decretos': {
-    label: 'Leyes y Decretos',
-    subtitle: 'Marco legal nacional y regional de referencia',
-  },
-  'reglamentos-y-estatutos': {
-    label: 'Reglamentos y Estatutos',
-    subtitle: 'Normativa interna y estatutaria de la Cámara',
-  },
-  'normas-y-procedimientos': {
-    label: 'Normas y Procedimientos',
-    subtitle: 'Guías operativas y manuales de procedimiento',
-  },
-  'actas-de-asamblea': {
-    label: 'Actas de Asamblea',
-    subtitle: 'Registros oficiales de decisiones y acuerdos',
-  },
+// Subtítulos de las secciones originales (por slug, que no cambia al renombrar); las demás usan el genérico.
+const SUBTITULOS: Record<string, string> = {
+  'leyes-y-decretos': 'Marco legal nacional y regional de referencia',
+  'reglamentos-y-estatutos': 'Normativa interna y estatutaria de la Cámara',
+  'normas-y-procedimientos': 'Guías operativas y manuales de procedimiento',
+  'actas-de-asamblea': 'Registros oficiales de decisiones y acuerdos',
 }
 
 export default function MarcoLegalPage() {
@@ -42,19 +32,30 @@ export default function MarcoLegalPage() {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<NormativaPublic[]>([])
   const [error, setError] = useState<string | null>(null)
+  const { secciones, error: errorSecciones } = useSeccionesMarcoLegal()
 
-  const config = CATEGORY_MAP[category || ''] || {
-    label: 'Marco Legal',
-    subtitle: 'Documentos oficiales y normativas',
+  // Solo se resuelven secciones públicas con documentos: privada, vacía o desconocida → «Sección no encontrada».
+  const seccion = secciones?.find(s => s.slug === category)
+  const noEncontrada = secciones !== null && !errorSecciones && !seccion
+  const config = {
+    label: seccion?.nombre ?? 'Marco Legal',
+    subtitle: SUBTITULOS[category || ''] ?? 'Documentos oficiales y normativas',
   }
 
   useEffect(() => {
+    if (!seccion) {
+      if (secciones !== null) {
+        setLoading(false)
+        if (errorSecciones) setError('No se pudieron cargar los documentos.')
+      }
+      return
+    }
     let cancelled = false
     ;(async () => {
       setLoading(true)
       setError(null)
       try {
-        const catValue = config.label
+        const catValue = seccion.nombre
         const j = await apiFetch(`${API_URL}/api/public/normativas?categoria=${encodeURIComponent(catValue)}`)
         if (!j.success) throw new Error(j.message || 'Error al cargar')
         if (!cancelled) setItems(Array.isArray(j.data) ? j.data : [])
@@ -67,7 +68,7 @@ export default function MarcoLegalPage() {
     return () => {
       cancelled = true
     }
-  }, [config.label])
+  }, [seccion?.nombre, secciones, errorSecciones])
 
   return (
     <div className="min-h-screen bg-[#022c22] text-white font-sans selection:bg-emerald-500/30">
@@ -107,7 +108,15 @@ export default function MarcoLegalPage() {
       </header>
 
       <main className="bg-slate-50 text-slate-900 rounded-t-[2.5rem] md:rounded-t-[4rem] -mt-8 md:-mt-12 relative z-10 px-4 sm:px-6 lg:px-24 py-12 md:py-20 min-h-[60vh] shadow-2xl">
-        {loading ? (
+        {noEncontrada ? (
+          <div className="max-w-xl mx-auto text-center py-16 px-4 rounded-3xl bg-white border border-slate-100 text-slate-600 text-sm space-y-4">
+            <h2 className="text-xl font-black text-slate-800">Sección no encontrada</h2>
+            <p>La sección del Marco Legal que buscas no existe o no está disponible.</p>
+            <Link to="/" className="inline-flex items-center justify-center rounded-full bg-[#022c22] text-white text-[10px] md:text-xs font-black uppercase tracking-widest px-5 py-3 hover:bg-emerald-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+              Volver al inicio
+            </Link>
+          </div>
+        ) : loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-4 border-b-4 border-emerald-600" />
             <p className="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-widest animate-pulse">
@@ -127,7 +136,7 @@ export default function MarcoLegalPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6 md:gap-8">
               {items.map((item) => (
                 <article
-                  key={item.id}
+                  key={item.id_normativa}
                   className="group relative bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 sm:p-6 md:p-8 flex flex-col h-full border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-1 md:hover:-translate-y-2 transition-colors transition-transform duration-300 overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 w-full h-1 md:h-1.5 bg-gradient-to-r from-emerald-400 to-[#022c22] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

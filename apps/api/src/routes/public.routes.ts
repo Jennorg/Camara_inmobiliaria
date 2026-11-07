@@ -13,7 +13,7 @@ import {
   publicPreinscribirCurso,
   publicGetVerificacionPreinscripcionByToken
 } from '../controllers/academia.controller.js';
-import { getPaginaBySlug, publicListNormativas } from '../controllers/cms.controller.js';
+import { getPaginaBySlug, publicListNormativas, publicListSeccionesNormativa } from '../controllers/cms.controller.js';
 import { publicGetComprobanteByCodigo } from '../controllers/certificados.controller.js';
 import { publicVerificarConstancia } from '../controllers/solvencia.controller.js';
 import { presignUpload, directUpload } from '../controllers/uploads.controller.js';
@@ -54,7 +54,9 @@ router.get('/cursos', publicListCursos);
 // POST /api/public/cursos/:id/preinscribir
 router.post('/cursos/:id/preinscribir', publicPreinscribirCurso);
 
-// GET /api/public/normativas — documentos / enlaces publicados (CMS)
+// GET /api/public/normativas/secciones — secciones públicas del Marco Legal con documentos publicados
+router.get('/normativas/secciones', publicListSeccionesNormativa);
+// GET /api/public/normativas — documentos publicados, solo de secciones públicas (CMS)
 router.get('/normativas', publicListNormativas);
 
 // GET /api/public/paginas/:slug — contenido JSON de página pública (CMS)

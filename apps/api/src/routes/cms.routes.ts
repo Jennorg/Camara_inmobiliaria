@@ -8,6 +8,7 @@ import {
   getConfig, upsertConfig, upsertConfigBatch, deleteConfig,
   getPaginasList, getPaginaBySlug, upsertPagina, deletePagina,
   getNormativas, createNormativa, updateNormativa, deleteNormativa, deleteBatchNormativas, reorderNormativas,
+  listSeccionesNormativa, createSeccionNormativa, updateSeccionNormativa, deleteSeccionNormativa,
 } from '../controllers/cms.controller.js';
 import { Request, Response, NextFunction } from 'express';
 import { requireAuth, requireRole, requirePermiso } from '../middlewares/auth.middleware.js';
@@ -22,10 +23,10 @@ const auth = [requireAuth];
 const permiso = (seccion: string, accion?: Accion) => [requireAuth, requirePermiso(seccion, accion)];
 
 // Normativas: la sección sale de la categoría (la del cuerpo al crear, la guardada al editar/eliminar).
+// Categoría = nombre exacto de una sección de cms_normativa_secciones → marco_legal.
 // «Otros», sin categoría, desconocida o sin registro: solo admin/super_admin (nunca se abre).
-const SECCION_NORMATIVA: Record<string, string> = {
-  'Leyes y Decretos': 'marco_legal', 'Reglamentos y Estatutos': 'marco_legal', 'Normas y Procedimientos': 'marco_legal', 'Actas de Asamblea': 'marco_legal',
-};
+const seccionesExistentes = async (): Promise<Set<string>> =>
+  new Set((await db.execute('SELECT nombre FROM cms_normativa_secciones')).rows.map(x => String(x.nombre)));
 const soloAdmin = requireRole('admin', 'super_admin');
 const guardadas = async (ids: unknown): Promise<unknown[]> => {
   const lista = (Array.isArray(ids) ? ids : []).map(String);
@@ -36,7 +37,8 @@ const guardadas = async (ids: unknown): Promise<unknown[]> => {
 const permisoNormativa = (accion: Accion, categorias: (req: Request) => Promise<unknown[]>) =>
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const secciones = (await categorias(req)).map(c => SECCION_NORMATIVA[String(c)]);
+      const existentes = await seccionesExistentes();
+      const secciones = (await categorias(req)).map(c => (typeof c === 'string' && existentes.has(c) ? 'marco_legal' : undefined));
       if (secciones.length === 0 || secciones.some(s => !s)) { soloAdmin(req, res, next); return; }
       const mapa = await permisosDeRoles(req.user!.roles ?? [req.user!.rol]);
       if (secciones.some(s => !mapa[s!]?.[accion])) {
@@ -70,7 +72,13 @@ router.put('/convenios/:id', ...permiso('config'), updateConvenio);
 router.delete('/convenios/:id', ...permiso('config'), deleteConvenio);
 
 // ── Normativas (enlaces a documentos) ───────────────────
-router.get('/normativas', getNormativas);
+// El listado del panel incluye documentos ocultos y de secciones privadas: exige marco_legal/ver.
+router.get('/normativas', ...permiso('marco_legal', 'ver'), getNormativas);
+// Secciones (categorías) del Marco Legal. Ruta propia para que '/normativas/:id' no la capture.
+router.get('/normativas-secciones', ...permiso('marco_legal', 'ver'), listSeccionesNormativa);
+router.post('/normativas-secciones', ...permiso('marco_legal', 'crear'), createSeccionNormativa);
+router.put('/normativas-secciones/:id', ...permiso('marco_legal', 'editar'), updateSeccionNormativa);
+router.delete('/normativas-secciones/:id', ...permiso('marco_legal', 'eliminar'), deleteSeccionNormativa);
 router.post('/normativas', ...auth, permisoNormativa('crear', async req => [req.body?.categoria]), createNormativa);
 router.post('/normativas-batch-delete', ...auth, permisoNormativa('eliminar', req => guardadas(req.body?.ids)), deleteBatchNormativas);
 router.put('/normativas-reorder', ...auth, permisoNormativa('editar', req => guardadas(Array.isArray(req.body?.items) ? req.body.items.map((i: any) => i?.id) : [])), reorderNormativas);

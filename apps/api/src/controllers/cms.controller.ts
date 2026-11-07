@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { actasPublicadas } from '../services/asambleas.service.js';
 import { db } from '../lib/db.js';
+import { CATEGORIA_OTROS, slugify } from '../config/secciones-normativa.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NOTICIAS  — Schema: id_noticia, titulo, contenido, imagen_url, publicado, creado_en
@@ -605,26 +606,58 @@ function isValidUrl(url: string): boolean {
   } catch { return false; }
 }
 
-const CATEGORIAS_NORMATIVA = ['Leyes y Decretos', 'Reglamentos y Estatutos', 'Normas y Procedimientos', 'Actas de Asamblea', 'Otros'];
+// Una categoría es válida si es una sección existente (nombre exacto), vacía o «Otros» (solo admin; lo exige la ruta).
+const categoriaValida = async (categoria: unknown): Promise<boolean> => {
+  if (!categoria || categoria === CATEGORIA_OTROS) return true;
+  if (typeof categoria !== 'string') return false;
+  const r = await db.execute({ sql: 'SELECT 1 FROM cms_normativa_secciones WHERE nombre = ?', args: [categoria] });
+  return r.rows.length > 0;
+};
+const CATEGORIA_INVALIDA = 'La categoría no existe: elige una sección del Marco Legal';
 
+// Las actas publicadas desde la gestión de asambleas van a la sección de slug «actas-de-asamblea» (el slug no cambia al
+// renombrar) y solo si es pública; se rotulan con su nombre actual.
+const ACTAS_SLUG = 'actas-de-asamblea';
+const actasDeSeccion = async (nombre: string) => (await actasPublicadas()).map(a => ({ ...a, categoria: nombre }));
+
+const SQL_NORMATIVAS_PUBLICAS = `SELECT n.id_normativa, n.titulo, n.descripcion, n.url_archivo, n.categoria, n.orden, n.creado_en
+  FROM cms_normativas n JOIN cms_normativa_secciones s ON s.nombre = n.categoria AND s.publica = 1
+  WHERE n.activo = 1 AND n.eliminado_en IS NULL`;
+
+// Privacidad: solo documentos de secciones públicas (el JOIN excluye privadas, «Otros», nulas y desconocidas).
 export const publicListNormativas = async (req: Request, res: Response) => {
   try {
-    const { categoria } = req.query;
-    let sql = `SELECT id_normativa, titulo, descripcion, url_archivo, categoria, orden, creado_en 
-               FROM cms_normativas WHERE activo = 1`;
+    const categoria = typeof req.query.categoria === 'string' ? req.query.categoria : '';
     const args: any[] = [];
+    let sql = SQL_NORMATIVAS_PUBLICAS;
     if (categoria) {
-      sql += ` AND categoria = ?`;
+      sql += ` AND n.categoria = ?`;
       args.push(categoria);
     }
-    sql += ` ORDER BY orden ASC, creado_en DESC`;
-    const result = await db.execute({ sql, args });
-    // Las actas publicadas desde la gestión de asambleas se suman a las de «Actas de Asamblea»
-    const actas = !categoria || categoria === 'Actas de Asamblea' ? await actasPublicadas() : [];
+    sql += ` ORDER BY n.orden ASC, n.creado_en DESC`;
+    const [result, seccionActas] = await Promise.all([
+      db.execute({ sql, args }),
+      db.execute({ sql: 'SELECT nombre FROM cms_normativa_secciones WHERE slug = ? AND publica = 1', args: [ACTAS_SLUG] }),
+    ]);
+    const nombreActas = seccionActas.rows[0]?.nombre as string | undefined;
+    const actas = nombreActas && (!categoria || categoria === nombreActas) ? await actasDeSeccion(nombreActas) : [];
     return res.json({ success: true, data: [...actas, ...result.rows] });
   } catch (error) {
     console.error('publicListNormativas:', error);
     return res.status(500).json({ success: false, message: 'Error al obtener normativas' });
+  }
+};
+
+// GET /api/public/normativas/secciones — secciones públicas con al menos un documento publicado.
+export const publicListSeccionesNormativa = async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(`SELECT s.nombre, s.slug, COUNT(n.id_normativa) AS total
+      FROM cms_normativa_secciones s JOIN cms_normativas n ON n.categoria = s.nombre AND n.activo = 1 AND n.eliminado_en IS NULL
+      WHERE s.publica = 1 GROUP BY s.id ORDER BY s.orden ASC, s.nombre ASC`);
+    return res.json({ success: true, data: r.rows.map(x => ({ nombre: x.nombre, slug: x.slug, total: Number(x.total) })) });
+  } catch (error) {
+    console.error('publicListSeccionesNormativa:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener las secciones del Marco Legal' });
   }
 };
 
@@ -646,6 +679,104 @@ export const getNormativas = async (req: Request, res: Response) => {
   }
 };
 
+// ── Secciones del Marco Legal (admin) ──────────────────────────────────────────
+const leerSeccion = async (id: string) =>
+  (await db.execute({ sql: 'SELECT * FROM cms_normativa_secciones WHERE id = ?', args: [id] })).rows[0] as any;
+
+// Valida el nombre y que no choque (sin mayúsculas ni acentos) con el slug guardado ni con el nombre de otra sección.
+const validarNombreSeccion = async (nombre: unknown, excluirId?: string): Promise<{ error?: [number, string]; nombre?: string; slug?: string }> => {
+  const limpio = typeof nombre === 'string' ? nombre.trim().replace(/\s+/g, ' ') : '';
+  if (!limpio || limpio.length > 80) return { error: [400, 'El nombre de la sección es obligatorio (máximo 80 caracteres)'] };
+  const slug = slugify(limpio);
+  if (!slug) return { error: [400, 'El nombre de la sección debe contener letras o números'] };
+  if (slug === slugify(CATEGORIA_OTROS)) return { error: [400, '«Otros» es una categoría reservada: usa otro nombre'] };
+  const otras = await db.execute({ sql: 'SELECT id, nombre, slug FROM cms_normativa_secciones WHERE id <> ?', args: [excluirId ?? -1] });
+  if (otras.rows.some(x => x.slug === slug || slugify(String(x.nombre)) === slug)) {
+    return { error: [409, `Ya existe una sección llamada «${limpio}» (o una muy parecida)`] };
+  }
+  return { nombre: limpio, slug };
+};
+
+export const listSeccionesNormativa = async (_req: Request, res: Response) => {
+  try {
+    const r = await db.execute(`SELECT s.id, s.nombre, s.slug, s.orden, s.publica, s.creado_en,
+      (SELECT COUNT(*) FROM cms_normativas n WHERE n.categoria = s.nombre AND n.eliminado_en IS NULL) AS total
+      FROM cms_normativa_secciones s ORDER BY s.orden ASC, s.nombre ASC`);
+    return res.json({ success: true, data: r.rows.map(x => ({ ...x, total: Number(x.total) })) });
+  } catch (error) {
+    console.error('listSeccionesNormativa:', error);
+    return res.status(500).json({ success: false, message: 'Error al obtener las secciones' });
+  }
+};
+
+export const createSeccionNormativa = async (req: Request, res: Response) => {
+  try {
+    const { nombre, publica } = req.body ?? {};
+    if (publica !== undefined && typeof publica !== 'boolean') return res.status(400).json({ success: false, message: 'publica debe ser verdadero o falso' });
+    const v = await validarNombreSeccion(nombre);
+    if (v.error) return res.status(v.error[0]).json({ success: false, message: v.error[1] });
+    const r = await db.execute({
+      sql: `INSERT INTO cms_normativa_secciones (nombre, slug, orden, publica)
+            VALUES (?, ?, (SELECT COALESCE(MAX(orden), -1) + 1 FROM cms_normativa_secciones), ?) RETURNING *`,
+      args: [v.nombre!, v.slug!, publica === false ? 0 : 1],
+    });
+    return res.status(201).json({ success: true, data: { ...r.rows[0], total: 0 } });
+  } catch (error) {
+    console.error('createSeccionNormativa:', error);
+    return res.status(500).json({ success: false, message: 'Error al crear la sección' });
+  }
+};
+
+// Renombrar mueve sus documentos al nuevo nombre en el mismo lote; el slug (URL pública) no cambia.
+export const updateSeccionNormativa = async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const actual = await leerSeccion(id);
+    if (!actual) return res.status(404).json({ success: false, message: 'Sección no encontrada' });
+    const { nombre, publica, orden } = req.body ?? {};
+    if (publica !== undefined && typeof publica !== 'boolean') return res.status(400).json({ success: false, message: 'publica debe ser verdadero o falso' });
+    if (orden !== undefined && !Number.isInteger(orden)) return res.status(400).json({ success: false, message: 'orden debe ser un número entero' });
+    let nuevoNombre = String(actual.nombre);
+    if (nombre !== undefined) {
+      const v = await validarNombreSeccion(nombre, id);
+      if (v.error) return res.status(v.error[0]).json({ success: false, message: v.error[1] });
+      nuevoNombre = v.nombre!;
+    }
+    await db.batch([
+      {
+        sql: 'UPDATE cms_normativa_secciones SET nombre = ?, publica = ?, orden = ? WHERE id = ?',
+        args: [nuevoNombre, publica === undefined ? actual.publica : publica ? 1 : 0, orden ?? actual.orden, id],
+      },
+      { sql: 'UPDATE cms_normativas SET categoria = ? WHERE categoria = ?', args: [nuevoNombre, actual.nombre] },
+    ], 'write');
+    return res.json({ success: true, data: await leerSeccion(id) });
+  } catch (error) {
+    console.error('updateSeccionNormativa:', error);
+    return res.status(500).json({ success: false, message: 'Error al actualizar la sección' });
+  }
+};
+
+export const deleteSeccionNormativa = async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const actual = await leerSeccion(id);
+    if (!actual) return res.status(404).json({ success: false, message: 'Sección no encontrada' });
+    // Comprueba y borra en una sola sentencia: no se borra si entre medias le añadieron un documento.
+    const r = await db.execute({
+      sql: `DELETE FROM cms_normativa_secciones WHERE id = ?
+            AND NOT EXISTS (SELECT 1 FROM cms_normativas WHERE categoria = ? AND eliminado_en IS NULL)`,
+      args: [id, actual.nombre],
+    });
+    if (r.rowsAffected === 0) {
+      return res.status(409).json({ success: false, message: `La sección «${actual.nombre}» todavía tiene documentos: muévelos a otra sección o elimínalos antes de borrarla` });
+    }
+    return res.json({ success: true, message: 'Sección eliminada' });
+  } catch (error) {
+    console.error('deleteSeccionNormativa:', error);
+    return res.status(500).json({ success: false, message: 'Error al eliminar la sección' });
+  }
+};
+
 export const createNormativa = async (req: Request, res: Response) => {
   try {
     const { titulo, descripcion, url_archivo, categoria, orden, activo } = req.body as Record<string, unknown>;
@@ -658,8 +789,8 @@ export const createNormativa = async (req: Request, res: Response) => {
     if (!isValidUrl(u)) {
       return res.status(400).json({ success: false, message: 'url_archivo debe ser una URL http(s) válida' });
     }
-    if (categoria && !CATEGORIAS_NORMATIVA.includes(categoria as string)) {
-      return res.status(400).json({ success: false, message: `categoria debe ser una de: ${CATEGORIAS_NORMATIVA.join(', ')}` });
+    if (!(await categoriaValida(categoria))) {
+      return res.status(400).json({ success: false, message: CATEGORIA_INVALIDA });
     }
 
     const result = await db.execute({
@@ -694,8 +825,8 @@ export const updateNormativa = async (req: Request, res: Response) => {
     if (!isValidUrl(u)) {
       return res.status(400).json({ success: false, message: 'url_archivo debe ser una URL http(s) válida' });
     }
-    if (categoria && !CATEGORIAS_NORMATIVA.includes(categoria as string)) {
-      return res.status(400).json({ success: false, message: `categoria debe ser una de: ${CATEGORIAS_NORMATIVA.join(', ')}` });
+    if (!(await categoriaValida(categoria))) {
+      return res.status(400).json({ success: false, message: CATEGORIA_INVALIDA });
     }
 
     const result = await db.execute({

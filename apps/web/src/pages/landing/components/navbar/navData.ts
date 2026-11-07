@@ -34,12 +34,9 @@ export const NAV_ITEMS = [
   },
   {
     title: 'Marco Legal',
+    // Las secciones públicas se agregan antes en Navbar (useSeccionesMarcoLegal); el Tribunal siempre va al final.
     items: [
-      { label: 'Leyes y Decretos', path: '/marco-legal/leyes-y-decretos' },
-      { label: 'Reglamentos y Estatutos', path: '/marco-legal/reglamentos-y-estatutos' },
-      { label: 'Normas y Procedimientos', path: '/marco-legal/normas-y-procedimientos' },
       { label: 'Tribunal de Ética y Denuncias', path: '/denuncias' },
-      // { label: 'Actas de Asamblea', path: '/marco-legal/actas-de-asamblea' },
     ],
     Tpath: '',
   }
