@@ -103,7 +103,7 @@ const WidgetMisCursos = () => {
               )}
               {/* Badge de Estatus */}
               <div className="absolute top-3 right-3">
-                <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm backdrop-blur-md bg-white/90 ${
+                <span className={`px-2.5 py-1 text-[11px] font-black uppercase tracking-wider rounded-full shadow-sm backdrop-blur-md bg-white/90 ${
                   curso.estatus_academico === 'Aprobado' ? 'text-green-700' :
                   curso.estatus_academico === 'Finalizado' ? 'text-green-700' :
                   curso.estatus_academico === 'Cursando' ? 'text-emerald-700' : 'text-slate-700'
@@ -150,7 +150,7 @@ const WidgetMisCursos = () => {
                             </span>
                           </div>
                           {isAprobado && modRecord?.fecha_evaluacion && (
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-[11px] text-slate-400">
                               {formatDateLatina(modRecord.fecha_evaluacion)}
                             </span>
                           )}
@@ -177,7 +177,7 @@ const WidgetMisCursos = () => {
                               {isAprobado ? (
                                 <CheckCircle size={15} className="text-green-500 shrink-0" />
                               ) : isRechazado ? (
-                                <span className="w-3.5 h-3.5 rounded-full bg-red-100 flex items-center justify-center text-red-500 font-black text-[9px] shrink-0 font-mono">!</span>
+                                <span className="w-3.5 h-3.5 rounded-full bg-red-100 flex items-center justify-center text-red-500 font-black text-[11px] shrink-0 font-mono">!</span>
                               ) : (
                                 <Clock size={15} className="text-slate-300 shrink-0" />
                               )}
@@ -189,13 +189,13 @@ const WidgetMisCursos = () => {
                               </span>
                             </div>
                             {isAprobado && mod.fecha_evaluacion && (
-                              <span className="text-[10px] text-slate-400 font-medium">
+                              <span className="text-[11px] text-slate-400 font-medium">
                                 {formatDateLatina(mod.fecha_evaluacion)}
                               </span>
                             )}
                           </div>
                           {isRechazado && mod.nota_admin && (
-                            <p className="text-[10px] text-red-400 italic pl-5 leading-tight">
+                            <p className="text-[11px] text-red-400 italic pl-5 leading-tight">
                               Nota: {mod.nota_admin}
                             </p>
                           )}

@@ -16,7 +16,7 @@ export const InfoCard = ({ icon: Icon, label, children, variant = 'compact' }: I
           <Icon size={16} />
         </div>
         <div className="min-w-0 flex-grow">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">{label}</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">{label}</p>
           <div className="text-sm font-extrabold text-slate-800 dark:text-emerald-50 truncate">
             {children}
           </div>
@@ -31,7 +31,7 @@ export const InfoCard = ({ icon: Icon, label, children, variant = 'compact' }: I
         <Icon size={18} />
       </div>
       <div className="min-w-0 flex-grow">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide leading-tight">{label}</p>
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-wide leading-tight">{label}</p>
         <div className="text-xs md:text-sm font-extrabold text-slate-800 dark:text-emerald-50 leading-tight truncate">
           {children}
         </div>

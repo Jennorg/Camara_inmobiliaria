@@ -36,7 +36,7 @@ export function ChipsRoles({ roles, catalogo }: { roles?: string[]; catalogo: Ro
   return (
     <span className='inline-flex flex-wrap gap-1 mt-1'>
       {extra.map(r => (
-        <span key={r} className='px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200'>
+        <span key={r} className='px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200'>
           {nombreDe(catalogo, r)}
         </span>
       ))}
@@ -81,7 +81,7 @@ function ListaRoles({ opciones, catalogo, marcados, onToggle, leyenda }: {
           <input type='checkbox' className={CHECK} checked={marcados.includes(c)} onChange={() => onToggle(c)} />
           <span>{nombreDe(catalogo, c)}</span>
           {catalogo.find(r => r.clave === c)?.es_sistema === 1 && (
-            <span className='px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase bg-slate-100 text-slate-500'>Sistema</span>
+            <span className='px-1.5 py-0.5 rounded-md text-[11px] font-bold uppercase bg-slate-100 text-slate-500'>Sistema</span>
           )}
         </label>
       ))}
@@ -216,7 +216,7 @@ export function NuevoStaffModal({ catalogo, onClose, onSaved }: { catalogo: RolC
             <input id='staff-email' name='email' type='email' autoComplete='off' spellCheck={false} value={email} onChange={e => setEmail(e.target.value)} className={INPUT} />
           </div>
           <ListaRoles opciones={asignables(catalogo)} catalogo={catalogo} marcados={roles} onToggle={c => setRoles(m => toggle(m, c))} leyenda='Roles' />
-          <p className='text-[10px] text-slate-400 italic'>Recibirá un correo para establecer su contraseña.</p>
+          <p className='text-[11px] text-slate-400 italic'>Recibirá un correo para establecer su contraseña.</p>
           {error && <p role='alert' className='text-xs font-semibold text-rose-600'>{error}</p>}
           <div className='flex justify-end gap-3'>
             <button type='button' onClick={onClose} disabled={saving} className={`px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl ${FOCO}`}>

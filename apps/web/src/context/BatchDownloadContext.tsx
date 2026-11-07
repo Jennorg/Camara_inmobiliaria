@@ -533,7 +533,7 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
       {isDownloading && (
         <div className="transition-transform fixed bottom-6 right-6 z-[130] bg-white border border-gray-200 rounded-2xl p-4 shadow-2xl flex flex-col gap-3 min-w-[280px] slide-in-from-bottom-5 duration-300">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
               {downloadType === 'carnets'
                 ? 'Descarga Masiva de Carnets'
                 : batchCertFormat === 'pdf_single'
@@ -549,7 +549,7 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
               {isCanceling ? 'Cancelando...' : `Procesando ${batchCurrent} de ${batchTotal}`}
             </div>
             {currentItemName && (
-              <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider truncate max-w-[250px]">
+              <div className="text-[11px] text-emerald-600 font-bold uppercase tracking-wider truncate max-w-[250px]">
                 {currentItemName}
               </div>
             )}
@@ -567,7 +567,7 @@ export function BatchDownloadProvider({ children }: { children: React.ReactNode 
             type="button"
             disabled={isCanceling}
             onClick={cancelDownload}
-            className="mt-1 text-center w-full py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+            className="mt-1 text-center w-full py-1.5 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
           >
             Cancelar
           </button>

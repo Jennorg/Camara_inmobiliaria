@@ -627,9 +627,9 @@ export const DirectivaPanel = () => {
       ${avatarHtml}
       <div class="flex-1 min-w-0">
         <div class="font-bold text-sm text-slate-900 truncate">${item.nombre}</div>
-        <div class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider truncate">${item.cargo}</div>
+        <div class="text-[11px] text-emerald-700 font-bold uppercase tracking-wider truncate">${item.cargo}</div>
       </div>
-      <div class="text-[10px] bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-xs">
+      <div class="text-[11px] bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-xs">
         Moviendo
       </div>
     `;
@@ -660,7 +660,7 @@ export const DirectivaPanel = () => {
   const getSwapAnimationClass = (itemId: string | number) => {
     if (!swappingState) return '';
     if (swappingState.upId === itemId) {
-      return '-translate-y-full scale-[1.02] shadow-xl z-30 bg-emerald-50/95 border-l-4 border-l-emerald-600 ring-1 ring-emerald-500/30 transition-colors duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
+      return '-translate-y-full scale-[1.02] shadow-xl z-30 bg-emerald-50/95 border-l border-l-emerald-600 ring-1 ring-emerald-500/30 transition-colors duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
     }
     if (swappingState.downId === itemId) {
       return 'translate-y-full scale-[0.98] opacity-75 shadow-xs z-10 bg-slate-100/90 transition-colors duration-350 ease-[cubic-bezier(0.16,1,0.3,1)]';
@@ -991,7 +991,7 @@ export const DirectivaPanel = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">Junta Directiva</h1>
-                <span className="bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-emerald-100">
+                <span className="bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-emerald-100">
                   {items.filter(item => item.periodo === selectedPeriodFilter).length} Autoridades
                 </span>
               </div>
@@ -1041,7 +1041,7 @@ export const DirectivaPanel = () => {
           
           {/* Period Tabs & Dropdown */}
           <div className="flex items-center flex-wrap gap-2">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1 hidden sm:inline">Período:</span>
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest mr-1 hidden sm:inline">Período:</span>
 
 
             {periods.map((p, idx) => (
@@ -1056,7 +1056,7 @@ export const DirectivaPanel = () => {
               >
                 <span>{formatPeriodoDisplay(p)}</span>
                 {idx === 0 && (
-                  <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                  <span className={`text-[11px] font-black px-1.5 py-0.2 rounded ${
                     selectedPeriodFilter === p ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
                   }`}>Actual</span>
                 )}
@@ -1077,7 +1077,7 @@ export const DirectivaPanel = () => {
                 <Calendar size={15} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Gestión Seleccionada</p>
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Gestión Seleccionada</p>
                 <p className="text-xs font-bold text-slate-800">
                   {formatPeriodoDisplay(selectedPeriodFilter)} <span className="text-slate-400 font-normal">({formatPeriodoCompleto(selectedPeriodFilter)})</span>
                 </p>
@@ -1149,7 +1149,7 @@ export const DirectivaPanel = () => {
                         <p className="font-extrabold text-slate-900 text-sm leading-tight truncate">
                           {formatNombreCard(item.nombre)}
                         </p>
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block truncate mt-0.5">
+                        <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider block truncate mt-0.5">
                           {item.cargo}
                         </span>
                       </div>
@@ -1170,7 +1170,7 @@ export const DirectivaPanel = () => {
                         onClick={() => toggleStatus(item)}
                         disabled={!puedeEditar}
                         title={puedeEditar ? undefined : 'Sin permiso para editar'}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider ${
                           item.activo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-slate-100 text-slate-500'
                         }`}
                       >
@@ -1224,7 +1224,7 @@ export const DirectivaPanel = () => {
           <div className="hidden md:block bg-white rounded-3xl border border-slate-100 shadow-sm overflow-auto max-h-[calc(100vh-280px)] custom-scrollbar">
             <table className="w-full text-left text-xs min-w-[700px] border-separate border-spacing-0">
               <thead className="sticky top-0 z-10 bg-slate-50 shadow-xs">
-                <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                   <th className="px-5 py-4 w-20 text-center bg-slate-50 border-b border-slate-200">ORDEN</th>
                   <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">AUTORIDAD / CARGO</th>
                   <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">PERÍODO</th>
@@ -1281,7 +1281,7 @@ export const DirectivaPanel = () => {
                       }}
                       className={`transition-colors duration-300 ease-in-out group ${getSwapAnimationClass(item.id)} ${getRowDisplacement(index)} ${
                         movedRowId === item.id
-                          ? 'bg-emerald-50/90 border-l-4 border-l-emerald-600 transition-colors duration-500'
+                          ? 'bg-emerald-50/90 border-l border-l-emerald-600 transition-colors duration-500'
                           : isBeingDragged
                           ? 'opacity-30 bg-slate-100/70 border-dashed border-2 border-slate-300'
                           : isHoverTarget
@@ -1304,10 +1304,10 @@ export const DirectivaPanel = () => {
                               : 'text-slate-500 bg-slate-100 border-slate-200/60'
                           }`}>
                             {movedRowId === item.id && movedDirection === 'up' && (
-                              <ArrowUp size={11} className="text-emerald-600 animate-bounce shrink-0" />
+                              <ArrowUp size={11} className="text-emerald-600 shrink-0" />
                             )}
                             {movedRowId === item.id && movedDirection === 'down' && (
-                              <ArrowDown size={11} className="text-emerald-600 animate-bounce shrink-0" />
+                              <ArrowDown size={11} className="text-emerald-600 shrink-0" />
                             )}
                             <span>#{rank}</span>
                           </span>
@@ -1349,14 +1349,14 @@ export const DirectivaPanel = () => {
                               {formatNombreCard(item.nombre)}
                               {item.foto_junta_url && (
                                 <span 
-                                  className="inline-block text-[8px] bg-amber-50 text-amber-700 border border-amber-200/60 font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0" 
+                                  className="inline-block text-[11px] bg-amber-50 text-amber-700 border border-amber-200/60 font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0" 
                                   title="Tiene una foto específica asignada para la landing de Junta Directiva"
                                 >
                                   Foto Junta
                                 </span>
                               )}
                             </p>
-                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+                            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
                               {item.cargo}
                             </span>
                           </div>
@@ -1372,7 +1372,7 @@ export const DirectivaPanel = () => {
                           onClick={() => toggleStatus(item)}
                           disabled={!puedeEditar}
                         title={puedeEditar ? undefined : 'Sin permiso para editar'}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors ${
                             item.activo
                               ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -1483,7 +1483,7 @@ export const DirectivaPanel = () => {
                                   )}
                                 </div>
                               </div>
-                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg shrink-0">
+                              <span className="text-[11px] uppercase font-bold tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg shrink-0">
                                 {a.codigo || 'S/C'}
                               </span>
                             </button>
@@ -1516,7 +1516,7 @@ export const DirectivaPanel = () => {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-emerald-700">Afiliado Vincular</p>
+                    <p className="text-[11px] uppercase font-black tracking-widest text-emerald-700">Afiliado Vincular</p>
                     <h4 className="text-sm font-bold text-slate-900 truncate">
                       {`${selectedAffiliate.nombres || ''} ${selectedAffiliate.apellidos || ''}`.trim() || selectedAffiliate.nombre_completo}
                     </h4>
@@ -1530,7 +1530,7 @@ export const DirectivaPanel = () => {
               {/* Foto de Junta Directiva (Landing) */}
               <FormField label="Foto Específica para Junta Directiva (Landing)">
                 <div className="space-y-3.5">
-                  <p className="text-[10px] text-slate-400 leading-relaxed ml-1">
+                  <p className="text-[11px] text-slate-400 leading-relaxed ml-1">
                     Por defecto se usará la foto de perfil del afiliado. Sube una foto aquí si deseas que muestre una imagen distinta (ej. una foto formal corporativa) en la sección de Junta Directiva de la landing page.
                   </p>
                   
@@ -1561,7 +1561,7 @@ export const DirectivaPanel = () => {
                             className="w-full h-full object-cover object-top opacity-50" 
                           />
                           <div className="absolute inset-0 bg-slate-900/30 flex items-center justify-center">
-                            <span className="text-[9px] text-white font-bold bg-slate-900/60 px-1.5 py-0.5 rounded-md">Perfil</span>
+                            <span className="text-[11px] text-white font-bold bg-slate-900/60 px-1.5 py-0.5 rounded-md">Perfil</span>
                           </div>
                         </div>
                       ) : (
@@ -1586,7 +1586,7 @@ export const DirectivaPanel = () => {
                         />
                       </label>
                       {uploadPhotoError && (
-                        <p className="text-[10px] text-rose-600 font-bold mt-1">× {uploadPhotoError}</p>
+                        <p className="text-[11px] text-rose-600 font-bold mt-1">× {uploadPhotoError}</p>
                       )}
                     </div>
                   </div>
@@ -1605,7 +1605,7 @@ export const DirectivaPanel = () => {
                           className="max-h-12 w-auto object-contain" 
                         />
                       ) : (
-                        <span className="text-[10px] text-slate-400 font-medium text-center px-1">Sin firma cargada</span>
+                        <span className="text-[11px] text-slate-400 font-medium text-center px-1">Sin firma cargada</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1630,7 +1630,7 @@ export const DirectivaPanel = () => {
                           }}
                         />
                       </label>
-                      <p className="text-[10px] text-slate-400 mt-1">
+                      <p className="text-[11px] text-slate-400 mt-1">
                         Se usará como firma oficial en los certificados emitidos durante esta gestión.
                       </p>
                     </div>
@@ -1642,7 +1642,7 @@ export const DirectivaPanel = () => {
               <FormField label="Cargo / Posición">
                 <div className="space-y-3.5">
                   <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Cargo de Referencia (Interno)</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Cargo de Referencia (Interno)</span>
                     <select
                       value={isCustomCargo ? 'Otro' : (PRESET_CARGOS.includes(form.cargo_canonical) ? form.cargo_canonical : (form.cargo_canonical ? 'Otro' : ''))}
                       onChange={(e) => {
@@ -1669,7 +1669,7 @@ export const DirectivaPanel = () => {
                   {/* Input for Custom Cargo if selected */}
                   {(isCustomCargo || (form.cargo_canonical && !PRESET_CARGOS.includes(form.cargo_canonical))) && (
                     <div className="transition-opacity transition-transform fade-in slide-in-from-top-1 duration-150">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Especificar Cargo de Referencia (Masculino)</span>
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Especificar Cargo de Referencia (Masculino)</span>
                       <Input
                         value={form.cargo_canonical}
                         onChange={(e) => {
@@ -1691,14 +1691,14 @@ export const DirectivaPanel = () => {
 
                   {/* Input for Display Cargo */}
                   <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Título de Visualización (Personalizable)</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Título de Visualización (Personalizable)</span>
                     <Input
                       value={form.cargo}
                       onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))}
                       placeholder="Ej. Directora de Finanzas, Presidente de Honor..."
                       className="!text-sm !py-3 mt-1 bg-slate-50 border-slate-200 focus:bg-white focus:border-emerald-500 transition-colors text-slate-800 w-full rounded-2xl"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1.5 ml-1 leading-relaxed">
+                    <p className="text-[11px] text-slate-400 mt-1.5 ml-1 leading-relaxed">
                       Este es el nombre exacto que se mostrará en la web pública. Por defecto se llena con el cargo seleccionado, pero puedes adaptarlo (ej. cambiar a femenino).
                     </p>
                   </div>
@@ -1758,7 +1758,7 @@ export const DirectivaPanel = () => {
             
             <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
               <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Inicio</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Inicio</span>
                 <div className="flex gap-1">
                   <select
                     value={editStartMonth}
@@ -1782,7 +1782,7 @@ export const DirectivaPanel = () => {
               </div>
 
               <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Fin</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Fin</span>
                 <div className="flex gap-1">
                   <select
                     value={editEndMonth}
@@ -1841,7 +1841,7 @@ export const DirectivaPanel = () => {
             
             <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
               <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Inicio</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Inicio</span>
                 <div className="flex gap-1">
                   <select
                     disabled={periods.length > 0}
@@ -1867,7 +1867,7 @@ export const DirectivaPanel = () => {
               </div>
 
               <div className="space-y-1">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Fin</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Fin</span>
                 <div className="flex gap-1">
                   <select
                     value={createEndMonth}
@@ -1918,7 +1918,7 @@ export const DirectivaPanel = () => {
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-800 text-base">Ajustar Encuadre</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Recorta la foto para la junta directiva</p>
+                <p className="text-[11px] text-slate-400 font-medium">Recorta la foto para la junta directiva</p>
               </div>
               <button
                 type="button"
@@ -1953,26 +1953,26 @@ export const DirectivaPanel = () => {
 
             {/* Selectores de Encuadre */}
             <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setCropAspectChoice(1)}
-                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-colors ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-2 py-0.75 text-[11px] font-bold rounded-lg transition-colors ${cropAspectChoice === 1 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Cuadrado (1:1)
                 </button>
                 <button
                   type="button"
                   onClick={() => setCropAspectChoice(4 / 5)}
-                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-colors ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-2 py-0.75 text-[11px] font-bold rounded-lg transition-colors ${cropAspectChoice === 4 / 5 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Perfil (4:5)
                 </button>
                 <button
                   type="button"
                   onClick={() => setCropAspectChoice(16 / 9)}
-                  className={`px-2 py-0.75 text-[10px] font-bold rounded-lg transition-colors ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-2 py-0.75 text-[11px] font-bold rounded-lg transition-colors ${cropAspectChoice === 16 / 9 ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Horizontal (16:9)
                 </button>
@@ -1982,8 +1982,8 @@ export const DirectivaPanel = () => {
             {/* Control de Zoom deslizante */}
             <div className="space-y-1.5 px-1">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Zoom</span>
-                <span className="text-[10px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Zoom</span>
+                <span className="text-[11px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
               </div>
               <input
                 type="range"

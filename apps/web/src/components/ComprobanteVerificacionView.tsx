@@ -44,7 +44,7 @@ const ComprobanteVerificacionView: React.FC<ComprobanteVerificacionViewProps> = 
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
           <Award className="h-8 w-8" strokeWidth={2} />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
           Cámara Inmobiliaria de Venezuela
         </p>
         <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
@@ -52,11 +52,11 @@ const ComprobanteVerificacionView: React.FC<ComprobanteVerificacionViewProps> = 
         </h1>
         <div className="mt-1 flex items-center gap-2">
           {vigente ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
               <ShieldCheck size={12} /> Válido
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-800">
               No vigente
             </span>
           )}
@@ -65,25 +65,25 @@ const ComprobanteVerificacionView: React.FC<ComprobanteVerificacionViewProps> = 
 
       <div className="mt-8 space-y-5 text-left text-sm text-slate-700">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Titular</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Titular</p>
           <p className="mt-1 text-lg font-bold text-slate-900">{titularNombre}</p>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Programa o formación</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Programa o formación</p>
           <p className="mt-1 font-semibold text-slate-800">{programaOCurso}</p>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Código de validación</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Código de validación</p>
             <p className="mt-1 font-mono text-base font-bold tracking-wide text-emerald-800">{codigo}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fecha de emisión</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Fecha de emisión</p>
             <p className="mt-1 font-medium text-slate-800">{formatFecha(fechaEmisionIso)}</p>
           </div>
         </div>
         <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Verificación pública</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Verificación pública</p>
           <p className="mt-2 break-all text-xs font-medium text-emerald-700 underline-offset-2">
             {urlVerificacion}
           </p>
@@ -93,7 +93,7 @@ const ComprobanteVerificacionView: React.FC<ComprobanteVerificacionViewProps> = 
         </div>
       </div>
 
-      <p className="mt-8 text-center text-[10px] text-slate-400">
+      <p className="mt-8 text-center text-[11px] text-slate-400">
         Documento emitido electrónicamente · No requiere firma autógrafa para verificación en línea
       </p>
     </article>

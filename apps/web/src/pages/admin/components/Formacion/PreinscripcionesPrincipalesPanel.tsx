@@ -711,22 +711,22 @@ export default function PreinscripcionesPrincipalesPanel({
         html: `
           <div class="text-left text-sm text-slate-700 space-y-3">
             <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
-              <p class="text-[10px] font-black uppercase text-slate-400">Nombre Completo</p>
+              <p class="text-[11px] font-black uppercase text-slate-400">Nombre Completo</p>
               <p class="font-bold text-slate-800">${af.nombre_completo}</p>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
-                <p class="text-[10px] font-black uppercase text-slate-400">Cédula / RIF</p>
+                <p class="text-[11px] font-black uppercase text-slate-400">Cédula / RIF</p>
                 <p class="font-bold text-slate-800">${af.doc_identidad || 'No registrado'}</p>
               </div>
               <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
-                <p class="text-[10px] font-black uppercase text-slate-400">Código</p>
+                <p class="text-[11px] font-black uppercase text-slate-400">Código</p>
                 <p class="font-bold text-slate-800">${af.codigo || 'Sin código'}</p>
               </div>
             </div>
             <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-0.5">
-              <p class="text-[10px] font-black uppercase text-slate-400">Estatus</p>
-              <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">${af.estatus}</span>
+              <p class="text-[11px] font-black uppercase text-slate-400">Estatus</p>
+              <span class="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">${af.estatus}</span>
             </div>
           </div>
         `,
@@ -1119,7 +1119,7 @@ export default function PreinscripcionesPrincipalesPanel({
           <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl focus-within:bg-white h-8">
             <div className="relative shrink-0 border-r border-gray-200 h-full flex items-center">
               <button type="button" onClick={() => setMenuCriterio(v => !v)} aria-haspopup="listbox" aria-expanded={menuCriterio}
-                className="flex items-center gap-0.5 px-2 h-full text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 cursor-pointer">
+                className="flex items-center gap-0.5 px-2 h-full text-[11px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 cursor-pointer">
                 <span>{CRITERIOS_BUSQUEDA[criterio].label}</span>
                 <ChevronDown className={`w-2.5 h-2.5 text-slate-400 transition-transform ${menuCriterio ? 'rotate-180' : ''}`} />
               </button>
@@ -1129,7 +1129,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px]">
                     {(Object.keys(CRITERIOS_BUSQUEDA) as (keyof typeof CRITERIOS_BUSQUEDA)[]).map(k => (
                       <button key={k} type="button" onClick={() => { setCriterio(k); setMenuCriterio(false) }}
-                        className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider cursor-pointer ${criterio === k ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+                        className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider cursor-pointer ${criterio === k ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
                         {CRITERIOS_BUSQUEDA[k].label}
                       </button>
                     ))}
@@ -1184,7 +1184,7 @@ export default function PreinscripcionesPrincipalesPanel({
             <div className="grid grid-cols-2 gap-x-2 gap-y-2.5 pt-1">
               {campos.map(f => (
                 <div key={f.id} className={`flex flex-col gap-1 min-w-0 ${f.ancho}`}>
-                  <label htmlFor={f.id} className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{f.etiqueta}</label>
+                  <label htmlFor={f.id} className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{f.etiqueta}</label>
                   <select
                     id={f.id}
                     value={f.valor}
@@ -1265,7 +1265,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   style={i < 12 ? { animationDelay: `${i * 30}ms` } : undefined}
                   className={[
                     'w-full text-left px-4 py-3 transition-colors flex flex-col gap-1 cursor-pointer border-b border-gray-100/60',
-                    isSelected ? 'bg-emerald-50/80 border-l-4 border-l-[#00D084]' : 'hover:bg-slate-50/80',
+                    isSelected ? 'bg-emerald-50/80 border-l border-l-[#00D084]' : 'hover:bg-slate-50/80',
                     i < 12 ? ENTRADA_FILA : '',
                   ].join(' ')}
                 >
@@ -1288,11 +1288,11 @@ export default function PreinscripcionesPrincipalesPanel({
                     {/* Indicador de Estado Único (+ pago pendiente si tiene un cobro sin pagar) */}
                     <span className="flex items-center gap-1 shrink-0">
                       {debe(r) && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
                           Pago pendiente
                         </span>
                       )}
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${statusObj.styles}`}>
                         {statusObj.label}
                       </span>
                     </span>
@@ -1326,13 +1326,13 @@ export default function PreinscripcionesPrincipalesPanel({
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{selected.estudiante_cedula || 'S/D'}</p>
                   {selected.afiliado_estatus === 'Afiliado' && (
-                    <span className="inline-block text-[9px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-tight">
+                    <span className="inline-block text-[11px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-tight">
                       Miembro Afiliado
                     </span>
                   )}
                 </div>
                 {selected.programa_codigo === 'AFILIACION' && !!selected.apto_acreditacion && (
-                  <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-1 uppercase tracking-tighter">
+                  <span className="inline-block text-[11px] font-black px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 mt-1 uppercase tracking-tighter">
                     Opta por Acreditación
                   </span>
                 )}
@@ -1341,12 +1341,12 @@ export default function PreinscripcionesPrincipalesPanel({
                 {(() => {
                   const statusObj = getStatusLabelAndStyles(selected.estatus, selected.afiliado_estatus, selected.num_documentos, selected.completado)
                   return (
-                    <span className={`text-[10px] font-black px-3 py-1.5 rounded-full border uppercase tracking-wider ${statusObj.styles}`}>
+                    <span className={`text-[11px] font-black px-3 py-1.5 rounded-full border uppercase tracking-wider ${statusObj.styles}`}>
                       {statusObj.label}
                     </span>
                   )
                 })()}
-                <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300/80 uppercase tracking-wider shadow-2xs mt-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300/80 uppercase tracking-wider shadow-2xs mt-1">
                   <GraduationCap size={11} className="text-emerald-700 shrink-0" />
                   {selected.programa_codigo === 'AFILIACION' && selected.afiliado_tipo ? selected.afiliado_tipo : selected.programa_codigo}
                 </span>
@@ -1355,7 +1355,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
             {PROGRAMAS_CON_COHORTE.includes(selected.programa_codigo) && (
               <label className="bg-white rounded-2xl px-4 py-3 border border-gray-100 flex items-center gap-3 flex-wrap mb-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cohorte</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cohorte</span>
                 <select
                   value={selected.id_cohorte ?? ''}
                   disabled={savingCohorte}
@@ -1376,7 +1376,7 @@ export default function PreinscripcionesPrincipalesPanel({
               if (items.length === 0) return null
               return (
                 <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 mb-4 space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Cobros</span>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 block">Cobros</span>
                   {items.map(it => (
                     <div key={it.clave} className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="min-w-0">
@@ -1384,7 +1384,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         <p className="text-[11px] text-slate-500 font-medium">{it.detalle}</p>
                       </div>
                       {it.pagado ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <Check size={11} aria-hidden="true" /> Pagado
                         </span>
                       ) : (
@@ -1425,8 +1425,8 @@ export default function PreinscripcionesPrincipalesPanel({
               return (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-4 flex flex-col gap-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Progreso del Trámite</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">{activeIndex + 1} de 7</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Progreso del Trámite</span>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">{activeIndex + 1} de 7</span>
                   </div>
                   <div className="relative flex items-start justify-between px-2 pt-2 pb-6">
                     <div className="absolute left-6 right-6 top-[24px] h-0.5 bg-slate-100 -z-0" />
@@ -1461,7 +1461,7 @@ export default function PreinscripcionesPrincipalesPanel({
                               <StepIcon className="w-4 h-4" />
                             )}
                           </div>
-                          <span className={`text-[8px] font-black tracking-tighter uppercase transition-colors
+                          <span className={`text-[11px] font-black tracking-tighter uppercase transition-colors
                             ${isChangingThis ? 'text-emerald-600 font-bold' : isCurrent ? 'text-emerald-600' : isCompleted ? 'text-emerald-400 group-hover:text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
                             {step.labelShort}
                           </span>
@@ -1480,8 +1480,8 @@ export default function PreinscripcionesPrincipalesPanel({
                 <div className="bg-white rounded-2xl p-4 relative border border-gray-100 mb-3">
                   {edit?.id === selected.id_inscripcion ? (
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    <button type="button" disabled={guardandoEdit} onClick={() => guardarEdicion(selected)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-60 cursor-pointer">{guardandoEdit ? 'Guardando…' : 'Guardar'}</button>
-                    <button type="button" disabled={guardandoEdit} onClick={() => setEdit(null)} className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wider cursor-pointer">Cancelar</button>
+                    <button type="button" disabled={guardandoEdit} onClick={() => guardarEdicion(selected)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider disabled:opacity-60 cursor-pointer">{guardandoEdit ? 'Guardando…' : 'Guardar'}</button>
+                    <button type="button" disabled={guardandoEdit} onClick={() => setEdit(null)} className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-wider cursor-pointer">Cancelar</button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => iniciarEdicion(selected)} aria-label="Editar datos" title="Editar datos"
@@ -1494,22 +1494,22 @@ export default function PreinscripcionesPrincipalesPanel({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {editando(selected) && (
                       <div className="flex flex-col gap-0.5 sm:col-span-2">
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Razón social</span>
+                        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Razón social</span>
                         {inputEd('nombre', 'Razón social')}
                       </div>
                     )}
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">RIF</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">RIF</span>
                       {editando(selected) ? cedulaEd() : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
                       {editando(selected) ? inputEd('tel', 'Teléfono') : <span className="text-sm text-slate-700 font-medium break-all">
                         {selected.estudiante_telefono || 'No indicado'}
                       </span>}
                     </div>
                     <div className="flex flex-col gap-0.5 sm:col-span-2">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
                       {editando(selected) ? inputEd('email', 'Correo', 'email') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>}
                     </div>
                   </div>
@@ -1523,21 +1523,21 @@ export default function PreinscripcionesPrincipalesPanel({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-0.5 sm:col-span-2">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nombre</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Nombre</span>
                       <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_nombre || 'No indicado'}</span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
                       <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_cedula || 'No indicado'}</span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
                       <span className="text-sm text-slate-700 font-medium break-all">
                         {selected.representante_telefono || selected.estudiante_telefono || 'No indicado'}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 sm:col-span-2">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
                       <span className="text-sm text-slate-700 font-medium break-all">{selected.representante_email || 'No indicado'}</span>
                     </div>
                   </div>
@@ -1553,7 +1553,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     <p className="text-sm text-emerald-900 font-black uppercase tracking-tight">
                       {selected.empresa_vinculada_nombre}
                     </p>
-                    <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
+                    <p className="text-[11px] text-emerald-600 font-medium mt-0.5">
                       Este agente pertenece a la nómina de esta empresa afiliada.
                     </p>
                   </div>
@@ -1564,55 +1564,55 @@ export default function PreinscripcionesPrincipalesPanel({
               <div className="bg-white rounded-2xl p-4 relative border border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 {edit?.id === selected.id_inscripcion ? (
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    <button type="button" disabled={guardandoEdit} onClick={() => guardarEdicion(selected)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-60 cursor-pointer">{guardandoEdit ? 'Guardando…' : 'Guardar'}</button>
-                    <button type="button" disabled={guardandoEdit} onClick={() => setEdit(null)} className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wider cursor-pointer">Cancelar</button>
+                    <button type="button" disabled={guardandoEdit} onClick={() => guardarEdicion(selected)} className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider disabled:opacity-60 cursor-pointer">{guardandoEdit ? 'Guardando…' : 'Guardar'}</button>
+                    <button type="button" disabled={guardandoEdit} onClick={() => setEdit(null)} className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-wider cursor-pointer">Cancelar</button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => iniciarEdicion(selected)} aria-label="Editar datos" title="Editar datos"
                     className="absolute top-3 right-3 p-1.5 rounded-lg text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"><Pencil size={14} aria-hidden="true" /></button>
                 )}
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nombres</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Nombres</span>
                   {editando(selected) ? inputEd('nombres', 'Nombres') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nombres || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Apellidos</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Apellidos</span>
                   {editando(selected) ? inputEd('apellidos', 'Apellidos') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_apellidos || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Cédula</span>
                   {editando(selected) ? cedulaEd() : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_cedula || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Teléfono</span>
                   {editando(selected) ? inputEd('tel', 'Teléfono') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_telefono || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Email</span>
                   {editando(selected) ? inputEd('email', 'Correo', 'email') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_email}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Fecha de Solicitud</span>
                   <span className="text-sm text-slate-700 font-medium break-all">{formatDateLatina(selected.creado_en)}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Nivel Académico</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Nivel Académico</span>
                   {editando(selected) ? nivelEd() : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_nivel_profesional || 'No indicado'}</span>}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Profesión</span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Profesión</span>
                   {editando(selected) ? inputEd('profesion', 'Profesión') : <span className="text-sm text-slate-700 font-medium break-all">{selected.estudiante_profesion || 'No indicado'}</span>}
                 </div>
                 {(editando(selected) || (selected.ano_inicio_servicio !== undefined && selected.ano_inicio_servicio !== null)) && (
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Año Inicio de Servicio</span>
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Año Inicio de Servicio</span>
                     {editando(selected) ? inputEd('ano', 'Año de inicio de servicio', 'number') : <span className="text-sm text-slate-700 font-medium break-all">{selected.ano_inicio_servicio}</span>}
                   </div>
                 )}
                 <div className="sm:col-span-2 flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl mt-2">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-bold text-slate-800">¿Es Corredor Inmobiliario?</span>
-                    <span className="text-[10px] text-slate-400">Información sobre si el aspirante ejerce en el sector</span>
+                    <span className="text-[11px] text-slate-400">Información sobre si el aspirante ejerce en el sector</span>
                   </div>
                   <div>
                     {editando(selected) ? (
@@ -1621,11 +1621,11 @@ export default function PreinscripcionesPrincipalesPanel({
                         Es asesor
                       </label>
                     ) : selected.estudiante_es_corredor_inmobiliario ? (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 uppercase tracking-wider">
                         Sí, es Asesor
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wider">
                         No es Asesor
                       </span>
                     )}
@@ -1637,13 +1637,13 @@ export default function PreinscripcionesPrincipalesPanel({
             {/* Documentos */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-4">
               <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documentación Adjunta</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Documentación Adjunta</span>
                 <div className="flex items-center gap-1.5">
                   <select aria-label="Tipo de soporte" value={tipoSoporte} onChange={e => setTipoSoporte(e.target.value)} disabled={subiendoDoc}
                     className="text-[11px] font-bold rounded-lg border border-gray-200 bg-white text-slate-700 px-2 py-1">
                     {TIPOS_SOPORTE.map(t => <option key={t} value={t}>{etiquetaDocumento(t)}</option>)}
                   </select>
-                  <label className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer ${subiendoDoc ? 'opacity-60 pointer-events-none' : ''}`}>
+                  <label className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-wider cursor-pointer ${subiendoDoc ? 'opacity-60 pointer-events-none' : ''}`}>
                     {subiendoDoc ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : <Plus size={12} aria-hidden="true" />}
                     {subiendoDoc ? 'Subiendo…' : 'Agregar'}
                     <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={subiendoDoc}
@@ -1665,7 +1665,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         <button 
                           onClick={() => handleVerReferencia(doc.nombre_archivo!)}
                           disabled={validatingRef !== null}
-                          className="ml-2 px-2 py-1 rounded-lg bg-white border border-slate-200 text-[9px] font-black text-slate-500 hover:bg-slate-50 uppercase tracking-tighter disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1"
+                          className="ml-2 px-2 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-black text-slate-500 hover:bg-slate-50 uppercase tracking-tighter disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1"
                         >
                           {validatingRef === doc.nombre_archivo ? (
                             <>
@@ -1689,7 +1689,7 @@ export default function PreinscripcionesPrincipalesPanel({
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-emerald-900">Aspirante Afiliado Acreditado</span>
-                  <span className="text-[10px] text-emerald-700 font-medium">Este aspirante ya cuenta con estatus de Afiliado activo y su proceso académico/CIBIR ha sido culminado con éxito.</span>
+                  <span className="text-[11px] text-emerald-700 font-medium">Este aspirante ya cuenta con estatus de Afiliado activo y su proceso académico/CIBIR ha sido culminado con éxito.</span>
                 </div>
               </div>
             ) : (
@@ -1706,7 +1706,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                   <button 
                                     onClick={() => aprobarAcreditacion(selected)} 
                                     disabled={processingAction !== null}
-                                    className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                                    className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                   >
                                     {processingAction === 'aprobarDirecto' ? (
                                       <>
@@ -1720,7 +1720,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                   <button 
                                     onClick={() => confirmarRemision(selected)} 
                                     disabled={processingAction !== null}
-                                    className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                                    className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                   >
                                     {processingAction === 'remitirCibir' ? (
                                       <>
@@ -1736,7 +1736,7 @@ export default function PreinscripcionesPrincipalesPanel({
                                 <button 
                                   onClick={() => confirmarRemision(selected)} 
                                   disabled={processingAction !== null}
-                                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                                 >
                                   {processingAction === 'remitirCibir' ? (
                                     <>
@@ -1751,7 +1751,7 @@ export default function PreinscripcionesPrincipalesPanel({
                               <button 
                                 onClick={() => setShowModalAgendar(true)} 
                                 disabled={processingAction !== null}
-                                className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                                className="flex-1 py-3 rounded-xl bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest hover:bg-slate-900 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                               >
                                 Agendar Cita
                               </button>
@@ -1760,7 +1760,7 @@ export default function PreinscripcionesPrincipalesPanel({
                             <button 
                               onClick={() => aprobarDirecto(selected.id_inscripcion)} 
                               disabled={processingAction !== null}
-                              className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                              className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                             >
                               {processingAction === 'aprobarDirecto' ? (
                                 <>
@@ -1775,7 +1775,7 @@ export default function PreinscripcionesPrincipalesPanel({
                           <button 
                             onClick={() => rechazar(selected.id_inscripcion)} 
                             disabled={processingAction !== null}
-                            className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                            className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                           >
                             {processingAction === 'rechazar' ? (
                               <>
@@ -1790,7 +1790,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         <button 
                           onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
                           disabled={processingAction !== null}
-                          className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                          className="w-full mt-2 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
                           {processingAction === 'reenviarEnlace' ? (
                             <>
@@ -1810,7 +1810,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         <button 
                           onClick={() => reenviarEnlaceExpediente(selected.id_inscripcion)} 
                           disabled={processingAction !== null}
-                          className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                          className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
                           {processingAction === 'reenviarEnlace' ? (
                             <>
@@ -1827,7 +1827,7 @@ export default function PreinscripcionesPrincipalesPanel({
                         <button 
                           onClick={() => rechazar(selected.id_inscripcion)} 
                           disabled={processingAction !== null}
-                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+                          className="px-4 py-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
                         >
                           {processingAction === 'rechazar' ? (
                             <>
@@ -1850,14 +1850,14 @@ export default function PreinscripcionesPrincipalesPanel({
                       <button 
                         onClick={() => setShowModalFinalizar(true)} 
                         disabled={processingAction !== null}
-                        className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        className="flex-1 py-3 rounded-xl bg-[#00D084] text-white text-[11px] font-black uppercase tracking-widest hover:bg-[#00B870] transition-colors disabled:opacity-50 disabled:pointer-events-none"
                       >
                         Dar Veredicto
                       </button>
                       <button 
                         onClick={() => setShowModalAgendar(true)} 
                         disabled={processingAction !== null}
-                        className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        className="px-4 py-3 rounded-xl border border-slate-200 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                       >
                         Reprogramar
                       </button>
@@ -1867,11 +1867,11 @@ export default function PreinscripcionesPrincipalesPanel({
 
                 {selected.afiliado_estatus === '5_CIBIR' && (
                   <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
                     <button
                       onClick={handleAprobarEtapaCibir}
                       disabled={processingAction !== null}
-                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
+                      className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {processingAction === 'aprobarCibir' ? (
                         <>
@@ -1898,13 +1898,13 @@ export default function PreinscripcionesPrincipalesPanel({
                   if (!clave) return null
                   return (
                     <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
                         {clave === 'programa' ? `Arancel ${r.programa_codigo} pendiente` : 'Formalización pendiente'}
                       </span>
                       <button
                         type="button"
                         onClick={() => setCobro(clave)}
-                        className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
+                        className="w-full py-3 rounded-xl bg-[#00D084] hover:bg-[#00B870] text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 transition-colors transition-transform active:scale-95 flex items-center justify-center gap-1.5"
                       >
                         <CreditCard size={14} aria-hidden="true" />
                         {clave === 'programa' ? 'Registrar cobro' : 'Cobrar y formalizar'}
@@ -1919,7 +1919,7 @@ export default function PreinscripcionesPrincipalesPanel({
             <button 
               onClick={() => eliminarSolicitud(selected.id_inscripcion)} 
               disabled={processingAction !== null}
-              className="w-full mt-4 py-3 rounded-xl text-[9px] font-black text-red-300 hover:text-red-500 uppercase tracking-widest transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
+              className="w-full mt-4 py-3 rounded-xl text-[11px] font-black text-red-300 hover:text-red-500 uppercase tracking-widest transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5"
             >
               {processingAction === 'eliminar' ? (
                 <>
@@ -1947,7 +1947,7 @@ export default function PreinscripcionesPrincipalesPanel({
             <div className="grid grid-cols-2 gap-1 p-1 mb-4 rounded-xl bg-slate-100">
               {([['enlace', 'Que elija'], ['manual', 'Fijar a mano']] as const).map(([modo, texto]) => (
                 <button key={modo} type="button" aria-pressed={modoAgenda === modo} onClick={() => setModoAgenda(modo)}
-                  className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors ${modoAgenda === modo ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}>
+                  className={`py-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors ${modoAgenda === modo ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}>
                   {texto}
                 </button>
               ))}
@@ -1960,7 +1960,7 @@ export default function PreinscripcionesPrincipalesPanel({
                     className="w-full py-3 rounded-xl bg-emerald-600 text-white font-black uppercase text-xs tracking-widest hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2">
                     {enviandoEnlace ? <><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /><span>Creando enlace…</span></> : 'Enviar enlace'}
                   </button>
-                  <button type="button" onClick={() => setShowDisponibilidad(true)} className="w-full text-emerald-700 font-bold uppercase text-[10px] hover:underline">
+                  <button type="button" onClick={() => setShowDisponibilidad(true)} className="w-full text-emerald-700 font-bold uppercase text-[11px] hover:underline">
                     Mi disponibilidad
                   </button>
                 </>
@@ -1988,7 +1988,7 @@ export default function PreinscripcionesPrincipalesPanel({
               <button 
                 onClick={() => setShowModalAgendar(false)} 
                 disabled={submittingAgendar}
-                className="w-full text-slate-400 font-bold uppercase text-[10px] hover:text-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full text-slate-400 font-bold uppercase text-[11px] hover:text-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 Cancelar
               </button>
@@ -2024,7 +2024,7 @@ export default function PreinscripcionesPrincipalesPanel({
             <div className="flex flex-col gap-6">
               <div className="grid grid-cols-3 gap-2">
                 {(['Aprobado', 'Parcial', 'Rechazado'] as const).map(res => (
-                  <button key={res} onClick={() => setFinalizarData({ ...finalizarData, resultado: res })} className={`py-3 rounded-xl text-[10px] font-black uppercase border transition-colors ${finalizarData.resultado === res ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white text-slate-400 border-slate-100'}`}>{res}</button>
+                  <button key={res} onClick={() => setFinalizarData({ ...finalizarData, resultado: res })} className={`py-3 rounded-xl text-[11px] font-black uppercase border transition-colors ${finalizarData.resultado === res ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white text-slate-400 border-slate-100'}`}>{res}</button>
                 ))}
               </div>
               <textarea value={finalizarData.nota} onChange={e => setFinalizarData({ ...finalizarData, nota: e.target.value })} className="w-full p-4 rounded-xl bg-slate-50 border border-slate-100 text-sm min-h-[100px]" placeholder="Notas internas..." />
@@ -2045,7 +2045,7 @@ export default function PreinscripcionesPrincipalesPanel({
               <button 
                 onClick={() => setShowModalFinalizar(false)} 
                 disabled={submittingFinalizar}
-                className="w-full text-slate-400 font-bold uppercase text-[10px] hover:text-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                className="w-full text-slate-400 font-bold uppercase text-[11px] hover:text-slate-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 Cerrar
               </button>

@@ -260,7 +260,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Tipo de Cuenta *</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Tipo de Cuenta *</label>
                 <select
                   value={form.tipo}
                   onChange={(e) => {
@@ -280,7 +280,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Banco / Plataforma *</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Banco / Plataforma *</label>
                 <input
                   type="text"
                   required
@@ -292,7 +292,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Beneficiario / Titular *</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Beneficiario / Titular *</label>
                 <input
                   type="text"
                   required
@@ -304,7 +304,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">{form.tipo === 'binance' ? 'Binance Pay ID *' : 'RIF / C.I. *'}</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">{form.tipo === 'binance' ? 'Binance Pay ID *' : 'RIF / C.I. *'}</label>
                 <input
                   type="text"
                   required
@@ -317,7 +317,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
               {form.tipo === 'pago_movil' && (
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Teléfono Pago Móvil</label>
+                  <label className="text-[11px] font-bold text-slate-500 block mb-1">Teléfono Pago Móvil</label>
                   <input
                     type="text"
                     placeholder="Ej. 0414-8889900"
@@ -330,7 +330,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
               {(form.tipo === 'transferencia' || form.tipo === 'transferencia_usd') && (
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                  <label className="text-[11px] font-bold text-slate-500 block mb-1">
                     {form.tipo === 'transferencia_usd' ? 'Número de cuenta en dólares' : 'Número de Cuenta Completo (20 dígitos)'}
                   </label>
                   <input
@@ -345,7 +345,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
               {(form.tipo === 'zelle' || form.tipo === 'binance') && (
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">{form.tipo === 'binance' ? 'Correo de la cuenta Binance' : 'Correo Electrónico Zelle'}</label>
+                  <label className="text-[11px] font-bold text-slate-500 block mb-1">{form.tipo === 'binance' ? 'Correo de la cuenta Binance' : 'Correo Electrónico Zelle'}</label>
                   <input
                     type="email"
                     placeholder="Ej. pagos@camarainmobiliaria.com"
@@ -357,7 +357,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
               )}
 
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Instrucciones / Notas adicionales</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Instrucciones / Notas adicionales</label>
                 <input
                   type="text"
                   placeholder="Ej. Indicar nombre del afiliado en el concepto."
@@ -390,7 +390,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
 
           {/* List of accounts */}
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-2">
               Cuentas Registradas ({cuentas.length})
             </span>
 
@@ -422,7 +422,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
                         <div className="flex items-center gap-2">
                           <p className="font-black text-slate-900">{c.banco}</p>
                           {Number(c.activo) === 0 && (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 uppercase">
                               Inactiva
                             </span>
                           )}

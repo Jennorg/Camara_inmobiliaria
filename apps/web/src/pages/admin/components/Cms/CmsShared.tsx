@@ -236,7 +236,7 @@ export const uploadFileSupabase = uploadFileStorage
 
 export const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1">
-    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{label}</label>
+    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{label}</label>
     {children}
   </div>
 )

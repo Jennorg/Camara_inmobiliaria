@@ -307,7 +307,7 @@ export default function DenunciasPublicPage() {
                   </div>
                   <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
                     <div className="text-left">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">PIN de Seguimiento</span>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase">PIN de Seguimiento</span>
                       <p className="text-xl font-mono font-black text-rose-600">{denunciaCreada.pin_seguimiento}</p>
                     </div>
                     <button
@@ -490,7 +490,7 @@ export default function DenunciasPublicPage() {
                             >
                               <div>
                                 <p className="text-xs font-bold text-slate-800">{nombre}</p>
-                                <p className="text-[10px] text-slate-400 font-mono">
+                                <p className="text-[11px] text-slate-400 font-mono">
                                   {infoSub}
                                 </p>
                               </div>
@@ -636,7 +636,7 @@ export default function DenunciasPublicPage() {
                         {documentos.map((doc, idx) => (
                           <div key={idx} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                             <span className="truncate font-bold text-slate-700">{doc.nombre_archivo}</span>
-                            <span className="text-[10px] text-emerald-600 font-bold">✓ Listo</span>
+                            <span className="text-[11px] text-emerald-600 font-bold">✓ Listo</span>
                           </div>
                         ))}
                       </div>
@@ -725,13 +725,13 @@ export default function DenunciasPublicPage() {
                 {/* Partes */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Denunciante</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">Denunciante</span>
                     <p className="text-sm font-bold text-slate-800">{casoConsultado.nombre_denunciante}</p>
                   </div>
                   <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-200 space-y-1">
-                    <span className="text-[10px] font-bold text-rose-500 uppercase">Afiliado Denunciado</span>
+                    <span className="text-[11px] font-bold text-rose-500 uppercase">Afiliado Denunciado</span>
                     <p className="text-sm font-bold text-slate-900">{casoConsultado.nombre_denunciado}</p>
-                    <p className="text-[10px] text-rose-600 font-mono">Código CIV: {casoConsultado.codigo_afiliado_denunciado || 'Registrado'}</p>
+                    <p className="text-[11px] text-rose-600 font-mono">Código CIV: {casoConsultado.codigo_afiliado_denunciado || 'Registrado'}</p>
                   </div>
                 </div>
 
@@ -790,7 +790,7 @@ export default function DenunciasPublicPage() {
                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-slate-900 ring-4 ring-white" />
                         <p className="font-bold text-slate-800">{h.accion}</p>
                         {h.comentario && <p className="text-slate-600 text-[11px]">{h.comentario}</p>}
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span className="text-[11px] text-slate-400 font-mono">
                           {new Date(h.fecha).toLocaleDateString('es-VE', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>

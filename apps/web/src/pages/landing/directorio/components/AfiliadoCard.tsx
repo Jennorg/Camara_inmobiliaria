@@ -199,7 +199,7 @@ export const AfiliadoCard = ({
               ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
               : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
           </h3>
-          <p className="text-[10px] text-slate-500 dark:text-emerald-100/50 font-bold uppercase truncate max-w-[120px]">
+          <p className="text-[11px] text-slate-500 dark:text-emerald-100/50 font-bold uppercase truncate max-w-[120px]">
             {isCorpView ? 'Corporativo' : tipoMeta.label}
           </p>
         </div>
@@ -243,7 +243,7 @@ export const AfiliadoCard = ({
         <div className="flex-1 flex flex-col justify-between p-4 pt-5 pb-3">
           <div className="space-y-1 mb-3 w-full text-center px-2">
             {/* Categoría / Tipo sutil */}
-            <span className="inline-block text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 mb-0.5">
+            <span className="inline-block text-[11px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 mb-0.5">
               {tipoMeta.fullLabel}
             </span>
 

@@ -174,7 +174,7 @@ export default function InvitacionCorporativaPage() {
             <p className="text-slate-500 text-sm max-w-sm leading-relaxed">
               Hemos registrado tu información. <span className="font-bold text-emerald-600">Revisa tu correo electrónico</span> para completar tu perfil y cargar tus documentos obligatorios (Cédula y Título).
             </p>
-            <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-[10px] shadow-lg ${BOX_H}`}>
+            <Link to="/" className={`px-8 flex items-center gap-2 rounded-xl bg-[#022c22] text-white font-black uppercase tracking-widest text-[11px] shadow-lg ${BOX_H}`}>
               Volver al Inicio
             </Link>
           </div>
@@ -322,7 +322,7 @@ export default function InvitacionCorporativaPage() {
               {submitLoading ? <Loader2 size={18} className="animate-spin" /> : <><span>Enviar Solicitud</span><ArrowRight size={14} /></>}
             </button>
 
-            <p className="text-[9px] text-center text-slate-400 uppercase tracking-widest">
+            <p className="text-[11px] text-center text-slate-400 uppercase tracking-widest">
               Cámara Inmobiliaria de Venezuela • 2026
             </p>
           </form>

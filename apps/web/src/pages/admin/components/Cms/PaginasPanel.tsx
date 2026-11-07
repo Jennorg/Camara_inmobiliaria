@@ -138,7 +138,7 @@ export function PaginasPanel() {
         </aside>
         <div className="flex-1 flex flex-col min-w-0 p-4 gap-3 overflow-hidden">
           <div>
-            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Slug</label>
+            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Slug</label>
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value.trim().toLowerCase())}

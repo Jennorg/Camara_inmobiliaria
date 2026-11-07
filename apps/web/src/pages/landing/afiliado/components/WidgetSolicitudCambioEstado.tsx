@@ -240,7 +240,7 @@ export default function WidgetSolicitudCambioEstado() {
     return (
       <div className="bg-white rounded-3xl border border-gray-100 p-8 flex flex-col items-center justify-center gap-3 text-slate-400">
         <Loader2 className="animate-spin text-emerald-500" size={24} />
-        <p className="text-[10px] font-black uppercase tracking-widest">Cargando panel de solicitudes...</p>
+        <p className="text-[11px] font-black uppercase tracking-widest">Cargando panel de solicitudes...</p>
       </div>
     );
   }
@@ -267,7 +267,7 @@ export default function WidgetSolicitudCambioEstado() {
                     <span className="text-xs font-black uppercase tracking-wider text-slate-800">
                       Solicitud de Cambio en Trámite
                     </span>
-                    <span className="px-2.5 py-0.5 text-[9px] font-extrabold uppercase rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                    <span className="px-2.5 py-0.5 text-[11px] font-extrabold uppercase rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                       Por Aprobar
                     </span>
                   </div>
@@ -288,12 +288,12 @@ export default function WidgetSolicitudCambioEstado() {
                 </button>
               ) : (
                 <div className="flex items-center gap-2 bg-slate-50 border border-rose-200 rounded-xl p-2">
-                  <span className="text-[10px] font-extrabold uppercase text-rose-700 px-1">¿Cancelar solicitud?</span>
+                  <span className="text-[11px] font-extrabold uppercase text-rose-700 px-1">¿Cancelar solicitud?</span>
                   <button
                     type="button"
                     disabled={canceling}
                     onClick={() => handleCancelSolicitud(solicitud.id_solicitud)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider transition-colors transition-opacity disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-black uppercase tracking-wider transition-colors transition-opacity disabled:opacity-50"
                   >
                     {canceling ? <Loader2 size={12} className="animate-spin" /> : 'Sí, cancelar'}
                   </button>
@@ -301,7 +301,7 @@ export default function WidgetSolicitudCambioEstado() {
                     type="button"
                     disabled={canceling}
                     onClick={() => setShowCancelConfirm(false)}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-[10px] font-bold uppercase tracking-wider transition-colors"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-[11px] font-bold uppercase tracking-wider transition-colors"
                   >
                     No
                   </button>
@@ -360,7 +360,7 @@ export default function WidgetSolicitudCambioEstado() {
             )}
 
             <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
                 Selecciona el Tipo de Membresía Destino
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -388,7 +388,7 @@ export default function WidgetSolicitudCambioEstado() {
                       <div className="flex items-center justify-between w-full mb-3">
                         <opt.icon className={isCurrent || isSelected ? 'text-emerald-600' : 'text-slate-400'} size={20} />
                         {isCurrent ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
                             Estatus Actual
                           </span>
                         ) : (
@@ -400,7 +400,7 @@ export default function WidgetSolicitudCambioEstado() {
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-slate-800 uppercase tracking-tight">{opt.label}</h5>
-                        <p className="text-[10px] font-bold text-slate-400 mt-1 leading-snug">{opt.desc}</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1 leading-snug">{opt.desc}</p>
                       </div>
                     </button>
                   );
@@ -425,7 +425,7 @@ export default function WidgetSolicitudCambioEstado() {
             {tipoDestino === 'Agente Corporativo' && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                     Selecciona la Empresa a la que perteneces <span className="text-rose-500">*</span>
                   </label>
                   <CompanySearchSelector
@@ -458,7 +458,7 @@ export default function WidgetSolicitudCambioEstado() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="col-span-full flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
                       <input
                         type="text"
                         required
@@ -470,7 +470,7 @@ export default function WidgetSolicitudCambioEstado() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
                       <select
                         value={rifTipo}
                         onChange={e => setRifTipo(e.target.value)}
@@ -485,7 +485,7 @@ export default function WidgetSolicitudCambioEstado() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
                       <input
                         type="text"
                         required
@@ -497,7 +497,7 @@ export default function WidgetSolicitudCambioEstado() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo Electrónico de la Empresa *</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Correo Electrónico de la Empresa *</label>
                       <input
                         type="email"
                         required
@@ -509,7 +509,7 @@ export default function WidgetSolicitudCambioEstado() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
                       <input
                         type="text"
                         required
@@ -521,7 +521,7 @@ export default function WidgetSolicitudCambioEstado() {
                     </div>
 
                     <div className="col-span-full flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
                       <textarea
                         rows={2}
                         value={direccionEmpresa}
@@ -532,7 +532,7 @@ export default function WidgetSolicitudCambioEstado() {
                     </div>
 
                     <div className="col-span-full flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
                       <input
                         type="text"
                         value={websiteEmpresa}

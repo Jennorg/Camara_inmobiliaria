@@ -32,8 +32,8 @@ const AFILIACION_STEPS_FLOW = [
 function DocLink({ label, url, detail, compact = false }: { label: string, url?: string | null, detail?: string | null, compact?: boolean }) {
   if (!url) return (
     <div className={`flex items-center justify-between p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/30 ${compact ? 'py-2' : ''}`}>
-      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{label}</span>
-      <span className="text-[10px] text-slate-300 italic font-medium">No cargado</span>
+      <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{label}</span>
+      <span className="text-[11px] text-slate-300 italic font-medium">No cargado</span>
     </div>
   )
 
@@ -49,8 +49,8 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
           <FileText size={16} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</span>
-          <span className="text-[10px] font-bold text-slate-600 truncate">{detail ? `Por: ${detail}` : 'Ver documento'}</span>
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</span>
+          <span className="text-[11px] font-bold text-slate-600 truncate">{detail ? `Por: ${detail}` : 'Ver documento'}</span>
         </div>
       </div>
       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors">
@@ -374,7 +374,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <button
                 type="button"
                 onClick={() => { setViewMode('list'); setSelected(null); setSelectedSolicitud(null); }}
-                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                className={`flex-1 text-center py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
                   }`}
               >
                 Afiliados CIBIR
@@ -382,12 +382,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               {puede('solicitudes_cambio', 'ver') && <button
                 type="button"
                 onClick={() => { setViewMode('solicitudes'); setSelected(null); setSelectedSolicitud(null); }}
-                className={`flex-1 text-center py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors relative ${viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                className={`flex-1 text-center py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-colors relative ${viewMode === 'solicitudes' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-400 hover:text-slate-600'
                   }`}
               >
                 Solicitudes Cambio
                 {solicitudes.length > 0 && (
-                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[8px] font-black scale-90">
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[11px] font-black scale-90">
                     {solicitudes.length}
                   </span>
                 )}
@@ -400,14 +400,14 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Listado General</h3>
-                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">Manejo de candidatos, aprobaciones y estatus.</p>
+                  <p className="text-[11px] text-slate-400 font-bold mt-0.5">Manejo de candidatos, aprobaciones y estatus.</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setShowCuentasModal(true)}
                     title="Configurar cuentas bancarias receptoras"
-                    className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors text-[9px] font-bold uppercase tracking-wider"
+                    className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors text-[11px] font-bold uppercase tracking-wider"
                   >
                     <Landmark size={12} />
                     <span>Cuentas</span>
@@ -416,7 +416,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="button"
                     onClick={() => setShowArancelesModal(true)}
                     title="Configurar aranceles y tarifas"
-                    className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors text-[9px] font-bold uppercase tracking-wider"
+                    className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors text-[11px] font-bold uppercase tracking-wider"
                   >
                     <DollarSign size={12} />
                     <span>Aranceles</span>
@@ -425,7 +425,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     type="button"
                     onClick={() => setShowExportModal(true)}
                     title="Exportar listado en PDF"
-                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[10px] font-bold uppercase tracking-wider"
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors text-[11px] font-bold uppercase tracking-wider"
                   >
                     <FileDown size={14} />
                     PDF
@@ -480,11 +480,11 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">Solicitudes pendientes</h3>
-                <p className="text-[10px] text-slate-400 font-bold mt-0.5">Cambios de membresía que requieren aprobación.</p>
+                <p className="text-[11px] text-slate-400 font-bold mt-0.5">Cambios de membresía que requieren aprobación.</p>
               </div>
               <button
                 onClick={loadSolicitudes}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors"
               >
                 Refrescar
               </button>
@@ -513,7 +513,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm font-semibold text-slate-800">{a.nombre_completo}</span>
 
-                      <span className={`text-[9px] font-black uppercase tracking-widest ${a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
+                      <span className={`text-[11px] font-black uppercase tracking-widest ${a.tipo_afiliado === 'Corporativo' ? 'text-emerald-600' :
                         a.tipo_afiliado === 'Agente Corporativo' || a.tipo_afiliado === 'Agente' ? 'text-amber-500' :
                           'text-blue-500'
                         }`}>
@@ -522,12 +522,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                             'Agente Independiente'}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
                       {a.estatus.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <span className="text-xs text-slate-400 truncate">{a.email}</span>
-                  <span className="text-[10px] text-slate-300">
+                  <span className="text-[11px] text-slate-300">
                     #{a.id_afiliado} · {a.codigo || 'sin código'} · {formatDateLatina(a.fecha_registro)}
                   </span>
                 </button>
@@ -548,16 +548,16 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-col min-w-0">
                       <span className="text-sm font-semibold text-slate-800">{s.afiliado_nombre}</span>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-emerald-600">
                         {s.tipo_actual} ➔ {s.tipo_solicitado}
                       </span>
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 whitespace-nowrap">
+                    <span className="text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100 whitespace-nowrap">
                       Por Cámara
                     </span>
                   </div>
                   <span className="text-xs text-slate-400 truncate">{s.afiliado_email}</span>
-                  <span className="text-[10px] text-slate-300">
+                  <span className="text-[11px] text-slate-300">
                     Solicitud #{s.id_solicitud} · {formatDateLatina(s.creado_en)}
                   </span>
                 </button>
@@ -582,14 +582,14 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 space-y-6">
               {/* Header */}
               <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-1.5 shadow-sm">
-                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 w-fit">
+                <span className="text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 w-fit">
                   {selectedSolicitud.tipo_actual} ➔ {selectedSolicitud.tipo_solicitado}
                 </span>
                 <h3 className="text-sm font-bold text-slate-900 leading-tight">
                   Solicitud de: {selectedSolicitud.afiliado_nombre}
                 </h3>
                 <p className="text-xs text-slate-400">{selectedSolicitud.afiliado_email} • {selectedSolicitud.afiliado_telefono || 'sin teléfono'}</p>
-                <p className="text-[10px] text-slate-400 font-bold mt-1">
+                <p className="text-[11px] text-slate-400 font-bold mt-1">
                   Enviada el: {new Date(selectedSolicitud.creado_en).toLocaleString('es-ES')}
                 </p>
               </div>
@@ -599,35 +599,35 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <>
                   {/* Company Info */}
                   <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Datos de la Empresa</h4>
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Datos de la Empresa</h4>
                     {(() => {
                       try {
                         const datos = JSON.parse(selectedSolicitud.datos_empresa || '{}');
                         return (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-600">
                             <div>
-                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Razón Social</span>
+                              <span className="text-[11px] text-slate-400 uppercase block mb-0.5">Razón Social</span>
                               <span className="text-slate-800 font-bold">{datos.razon_social || '—'}</span>
                             </div>
                             <div>
-                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">RIF</span>
+                              <span className="text-[11px] text-slate-400 uppercase block mb-0.5">RIF</span>
                               <span className="text-slate-800 font-bold">{datos.rif_tipo}-{datos.rif_numero || '—'}</span>
                             </div>
                             <div>
-                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Email</span>
+                              <span className="text-[11px] text-slate-400 uppercase block mb-0.5">Email</span>
                               <span className="text-slate-800 font-bold">{datos.email || '—'}</span>
                             </div>
                             <div>
-                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Teléfono</span>
+                              <span className="text-[11px] text-slate-400 uppercase block mb-0.5">Teléfono</span>
                               <span className="text-slate-800 font-bold">{datos.telefono || '—'}</span>
                             </div>
                             <div className="col-span-full">
-                              <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Dirección</span>
+                              <span className="text-[11px] text-slate-400 uppercase block mb-0.5">Dirección</span>
                               <span className="text-slate-800 font-bold leading-normal">{datos.direccion || '—'}</span>
                             </div>
                             {datos.website && (
                               <div className="col-span-full">
-                                <span className="text-[10px] text-slate-400 uppercase block mb-0.5">Sitio Web</span>
+                                <span className="text-[11px] text-slate-400 uppercase block mb-0.5">Sitio Web</span>
                                 <a href={datos.website.startsWith('http') ? datos.website : `https://${datos.website}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline font-bold">
                                   {datos.website}
                                 </a>
@@ -643,7 +643,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                   {/* Company Documents */}
                   <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentos de la Empresa</h4>
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Documentos de la Empresa</h4>
                     {(() => {
                       try {
                         const docs = JSON.parse(selectedSolicitud.documentos_empresa || '[]');
@@ -670,14 +670,14 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
               {selectedSolicitud.tipo_solicitado === 'Agente Corporativo' && (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-2 shadow-sm">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Empresa Solicitada</h4>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Empresa Solicitada</h4>
                   <p className="text-xs font-semibold text-slate-800">
                     El afiliado solicita afiliarse como Agente Corporativo a la empresa:
                   </p>
                   <p className="text-sm font-bold text-emerald-600">
                     {selectedSolicitud.empresa_solicitada_nombre || '—'}
                   </p>
-                  <p className="text-[10px] text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-lg p-2.5 mt-2 flex items-center gap-1.5">
+                  <p className="text-[11px] text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded-lg p-2.5 mt-2 flex items-center gap-1.5">
                     <CheckCircle size={12} className="text-emerald-500 shrink-0" />
                     Aprobado previamente por el representante legal de la empresa.
                   </p>
@@ -686,11 +686,11 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
               {selectedSolicitud.tipo_solicitado === 'Natural' && (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-2 shadow-sm">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Detalles de Solicitud</h4>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Detalles de Solicitud</h4>
                   <p className="text-xs font-semibold text-slate-800">
                     El afiliado solicita pasar a ser Agente Independiente (Natural).
                   </p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                     Al aprobarse, se romperá su vínculo actual con cualquier empresa registrada y se actualizará su tipo de afiliación.
                   </p>
                 </div>
@@ -698,10 +698,10 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
               {/* Resolver Action */}
               {puedeResolver && <div className="bg-white rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Resolver Solicitud (Administración)</h4>
+                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Resolver Solicitud (Administración)</h4>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Observaciones / Comentarios</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Observaciones / Comentarios</label>
                   <textarea
                     value={adminObservaciones}
                     onChange={(e) => setAdminObservaciones(e.target.value)}
@@ -747,7 +747,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       onChange={(e) => handleDropdownTypeChange(e.target.value)}
                       disabled={!puedeEditar}
                       title={sinPermiso}
-                      className="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-colors cursor-pointer text-[10px] font-black uppercase tracking-widest px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
+                      className="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl hover:bg-emerald-100 hover:border-emerald-300 transition-colors cursor-pointer text-[11px] font-black uppercase tracking-widest px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     >
                       <option value="Natural">Agente Independiente</option>
                       <option value="Agente Corporativo">Agente Corporativo</option>
@@ -834,14 +834,14 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       <ul class="list-disc pl-4 font-semibold text-amber-800">
                         ${skipped.map(s => `<li>${s}</li>`).join('')}
                       </ul>
-                      <p class="mt-1 text-[10px] leading-tight text-amber-700">Al saltar estas fases, se omitirán las revisiones y requisitos asociados a ellas.</p>
+                      <p class="mt-1 text-[11px] leading-tight text-amber-700">Al saltar estas fases, se omitirán las revisiones y requisitos asociados a ellas.</p>
                     </div>
                   `
                 } else if (idx < activeIndex) {
                   warningHtml = `
                     <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-xs text-left">
                       <p class="font-bold text-blue-900 mb-1">ℹ️ NOTA: Estás retrocediendo en el proceso:</p>
-                      <p class="leading-tight text-[10px] text-blue-700">El proceso se devolverá a una etapa anterior. Se deberán procesar los requisitos de nuevo desde este punto.</p>
+                      <p class="leading-tight text-[11px] text-blue-700">El proceso se devolverá a una etapa anterior. Se deberán procesar los requisitos de nuevo desde este punto.</p>
                     </div>
                   `
                 }
@@ -880,8 +880,8 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               return (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 mb-3 flex flex-col gap-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Progreso del Proceso</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Progreso del Proceso</span>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                       {activeIndex + 1} de 7 completado
                     </span>
                   </div>
@@ -921,12 +921,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                             )}
                           </div>
 
-                          <span className={`text-[8px] md:text-[10px] font-black tracking-tighter uppercase ${isCurrent ? 'text-emerald-600 font-extrabold' : isCompleted ? 'text-slate-500' : 'text-slate-300'
+                          <span className={`text-[11px] md:text-[11px] font-black tracking-tighter uppercase ${isCurrent ? 'text-emerald-600 font-extrabold' : isCompleted ? 'text-slate-500' : 'text-slate-300'
                             }`}>
                             {step.labelShort}
                           </span>
 
-                          <span className="absolute top-12 left-1/2 -translate-x-1/2 text-[9px] font-bold tracking-tight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white px-2 py-1 rounded shadow-md pointer-events-none z-50">
+                          <span className="absolute top-12 left-1/2 -translate-x-1/2 text-[11px] font-bold tracking-tight whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white px-2 py-1 rounded shadow-md pointer-events-none z-50">
                             {step.label}: {step.desc}
                           </span>
                         </button>
@@ -942,7 +942,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       <h5 className="text-xs font-bold text-slate-800">
                         Etapa Actual: <span className="text-emerald-600">{AFILIACION_STEPS_FLOW[activeIndex]?.label}</span>
                       </h5>
-                      <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">
                         {AFILIACION_STEPS_FLOW[activeIndex]?.desc}
                       </p>
                     </div>
@@ -960,12 +960,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
             {/* Profile Info */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Información del Perfil</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Información del Perfil</h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {selected.tipo_afiliado === 'Corporativo' && (
                   <div className="col-span-full flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Razón Social</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Razón Social</label>
                     <input
                       type="text"
                       value={selected.empresa_razon_social || ''}
@@ -979,7 +979,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 )}
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Nombres</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Nombres</label>
                   <input
                     type="text"
                     value={selected.nombres || ''}
@@ -990,7 +990,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Apellidos</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Apellidos</label>
                   <input
                     type="text"
                     value={selected.apellidos || ''}
@@ -1001,7 +1001,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula / RIF</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Cédula / RIF</label>
                   <input
                     type="text"
                     value={selected.empresa_rif_numero ? formatRif(selected.empresa_rif_tipo, selected.empresa_rif_numero) : selected.cedula}
@@ -1011,7 +1011,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 </div>
                 {selected.tipo_afiliado === 'Corporativo' && (
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">Cédula del Representante</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Cédula del Representante</label>
                     <input
                       type="text"
                       value={selected.cedula || ''}
@@ -1023,7 +1023,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   </div>
                 )}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Teléfono</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Teléfono</label>
                   <input
                     type="text"
                     value={selected.telefono || ''}
@@ -1034,7 +1034,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Fecha Nacimiento</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Fecha Nacimiento</label>
                   <input
                     type="text"
                     value={selected.fecha_nacimiento || ''}
@@ -1046,7 +1046,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   />
                 </div>
                 <div className="col-span-full flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Dirección</label>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase">Dirección</label>
                   <textarea
                     value={selected.direccion || ''}
                     onChange={(e) => updateField('direccion', e.target.value)}
@@ -1066,12 +1066,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     <Award size={15} />
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800">Certificados Entregados</h4>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Títulos y comprobantes emitidos</p>
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800">Certificados Entregados</h4>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">Títulos y comprobantes emitidos</p>
                   </div>
                 </div>
                 {(selected as any).certificados && (selected as any).certificados.length > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                     {(selected as any).certificados.length} {(selected as any).certificados.length === 1 ? 'Certificado' : 'Certificados'}
                   </span>
                 )}
@@ -1098,7 +1098,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                               <h6 className="text-[11px] font-black text-slate-800 truncate group-hover:text-amber-950 uppercase tracking-tight">
                                 {certTitle}
                               </h6>
-                              <p className="text-[9px] font-bold text-slate-400 truncate mt-0.5">
+                              <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">
                                 Cód: <span className="text-amber-700 font-black">{validationCode}</span> {fechaStr ? `· ${fechaStr}` : ''}
                               </p>
                             </div>
@@ -1129,9 +1129,9 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
             {((selected.documentos && selected.documentos.length > 0) || selected.tipo_afiliado === 'Corporativo') && (
               <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-5">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentación Adjunta</h4>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Documentación Adjunta</h4>
                   {selected.documentos && selected.documentos.length > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                       {selected.documentos.length} archivos
                     </span>
                   )}
@@ -1153,7 +1153,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
                 {selected.tipo_afiliado === 'Corporativo' && puedeEditar && (
                   <div className="border-t border-slate-100 pt-4 space-y-4">
-                    <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-bold">
+                    <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-500 font-bold">
                       Cargar/Actualizar Soportes de la Empresa
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1199,10 +1199,10 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
 
             {/* Process Management */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-4">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Gestión del Proceso</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Gestión del Proceso</h4>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Estado Actual</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase">Estado Actual</label>
                 <select
                   value={selected.estatus}
                   onChange={(e) => updateField('estatus', e.target.value)}
@@ -1262,7 +1262,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                           Formalización & Pagos
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-500">
+                      <span className="text-[11px] font-bold text-slate-500">
                         Arancel: $30.00 USD ($25 + $5)
                       </span>
                     </div>
@@ -1270,7 +1270,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     {pagoPendiente && (
                       <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col gap-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1">
                             <ShieldAlert size={12} /> Pago Reportado Pendiente
                           </span>
                           <span className="font-mono font-bold text-xs">{pagoPendiente.numero_recibo}</span>
@@ -1292,7 +1292,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     {pagoVerificado && (
                       <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between gap-2">
                         <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1">
                             <CheckCircle size={12} /> Pago Verificado
                           </span>
                           <p className="text-[11px] font-medium mt-0.5">
@@ -1430,7 +1430,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
                   Cambiar Tipo de Membresía
                 </h3>
-                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                <p className="text-[11px] font-bold text-gray-400 mt-1">
                   Mover a {selected ? formatNombreCard(selected.nombre_completo) : ''} a la membresía: {pendingNewType}
                 </p>
               </div>
@@ -1446,7 +1446,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               {pendingNewType === 'Agente Corporativo' && (
                 <div className="space-y-3">
                   <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                       Seleccionar Empresa Destino
                     </label>
                     <CompanySearchField
@@ -1470,7 +1470,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="col-span-full flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
                         <input
                           type="text"
                           value={razonSocial}
@@ -1481,7 +1481,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
                         <select
                           value={rifTipo}
                           onChange={e => setRifTipo(e.target.value)}
@@ -1496,7 +1496,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
                         <input
                           type="text"
                           value={rifNumero}
@@ -1507,7 +1507,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
                         <input
                           type="email"
                           value={emailEmpresa}
@@ -1518,7 +1518,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
                         <input
                           type="text"
                           value={telefonoEmpresa}
@@ -1529,7 +1529,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
 
                       <div className="col-span-full flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
                         <textarea
                           rows={2}
                           value={direccionEmpresa}
@@ -1540,7 +1540,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                       </div>
 
                       <div className="col-span-full flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
                         <input
                           type="text"
                           value={websiteEmpresa}
@@ -1595,7 +1595,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               <button
                 type="button"
                 onClick={() => setShowChangeTypeModal(false)}
-                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors"
+                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[11px] hover:bg-white transition-colors"
               >
                 Cancelar
               </button>
@@ -1627,7 +1627,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
                   }
                   executeDirectTypeChange(pendingNewType, data);
                 }}
-                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-colors flex items-center justify-center"
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-emerald-700 transition-colors flex items-center justify-center"
               >
                 {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -1802,7 +1802,7 @@ function CompanySearchField({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-emerald-900 truncate">{selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}</p>
-            <p className="text-[10px] text-emerald-600 font-bold truncate">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
+            <p className="text-[11px] text-emerald-600 font-bold truncate">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
           </div>
           <button
             type="button"
@@ -1837,7 +1837,7 @@ function CompanySearchField({
               </div>
               <div className="min-w-0 flex-grow">
                 <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-950 transition-colors truncate">{c.empresa_razon_social || c.nombre_completo}</p>
-                <p className="text-[10px] text-slate-500 font-bold truncate">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
+                <p className="text-[11px] text-slate-500 font-bold truncate">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
               </div>
             </button>
           ))

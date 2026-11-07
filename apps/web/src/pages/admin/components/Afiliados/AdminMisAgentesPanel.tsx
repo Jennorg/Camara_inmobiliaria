@@ -210,7 +210,7 @@ export default function AdminMisAgentesPanel() {
             <div>
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Empresas Corporativas</h3>
             </div>
-            <span className="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+            <span className="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1 text-[11px] font-black uppercase tracking-wider">
               {companies.length} Empresas
             </span>
           </div>
@@ -278,7 +278,7 @@ export default function AdminMisAgentesPanel() {
                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Agentes Corporativos</h3>
                 </div>
               </div>
-              <span className="rounded-full bg-slate-50 text-slate-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+              <span className="rounded-full bg-slate-50 text-slate-600 px-3 py-1 text-[11px] font-black uppercase tracking-wider">
                 {selectedCompany ? `${agents.length} agentes` : 'Selecciona una empresa'}
               </span>
             </div>
@@ -346,10 +346,10 @@ export default function AdminMisAgentesPanel() {
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${agent.estatus === '1_PREINSCRIPCION' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          <span className={`text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${agent.estatus === '1_PREINSCRIPCION' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
                             {agent.estatus === '1_PREINSCRIPCION' ? 'Solicitud' : agent.estatus.replace(/_/g, ' ')}
                           </span>
-                          <span className="text-[10px] text-slate-400">Registrado {new Date(agent.fecha_registro).toLocaleDateString()}</span>
+                          <span className="text-[11px] text-slate-400">Registrado {new Date(agent.fecha_registro).toLocaleDateString()}</span>
                         </div>
                       </div>
 

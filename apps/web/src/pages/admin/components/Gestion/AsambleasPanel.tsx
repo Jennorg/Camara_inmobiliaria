@@ -30,7 +30,7 @@ const Etiqueta = ({ id, texto, children, ancho = '' }: { id: string; texto: stri
 )
 
 const ChipTipo = ({ tipo }: { tipo: Tipo }) => (
-  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${tipo === 'Extraordinaria' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{tipo}</span>
+  <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${tipo === 'Extraordinaria' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>{tipo}</span>
 )
 
 const Quorum = ({ a }: { a: Pick<Asamblea, 'asistentes' | 'total_miembros' | 'quorum_requeridos' | 'quorum_alcanzado'> }) => (
@@ -126,7 +126,7 @@ export default function AsambleasPanel() {
                 </span>
                 <ChipTipo tipo={a.tipo} />
                 <Quorum a={a} />
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${a.publicada ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>{a.publicada ? 'Publicada' : 'Interna'}</span>
+                <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${a.publicada ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>{a.publicada ? 'Publicada' : 'Interna'}</span>
                 {a.url_acta && <FileText size={14} className="text-slate-400" aria-label="Tiene acta en PDF" />}
               </button>
             </li>

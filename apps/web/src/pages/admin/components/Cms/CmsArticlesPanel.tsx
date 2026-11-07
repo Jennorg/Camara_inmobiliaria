@@ -106,7 +106,7 @@ export default function CmsArticlesPanel({ externalTab = 'config' }: { externalT
         {/* Mini toolbar with interactive breadcrumb (shown only when viewing a specific item detail) */}
         {detailName && (
           <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shadow-2xs">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-slate-400">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest text-slate-400">
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('cms-clear-selection'))}
                 className="uppercase hover:text-slate-700 transition-colors cursor-pointer outline-none"

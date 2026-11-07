@@ -405,7 +405,7 @@ const CertificadoCursoView: React.FC<CertificadoCursoViewProps> = ({
                             ) : null}
                           </div>
                           <div className="w-44 h-[1px] bg-slate-800 mb-1.5 shrink-0" />
-                          <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider font-sans leading-tight whitespace-nowrap">
+                          <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider font-sans leading-tight whitespace-nowrap">
                             {nombreStr}
                           </span>
                           <span className="text-[7.5px] font-bold text-slate-600 uppercase tracking-wider font-sans mt-1 text-center leading-tight max-w-[240px]">

@@ -552,7 +552,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
         <div className="flex gap-2">
           <button
             onClick={() => setShowModal(true)}
-            className={`flex items-center gap-2 px-5 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors transition-transform active:scale-95 ${BOX_H}`}
+            className={`flex items-center gap-2 px-5 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black uppercase tracking-widest text-[11px] hover:bg-gray-50 transition-colors transition-transform active:scale-95 ${BOX_H}`}
           >
             <UserPlus size={14} className="text-emerald-500" />
             Crear Solicitud
@@ -560,7 +560,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
           <button
             onClick={handleGenerarLink}
             disabled={actionLoading}
-            className={`flex items-center gap-2 px-5 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform active:scale-95 disabled:opacity-50 ${BOX_H}`}
+            className={`flex items-center gap-2 px-5 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform active:scale-95 disabled:opacity-50 ${BOX_H}`}
           >
             {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <LinkIcon size={14} />}
             Generar Link
@@ -580,7 +580,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shrink-0 ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors shrink-0 ${
               activeTab === tab.key
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -589,7 +589,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
             <tab.icon size={13} />
             {tab.label}
             {'count' in tab && tab.count! > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black ${
+              <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-black ${
                 activeTab === tab.key ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'
               }`}>{tab.count}</span>
             )}
@@ -605,7 +605,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               <Users size={14} className="text-emerald-600" />
               Solicitudes Pendientes de Aprobación
             </h3>
-            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">
               {solicitudesPendientes.length} {solicitudesPendientes.length === 1 ? 'por Revisar' : 'por Revisar'}
             </span>
           </div>
@@ -615,7 +615,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               <div className="p-12 text-center text-gray-400 space-y-2">
                 <Users size={32} className="mx-auto opacity-30 text-emerald-600" />
                 <p className="text-xs font-bold uppercase tracking-widest">No hay solicitudes pendientes</p>
-                <p className="text-[10px] font-medium leading-relaxed">
+                <p className="text-[11px] font-medium leading-relaxed">
                   Los colaboradores que se registren a través de tus enlaces de invitación y requieran aprobación aparecerán aquí.
                 </p>
               </div>
@@ -633,8 +633,8 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
                         {formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}
                       </p>
-                      <p className="text-[10px] font-medium text-gray-500">{m.email} • {m.telefono}</p>
-                      <p className="text-[10px] text-gray-400 font-bold">
+                      <p className="text-[11px] font-medium text-gray-500">{m.email} • {m.telefono}</p>
+                      <p className="text-[11px] text-gray-400 font-bold">
                         C.I. / RIF: {m.cedula || '—'} • Envío: {formatDateLatina(m.fecha_registro)}
                       </p>
                     </div>
@@ -646,7 +646,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                         <button
                           onClick={() => handleAprobarSolicitud(m.id_afiliado!)}
                           disabled={actionLoading}
-                          className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                          className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
                         >
                           <Check size={12} strokeWidth={3} />
                           Aprobar
@@ -654,14 +654,14 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                         <button
                           onClick={() => handleRechazarSolicitud(m.id_afiliado!)}
                           disabled={actionLoading}
-                          className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                          className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
                         >
                           <X size={12} strokeWidth={3} />
                           Rechazar
                         </button>
                       </>
                     ) : (
-                      <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-200">
+                      <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 text-[11px] font-black uppercase tracking-widest border border-amber-200">
                         Pendiente por cargar expediente
                       </span>
                     )}
@@ -681,7 +681,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               <Users size={14} className="text-emerald-500" />
               Afiliados Vinculados a la Empresa
             </h3>
-            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">
               {miembrosVinculados.length} Miembros
             </span>
             </div>
@@ -690,7 +690,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
             {miembrosVinculados.length === 0 ? (
               <div className="p-12 text-center text-gray-400 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest">Sin miembros vinculados</p>
-                <p className="text-[10px] font-medium leading-relaxed">Los afiliados que se registren con tu link o sean vinculados aparecerán aquí.</p>
+                <p className="text-[11px] font-medium leading-relaxed">Los afiliados que se registren con tu link o sean vinculados aparecerán aquí.</p>
               </div>
             ) : (
               miembrosVinculados.map((m) => (
@@ -704,9 +704,9 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                     />
                     <div className="space-y-0.5">
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{formatNombreCard(m.nombres || m.nombre_completo, m.apellidos)}</p>
-                      <p className="text-[10px] font-medium text-gray-500">{m.email}</p>
+                      <p className="text-[11px] font-medium text-gray-500">{m.email}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-black uppercase tracking-widest ${
                           m.fase === 'Aprobado' ? 'bg-emerald-50 text-emerald-600' : 
                           m.fase === 'Rechazado' ? 'bg-red-50 text-red-600' :
                           'bg-amber-50 text-amber-600'
@@ -715,7 +715,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                            m.fase === 'En Proceso' ? 'Esperando Admin' : 
                            m.fase}
                         </span>
-                        <span className="text-[9px] text-gray-400 font-medium">Registrado: {formatDateLatina(m.fecha_registro)}</span>
+                        <span className="text-[11px] text-gray-400 font-medium">Registrado: {formatDateLatina(m.fecha_registro)}</span>
                       </div>
                     </div>
                   </div>
@@ -734,7 +734,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               <LinkIcon size={14} className="text-emerald-500" />
               Links de Invitación Activos
             </h3>
-            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">
               {invitaciones.filter(i => i.activo).length} Links
             </span>
           </div>
@@ -743,26 +743,26 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
             {invitaciones.length === 0 ? (
               <div className="p-12 text-center text-gray-400 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest">No hay links generados</p>
-                <p className="text-[10px] font-medium leading-relaxed">Genera un link para que tus colaboradores puedan registrarse fácilmente.</p>
+                <p className="text-[11px] font-medium leading-relaxed">Genera un link para que tus colaboradores puedan registrarse fácilmente.</p>
               </div>
             ) : (
               invitaciones.map((inv) => (
                 <div key={inv.id_invitacion} className={`p-5 flex items-center justify-between group transition-colors ${!inv.activo ? 'bg-gray-50/50 grayscale opacity-60' : 'hover:bg-gray-50/50'}`}>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <code className="text-[10px] font-mono font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                      <code className="text-[11px] font-mono font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
                         ...{inv.token.slice(-8)}
                       </code>
                       {inv.fecha_expiracion && (
-                        <span className="text-[9px] font-bold text-amber-600 uppercase tracking-widest">
+                        <span className="text-[11px] font-bold text-amber-600 uppercase tracking-widest">
                           Exp: {formatDateLatina(inv.fecha_expiracion)}
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] font-black text-gray-800 uppercase tracking-tight">
+                    <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">
                       Link Reutilizable
                     </p>
-                    <p className="text-[9px] font-medium text-gray-400">
+                    <p className="text-[11px] font-medium text-gray-400">
                       Creado el {formatDateLatina(inv.creado_en)}
                     </p>
                   </div>
@@ -902,7 +902,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                   <p className="text-xs font-bold uppercase tracking-widest">
                     {busquedaInd ? 'Sin resultados para tu búsqueda' : 'Escribe para buscar afiliados disponibles'}
                   </p>
-                  <p className="text-[10px] font-medium leading-relaxed">
+                  <p className="text-[11px] font-medium leading-relaxed">
                     Solo aparecen afiliados Naturales activos sin empresa asignada.
                   </p>
                 </div>
@@ -921,28 +921,28 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                           {formatNombreCard(a.nombres || a.nombre_completo, a.apellidos)}
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                          <span className="flex items-center gap-1 text-[11px] text-gray-500">
                             <Mail size={10} /> {a.email}
                           </span>
                           {a.telefono && (
-                            <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                            <span className="flex items-center gap-1 text-[11px] text-gray-400">
                               <Phone size={10} /> {a.telefono}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-gray-400 font-mono">{a.cedula}</span>
+                          <span className="text-[11px] text-gray-400 font-mono">{a.cedula}</span>
                           {a.codigo && (
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest">{a.codigo}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">{a.codigo}</span>
                           )}
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-widest">Afiliado Activo</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">Afiliado Activo</span>
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => setConfirmVincular(a)}
                       disabled={vinculandoId === a.id_afiliado}
-                      className="flex items-center gap-2 px-4 h-10 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] shadow-lg shadow-emerald-600/15 hover:-translate-y-0.5 transition-transform active:scale-95 disabled:opacity-60 shrink-0"
+                      className="flex items-center gap-2 px-4 h-10 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-600/15 hover:-translate-y-0.5 transition-transform active:scale-95 disabled:opacity-60 shrink-0"
                     >
                       {vinculandoId === a.id_afiliado ? <Loader2 className="animate-spin" size={12} /> : <UserCheck size={12} />}
                       Vincular
@@ -963,7 +963,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               <UserPlus size={14} className="text-emerald-500" />
               Solicitudes de Vinculación de Agentes
             </h3>
-            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">
               {solicitudesCambio.length} Pendientes
             </span>
           </div>
@@ -972,7 +972,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
             {solicitudesCambio.length === 0 ? (
               <div className="p-12 text-center text-gray-400 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest">No hay solicitudes pendientes</p>
-                <p className="text-[10px] font-medium leading-relaxed">Las solicitudes de afiliados que quieren unirse como agentes aparecerán aquí.</p>
+                <p className="text-[11px] font-medium leading-relaxed">Las solicitudes de afiliados que quieren unirse como agentes aparecerán aquí.</p>
               </div>
             ) : (
               solicitudesCambio.map((sol) => (
@@ -987,8 +987,8 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       <p className="text-xs font-black text-gray-900 uppercase tracking-tight">
                         {sol.afiliado_nombre}
                       </p>
-                      <p className="text-[10px] font-medium text-gray-500">{sol.afiliado_email} • {sol.afiliado_telefono || 'sin teléfono'}</p>
-                      <p className="text-[10px] text-gray-400 font-bold">
+                      <p className="text-[11px] font-medium text-gray-500">{sol.afiliado_email} • {sol.afiliado_telefono || 'sin teléfono'}</p>
+                      <p className="text-[11px] text-gray-400 font-bold">
                         C.I. / RIF: {sol.afiliado_cedula || '—'} • Envío: {formatDateLatina(sol.creado_en)}
                       </p>
                     </div>
@@ -998,7 +998,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                     <button
                       onClick={() => handleResolveSolicitudCambio(sol.id_solicitud, true)}
                       disabled={actionLoading}
-                      className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
+                      className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-emerald-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-emerald-600/10 active:scale-95 disabled:opacity-50"
                     >
                       <Check size={12} strokeWidth={3} />
                       Aprobar
@@ -1006,7 +1006,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                     <button
                       onClick={() => handleResolveSolicitudCambio(sol.id_solicitud, false)}
                       disabled={actionLoading}
-                      className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[9px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
+                      className="h-9 px-4 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-red-700 transition-colors transition-transform flex items-center gap-1.5 shadow-lg shadow-red-600/10 active:scale-95 disabled:opacity-50"
                     >
                       <X size={12} strokeWidth={3} />
                       Rechazar
@@ -1046,28 +1046,28 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                       {formatNombreCard(confirmVincular.nombres || confirmVincular.nombre_completo, confirmVincular.apellidos)}
                     </p>
                     {confirmVincular.codigo && (
-                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest">{confirmVincular.codigo}</span>
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest">{confirmVincular.codigo}</span>
                     )}
                   </div>
                 </div>
                 <div className="divide-y divide-gray-50">
                   <div className="flex items-center px-4 py-2.5 gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Cédula</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Cédula</span>
                     <span className="text-xs font-mono text-gray-700">{confirmVincular.cedula}</span>
                   </div>
                   <div className="flex items-center px-4 py-2.5 gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Email</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Email</span>
                     <span className="text-xs text-gray-700 font-medium truncate">{confirmVincular.email}</span>
                   </div>
                   {confirmVincular.telefono && (
                     <div className="flex items-center px-4 py-2.5 gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Teléfono</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Teléfono</span>
                       <span className="text-xs text-gray-700 font-medium">{confirmVincular.telefono}</span>
                     </div>
                   )}
                   <div className="flex items-center px-4 py-2.5 gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Tipo</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest">Afiliado Natural Activo</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 w-20 shrink-0">Tipo</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-widest">Afiliado Natural Activo</span>
                   </div>
                 </div>
               </div>
@@ -1077,7 +1077,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               <button
                 type="button"
                 onClick={() => setConfirmVincular(null)}
-                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-colors"
+                className="flex-1 h-12 rounded-2xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[11px] hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
@@ -1085,7 +1085,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                 type="button"
                 disabled={vinculandoId === confirmVincular.id_afiliado}
                 onClick={() => handleVincular(confirmVincular)}
-                className="flex-[2] h-12 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
+                className="flex-[2] h-12 rounded-2xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {vinculandoId === confirmVincular.id_afiliado
                   ? <><Loader2 className="animate-spin" size={14} /> Vinculando...</>
@@ -1122,7 +1122,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Nombre */}
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nombre Completo</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Nombre Completo</label>
                     <div className="relative">
                       <User size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input required type="text" value={modalForm.nombreCompleto} onChange={e => setModalForm(p => ({ ...p, nombreCompleto: e.target.value }))}
@@ -1132,7 +1132,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
                   {/* Cédula */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Cédula</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Cédula</label>
                     <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                       <select value={modalForm.cedulaPrefix} onChange={e => setModalForm(p => ({ ...p, cedulaPrefix: e.target.value }))}
                         className="bg-slate-50 border-r border-slate-200 px-4 h-full text-sm font-black text-slate-700 outline-none">
@@ -1145,7 +1145,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
                   {/* Email */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Email</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Email</label>
                     <div className="relative">
                       <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input required type="email" value={modalForm.email} onChange={e => setModalForm(p => ({ ...p, email: e.target.value }))}
@@ -1155,7 +1155,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
                   {/* Teléfono */}
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Teléfono</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Teléfono</label>
                     <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                       <span className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center text-sm font-black text-slate-700">🇻🇪 +58</span>
                       <input type="tel" value={modalForm.telefono} onChange={e => setModalForm(p => ({ ...p, telefono: e.target.value }))}
@@ -1165,7 +1165,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
                   {/* Nivel Profesional */}
                   <div className="space-y-2 relative">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">Nivel Profesional</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Nivel Profesional</label>
                     <button type="button" onClick={() => setShowNivelDropdown(!showNivelDropdown)}
                       className={`w-full px-4 ${BOX_H} bg-white rounded-xl border transition-colors flex items-center justify-between group shadow-sm ${showNivelDropdown ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-400'}`}>
                       <div className="flex items-center gap-3">
@@ -1187,7 +1187,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                               className={`w-full flex items-center justify-between px-4 h-[50px] rounded-xl transition-colors ${modalForm.nivelProfesional === n.value ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'}`}>
                               <div className="flex items-center gap-3">
                                 <n.icon size={18} className={modalForm.nivelProfesional === n.value ? 'text-white' : 'text-slate-400'} />
-                                <span className="text-[10px] font-black uppercase tracking-tight">{n.label}</span>
+                                <span className="text-[11px] font-black uppercase tracking-tight">{n.label}</span>
                               </div>
                               {modalForm.nivelProfesional === n.value && <Check size={16} />}
                             </button>
@@ -1199,12 +1199,12 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
                   {/* Corredor */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-slate-500">¿Es corredor?</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">¿Es corredor?</label>
                     <div className={`grid grid-cols-2 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden ${BOX_H}`}>
                       {['si', 'no'].map(opt => (
                         <button key={opt} type="button"
                           onClick={() => setModalForm(p => ({ ...p, esCorredorInmobiliario: opt }))}
-                          className={`h-full text-[10px] font-black uppercase tracking-widest transition-colors ${modalForm.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
+                          className={`h-full text-[11px] font-black uppercase tracking-widest transition-colors ${modalForm.esCorredorInmobiliario === opt ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-white hover:text-slate-700'}`}>
                           {opt === 'si' ? 'Sí' : 'No'}
                         </button>
                       ))}
@@ -1216,10 +1216,10 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
             {/* Modal Footer */}
             <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex gap-3">
-              <button type="button" onClick={() => setShowModal(false)} className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors">
+              <button type="button" onClick={() => setShowModal(false)} className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[11px] hover:bg-white transition-colors">
                 Cancelar
               </button>
-              <button type="submit" form="direct-reg-form" disabled={actionLoading} className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform flex items-center justify-center gap-2">
+              <button type="submit" form="direct-reg-form" disabled={actionLoading} className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] shadow-lg shadow-emerald-600/20 hover:-translate-y-0.5 transition-transform flex items-center justify-center gap-2">
                 {actionLoading ? <Loader2 className="animate-spin" size={14} /> : <><CheckCircle size={14} /> Crear Solicitud</>}
               </button>
             </div>

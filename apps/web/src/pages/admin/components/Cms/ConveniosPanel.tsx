@@ -234,7 +234,7 @@ export const ConveniosPanel = () => {
             {form.logo_url && (
               <button
                 onClick={() => setForm(p => ({ ...p, logo_url: '' }))}
-                className="flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
+                className="flex items-center gap-1 text-[11px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
               >
                 <Trash2 size={12} />
                 Quitar logo
@@ -279,7 +279,7 @@ export const ConveniosPanel = () => {
                       <CheckCircle size={14} strokeWidth={3} />
                     </div>
                   </div>
-                  <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-100/50 px-3 py-1 rounded-full">¡Logo cargado!</p>
+                  <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-100/50 px-3 py-1 rounded-full">¡Logo cargado!</p>
                 </div>
               ) : (
                 <>
@@ -289,7 +289,7 @@ export const ConveniosPanel = () => {
                   <p className="text-[11px] font-bold text-slate-600 group-hover:text-emerald-700">
                     Arrastre el logo aquí
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter font-bold">o haga clic para seleccionar</p>
+                  <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-tighter font-bold">o haga clic para seleccionar</p>
                 </>
               )}
             </div>
@@ -485,7 +485,7 @@ export const ConveniosPanel = () => {
                     <span className={`text-sm font-semibold truncate ${sel ? 'text-[#00B870]' : 'text-slate-800'}`}>
                       {item.nombre}
                     </span>
-                    <span className="text-[10px] text-slate-400 truncate uppercase font-bold tracking-tighter line-clamp-1">{item.descripcion || 'Sin descripción'}</span>
+                    <span className="text-[11px] text-slate-400 truncate uppercase font-bold tracking-tighter line-clamp-1">{item.descripcion || 'Sin descripción'}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -518,7 +518,7 @@ export const ConveniosPanel = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Acerca del convenio</h4>
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Acerca del convenio</h4>
                   <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                      {item.descripcion || 'No hay descripción disponible para este convenio.'}
                   </p>

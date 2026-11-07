@@ -154,7 +154,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
 
       {!afiliado && (
         <div className='space-y-2'>
-          <label className='block text-[10px] font-bold text-slate-400 uppercase tracking-wider'>
+          <label className='block text-[11px] font-bold text-slate-400 uppercase tracking-wider'>
             Buscar afiliado
           </label>
           <div className='relative'>
@@ -208,7 +208,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             {selected.tipo_afiliado === 'Corporativo' && (
               <div className='space-y-1.5 sm:col-span-2'>
-                <label className='block text-[10px] font-bold text-slate-400 uppercase'>Origen del correo de acceso</label>
+                <label className='block text-[11px] font-bold text-slate-400 uppercase'>Origen del correo de acceso</label>
                 <div className='flex flex-col sm:flex-row gap-4 bg-slate-50 border border-slate-100 p-3 rounded-xl'>
                   <label className='flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600'>
                     <input
@@ -236,7 +236,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
               </div>
             )}
             <div className='space-y-1.5 sm:col-span-2'>
-              <label className='block text-[10px] font-bold text-slate-400 uppercase'>Correo de acceso</label>
+              <label className='block text-[11px] font-bold text-slate-400 uppercase'>Correo de acceso</label>
               <input
                 type='email'
                 required
@@ -247,7 +247,7 @@ export default function EstablecerAccesoAfiliado({ token, afiliado, compact, onS
               />
             </div>
             <div className='space-y-1.5 sm:col-span-2'>
-              <label className='block text-[10px] font-bold text-slate-400 uppercase'>Contraseña</label>
+              <label className='block text-[11px] font-bold text-slate-400 uppercase'>Contraseña</label>
               <div className="relative flex items-center">
                 <input
                   type={showPassword ? 'text' : 'password'}

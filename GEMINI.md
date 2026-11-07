@@ -9,7 +9,7 @@ En cualquier vista, panel, modal o sección del proyecto donde se cree o modifiq
 
 2. **Formato Visual Estándar:**
    - Contenedor con fondo suave (`bg-slate-50`), borde (`border border-slate-200/80 rounded-xl`), y foco dinámico (`focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500`).
-   - Botón de criterio a la izquierda con texto en mayúscula (`text-[9px]` o `text-[10px] font-black uppercase tracking-wider text-slate-600`), icono `ChevronDown`, y menú desplegable flotante con `fixed inset-0` para cerrar al hacer clic afuera.
+   - Botón de criterio a la izquierda con texto en mayúscula (`text-[11px] font-black uppercase tracking-wider text-slate-600`), icono `ChevronDown`, y menú desplegable flotante con `fixed inset-0` para cerrar al hacer clic afuera.
    - Icono `Search` dentro del campo de texto.
    - Placeholder contextual que indique el criterio seleccionado (ej. `Buscar por nombre o empresa...`, `Buscar por cédula de identidad...`, `Buscar por correo electrónico...`).
    - Botón de limpiar búsqueda (`X`) visible cuando el campo contenga texto.

@@ -45,7 +45,7 @@ const DashboardCard = ({
             {title}
           </h3>
           {description && (
-            <p className="text-[10px] text-gray-400 font-medium normal-case mt-0.5">
+            <p className="text-[11px] text-gray-400 font-medium normal-case mt-0.5">
               {description}
             </p>
           )}
@@ -54,7 +54,7 @@ const DashboardCard = ({
       {actionText && (
         <button
           onClick={onAction}
-          className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 transition-colors hover:underline"
+          className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1 transition-colors hover:underline"
           style={{ color: 'var(--color-accent-hover)' }}
         >
           {actionText}

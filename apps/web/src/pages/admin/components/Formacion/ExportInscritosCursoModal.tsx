@@ -280,16 +280,16 @@ function DraggableColumnItem({
               {col.label}
             </h4>
             {isSelected && orderNumber !== null ? (
-              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#00D084]/15 text-[#00B870] border border-[#00D084]/30 shrink-0">
+              <span className="text-[11px] font-black px-1.5 py-0.5 rounded-md bg-[#00D084]/15 text-[#00B870] border border-[#00D084]/30 shrink-0">
                 Col #{orderNumber}
               </span>
             ) : (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 border border-slate-200 shrink-0">
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 border border-slate-200 shrink-0">
                 Omitida
               </span>
             )}
           </div>
-          <p className="text-[10px] font-medium text-slate-400 leading-tight mt-0.5">
+          <p className="text-[11px] font-medium text-slate-400 leading-tight mt-0.5">
             {col.description}
           </p>
         </div>
@@ -826,7 +826,7 @@ export default function ExportInscritosCursoModal({
                       {cantFirmas === 1 ? 'columna' : 'columnas'}
                     </span>
                   </div>
-                  <p className="text-[10px] font-medium text-slate-500 leading-normal">
+                  <p className="text-[11px] font-medium text-slate-500 leading-normal">
                     Indica cuántas columnas vacías para firma física deseas incluir en la lista (se agregan de forma automática).
                   </p>
                 </div>
@@ -902,7 +902,7 @@ export default function ExportInscritosCursoModal({
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Desde</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Desde</span>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input
@@ -915,7 +915,7 @@ export default function ExportInscritosCursoModal({
                   </div>
 
                   <div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Hasta</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Hasta</span>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input
@@ -936,14 +936,14 @@ export default function ExportInscritosCursoModal({
                     <ArrowUpDown size={14} className="text-[#00B870]" />
                     <span>Organizar Registros (Orden de la Lista)</span>
                   </label>
-                  <span className="text-[10px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-semibold text-slate-400">
                     {sortDirection === 'asc' ? 'Orden Ascendente (A → Z)' : 'Orden Descendente (Z → A)'}
                   </span>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                       Ordenar por Columna / Criterio
                     </label>
                     <select
@@ -963,7 +963,7 @@ export default function ExportInscritosCursoModal({
                   </div>
 
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                       Dirección del Orden
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1094,7 +1094,7 @@ export default function ExportInscritosCursoModal({
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
               <span><span className="text-[#00B870] font-black">{filteredRows.length}</span> / {rows.length} seleccionados</span>
             </span>
-            <span className="hidden sm:inline-flex items-center text-[10px] text-slate-500 font-medium px-2 py-0.5 bg-slate-200/60 rounded-lg truncate" title={`Orden: ${sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} (${sortDirection === 'asc' ? 'A-Z' : 'Z-A'})`}>
+            <span className="hidden sm:inline-flex items-center text-[11px] text-slate-500 font-medium px-2 py-0.5 bg-slate-200/60 rounded-lg truncate" title={`Orden: ${sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} (${sortDirection === 'asc' ? 'A-Z' : 'Z-A'})`}>
               {sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} ({sortDirection === 'asc' ? 'A-Z' : 'Z-A'})
             </span>
           </div>

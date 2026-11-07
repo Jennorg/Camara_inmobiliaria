@@ -60,7 +60,7 @@ const DirectorCard = ({ id_afiliado, codigo, nombre, nombres, apellidos, cargo, 
       </div>
       <div className='text-center space-y-1.5 sm:space-y-2 relative z-10'>
         <h3 className='text-base sm:text-lg font-extrabold text-slate-800 leading-snug transition-colors duration-300'>{displayName}</h3>
-        <p className='text-slate-500 font-bold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-[9px] sm:text-[10px] bg-slate-100/80 py-1 sm:py-1.5 px-2.5 sm:px-3.5 rounded-full inline-block border border-slate-200/40 line-clamp-2'>{cargo}</p>
+        <p className='text-slate-500 font-bold uppercase tracking-[0.1em] sm:tracking-[0.12em] text-[11px] sm:text-[11px] bg-slate-100/80 py-1 sm:py-1.5 px-2.5 sm:px-3.5 rounded-full inline-block border border-slate-200/40 line-clamp-2'>{cargo}</p>
       </div>
     </>
   )
@@ -156,7 +156,7 @@ export default function EquipoDirectivo() {
           style={{ backgroundImage: `linear-gradient(rgba(2, 44, 34, 0.85), rgba(2, 44, 34, 0.85)), url(${bgBolivar})` }} 
         />
         <div className='relative z-10 text-center space-y-3 sm:space-y-4'>
-          <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Liderazgo Gremial</p>
+          <p className='text-emerald-500 font-black uppercase tracking-[0.3em] text-[11px] sm:text-xs animate-header-text' style={{ animationDelay: '0.2s', opacity: 0 }}>Liderazgo Gremial</p>
           <h1 style={{ animationDelay: '0.4s', opacity: 0 }} className='text-3xl sm:text-5xl lg:text-7xl font-black tracking-tighter animate-header-text text-white'>
             Junta <span className='text-emerald-500 italic'>Directiva</span>
           </h1>
@@ -202,7 +202,7 @@ export default function EquipoDirectivo() {
                 <svg className='w-4 h-4 text-emerald-300' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                   <path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' />
                 </svg>
-                <span className='text-emerald-200 font-bold text-[10px] sm:text-xs uppercase tracking-widest'>Contacto Directo</span>
+                <span className='text-emerald-200 font-bold text-[11px] sm:text-xs uppercase tracking-widest'>Contacto Directo</span>
               </div>
               <h2 className='text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight mb-3 sm:mb-4'>¿Deseas contactar con la Junta Directiva?</h2>
               <p className='text-emerald-100/70 mb-6 sm:mb-8 max-w-xl mx-auto text-sm sm:text-lg italic'>Estamos aquí para escucharte. Envíanos tu mensaje y nos pondremos en contacto contigo.</p>

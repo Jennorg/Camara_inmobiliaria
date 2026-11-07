@@ -59,7 +59,7 @@ const NotificationCenter = () => {
             className={`${unreadCount > 0 ? 'text-emerald-600' : 'text-slate-500'} group-hover:scale-110 transition-transform`}
           />
           {unreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm select-none">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[11px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm select-none">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
@@ -92,14 +92,14 @@ const NotificationCenter = () => {
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div>
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Notificaciones</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Intranet Cámara</p>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Intranet Cámara</p>
             </div>
             <div className="flex items-center gap-3">
               {unreadCount > 0 && (
                 <button
                   type="button"
                   onClick={markAllAsRead}
-                  className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors"
+                  className="flex items-center gap-1.5 text-[11px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors"
                 >
                   <CheckCheck size={14} />
                   <span className="hidden xs:inline sm:inline">Marcar todas</span>
@@ -148,7 +148,7 @@ const NotificationCenter = () => {
                         <p className={`text-xs font-bold truncate ${n.leido === 0 ? 'text-slate-900' : 'text-slate-500'}`}>
                           {n.titulo}
                         </p>
-                        <span className="text-[9px] font-medium text-slate-400 shrink-0 whitespace-nowrap">
+                        <span className="text-[11px] font-medium text-slate-400 shrink-0 whitespace-nowrap">
                           {formatDistanceToNow(new Date(n.creado_en), { addSuffix: true, locale: es })}
                         </span>
                       </div>
@@ -182,7 +182,7 @@ const NotificationCenter = () => {
             <button
               type="button"
               onClick={() => { setIsOpen(false); setIsHistoryOpen(true); }}
-              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-emerald-600 transition-colors"
+              className="text-[11px] font-black text-slate-400 uppercase tracking-widest hover:text-emerald-600 transition-colors"
             >
               Ver Historial Completo
             </button>

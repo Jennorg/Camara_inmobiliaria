@@ -176,7 +176,7 @@ export default function ReferenciasTasasPanel() {
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
               Sistema de Cotizaciones Activas
             </span>
             <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
@@ -184,7 +184,7 @@ export default function ReferenciasTasasPanel() {
               Intervalo automático: <strong>35 minutos</strong>
             </span>
             {snapshot?.desde_cache && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
                 En caché ({minutosRestantes} min restantes)
               </span>
             )}
@@ -217,11 +217,11 @@ export default function ReferenciasTasasPanel() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-black text-slate-900 text-sm">Dólar Oficial (BCV)</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                     Oficial
                   </span>
                   {snapshot?.tasas.USD_BCV?.es_manual && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200">
                       Manual
                     </span>
                   )}
@@ -245,7 +245,7 @@ export default function ReferenciasTasasPanel() {
                 <button
                   onClick={() => handleRestablecerAuto('USD_BCV')}
                   title="Restablecer a automático"
-                  className="text-[10px] text-amber-600 hover:underline font-bold px-1"
+                  className="text-[11px] text-amber-600 hover:underline font-bold px-1"
                 >
                   Auto
                 </button>
@@ -277,11 +277,11 @@ export default function ReferenciasTasasPanel() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-black text-slate-900 text-sm">USDT Cripto (Binance P2P)</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-800 border border-amber-200">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black uppercase bg-amber-50 text-amber-800 border border-amber-200">
                     P2P Cripto
                   </span>
                   {snapshot?.tasas.USDT_BINANCE?.es_manual && (
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200">
                       Manual
                     </span>
                   )}
@@ -305,7 +305,7 @@ export default function ReferenciasTasasPanel() {
                 <button
                   onClick={() => handleRestablecerAuto('USDT_BINANCE')}
                   title="Restablecer a automático"
-                  className="text-[10px] text-amber-600 hover:underline font-bold px-1"
+                  className="text-[11px] text-amber-600 hover:underline font-bold px-1"
                 >
                   Auto
                 </button>
@@ -343,7 +343,7 @@ export default function ReferenciasTasasPanel() {
               </button>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-slate-500">Nueva Tasa en Bolívares (Bs.)</label>
+              <label className="text-[11px] font-black uppercase text-slate-500">Nueva Tasa en Bolívares (Bs.)</label>
               <input
                 type="number"
                 step="0.01"
@@ -407,7 +407,7 @@ export default function ReferenciasTasasPanel() {
         {/* Tabla de Historial */}
         <div className="overflow-x-auto border border-slate-200/70 rounded-xl">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-black uppercase text-slate-500">
+            <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-black uppercase text-slate-500">
               <tr>
                 <th className="p-3">Fecha</th>
                 <th className="p-3">Tipo / Código</th>
@@ -428,7 +428,7 @@ export default function ReferenciasTasasPanel() {
                   <tr key={item.id} className="hover:bg-slate-50/50">
                     <td className="p-3 font-mono">{item.fecha}</td>
                     <td className="p-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                         item.codigo === 'USD_BCV' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
                       }`}>
                         {item.codigo === 'USD_BCV' ? 'USD (BCV)' : 'USDT (Binance)'}
@@ -438,7 +438,7 @@ export default function ReferenciasTasasPanel() {
                       Bs. {item.tasa.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="p-3 text-[11px] text-slate-500">{item.fuente}</td>
-                    <td className="p-3 font-mono text-[10px] text-slate-400">
+                    <td className="p-3 font-mono text-[11px] text-slate-400">
                       {item.creado_en ? new Date(item.creado_en).toLocaleTimeString('es-VE') : '-'}
                     </td>
                   </tr>

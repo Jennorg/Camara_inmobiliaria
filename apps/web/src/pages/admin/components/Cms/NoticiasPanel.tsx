@@ -113,7 +113,7 @@ const PragmaticNewsCard = ({
           ) : (
             <div className="flex flex-col items-center justify-center text-slate-400 space-y-1 p-3 text-center">
               <ImageIcon size={26} className="opacity-30" />
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-50">Sin Portada</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider opacity-50">Sin Portada</span>
             </div>
           )}
 
@@ -121,11 +121,11 @@ const PragmaticNewsCard = ({
 
           {/* Badges superiores */}
           <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
-            <span className="bg-slate-900/80 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
+            <span className="bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
               {item.categoria}
             </span>
             {isSoloImg && (
-              <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
+              <span className="bg-emerald-600/90 backdrop-blur-md text-white text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20">
                 Informativo
               </span>
             )}
@@ -134,10 +134,10 @@ const PragmaticNewsCard = ({
 
         {/* INFORMACIÓN DE LA NOTICIA */}
         <div className="space-y-1 px-0.5">
-          <div className="flex items-center justify-between gap-2 text-[10px] text-emerald-700 font-extrabold uppercase tracking-wider">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-emerald-700 font-extrabold uppercase tracking-wider">
             <span>{item.fecha_evento ? item.fecha_evento : (item.fecha?.split('T')[0] || 'Sin fecha')}</span>
             {item.lugar_evento && (
-              <span className="text-[10px] text-slate-400 font-bold truncate max-w-[120px]">
+              <span className="text-[11px] text-slate-400 font-bold truncate max-w-[120px]">
                 {item.lugar_evento}
               </span>
             )}
@@ -161,7 +161,7 @@ const PragmaticNewsCard = ({
         {puedeEditar ? <div
           ref={handleRef}
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 font-extrabold text-[9px] uppercase tracking-wider cursor-grab active:cursor-grabbing transition-colors border border-slate-200/60 select-none"
+          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-700 font-extrabold text-[11px] uppercase tracking-wider cursor-grab active:cursor-grabbing transition-colors border border-slate-200/60 select-none"
           title="Arrastrar para reordenar"
         >
           <GripVertical size={13} className="shrink-0" />
@@ -259,7 +259,7 @@ const PragmaticNewsListItem = ({
         isDragging
           ? 'opacity-30 bg-emerald-50/50'
           : isOver
-          ? 'bg-emerald-100/70 border-l-4 border-emerald-500 scale-[1.01]'
+          ? 'bg-emerald-100/70 border-l border-emerald-500 scale-[1.01]'
           : 'hover:bg-slate-50'
       }`}
     >
@@ -727,7 +727,7 @@ export const NoticiasPanel = () => {
               {form.imagen_url && (
                 <button 
                   onClick={() => setForm(p => ({ ...p, imagen_url: '' }))}
-                  className="flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
+                  className="flex items-center gap-1 text-[11px] font-bold text-rose-500 hover:text-rose-700 transition-colors"
                 >
                   <Trash2 size={12} />
                   Quitar imagen
@@ -765,7 +765,7 @@ export const NoticiasPanel = () => {
                 {/* Banner de animación cuando la página detecta arrastre de archivo en pantalla */}
                 {isDraggingFileInWindow && !uploading && (
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-emerald-600/20 rounded-2xl flex flex-col items-center justify-center text-center p-4 backdrop-blur-[2px] z-20 pointer-events-none border-2 border-emerald-500 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 animate-bounce mb-2">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 mb-2">
                       <Upload size={24} />
                     </div>
                     <p className="text-sm font-black text-emerald-950 uppercase tracking-wider">
@@ -786,13 +786,13 @@ export const NoticiasPanel = () => {
                   <div className="flex items-center gap-2 py-1">
                     <CheckCircle size={16} className="text-emerald-500" />
                     <span className="text-xs font-bold text-emerald-700">Imagen cargada correctamente</span>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase ml-2">(Clic para reemplazar)</span>
+                    <span className="text-[11px] text-slate-400 font-bold uppercase ml-2">(Clic para reemplazar)</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center py-2 text-center">
                     <Upload size={22} className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-1.5" />
                     <p className="text-xs font-bold text-slate-700">Seleccionar o arrastrar imagen</p>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">PNG, JPG, WEBP recomendados</p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">PNG, JPG, WEBP recomendados</p>
                   </div>
                 )}
               </div>
@@ -806,7 +806,7 @@ export const NoticiasPanel = () => {
               <span className="text-[11px] font-black uppercase tracking-widest text-slate-700">
                 Vista previa de la Tarjeta (Landing Page)
               </span>
-              <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
                 Foco Real
               </span>
             </div>
@@ -831,10 +831,10 @@ export const NoticiasPanel = () => {
 
               {/* Simulación del contenido de la tarjeta */}
               <div className="space-y-2 px-1 pt-1">
-                <div className="flex items-center justify-between gap-2 text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]">
+                <div className="flex items-center justify-between gap-2 text-[11px] text-emerald-600 font-black uppercase tracking-[0.2em]">
                   <span>{form.fecha_evento ? form.fecha_evento : (form.fecha?.split('T')[0] || 'Próximamente')}</span>
                   {form.lugar_evento && (
-                    <span className="text-[10px] text-slate-400 font-bold truncate max-w-[120px]">{form.lugar_evento}</span>
+                    <span className="text-[11px] text-slate-400 font-bold truncate max-w-[120px]">{form.lugar_evento}</span>
                   )}
                 </div>
                 <h4 className="text-base sm:text-lg font-bold text-[#022c22] leading-tight line-clamp-2">
@@ -906,7 +906,7 @@ export const NoticiasPanel = () => {
                 <ArrowLeft size={20} />
               </button>
               <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                <span className="text-[11px] font-black uppercase tracking-widest text-emerald-600">
                   {selectedItem.categoria} · {selectedItem.fecha?.split('T')[0]}
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-tight mt-0.5">{selectedItem.titulo}</h3>
@@ -941,7 +941,7 @@ export const NoticiasPanel = () => {
             <div className={`space-y-4 ${selectedItem.imagen_url ? 'md:col-span-7 lg:col-span-7' : 'md:col-span-12'}`}>
               {(selectedItem.fecha_evento || selectedItem.hora_evento || selectedItem.lugar_evento) && (
                 <div className="bg-emerald-50/70 rounded-2xl p-4 border border-emerald-100 text-xs text-emerald-950 space-y-2 shadow-xs">
-                  <span className="font-black uppercase tracking-wider block text-[10px] text-emerald-700">Detalles Destacados del Evento:</span>
+                  <span className="font-black uppercase tracking-wider block text-[11px] text-emerald-700">Detalles Destacados del Evento:</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-semibold">
                     {selectedItem.fecha_evento && <div className="flex items-center gap-1.5"><Calendar size={13} className="text-emerald-600 shrink-0" /> <strong>Fecha:</strong> {selectedItem.fecha_evento}</div>}
                     {selectedItem.hora_evento && <div className="flex items-center gap-1.5"><Clock size={13} className="text-emerald-600 shrink-0" /> <strong>Hora:</strong> {selectedItem.hora_evento}</div>}
@@ -951,7 +951,7 @@ export const NoticiasPanel = () => {
               )}
 
               {selectedItem.extracto && selectedItem.tag !== 'solo_imagen' && (
-                <p className="text-sm text-slate-700 leading-relaxed font-bold border-l-4 border-emerald-500 pl-3 py-1 italic bg-slate-50/50 rounded-r-xl">
+                <p className="text-sm text-slate-700 leading-relaxed font-bold border-l border-emerald-500 pl-3 py-1 italic bg-slate-50/50 rounded-r-xl">
                   {selectedItem.extracto}
                 </p>
               )}
@@ -964,8 +964,8 @@ export const NoticiasPanel = () => {
               )}
 
               <div className="flex flex-wrap gap-2 text-xs text-slate-400 pt-2 border-t border-slate-100">
-                <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase">{selectedItem.categoria}</span>
-                {selectedItem.tag && <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border border-emerald-100">#{selectedItem.tag}</span>}
+                <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase">{selectedItem.categoria}</span>
+                {selectedItem.tag && <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border border-emerald-100">#{selectedItem.tag}</span>}
               </div>
             </div>
           </div>

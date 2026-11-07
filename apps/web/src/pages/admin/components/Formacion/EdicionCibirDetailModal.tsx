@@ -238,7 +238,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                 <h3 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tight">
                   {edicion.nombre}
                 </h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
                   {edicion.estado}
                 </span>
               </div>
@@ -265,7 +265,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
               <button
                 type="button"
                 onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                className="flex items-center gap-1 px-3 h-full text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-3 h-full text-[11px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
               >
                 <span>
                   {searchField === 'nombre' && 'Nombre'}
@@ -291,7 +291,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                           setSearchField(option.key)
                           setShowSearchDropdown(false)
                         }}
-                        className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                        className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
                           searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
                         }`}
                       >
@@ -335,7 +335,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
               <button
                 key={st}
                 onClick={() => setFilterEstatus(st)}
-                className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
+                className={`text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
                   filterEstatus === st
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -386,7 +386,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/70 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                <tr className="bg-slate-50/70 text-[11px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
                   <th className="py-2.5 pl-4 pr-2 w-8">
                     <input
                       type="checkbox"
@@ -424,7 +424,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                         <div className="font-bold text-slate-800 leading-tight">
                           {p.nombre_completo}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                           <span>{p.tipo_afiliado || 'Natural'}</span>
                           {p.empresa_nombre && <span>· {p.empresa_nombre}</span>}
                           {p.asignado_automatico === 1 && (
@@ -443,7 +443,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                           </div>
                         )}
                         {p.telefono && (
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
                             <Phone size={11} className="text-slate-400 shrink-0" />
                             <span>{p.telefono}</span>
                           </div>
@@ -452,27 +452,27 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                       </td>
                       <td className="py-3 px-3">
                         {p.estatus === 'Aprobado' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                             <CheckCircle2 size={11} /> Aprobado
                           </span>
                         )}
                         {p.estatus === 'Rechazado' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
                             <XCircle size={11} /> Rechazado
                           </span>
                         )}
                         {p.estatus === 'Preinscrito' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                             <Clock size={11} /> Preinscrito
                           </span>
                         )}
                         {p.estatus === 'Cancelado' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                             <Ban size={11} /> Cancelado
                           </span>
                         )}
                         {p.nota_admin && (
-                          <p className="text-[9px] text-slate-400 italic mt-0.5 truncate max-w-xs">
+                          <p className="text-[11px] text-slate-400 italic mt-0.5 truncate max-w-xs">
                             {p.nota_admin}
                           </p>
                         )}

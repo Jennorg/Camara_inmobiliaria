@@ -587,7 +587,7 @@ const SettingsPanel = () => {
       <aside className="lg:col-span-1 flex flex-col shrink-0 lg:sticky lg:top-8 self-start">
         <div className="hidden lg:block mb-6 px-4">
           <h2 className="text-xl font-black tracking-tight text-gray-900">Ajustes</h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Gestiona tu presencia en la Cámara</p>
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter">Gestiona tu presencia en la Cámara</p>
         </div>
 
         {/* Desktop Menu */}
@@ -660,7 +660,7 @@ const SettingsPanel = () => {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 shrink-0 w-32">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center truncate shrink-0">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 text-center truncate shrink-0">
                         Foto de Perfil
                       </span>
                       <div className="w-32 h-40 rounded-2xl overflow-hidden border-2 border-slate-100 dark:border-emerald-500/20 shadow-md bg-slate-50 flex items-center justify-center relative">
@@ -692,7 +692,7 @@ const SettingsPanel = () => {
                 <Input label="Nombres" name="nombres" value={formData.nombres} onChange={handleInputChange} icon={User} disabled />
                 <Input label="Apellidos" name="apellidos" value={formData.apellidos} onChange={handleInputChange} icon={User} disabled />
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Cédula</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 px-2">Cédula</label>
                   <div className="flex gap-2">
                     <div className="relative w-28">
                       <select
@@ -726,7 +726,7 @@ const SettingsPanel = () => {
                 </div>
                 <Input label="Email de Contacto" name="email" value={formData.email} onChange={handleInputChange} icon={Mail} />
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Teléfono</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 px-2">Teléfono</label>
                   <div className="relative group">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">
                       <Phone size={16} />
@@ -754,11 +754,11 @@ const SettingsPanel = () => {
                 {/* Perfil Profesional */}
                 <div className="md:col-span-2 pt-6 border-t border-gray-100">
                   <h4 className="text-sm font-black uppercase tracking-widest text-emerald-600 mb-2">Perfil Profesional</h4>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Comparte tu trayectoria y nivel académico.</p>
+                  <p className="text-[11px] text-gray-400 font-bold uppercase tracking-tight">Comparte tu trayectoria y nivel académico.</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Nivel Académico</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 px-2">Nivel Académico</label>
                   <div className="relative">
                     <select
                       name="nivel_academico"
@@ -785,7 +785,7 @@ const SettingsPanel = () => {
                 <Input label="Año de inicio en el sector" name="ano_inicio_servicio" value={formData.ano_inicio_servicio} onChange={handleInputChange} type="number" icon={Clock} />
 
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">Descripción / Biografía Profesional</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 px-2">Descripción / Biografía Profesional</label>
                   <textarea
                     name="descripcion"
                     value={formData.descripcion}
@@ -896,7 +896,7 @@ const SettingsPanel = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 px-2">
                     {user?.tipo_afiliado === 'Corporativo' ? "RIF del Corporativo" : "RIF Personal / Comercial"}
                   </label>
                   <div className="flex gap-2">
@@ -1067,7 +1067,7 @@ const TikTokIcon = () => (
 
 const Input = ({ label, icon: Icon, ...props }: any) => (
   <div className="space-y-2">
-    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-2">{label}</label>
+    <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 px-2">{label}</label>
     <div className="relative group">
       {Icon && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-600 transition-colors">

@@ -31,7 +31,7 @@ const WidgetSolicitudAfiliacion = () => {
             </ul>
           </div>
           
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2">
+          <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest px-2">
             Hemos pre-llenado algunos datos de tu cuenta de formación para agilizar tu solicitud.
           </p>
         </div>

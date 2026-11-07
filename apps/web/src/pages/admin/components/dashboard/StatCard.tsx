@@ -33,7 +33,7 @@ const StatCard = ({
         {change && (
           <span
             className={[
-              'inline-flex flex-shrink-0 items-center gap-0.5 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full',
+              'inline-flex flex-shrink-0 items-center gap-0.5 text-[11px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full',
               changePositive
                 ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-red-50 text-red-500',

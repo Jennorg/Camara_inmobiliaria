@@ -192,7 +192,7 @@ export default function CohortesNavegador({ programa, cohortes, seleccion, onSel
                 <span className={`truncate text-sm font-bold ${elegida ? 'text-emerald-900' : 'text-slate-800'}`}>{c.nombre}</span>
                 <span
                   className={[
-                    'shrink-0 rounded-full border px-1.5 py-px text-[10px] font-bold',
+                    'shrink-0 rounded-full border px-1.5 py-px text-[11px] font-bold',
                     c.estado === 'Abierta' ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-gray-200 bg-gray-100 text-slate-600',
                   ].join(' ')}
                 >

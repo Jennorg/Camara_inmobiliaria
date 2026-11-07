@@ -298,7 +298,7 @@ export default function CompanySearchSelector({
               <p className={`text-xs font-black uppercase tracking-tight truncate ${darkTheme ? 'text-white' : 'text-slate-900'}`}>
                 {selectedCompany.razon_social || selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}
               </p>
-              <p className={`text-[10px] font-semibold truncate mt-0.5 ${darkTheme ? 'text-emerald-300/90' : 'text-slate-500'}`}>
+              <p className={`text-[11px] font-semibold truncate mt-0.5 ${darkTheme ? 'text-emerald-300/90' : 'text-slate-500'}`}>
                 {(selectedCompany.representante_legal || selectedCompany.representante_nombre) ? `Rep: ${selectedCompany.representante_legal || selectedCompany.representante_nombre} · ` : ''}
                 <span className="font-bold text-slate-700">RIF: {selectedCompany.rif_tipo || selectedCompany.empresa_rif_tipo || 'J'}-{selectedCompany.rif_numero || selectedCompany.empresa_rif_numero || '—'}</span>
                 {(selectedCompany.codigo || selectedCompany.empresa_codigo) ? ` · Cód. Rep: ${selectedCompany.codigo || selectedCompany.empresa_codigo}` : ''}
@@ -312,7 +312,7 @@ export default function CompanySearchSelector({
               setQuery('');
               setIsOpen(true);
             }}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors shrink-0 border ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-colors shrink-0 border ${
               darkTheme 
                 ? 'bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-200 border-emerald-500/30' 
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
@@ -335,7 +335,7 @@ export default function CompanySearchSelector({
             {filteredEmpresas.length === 0 ? (
               <div className="p-4 text-center">
                 <p className={`text-xs font-bold ${darkTheme ? 'text-emerald-100/40' : 'text-slate-400'}`}>No se encontraron empresas coincidentes</p>
-                <p className={`text-[10px] mt-1 ${darkTheme ? 'text-emerald-100/30' : 'text-slate-400'}`}>
+                <p className={`text-[11px] mt-1 ${darkTheme ? 'text-emerald-100/30' : 'text-slate-400'}`}>
                   {searchField === 'nombre'
                     ? 'Prueba buscando por empresa o representante legal'
                     : searchField === 'codigo'
@@ -369,7 +369,7 @@ export default function CompanySearchSelector({
                     }`}>
                       {emp._displayNombre}
                     </h6>
-                    <p className={`text-[10px] font-bold truncate mt-0.5 transition-colors ${
+                    <p className={`text-[11px] font-bold truncate mt-0.5 transition-colors ${
                       darkTheme ? 'text-emerald-100/50 group-hover:text-emerald-200' : 'text-slate-400 group-hover:text-emerald-700'
                     }`}>
                       {emp._displayRep ? `Rep: ${emp._displayRep} · ` : ''}RIF: {emp._displayRifTipo}-{emp._displayRifNum}

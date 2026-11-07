@@ -339,13 +339,13 @@ export default function ExportAfiliadosModal({
             <button
               type="button"
               onClick={resetFilters}
-              className="text-[10px] font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-wider transition-colors flex items-center gap-1"
+              className="text-[11px] font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-wider transition-colors flex items-center gap-1"
             >
               <RotateCcw size={10} /> Restablecer filtros
             </button>
           )}
           {activeTab === 'columnas' && (
-            <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider">
               <button
                 type="button"
                 onClick={toggleSelectAllColumns}
@@ -379,7 +379,7 @@ export default function ExportAfiliadosModal({
             <div className="space-y-4">
               {/* Buscador libre con dropdown de criterio igual a la vista principal */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Search size={12} className="text-emerald-600" /> Búsqueda por Texto
                 </label>
                 <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-10">
@@ -388,7 +388,7 @@ export default function ExportAfiliadosModal({
                     <button
                       type="button"
                       onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                      className="flex items-center gap-1 px-2 h-full text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 px-2 h-full text-[11px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                     >
                       <span>
                         {filters.searchField === 'nombre' && 'Nombre'}
@@ -416,7 +416,7 @@ export default function ExportAfiliadosModal({
                                 setFilters((f) => ({ ...f, searchField: option.key }))
                                 setShowSearchDropdown(false)
                               }}
-                              className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${(filters.searchField || 'todos') === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                              className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${(filters.searchField || 'todos') === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                             >
                               {option.label}
@@ -457,7 +457,7 @@ export default function ExportAfiliadosModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Tipo Afiliado */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <UserCheck size={12} className="text-emerald-600" /> Tipo de Afiliado
                   </label>
                   <select
@@ -476,7 +476,7 @@ export default function ExportAfiliadosModal({
 
                 {/* Estatus */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Filter size={12} className="text-emerald-600" /> Estatus del Proceso
                   </label>
                   <select
@@ -511,7 +511,7 @@ export default function ExportAfiliadosModal({
               {/* Programa y Cohorte: dos dropdowns; al elegir uno se relaja el estatus para no dar 0 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Filter size={12} className="text-emerald-600" /> Programa
                   </label>
                   <select
@@ -532,7 +532,7 @@ export default function ExportAfiliadosModal({
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Filter size={12} className="text-emerald-600" /> Cohorte
                   </label>
                   <select
@@ -562,7 +562,7 @@ export default function ExportAfiliadosModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Activo / Inactivo */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Condición Activo / Inactivo
                   </label>
                   <select
@@ -583,7 +583,7 @@ export default function ExportAfiliadosModal({
 
                 {/* Fotografía */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Camera size={12} className="text-emerald-600" /> Fotografía
                   </label>
                   <select
@@ -605,7 +605,7 @@ export default function ExportAfiliadosModal({
 
               {/* Desde Código determinado */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Hash size={12} className="text-emerald-600" /> Desde Código Numérico
                 </label>
                 <input
@@ -619,7 +619,7 @@ export default function ExportAfiliadosModal({
 
               {/* Rango de Fechas de Registro */}
               <div className="space-y-1.5 pt-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Calendar size={12} className="text-emerald-600" /> Rango por Fecha de Registro
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -641,7 +641,7 @@ export default function ExportAfiliadosModal({
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
                   Seleccione las columnas a incluir en el PDF
                 </span>
               </div>

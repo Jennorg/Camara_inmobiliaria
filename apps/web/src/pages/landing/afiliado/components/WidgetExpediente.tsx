@@ -118,7 +118,7 @@ const WidgetExpediente = () => {
 
                   <div className="flex-grow min-w-0">
                     <h4 className="text-sm font-black text-gray-900 truncate uppercase tracking-tight">{label}</h4>
-                    <div className="flex items-center gap-2 mt-1 text-[10px] font-bold text-gray-400">
+                    <div className="flex items-center gap-2 mt-1 text-[11px] font-bold text-gray-400">
                       <Calendar size={12} className="shrink-0" />
                       <span>Cargado el {date}</span>
                     </div>

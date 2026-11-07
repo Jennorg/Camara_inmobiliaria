@@ -311,11 +311,11 @@ export default function EdicionesCibirPanel() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white uppercase tracking-wider">
+                <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white uppercase tracking-wider">
                   Edición Activa
                 </span>
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase ${
                     edicionActiva.estado === 'Abierta'
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                       : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -355,7 +355,7 @@ export default function EdicionesCibirPanel() {
                   <div className="text-lg font-black text-slate-800">
                     {edicionActiva.total_preinscrito || 0}
                   </div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     Preins.
                   </div>
                 </div>
@@ -363,7 +363,7 @@ export default function EdicionesCibirPanel() {
                   <div className="text-lg font-black text-emerald-600">
                     {edicionActiva.total_aprobado || 0}
                   </div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     Aprobados
                   </div>
                 </div>
@@ -371,7 +371,7 @@ export default function EdicionesCibirPanel() {
                   <div className="text-lg font-black text-rose-500">
                     {edicionActiva.total_rechazado || 0}
                   </div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     Rechazados
                   </div>
                 </div>
@@ -389,14 +389,14 @@ export default function EdicionesCibirPanel() {
                   {edicionActiva.estado === 'Planificada' ? (
                     <button
                       onClick={() => handleCambiarEstado(edicionActiva, 'Abierta')}
-                      className="flex-1 px-3 py-1.5 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold text-[10px] uppercase rounded-xl transition-colors cursor-pointer"
+                      className="flex-1 px-3 py-1.5 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold text-[11px] uppercase rounded-xl transition-colors cursor-pointer"
                     >
                       Abrir Cohorte
                     </button>
                   ) : (
                     <button
                       onClick={() => handleCambiarEstado(edicionActiva, 'Cerrada')}
-                      className="flex-1 px-3 py-1.5 bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold text-[10px] uppercase rounded-xl transition-colors cursor-pointer"
+                      className="flex-1 px-3 py-1.5 bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold text-[11px] uppercase rounded-xl transition-colors cursor-pointer"
                     >
                       Cerrar Inscripción
                     </button>
@@ -453,7 +453,7 @@ export default function EdicionesCibirPanel() {
                       {ed.nombre}
                     </span>
                     <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase ${
                         ed.estado === 'Abierta'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : ed.estado === 'Planificada'
@@ -530,7 +530,7 @@ export default function EdicionesCibirPanel() {
               ) : (
                 <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-2xl p-3.5 flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
                       Nombre de la Edición (Autonumérico)
                     </span>
                     <span className="text-base font-black text-slate-900 uppercase tracking-tight block">

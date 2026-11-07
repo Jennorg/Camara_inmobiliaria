@@ -65,11 +65,11 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
         <div className='px-2 pt-3.5 flex-grow flex flex-col justify-between space-y-2'>
           <div className='space-y-1.5'>
             <div className='flex items-center justify-between gap-2'>
-              <p className='text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
+              <p className='text-[11px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
                 {news.fecha_evento || news.fecha?.split('T')[0] || 'Próximamente'}
               </p>
               {news.lugar_evento && (
-                <span className="text-[10px] text-slate-400 font-bold truncate max-w-[160px] flex items-center gap-1">
+                <span className="text-[11px] text-slate-400 font-bold truncate max-w-[160px] flex items-center gap-1">
                   <MapPin size={11} className="shrink-0 text-slate-400" />
                   <span className="truncate">{news.lugar_evento}</span>
                 </span>
@@ -107,11 +107,11 @@ function NewsCard({ news, onClick, s }: NewsCardProps) {
       <div className='px-2 pt-4 flex-grow flex flex-col justify-between space-y-3'>
         <div className='space-y-2.5'>
           <div className='flex items-center justify-between gap-2'>
-            <p className='text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
+            <p className='text-[11px] text-emerald-600 font-black uppercase tracking-[0.2em]'>
               {news.fecha_evento || news.fecha?.split('T')[0] || 'Próximamente'}
             </p>
             {news.lugar_evento && (
-              <div className='text-[10px] text-slate-400 font-bold max-w-[150px] overflow-hidden whitespace-nowrap flex items-center gap-1'>
+              <div className='text-[11px] text-slate-400 font-bold max-w-[150px] overflow-hidden whitespace-nowrap flex items-center gap-1'>
                 <MapPin size={11} className="shrink-0 text-slate-400" />
                 <div className="overflow-hidden relative w-full flex whitespace-nowrap">
                   {news.lugar_evento.length > 20 ? (
@@ -324,7 +324,7 @@ export default function NoticiasSection() {
               {/* Content Body */}
               <div className="p-8 space-y-6">
                 <div className="space-y-2 pt-2">
-                  <p className="text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em]">
+                  <p className="text-[11px] text-emerald-600 font-black uppercase tracking-[0.2em]">
                     {selectedNews.fecha_evento ? `Fecha del evento: ${selectedNews.fecha_evento}` : (selectedNews.fecha?.split('T')[0] || '')}
                   </p>
                   <h3 className="text-2xl md:text-3xl font-bold leading-tight text-[#022c22] pr-12">
@@ -345,7 +345,7 @@ export default function NoticiasSection() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-emerald-950 font-semibold">
                       {selectedNews.fecha_evento && (
                         <div className="bg-white/90 rounded-2xl p-3 shadow-xs border border-emerald-100/50 flex flex-col gap-0.5">
-                          <span className="text-[9px] font-black uppercase text-emerald-600 flex items-center gap-1">
+                          <span className="text-[11px] font-black uppercase text-emerald-600 flex items-center gap-1">
                             <Calendar size={12} /> Fecha
                           </span>
                           {selectedNews.fecha_evento}
@@ -353,7 +353,7 @@ export default function NoticiasSection() {
                       )}
                       {selectedNews.hora_evento && (
                         <div className="bg-white/90 rounded-2xl p-3 shadow-xs border border-emerald-100/50 flex flex-col gap-0.5 flex-1">
-                          <span className="text-[9px] font-black uppercase text-emerald-600 flex items-center gap-1">
+                          <span className="text-[11px] font-black uppercase text-emerald-600 flex items-center gap-1">
                             <Clock size={12} /> Hora
                           </span>
                           {selectedNews.hora_evento}
@@ -361,7 +361,7 @@ export default function NoticiasSection() {
                       )}
                       {selectedNews.lugar_evento && (
                         <div className="bg-white/90 rounded-2xl p-3 shadow-xs border border-emerald-100/50 flex flex-col gap-0.5 col-span-1">
-                          <span className="text-[9px] font-black uppercase text-emerald-600 flex items-center gap-1">
+                          <span className="text-[11px] font-black uppercase text-emerald-600 flex items-center gap-1">
                             <MapPin size={12} /> Lugar
                           </span>
                           {selectedNews.lugar_evento}
@@ -372,7 +372,7 @@ export default function NoticiasSection() {
                 )}
 
                 {/* Summary / Extracto */}
-                <p className="text-slate-700 text-sm md:text-base font-bold leading-relaxed border-l-4 border-emerald-500 pl-4 py-1 italic bg-slate-50/50 pr-2 rounded-r-xl">
+                <p className="text-slate-700 text-sm md:text-base font-bold leading-relaxed border-l border-emerald-500 pl-4 py-1 italic bg-slate-50/50 pr-2 rounded-r-xl">
                   {selectedNews.resumen || selectedNews.extracto || selectedNews.d}
                 </p>
 

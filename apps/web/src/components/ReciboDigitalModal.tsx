@@ -89,7 +89,7 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
             </div>
 
             <div className="text-left sm:text-right bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl border sm:border-0 border-slate-100 w-full sm:w-auto">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 block">
                 Comprobante Digital
               </span>
               <span className="text-base font-black text-emerald-800 block font-mono">
@@ -127,7 +127,7 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
 
             {pago.afiliado_codigo && (
               <div className="text-right">
-                <span className="text-[9px] font-black uppercase tracking-widest block opacity-70">
+                <span className="text-[11px] font-black uppercase tracking-widest block opacity-70">
                   Código Miembro
                 </span>
                 <span className="text-xs font-black font-mono">
@@ -140,7 +140,7 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
           {/* Member & Payer Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Miembro / Titular
               </span>
               <p className="text-sm font-black text-slate-900 mt-0.5">
@@ -152,14 +152,14 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
                 </p>
               )}
               {pago.tipo_afiliado && (
-                <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-emerald-100/70 text-emerald-800 text-[10px] font-bold">
+                <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-emerald-100/70 text-emerald-800 text-[11px] font-bold">
                   Membresía {pago.tipo_afiliado}
                 </span>
               )}
             </div>
 
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Forma de Pago
               </span>
               <p className="text-sm font-bold text-slate-800 mt-0.5">
@@ -180,12 +180,12 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
 
           {/* Breakdown Table */}
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2">
               Desglose de Conceptos
             </span>
             <div className="border border-slate-200 rounded-xl overflow-hidden">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[11px] tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="p-3">Concepto</th>
                     <th className="p-3 text-right">Moneda</th>
@@ -226,7 +226,7 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
                     <td className="p-3 text-right font-black font-mono text-emerald-800 text-base">
                       {pago.moneda === 'USD' ? `$${pago.monto.toFixed(2)} USD` : `Bs. ${pago.monto.toFixed(2)}`}
                       {pago.moneda === 'VES' && pago.monto_usd_equivalente && (
-                        <span className="block text-[10px] font-normal text-emerald-700">
+                        <span className="block text-[11px] font-normal text-emerald-700">
                           (Equivalente: ${pago.monto_usd_equivalente.toFixed(2)} USD)
                         </span>
                       )}
@@ -239,14 +239,14 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
 
           {/* Footer note & Stamp */}
           <div className="pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <div className="text-[10px] text-slate-400 space-y-0.5">
+            <div className="text-[11px] text-slate-400 space-y-0.5">
               <p>Este documento es un comprobante electrónico oficial de la Cámara Inmobiliaria.</p>
               <p>Generado automáticamente a través de la plataforma gremial.</p>
             </div>
 
             <div className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/50 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800">
                 Sello Digital CIEB
               </span>
             </div>

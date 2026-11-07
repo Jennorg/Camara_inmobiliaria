@@ -269,8 +269,8 @@ const DefaultAvatarSVG = () => (
 function DocLink({ label, url, detail, compact = false }: { label: string, url?: string | null, detail?: string | null, compact?: boolean }) {
   if (!url) return (
     <div className={`flex items-center justify-between p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/30 ${compact ? 'py-2' : ''}`}>
-      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{label}</span>
-      <span className="text-[10px] text-slate-300 italic font-medium">No cargado</span>
+      <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{label}</span>
+      <span className="text-[11px] text-slate-300 italic font-medium">No cargado</span>
     </div>
   )
 
@@ -286,8 +286,8 @@ function DocLink({ label, url, detail, compact = false }: { label: string, url?:
           <FileText size={16} />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</span>
-          <span className="text-[10px] font-bold text-slate-600 truncate">{detail ? `Por: ${detail}` : 'Ver documento'}</span>
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</span>
+          <span className="text-[11px] font-bold text-slate-600 truncate">{detail ? `Por: ${detail}` : 'Ver documento'}</span>
         </div>
       </div>
       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors">
@@ -1129,7 +1129,7 @@ export default function MiembrosPanel() {
                 <button
                   type="button"
                   onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                  className="flex items-center gap-0.5 px-2 h-full text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
+                  className="flex items-center gap-0.5 px-2 h-full text-[11px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
                 >
                   <span>
                     {searchField === 'nombre' && 'Nombre'}
@@ -1157,7 +1157,7 @@ export default function MiembrosPanel() {
                             setSearchField(option.key);
                             setShowSearchDropdown(false);
                           }}
-                          className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors ${searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                          className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors ${searchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
                             }`}
                         >
                           {option.label}
@@ -1203,7 +1203,7 @@ export default function MiembrosPanel() {
               title="Cambiar criterio de ordenación"
             >
               <ArrowUpDown size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
+              <span className="text-[11px] font-bold uppercase tracking-widest">
                 {sortState === 'nombre_asc' && 'A-Z'}
                 {sortState === 'nombre_desc' && 'Z-A'}
                 {sortState === 'codigo_asc' && 'CÓD. ↑'}
@@ -1220,7 +1220,7 @@ export default function MiembrosPanel() {
             >
               <div className="flex items-center gap-2 overflow-hidden">
                 <Filter size={14} className="text-slate-400 shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-widest truncate">
+                <span className="text-[11px] font-bold uppercase tracking-widest truncate">
                   Filtro: {filterTipo === 'Todos' ? 'Todos' : filterTipo === 'Natural' ? 'Agente Independiente' : filterTipo === 'Agente Corporativo' ? 'Agente Corporativo' : 'Corporativo'}
                 </span>
               </div>
@@ -1253,7 +1253,7 @@ export default function MiembrosPanel() {
                             setFilterTipo(f.id as any);
                             setShowFilterDropdown(false);
                           }}
-                          className={`w-full text-left px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-colors duration-200 flex items-center gap-2 ${isSelected ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                          className={`w-full text-left px-3 py-2 text-[11px] font-black uppercase tracking-wider transition-colors duration-200 flex items-center gap-2 ${isSelected ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
                             }`}
                         >
                           <Icon size={14} className={isSelected ? 'text-emerald-600 shrink-0' : 'text-slate-400 shrink-0'} />
@@ -1272,7 +1272,7 @@ export default function MiembrosPanel() {
             <button
               type="button"
               onClick={() => setFilterFoto('todos')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors ${
                 filterFoto === 'todos'
                   ? 'bg-slate-800 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -1283,7 +1283,7 @@ export default function MiembrosPanel() {
             <button
               type="button"
               onClick={() => setFilterFoto('con_foto')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors ${
                 filterFoto === 'con_foto'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-emerald-700'
@@ -1294,7 +1294,7 @@ export default function MiembrosPanel() {
             <button
               type="button"
               onClick={() => setFilterFoto('sin_foto')}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors ${
                 filterFoto === 'sin_foto'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-amber-700'
@@ -1315,7 +1315,7 @@ export default function MiembrosPanel() {
               <button
                 key={item.id_afiliado}
                 onClick={() => handleSelect(item)}
-                className={`w-full p-4 text-left hover:bg-slate-50 transition-colors group flex items-center justify-between ${selected?.id_afiliado === item.id_afiliado ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'border-l-4 border-transparent'}`}
+                className={`w-full p-4 text-left hover:bg-slate-50 transition-colors group flex items-center justify-between ${selected?.id_afiliado === item.id_afiliado ? 'bg-emerald-50/50 border-l border-emerald-500' : 'border-l border-transparent'}`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -1325,7 +1325,7 @@ export default function MiembrosPanel() {
                         {(item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo') && <BookUserIcon size={14} />}
                         {item.tipo_afiliado !== 'Corporativo' && item.tipo_afiliado !== 'Agente' && item.tipo_afiliado !== 'Agente Corporativo' && <UserIcon size={14} />}
                       </span>
-                      <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover/tooltip:block bg-slate-800 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-md whitespace-nowrap z-50 pointer-events-none">
+                      <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover/tooltip:block bg-slate-800 text-white text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-md whitespace-nowrap z-50 pointer-events-none">
                         {item.tipo_afiliado === 'Corporativo' ? 'Corporativo' : item.tipo_afiliado === 'Agente' || item.tipo_afiliado === 'Agente Corporativo' ? 'Agente Corporativo' : 'Agente Independiente'}
                       </span>
                     </div>
@@ -1337,7 +1337,7 @@ export default function MiembrosPanel() {
                   </div>
 
                   <div className="flex items-center gap-2 mt-1 pl-5">
-                    <span className="text-[10px] text-slate-400 font-medium">
+                    <span className="text-[11px] text-slate-400 font-medium">
                       {formatIdentificacionSeparada(item)}
                     </span>
                   </div>
@@ -1458,7 +1458,7 @@ export default function MiembrosPanel() {
                           <Edit3 size={12} className="text-slate-500" />
                         </button>)}
                       </div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
                         {selected.tipo_afiliado === 'Corporativo' ? 'Logo Empresa' : 'Logo Personal'}
                       </p>
                     </div>
@@ -1502,7 +1502,7 @@ export default function MiembrosPanel() {
                           <Edit3 size={14} className="text-slate-500" />
                         </button>)}
                       </div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-center mt-2">
                         {selected.tipo_afiliado === 'Corporativo' ? 'Representante' : 'Foto Perfil'}
                       </p>
                     </div>
@@ -1563,7 +1563,7 @@ export default function MiembrosPanel() {
 
                   {isEditing && (
                     <div className="flex items-center justify-center gap-3 py-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estado en Directorio:</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Estado en Directorio:</span>
                       <button
                         onClick={() => setEditForm({ ...editForm, activo: editForm.activo ? 0 : 1 })}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${editForm.activo ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-slate-600'}`}
@@ -1610,7 +1610,7 @@ export default function MiembrosPanel() {
                   <DataField label="Correo Electrónico" value={selected.email} isEditing={isEditing} fieldName="email" form={editForm} setForm={setEditForm} />
                   {/* Teléfono con código de país */}
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono</label>
                     {isEditing ? (
                       (() => {
                         const parts = formatPhoneParts(editForm.telefono);
@@ -1676,7 +1676,7 @@ export default function MiembrosPanel() {
 
                 {/* Cédula con editor de prefijo */}
                 <div className="space-y-1.5 mt-6">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula</label>
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Cédula</label>
                   {isEditing ? (
                     <div className="flex gap-0 max-w-xs">
                       <div className="relative shrink-0">
@@ -1723,10 +1723,10 @@ export default function MiembrosPanel() {
                 {/* Tipo de Afiliación + Vinculación empresa para Agentes */}
                 <div className="p-4 bg-slate-50 rounded-2xl space-y-3 mt-6">
                   <div className="flex items-center justify-between gap-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Tipo de Afiliación</p>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest shrink-0">Tipo de Afiliación</p>
                     <div className="relative max-w-[180px] w-full">
                       <select
-                        className="w-full bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 hover:border-gray-200 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10"
+                        className="w-full bg-slate-50 border border-gray-100 rounded-xl text-slate-600 hover:bg-slate-100 hover:border-gray-200 transition-colors cursor-pointer text-[11px] font-bold uppercase tracking-wider px-3 py-2 pr-8 appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10"
                         value={isEditing ? (editForm.tipo_afiliado || selected.tipo_afiliado) : selected.tipo_afiliado}
                         onChange={(e) => handleDropdownTypeChange(e.target.value)}
                         disabled={!puedeEditar}
@@ -1742,7 +1742,7 @@ export default function MiembrosPanel() {
 
                   {(isEditing ? editForm.tipo_afiliado === 'Agente Corporativo' : (selected.tipo_afiliado === 'Agente' || selected.tipo_afiliado === 'Agente Corporativo')) && (
                     <div className="pt-2 border-t border-gray-200 space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Empresa Vinculada</p>
                       {isEditing ? (
                         <CompanySearchField
                           companies={companies}
@@ -1755,7 +1755,7 @@ export default function MiembrosPanel() {
                             <Building2 size={14} className="text-emerald-900" />
                             <span className="text-xs font-bold text-slate-700">{selected.empresa_razon_social}</span>
                           </div>
-                          <p className="text-[10px] text-slate-400 font-medium">RIF: {selected.empresa_rif_numero}</p>
+                          <p className="text-[11px] text-slate-400 font-medium">RIF: {selected.empresa_rif_numero}</p>
                         </>
                       ) : (
                         <p className="text-xs font-bold text-slate-400 italic">No vinculado</p>
@@ -1816,7 +1816,7 @@ export default function MiembrosPanel() {
                       <DataField label="Razón Social" value={selected.empresa_razon_social || 'Sin razón social'} isEditing={isEditing} fieldName="empresa_razon_social" form={editForm} setForm={setEditForm} />
                       {/* RIF de la Empresa */}
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">RIF de la Empresa</label>
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">RIF de la Empresa</label>
                         {isEditing ? (
                           <div className="flex gap-0 max-w-xs">
                             <div className="relative shrink-0">
@@ -1858,7 +1858,7 @@ export default function MiembrosPanel() {
                       {/* Teléfono de la Empresa con código de país */}
                       {(isEditing || !!selected.empresa_telefono) && (
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono de la Empresa</label>
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Teléfono de la Empresa</label>
                           {isEditing ? (
                             (() => {
                               const parts = formatPhoneParts(editForm.empresa_telefono);
@@ -1951,11 +1951,11 @@ export default function MiembrosPanel() {
                   </div>
                   <div>
                     <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Certificados Entregados</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Comprobantes y títulos digitales emitidos</p>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">Comprobantes y títulos digitales emitidos</p>
                   </div>
                 </div>
                 {(selected as any).certificados && (selected as any).certificados.length > 0 && (
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                     {(selected as any).certificados.length} {(selected as any).certificados.length === 1 ? 'Certificado' : 'Certificados'}
                   </span>
                 )}
@@ -1987,7 +1987,7 @@ export default function MiembrosPanel() {
                               <h6 className="text-xs font-black text-slate-800 truncate group-hover:text-amber-950 uppercase tracking-tight">
                                 {certTitle}
                               </h6>
-                              <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
+                              <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">
                                 Cód: <span className="text-amber-700 font-black">{validationCode}</span> {fechaStr ? `· ${fechaStr}` : ''}
                               </p>
                             </div>
@@ -2009,7 +2009,7 @@ export default function MiembrosPanel() {
                   <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                     <Award size={22} className="mx-auto text-slate-300 mb-1.5" />
                     <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Sin certificados emitidos</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Este afiliado aún no posee certificados de aprobación registrados.</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Este afiliado aún no posee certificados de aprobación registrados.</p>
                   </div>
                 )}
               </div>
@@ -2026,7 +2026,7 @@ export default function MiembrosPanel() {
               }}
             />
 
-            <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium pt-2">
+            <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 font-medium pt-2">
               <Calendar size={12} /> Registrado el {formatDateLatina(selected.fecha_registro)}
             </div>
 
@@ -2040,10 +2040,10 @@ export default function MiembrosPanel() {
                     </div>
                     <div>
                       <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Afiliados Asociados</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Trabajadores directos del corporativo</p>
+                      <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">Trabajadores directos del corporativo</p>
                     </div>
                   </div>
-                  <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+                  <span className="bg-emerald-100 text-emerald-700 text-[11px] font-black px-2 py-0.5 rounded-full">
                     {associatedMembers.length} MIEMBROS
                   </span>
                 </div>
@@ -2063,7 +2063,7 @@ export default function MiembrosPanel() {
                           <p className="text-xs font-black text-slate-700 truncate group-hover:text-emerald-600 transition-colors">
                             {m.nombres} {m.apellidos}
                           </p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase">
+                          <p className="text-[11px] text-slate-400 font-bold uppercase">
                             {m.cedula}
                           </p>
                         </div>
@@ -2074,7 +2074,7 @@ export default function MiembrosPanel() {
                 ) : (
                   <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200">
                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wide">No hay trabajadores asociados todavía</p>
-                    <p className="text-[10px] text-slate-300 mt-1">Los trabajadores aparecerán aquí una vez vinculados a este RIF.</p>
+                    <p className="text-[11px] text-slate-300 mt-1">Los trabajadores aparecerán aquí una vez vinculados a este RIF.</p>
                   </div>
                 )}
               </div>
@@ -2107,7 +2107,7 @@ export default function MiembrosPanel() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Miembro</label>
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Miembro</label>
                     <div className="relative">
                       <button
                         type="button"
@@ -2153,7 +2153,7 @@ export default function MiembrosPanel() {
                   <DataInput label="Apellidos" placeholder="Ej: Pérez" value={(newForm as any).apellidos || ''} onChange={(v: string) => setNewForm({ ...newForm, apellidos: v } as any)} isRequired hasError={formErrors.apellidos} />
 
                   <div className="sm:col-span-2 space-y-1.5 relative z-0 focus-within:z-20">
-                    <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${formErrors.cedula ? 'text-red-500' : 'text-slate-400'}`}>
+                    <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${formErrors.cedula ? 'text-red-500' : 'text-slate-400'}`}>
                       {isNewCorporativo ? "Cédula del representante" : "Cédula"} <span className="text-emerald-500">*</span>
                     </label>
                     <div className="flex gap-2 relative z-10">
@@ -2178,7 +2178,7 @@ export default function MiembrosPanel() {
                   <DataInput label="Correo electrónico" type="email" placeholder="juan@ejemplo.com" value={newForm.email || ''} onChange={(v: string) => setNewForm({ ...newForm, email: v })} isRequired hasError={formErrors.email} />
                   <DataInput label="Teléfono" type="tel" placeholder="+58 412..." value={newForm.telefono || ''} onChange={(v: string) => setNewForm({ ...newForm, telefono: v })} />
                   <div className="space-y-1.5 relative z-0 focus-within:z-20">
-                    <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${formErrors.nivel_academico ? 'text-red-500' : 'text-slate-400'}`}>Nivel académico</label>
+                    <label className={`text-[11px] font-black uppercase tracking-widest ml-1 ${formErrors.nivel_academico ? 'text-red-500' : 'text-slate-400'}`}>Nivel académico</label>
                     <div className="relative">
                       <select
                         className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-colors ${formErrors.nivel_academico ? 'border-red-500 ring-red-500/10' : 'border-gray-100 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
@@ -2222,7 +2222,7 @@ export default function MiembrosPanel() {
 
                 {/* Redes Sociales del Individuo */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Personal)</p>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Personal)</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <DataInput type="url" label="Sitio Web" placeholder="https://..." value={newForm.website || ''} onChange={(v: string) => setNewForm({ ...newForm, website: v })} />
                     <DataInput type="url" label="Instagram" placeholder="https://instagram.com/..." value={newForm.instagram || ''} onChange={(v: string) => setNewForm({ ...newForm, instagram: v })} />
@@ -2235,7 +2235,7 @@ export default function MiembrosPanel() {
 
                 {/* Documentación del Expediente (todos los tipos) */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">
                     {isNewCorporativo ? 'Documentación del Representante Legal' : 'Documentación del Expediente'}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
@@ -2299,7 +2299,7 @@ export default function MiembrosPanel() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF <span className="text-emerald-500">*</span></label>
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo RIF <span className="text-emerald-500">*</span></label>
                       <div className="relative">
                         <select
                           className="w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 transition-colors appearance-none cursor-pointer"
@@ -2329,7 +2329,7 @@ export default function MiembrosPanel() {
                   </div>
 
                   <div className="mt-4 pt-4 border-t border-emerald-100/50">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Empresa)</p>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Redes Sociales y Web (Empresa)</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <DataInput type="url" label="Sitio web de la empresa" placeholder="https://www.empresa.com" value={newForm.empresa_website || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_website: v })} />
                       <DataInput type="url" label="Instagram Empresa" placeholder="https://instagram.com/..." value={newForm.empresa_instagram || ''} onChange={(v: string) => setNewForm({ ...newForm, empresa_instagram: v })} />
@@ -2342,7 +2342,7 @@ export default function MiembrosPanel() {
 
                   {/* Documentos Legales de la Empresa */}
                   <div className="mt-4 pt-4 border-t border-emerald-100/50">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Documentación Legal de la Empresa</p>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Documentación Legal de la Empresa</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
                       <FileUpload
                         label="RIF de la Empresa"
@@ -2462,7 +2462,7 @@ export default function MiembrosPanel() {
                     ? (selected.tipo_afiliado === 'Corporativo' ? 'Logo de la Empresa' : 'Logo Personal / Comercial')
                     : 'Foto de Perfil'}
                 </p>
-                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
                   {imageEditKind === 'logo'
                     ? (selected.tipo_afiliado === 'Corporativo' ? (selected.empresa_razon_social || formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos)) : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos))
                     : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos)}
@@ -2521,7 +2521,7 @@ export default function MiembrosPanel() {
                   <p className="text-xs font-bold text-slate-400 text-center px-4">
                     Arrastra o haz clic para seleccionar
                     <br />
-                    <span className="text-slate-300 font-normal text-[10px]">PNG, JPG, WEBP</span>
+                    <span className="text-slate-300 font-normal text-[11px]">PNG, JPG, WEBP</span>
                   </p>
                 </>
               )}
@@ -2539,7 +2539,7 @@ export default function MiembrosPanel() {
 
             {imageEditKind === 'logo' ? (
               <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre Logo:</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Encuadre Logo:</span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -2559,7 +2559,7 @@ export default function MiembrosPanel() {
               </div>
             ) : (
               <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -2590,8 +2590,8 @@ export default function MiembrosPanel() {
               <div className="space-y-4">
                 <div className="px-2">
                   <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
-                    <span className="text-[10px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+                    <span className="text-[11px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
                   </div>
                   <input
                     type="range"
@@ -2608,7 +2608,7 @@ export default function MiembrosPanel() {
                 <button
                   type="button"
                   onClick={() => { setImagePreview(null); setImageFile(null); setCroppedAreaPixels(null) }}
-                  className="w-full text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-1"
+                  className="w-full text-[11px] font-bold text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-1"
                 >
                   <X size={10} /> Cambiar imagen
                 </button>
@@ -2678,7 +2678,7 @@ export default function MiembrosPanel() {
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">
                   Cambiar Tipo de Membresía
                 </h3>
-                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                <p className="text-[11px] font-bold text-gray-400 mt-1">
                   Mover a {selected ? formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos) : ''} a la membresía: {pendingNewType}
                 </p>
               </div>
@@ -2694,7 +2694,7 @@ export default function MiembrosPanel() {
               {pendingNewType === 'Agente Corporativo' && (
                 <div className="space-y-3">
                   <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">
                       Seleccionar Empresa Destino
                     </label>
                     <CompanySearchField
@@ -2718,7 +2718,7 @@ export default function MiembrosPanel() {
                     </h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="col-span-full flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Razón Social *</label>
                         <input
                           type="text"
                           value={razonSocial}
@@ -2729,7 +2729,7 @@ export default function MiembrosPanel() {
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Tipo RIF *</label>
                         <select
                           value={rifTipo}
                           onChange={e => setRifTipo(e.target.value)}
@@ -2744,7 +2744,7 @@ export default function MiembrosPanel() {
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Número de RIF (Solo números) *</label>
                         <input
                           type="text"
                           value={rifNumero}
@@ -2755,7 +2755,7 @@ export default function MiembrosPanel() {
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Correo de la Empresa *</label>
                         <input
                           type="email"
                           value={emailEmpresa}
@@ -2766,7 +2766,7 @@ export default function MiembrosPanel() {
                       </div>
 
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Teléfono *</label>
                         <input
                           type="text"
                           value={telefonoEmpresa}
@@ -2777,7 +2777,7 @@ export default function MiembrosPanel() {
                       </div>
 
                       <div className="col-span-full flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Dirección Física (Opcional)</label>
                         <textarea
                           rows={2}
                           value={direccionEmpresa}
@@ -2788,7 +2788,7 @@ export default function MiembrosPanel() {
                       </div>
 
                       <div className="col-span-full flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
+                        <label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Sitio Web (Opcional)</label>
                         <input
                           type="text"
                           value={websiteEmpresa}
@@ -2843,7 +2843,7 @@ export default function MiembrosPanel() {
               <button
                 type="button"
                 onClick={() => setShowChangeTypeModal(false)}
-                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] hover:bg-white transition-colors"
+                className="flex-1 h-12 rounded-xl border border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[11px] hover:bg-white transition-colors"
               >
                 Cancelar
               </button>
@@ -2875,7 +2875,7 @@ export default function MiembrosPanel() {
                   }
                   executeDirectTypeChange(pendingNewType, data);
                 }}
-                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                className="flex-[2] h-12 rounded-xl bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
               >
                 {submittingChangeType ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -2973,7 +2973,7 @@ export default function MiembrosPanel() {
 function DataField({ label, value, isEditing, fieldName, form, setForm, type = 'text', options = [], className = '', labelClassName = '' }: any) {
   return (
     <div className="space-y-1">
-      <label className={`text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 ${labelClassName}`}>{label}</label>
+      <label className={`text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 ${labelClassName}`}>{label}</label>
       {isEditing ? (
         type === 'select' ? (
           <div className="relative">
@@ -3045,7 +3045,7 @@ function FormSection({
 function DataInput({ label, placeholder, value, onChange, type = 'text', isRequired = false, hasError = false }: any) {
   return (
     <div className="space-y-1.5 relative z-0 focus-within:z-20">
-      <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
+      <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
         {label} {isRequired && <span className="text-emerald-500">*</span>}
       </label>
       <input
@@ -3103,7 +3103,7 @@ function VinculacionCorporativaSection({
       variant="emerald"
     >
       <div className="space-y-3">
-        <label className={`text-[10px] font-black uppercase tracking-widest ml-1 ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
+        <label className={`text-[11px] font-black uppercase tracking-widest ml-1 ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
           Seleccionar Empresa <span className="text-emerald-500">*</span>
         </label>
 
@@ -3113,7 +3113,7 @@ function VinculacionCorporativaSection({
             <button
               type="button"
               onClick={() => setShowCorpDropdown(!showCorpDropdown)}
-              className="flex items-center gap-0.5 px-3 h-full text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
+              className="flex items-center gap-0.5 px-3 h-full text-[11px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
             >
               <span>
                 {corpSearchField === 'nombre' && 'Nombre'}
@@ -3135,7 +3135,7 @@ function VinculacionCorporativaSection({
                       key={option.key}
                       type="button"
                       onClick={() => { setCorpSearchField(option.key); setShowCorpDropdown(false); setCorpSearch(''); }}
-                      className={`w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors ${corpSearchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors ${corpSearchField === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}
                     >
                       {option.label}
                     </button>
@@ -3175,7 +3175,7 @@ function VinculacionCorporativaSection({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-black text-emerald-800 truncate">{selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}</p>
-              <p className="text-[10px] text-emerald-600 font-semibold">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
+              <p className="text-[11px] text-emerald-600 font-semibold">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
             </div>
             <button
               type="button"
@@ -3212,7 +3212,7 @@ function VinculacionCorporativaSection({
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{c.empresa_razon_social || c.nombre_completo}</p>
-                        <p className="text-[10px] text-slate-400 font-semibold">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
+                        <p className="text-[11px] text-slate-400 font-semibold">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
                       </div>
                     </button>
                   ))
@@ -3392,13 +3392,13 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
           </div>
           <div>
             <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Documentación y Expediente</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Soportes digitales del afiliado</p>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">Soportes digitales del afiliado</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {currentDocs.length > 0 && (
-            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
               {currentDocs.length} {currentDocs.length === 1 ? 'Archivo' : 'Archivos'}
             </span>
           )}
@@ -3456,7 +3456,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
                     }`}
                   >
                     <span className="truncate">{t.label} {isMulti && countUploaded > 0 ? `(${countUploaded})` : ''}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-extrabold shrink-0 ml-1">
+                    <span className="text-[11px] px-2 py-0.5 rounded-md font-extrabold shrink-0 ml-1">
                       {isMulti ? '+ Subir Nuevo' : (isAlreadyUploaded ? 'Reemplazar' : '+ Subir')}
                     </span>
                   </button>
@@ -3517,7 +3517,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight truncate">{labelText}</h4>
-                    <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">{doc.nombre_archivo || 'Archivo cargado'}</p>
+                    <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">{doc.nombre_archivo || 'Archivo cargado'}</p>
                   </div>
                 </div>
 
@@ -3526,7 +3526,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
                     href={doc.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-300 transition-colors text-[10px] font-bold flex items-center gap-1"
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-300 transition-colors text-[11px] font-bold flex items-center gap-1"
                     title="Ver archivo"
                   >
                     <ExternalLink size={13} />
@@ -3535,7 +3535,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
                   {puedeEditar && <button
                     type="button"
                     onClick={() => { setEditingDoc(doc); setActiveUploadKey(doc.tipo_doc); setShowAddMenu(true); }}
-                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-amber-600 hover:border-amber-300 transition-colors text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-amber-600 hover:border-amber-300 transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                     title="Reemplazar este archivo"
                   >
                     <Edit3 size={13} />
@@ -3544,7 +3544,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
                   {puedeEditar && <button
                     type="button"
                     onClick={() => handleDeleteDoc(doc)}
-                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 transition-colors text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                     title="Eliminar documento"
                   >
                     <Trash2 size={13} />
@@ -3559,7 +3559,7 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
         <div className="p-8 text-center border border-dashed border-slate-200 rounded-[2rem] bg-slate-50/50 space-y-2">
           <FileText size={28} className="mx-auto text-slate-300" />
           <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sin documentos en el expediente</p>
-          <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+          <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
             Este afiliado no tiene documentos cargados actualmente. Haz clic en <strong>+ Cargar Documento</strong> para añadir archivos a su expediente.
           </p>
         </div>
@@ -3567,14 +3567,14 @@ function AdminDocumentosManager({ afiliado, token, onUpdateDocs, puedeEditar }: 
 
       {puedeEditar && missingTypes.length > 0 && !showAddMenu && !activeUploadKey && (
         <div className="pt-2 border-t border-slate-50">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Añadir más documentos al expediente:</p>
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Añadir más documentos al expediente:</p>
           <div className="flex flex-wrap gap-1.5">
             {missingTypes.map(t => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => { setEditingDoc(null); setActiveUploadKey(t.key); setShowAddMenu(true); }}
-                className="text-[10px] font-bold px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <span>+ {t.label}</span>
               </button>
@@ -3715,7 +3715,7 @@ function CompanySearchField({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-emerald-900 truncate">{selectedCompany.empresa_razon_social || selectedCompany.nombre_completo}</p>
-            <p className="text-[10px] text-emerald-600 font-bold truncate">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
+            <p className="text-[11px] text-emerald-600 font-bold truncate">RIF: {selectedCompany.empresa_rif_numero || selectedCompany.cedula}{selectedCompany.codigo ? ` · Cód: ${selectedCompany.codigo}` : ''}</p>
           </div>
           <button
             type="button"
@@ -3751,7 +3751,7 @@ function CompanySearchField({
               </div>
               <div className="min-w-0 flex-grow">
                 <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-950 transition-colors truncate">{c.empresa_razon_social || c.nombre_completo}</p>
-                <p className="text-[10px] text-slate-500 font-bold truncate">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
+                <p className="text-[11px] text-slate-500 font-bold truncate">RIF: {c.empresa_rif_numero || c.cedula}{c.codigo ? ` · Cód: ${c.codigo}` : ''}</p>
               </div>
             </button>
           ))

@@ -160,7 +160,7 @@ export default function EmbudoCaptacionChart() {
 
     return (
       <div className="bg-slate-900/95 text-white border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md min-w-[240px] text-xs">
-        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">
+        <p className="text-[11px] font-black uppercase tracking-widest text-emerald-400 mb-1">
           Etapa {stageData ? `0${stageData.stepIndex}` : ''}
         </p>
         <p className="font-black text-sm text-white mb-3">{label}</p>
@@ -174,7 +174,7 @@ export default function EmbudoCaptacionChart() {
               </div>
               <div className="text-right">
                 <span className="font-black text-white">{stageData?.cibir || 0}</span>
-                <span className="text-[10px] text-slate-400 ml-1">({stageData?.pctCibir || 0}%)</span>
+                <span className="text-[11px] text-slate-400 ml-1">({stageData?.pctCibir || 0}%)</span>
               </div>
             </div>
           )}
@@ -187,7 +187,7 @@ export default function EmbudoCaptacionChart() {
               </div>
               <div className="text-right">
                 <span className="font-black text-white">{stageData?.acreditacion || 0}</span>
-                <span className="text-[10px] text-slate-400 ml-1">({stageData?.pctAcreditacion || 0}%)</span>
+                <span className="text-[11px] text-slate-400 ml-1">({stageData?.pctAcreditacion || 0}%)</span>
               </div>
             </div>
           )}
@@ -198,7 +198,7 @@ export default function EmbudoCaptacionChart() {
           </div>
 
           {stageData && stageData.totalActual > 0 && (
-            <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+            <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400 font-medium">
               <span>En curso actualmente:</span>
               <span className="font-bold text-amber-300">{stageData.totalActual} postulantes</span>
             </div>
@@ -214,7 +214,7 @@ export default function EmbudoCaptacionChart() {
 
     return (
       <div className="bg-slate-900/95 text-white border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md min-w-[200px] text-xs">
-        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">
+        <p className="text-[11px] font-black uppercase tracking-widest text-emerald-400 mb-1">
           Período
         </p>
         <p className="font-black text-sm text-white mb-2.5">{label}</p>
@@ -341,7 +341,7 @@ export default function EmbudoCaptacionChart() {
               key={p.id}
               type="button"
               onClick={() => handlePresetChange(p.id)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${
                 preset === p.id
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200/60'
@@ -355,7 +355,7 @@ export default function EmbudoCaptacionChart() {
         {/* Inputs de fecha Desde / Hasta (en formato latino con sanitize) */}
         <div className="flex items-center gap-2 self-start md:self-auto">
           <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Desde:</span>
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Desde:</span>
             <input
               type="date"
               value={sanitizeDateForInput(desde)}
@@ -368,7 +368,7 @@ export default function EmbudoCaptacionChart() {
           </div>
 
           <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hasta:</span>
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Hasta:</span>
             <input
               type="date"
               value={sanitizeDateForInput(hasta)}
@@ -397,41 +397,41 @@ export default function EmbudoCaptacionChart() {
       {kpis && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Postulantes Totales</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Postulantes Totales</p>
             <p className="text-2xl font-black text-slate-900">{kpis.totalCaptados}</p>
-            <p className="text-[10px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               CIBIR: <b className="text-emerald-600">{kpis.totalCibir}</b> ({kpis.pctCibirShare}%) · Acred.: <b className="text-indigo-600">{kpis.totalAcreditacion}</b> ({kpis.pctAcreditacionShare}%)
             </p>
           </div>
 
           <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Conversión Global</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Conversión Global</p>
             <p className="text-2xl font-black text-emerald-600">{kpis.tasaConversionGlobal}%</p>
-            <p className="text-[10px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               {kpis.totalAfiliados} culminaron el proceso
             </p>
           </div>
 
           <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Conversión CIBIR</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Conversión CIBIR</p>
             <p className="text-2xl font-black text-emerald-600">{kpis.tasaConversionCibir}%</p>
-            <p className="text-[10px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               Ruta formación modular
             </p>
           </div>
 
           <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Conversión Acreditación</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Conversión Acreditación</p>
             <p className="text-2xl font-black text-indigo-600">{kpis.tasaConversionAcreditacion}%</p>
-            <p className="text-[10px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               Ruta experiencia / baremo
             </p>
           </div>
 
           <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-100/80 space-y-1 col-span-2 sm:col-span-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Rechazados</p>
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Rechazados</p>
             <p className="text-2xl font-black text-rose-500">{kpis.totalRechazados}</p>
-            <p className="text-[10px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium">
               Desestimados / no conformes
             </p>
           </div>
@@ -590,8 +590,8 @@ export default function EmbudoCaptacionChart() {
             >
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Paso 0{st.stepIndex}</span>
-                  <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Paso 0{st.stepIndex}</span>
+                  <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
                     {routeMode === 'cibir' ? st.pctCibir : routeMode === 'acreditacion' ? st.pctAcreditacion : st.pctTotal}%
                   </span>
                 </div>
@@ -600,14 +600,14 @@ export default function EmbudoCaptacionChart() {
                 </p>
               </div>
 
-              <div className="space-y-1 pt-1 border-t border-slate-200/60 text-[10px]">
+              <div className="space-y-1 pt-1 border-t border-slate-200/60 text-[11px]">
                 <div className="flex justify-between font-bold text-slate-600">
                   <span>Acumulado:</span>
                   <span className="text-slate-900 font-black">
                     {routeMode === 'cibir' ? st.cibir : routeMode === 'acreditacion' ? st.acreditacion : st.total}
                   </span>
                 </div>
-                <div className="flex justify-between font-medium text-slate-500 text-[9px]">
+                <div className="flex justify-between font-medium text-slate-500 text-[11px]">
                   <span>En curso:</span>
                   <span className="text-amber-600 font-bold">
                     {routeMode === 'cibir' ? st.cibirActual : routeMode === 'acreditacion' ? st.acreditacionActual : st.totalActual}

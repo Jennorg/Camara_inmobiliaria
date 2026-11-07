@@ -160,7 +160,7 @@ export default function RequisitosPage() {
                         </div>
 
                         <div className="flex flex-col items-center flex-1 w-full justify-start overflow-hidden">
-                          <span className="text-[10px] font-black text-white/70 uppercase tracking-widest bg-black/10 px-2.5 py-0.5 rounded-full mb-2 shrink-0">
+                          <span className="text-[11px] font-black text-white/70 uppercase tracking-widest bg-black/10 px-2.5 py-0.5 rounded-full mb-2 shrink-0">
                             Paso 0{idx + 1}
                           </span>
                           <h3 className="font-black text-white text-sm uppercase tracking-wider shrink-0 mb-1">{step.title}</h3>
@@ -201,7 +201,7 @@ export default function RequisitosPage() {
                         <step.icon size={24} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-0.5">Paso 0{idx + 1}</p>
+                        <p className="text-[11px] font-black uppercase tracking-widest opacity-30 mb-0.5">Paso 0{idx + 1}</p>
                         <h3 className="font-black text-slate-800 text-sm uppercase tracking-tight">{step.title}</h3>
                       </div>
                     </div>

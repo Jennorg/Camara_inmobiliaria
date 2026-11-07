@@ -34,7 +34,7 @@ const PriorityBadge = ({ priority }: { priority: string }) => {
     BAJA:    'bg-slate-50 text-slate-500 border-slate-100',
   };
   return (
-    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${map[priority] ?? map.NORMAL}`}>
+    <span className={`text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${map[priority] ?? map.NORMAL}`}>
       {priority}
     </span>
   );
@@ -231,7 +231,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
               <button
                 type="button"
                 onClick={handleMarkAllAsRead}
-                className="hidden sm:flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors px-2 py-1 rounded-lg hover:bg-emerald-50"
+                className="hidden sm:flex items-center gap-1.5 text-[11px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-700 transition-colors px-2 py-1 rounded-lg hover:bg-emerald-50"
               >
                 <CheckCheck size={13} />
                 Marcar todas
@@ -257,7 +257,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
               type="button"
               onClick={() => setFilter(f)}
               className={[
-                'text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full whitespace-nowrap transition-colors',
+                'text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full whitespace-nowrap transition-colors',
                 filter === f
                   ? 'bg-emerald-500 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-100',
@@ -272,7 +272,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
             <button
               type="button"
               onClick={handleMarkAllAsRead}
-              className="sm:hidden ml-auto flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest whitespace-nowrap"
+              className="sm:hidden ml-auto flex items-center gap-1.5 text-[11px] font-black text-emerald-600 uppercase tracking-widest whitespace-nowrap"
             >
               <CheckCheck size={12} />
               Marcar todas
@@ -339,15 +339,15 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
                       {n.mensaje}
                     </p>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                      <span className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
                         <Clock size={10} />
                         {formatDistanceToNow(new Date(n.creado_en), { addSuffix: true, locale: es })}
                       </span>
-                      <span className="text-[10px] text-slate-300 font-medium">
+                      <span className="text-[11px] text-slate-300 font-medium">
                         {format(new Date(n.creado_en), "d MMM yyyy 'a las' HH:mm", { locale: es })}
                       </span>
                       {n.tipo !== 'SISTEMA' && (
-                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{n.tipo}</span>
+                        <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">{n.tipo}</span>
                       )}
                     </div>
                   </div>
@@ -371,7 +371,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
               )}
               {!hasMore && visible.length > 0 && (
                 <div className="py-6 text-center">
-                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Fin del historial</p>
+                  <p className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Fin del historial</p>
                 </div>
               )}
             </div>

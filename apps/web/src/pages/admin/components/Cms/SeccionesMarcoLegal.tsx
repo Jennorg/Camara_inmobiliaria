@@ -92,7 +92,7 @@ export function SeccionesMarcoLegal({ secciones, onCambio }: { secciones: Seccio
           {puedeCrear && (
             <form onSubmit={crear} className="flex flex-wrap items-end gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
-                <label htmlFor="nueva-seccion-nombre" className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Nueva sección</label>
+                <label htmlFor="nueva-seccion-nombre" className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Nueva sección</label>
                 <input
                   id="nueva-seccion-nombre"
                   value={nuevo.nombre}
@@ -146,8 +146,8 @@ export function SeccionesMarcoLegal({ secciones, onCambio }: { secciones: Seccio
                   ) : (
                     <>
                       <span className="flex-1 min-w-0 text-sm font-bold text-slate-800 truncate" title={s.nombre}>{s.nombre}</span>
-                      <span className="text-[10px] font-bold text-slate-400">{s.total} doc.</span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${esPublica(s) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      <span className="text-[11px] font-bold text-slate-400">{s.total} doc.</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border ${esPublica(s) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                         {esPublica(s) ? <Globe size={10} aria-hidden /> : <Lock size={10} aria-hidden />}
                         {esPublica(s) ? 'Pública' : 'Privada'}
                       </span>

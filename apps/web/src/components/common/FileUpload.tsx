@@ -321,7 +321,7 @@ export default function FileUpload({
   return (
     <div className={`max-w-full overflow-hidden ${isLogoVariant ? 'w-32 flex flex-col items-center gap-2' : 'w-full space-y-2'}`}>
       {isLogoVariant ? (
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center truncate shrink-0">
+        <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 text-center truncate shrink-0">
           {label} {required && <span className="text-rose-500">*</span>}
         </span>
       ) : (
@@ -382,7 +382,7 @@ export default function FileUpload({
                 <p className="text-[11px] font-bold text-slate-700 group-hover:text-emerald-700 transition-colors">
                   {disabled ? 'Sin logo' : isDragging ? 'Soltar' : 'Cargar logo'}
                 </p>
-                <p className="text-[9px] text-slate-400 font-medium">
+                <p className="text-[11px] text-slate-400 font-medium">
                   {disabled ? 'Corporativo' : 'PNG, JPG, SVG'}
                 </p>
               </div>
@@ -394,7 +394,7 @@ export default function FileUpload({
                 {uploading ? (
                   <div className="flex flex-col items-center gap-1">
                     <Loader2 size={24} className="animate-spin text-emerald-600" />
-                    <span className="text-[10px] font-bold text-emerald-700">Subiendo...</span>
+                    <span className="text-[11px] font-bold text-emerald-700">Subiendo...</span>
                   </div>
                 ) : isUrlImage && (uploadedUrl || previewObjectUrl) ? (
                   <img
@@ -417,7 +417,7 @@ export default function FileUpload({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] font-bold"
+                        className="p-1 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold"
                         title="Ver en tamaño completo"
                       >
                         <ExternalLink size={12} />
@@ -487,7 +487,7 @@ export default function FileUpload({
               <p className="text-xs sm:text-base font-bold text-slate-700 group-hover:text-emerald-700 transition-colors truncate">
                 {isDragging ? 'Suelta el archivo aquí' : 'Haz clic o arrastra un archivo'}
               </p>
-              <p className="text-[10px] sm:text-xs text-slate-400 font-medium uppercase tracking-normal">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium uppercase tracking-normal">
                 Soporta PDF, JPG, PNG (Máx {maxSizeMB}MB)
               </p>
             </div>
@@ -526,7 +526,7 @@ export default function FileUpload({
 
               <div className="flex flex-wrap items-center gap-2 mt-1 min-w-0">
                 {uploading && (
-                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-600 animate-pulse">
+                  <span className="inline-flex items-center gap-1 text-[11px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-600 animate-pulse">
                     Subiendo...
                   </span>
                 )}
@@ -642,14 +642,14 @@ export default function FileUpload({
 
             {lockAspect ? (
               <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
                 <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white text-emerald-700 shadow-sm">
                   Fijo 1:1 (Cuadrado)
                 </span>
               </div>
             ) : (folder.includes('logo') || (label && label.toLowerCase().includes('logo'))) ? (
               <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre Logo:</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Encuadre Logo:</span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -669,7 +669,7 @@ export default function FileUpload({
               </div>
             ) : (
               <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-slate-100/80 rounded-xl">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Encuadre:</span>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -698,8 +698,8 @@ export default function FileUpload({
 
             <div className="px-2">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
-                <span className="text-[10px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+                <span className="text-[11px] font-bold text-slate-600">{Math.round(zoom * 100)}%</span>
               </div>
               <input
                 type="range"

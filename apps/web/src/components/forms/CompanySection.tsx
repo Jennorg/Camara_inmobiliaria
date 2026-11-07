@@ -23,13 +23,13 @@ export default function CompanySection() {
         </div>
         <div>
           <h3 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-100">Datos de la Empresa</h3>
-          <p className="text-[10px] text-emerald-100/40 font-medium uppercase tracking-widest mt-0.5">Información Legal de la Entidad</p>
+          <p className="text-[11px] text-emerald-100/40 font-medium uppercase tracking-widest mt-0.5">Información Legal de la Entidad</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <div className="space-y-2">
-          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.razonSocial ? 'text-red-400' : 'text-emerald-100/60'}`}>
+          <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.razonSocial ? 'text-red-400' : 'text-emerald-100/60'}`}>
             Razón Social <span className="text-emerald-500">*</span>
           </label>
           <Input 
@@ -38,12 +38,12 @@ export default function CompanySection() {
             icon={<Building2 size={16} />}
             className={errors.razonSocial ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.razonSocial && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.razonSocial.message as string}</p>}
+          {errors.razonSocial && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.razonSocial.message as string}</p>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.rifNumber ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.rifNumber ? 'text-red-400' : 'text-emerald-100/60'}`}>
               RIF de la Empresa <span className="text-emerald-500">*</span>
             </label>
             <div className="flex gap-2">
@@ -59,10 +59,10 @@ export default function CompanySection() {
                 className={errors.rifNumber ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
               />
             </div>
-            {errors.rifNumber && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.rifNumber.message as string}</p>}
+            {errors.rifNumber && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.rifNumber.message as string}</p>}
           </div>
           <div className="space-y-2">
-            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
               Correo Corporativo <span className="text-emerald-500">*</span>
             </label>
             <Input 
@@ -72,11 +72,11 @@ export default function CompanySection() {
               icon={<Mail size={16} />}
               className={errors.emailEmpresa ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
-            {errors.emailEmpresa && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.emailEmpresa.message as string}</p>}
+            {errors.emailEmpresa && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.emailEmpresa.message as string}</p>}
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.telefonoEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
+            <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.telefonoEmpresa ? 'text-red-400' : 'text-emerald-100/60'}`}>
               Teléfono de la Empresa (Opcional)
             </label>
             <div className="flex gap-2">
@@ -92,7 +92,7 @@ export default function CompanySection() {
                 className={errors.telefonoEmpresa ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
               />
             </div>
-            {errors.telefonoEmpresa && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.telefonoEmpresa.message as string}</p>}
+            {errors.telefonoEmpresa && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.telefonoEmpresa.message as string}</p>}
           </div>
         </div>
       </div>
