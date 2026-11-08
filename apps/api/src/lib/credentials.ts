@@ -190,7 +190,7 @@ export async function establecerAccesoPanelAfiliado(
 /**
  * Acceso al sistema de un aspirante: solo cuando la Junta Directiva aprueba su CIBIR.
  * Crea el usuario (contraseña inservible hasta que la establezca) y envía el enlace por correo.
- * Si ya tiene usuario, solo reenvía cuando aún no ha establecido su contraseña (token vigente sin usar).
+ * Si ya tiene usuario, solo envía el enlace cuando nunca estableció su contraseña (ningún enlace de contraseña usado).
  */
 export async function concederAccesoAlAprobarCibir(idAfiliado: number): Promise<void> {
   const r = await db.execute({
@@ -208,11 +208,9 @@ export async function concederAccesoAlAprobarCibir(idAfiliado: number): Promise<
 
   const existente = await db.execute({ sql: `SELECT id FROM users WHERE email = ?`, args: [email] })
   if (existente.rows.length) {
-    const pendiente = await db.execute({
-      sql: `SELECT 1 FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
-      args: [email, new Date().toISOString()],
-    })
-    if (!pendiente.rows.length) return // ya estableció su contraseña
+    // Un enlace ya usado significa que estableció su contraseña; sin uno, su cuenta nunca tuvo contraseña propia
+    const yaEstablecio = await db.execute({ sql: `SELECT 1 FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 1 LIMIT 1`, args: [email] })
+    if (yaEstablecio.rows.length) return
   } else {
     const ins = await db.execute({
       sql: `INSERT INTO users (email, password_hash, roles) VALUES (?, ?, '["estudiante", "afiliado"]') RETURNING id`,
