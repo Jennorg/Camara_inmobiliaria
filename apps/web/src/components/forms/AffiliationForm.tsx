@@ -108,7 +108,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
           Hemos recibido los datos de su institución con éxito. Un asesor de la Cámara revisará la información y le contactará vía correo electrónico para formalizar la afiliación.
         </p>
         <div className="mt-12 pt-8 border-t border-white/5 max-w-xs mx-auto">
-          <p className="text-[10px] uppercase tracking-[0.4em] font-black text-white/10">
+          <p className="text-[11px] uppercase tracking-[0.4em] font-black text-white/10">
             Cámara Inmobiliaria • 2026
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
             <Info size={16} className="text-white" />
           </div>
           <p className="text-xs leading-relaxed text-emerald-100/80">
-            <span className="font-black text-emerald-300 block mb-1 uppercase tracking-widest text-[10px]">Importante: Flujo Corporativo</span>
+            <span className="font-black text-emerald-300 block mb-1 uppercase tracking-widest text-[11px]">Importante: Flujo Corporativo</span>
             Al registrar su empresa, podrá gestionar las afiliaciones de sus empleados y corredores asociados de manera centralizada.
           </p>
         </div> */}
@@ -138,7 +138,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
         <div className="flex flex-col gap-6 pt-4">
           {/* Leyenda de campos requeridos */}
           <div className="flex justify-end">
-            <p className="text-[10px] text-emerald-100/40 font-bold uppercase tracking-widest">
+            <p className="text-[11px] text-emerald-100/40 font-bold uppercase tracking-widest">
               <span className="text-emerald-500">*</span> Campos obligatorios
             </p>
           </div>
@@ -171,7 +171,7 @@ export default function AffiliationForm({ programaCodigo, onSuccess }: Props) {
             </div>
           )}
 
-          <p className="text-[10px] text-center uppercase tracking-[0.3em] font-black text-white/20 mt-4">
+          <p className="text-[11px] text-center uppercase tracking-[0.3em] font-black text-white/20 mt-4">
             Cámara Inmobiliaria • Protocolo de Afiliación 2026
           </p>
         </div>

@@ -70,7 +70,7 @@ function CarnetCropperModal({
           <div className="flex justify-between items-center">
             <div>
               <h3 className="font-black text-slate-800 text-lg">Encuadrar Foto de Credencial</h3>
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Aspecto exacto del carnet (155x185)</p>
+              <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Aspecto exacto del carnet (155x185)</p>
             </div>
             <button
               type="button"
@@ -111,8 +111,8 @@ function CarnetCropperModal({
 
           <div className="px-2">
             <div className="flex justify-between items-center mb-1.5">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
-              <span className="text-[10px] font-bold text-slate-600">{Math.round(cropperZoom * 100)}%</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Zoom</span>
+              <span className="text-[11px] font-bold text-slate-600">{Math.round(cropperZoom * 100)}%</span>
             </div>
             <input
               type="range"
@@ -133,7 +133,7 @@ function CarnetCropperModal({
             type="button"
             disabled={savingCrop}
             onClick={() => fileInputRef.current?.click()}
-            className="w-full text-[10px] font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center justify-center gap-1 uppercase tracking-widest"
+            className="w-full text-[11px] font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center justify-center gap-1 uppercase tracking-widest"
           >
             <ImageIcon size={12} /> Cargar una foto diferente
           </button>

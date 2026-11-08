@@ -29,7 +29,7 @@ export default function Direccion() {
             <p className='mb-6'>
               La Junta Directiva, actuando en plena vigencia de sus funciones para el <strong> período 2025-2027</strong> y en cumplimiento de los Estatutos Sociales (1999), Título IV, Capítulo I, Artículo 21, convoca oficialmente a sus Afiliados.
             </p>
-            <div className='bg-slate-50 border-l-4 border-blue-500 p-8 my-8 rounded-r-lg shadow-sm'>
+            <div className='bg-slate-50 border-l border-blue-500 p-8 my-8 rounded-r-lg shadow-sm'>
               <h3 className='font-bold text-slate-800 mb-4 uppercase text-sm'>Orden del Día:</h3>
               <ul className='space-y-3 list-disc list-inside text-slate-600'>
                 <li>Formalización de la nueva Junta Directiva CIEBO (2025-2027).</li>

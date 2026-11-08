@@ -60,9 +60,9 @@ const RecentTransactionsTable = ({
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-slate-700 truncate">{tx.description}</p>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-[10px] text-slate-400">{tx.date}</span>
-                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{tx.category}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${STATUS_STYLES[tx.status]}`}>
+                <span className="text-[11px] text-slate-400">{tx.date}</span>
+                <span className="text-[11px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">{tx.category}</span>
+                <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${STATUS_STYLES[tx.status]}`}>
                   {STATUS_LABELS[tx.status]}
                 </span>
               </div>
@@ -80,7 +80,7 @@ const RecentTransactionsTable = ({
           <thead>
             <tr className="bg-gray-50/60">
               {['FECHA', 'ID TRANSACCIÓN', 'DESCRIPCIÓN', 'CATEGORÍA', 'ESTADO', 'MONTO'].map((h) => (
-                <th key={h} className="px-5 py-2.5 text-left text-[10px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap">
+                <th key={h} className="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap">
                   {h}
                 </th>
               ))}

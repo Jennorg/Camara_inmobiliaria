@@ -200,7 +200,7 @@ export default function FormacionSection() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleCardAction(curso); }}
-                        className="block w-full text-center py-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest transition-colors hover:bg-emerald-500 hover:border-emerald-500 hover:text-[#022c22] shadow-xl"
+                        className="block w-full text-center py-3 bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl text-white font-bold text-[11px] uppercase tracking-widest transition-colors hover:bg-emerald-500 hover:border-emerald-500 hover:text-[#022c22] shadow-xl"
                       >
                         {curso.solo_informativo ? 'Ver más' : s.boton}
                       </button>

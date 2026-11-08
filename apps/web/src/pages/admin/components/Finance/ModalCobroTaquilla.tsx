@@ -342,7 +342,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
           
           {programaPorCobrar ? (
             <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block">Programa</span>
+              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-900 block">Programa</span>
               <span className="text-sm font-bold text-slate-800">{programaPorCobrar.nombre}</span>
               {montoUSD <= 0 && (
                 <p className="flex items-start gap-1.5 text-[11px] font-semibold text-amber-700">
@@ -353,7 +353,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             </div>
           ) : cursoPorCobrar ? (
             <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block">Curso</span>
+              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-900 block">Curso</span>
               <span className="text-sm font-bold text-slate-800">{cursoPorCobrar.curso}</span>
               {cursoPorCobrar.monto_usd != null && Number(cursoPorCobrar.monto_usd) !== cursoPorCobrar.precio_actual && (
                 <p className="flex items-start gap-1.5 text-[11px] font-semibold text-amber-700">
@@ -364,7 +364,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             </div>
           ) : (
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">
               Concepto del Cobro
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -378,7 +378,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 }`}
               >
                 <span className="block font-black text-[11px]">Formalización</span>
-                <span className="text-[10px] opacity-70">Inscripción + 1º Mes</span>
+                <span className="text-[11px] opacity-70">Inscripción + 1º Mes</span>
               </button>
 
               <button
@@ -391,7 +391,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 }`}
               >
                 <span className="block font-black text-[11px]">Curso CIBIR</span>
-                <span className="text-[10px] opacity-70">Arancel Académico</span>
+                <span className="text-[11px] opacity-70">Arancel Académico</span>
               </button>
 
               <button
@@ -404,14 +404,14 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                 }`}
               >
                 <span className="block font-black text-[11px]">Mensualidad</span>
-                <span className="text-[10px] opacity-70">Solvencia</span>
+                <span className="text-[11px] opacity-70">Solvencia</span>
               </button>
             </div>
 
             {tipoConcepto === 'mensualidad' && (
               <div className="pt-2">
                 <SelectorMesesPago lista={lista} meses={mesesCubiertos} onChange={cambiarMeses} />
-                <span className="mt-1 block text-[10px] font-medium text-slate-500">
+                <span className="mt-1 block text-[11px] font-medium text-slate-500">
                   {mesesDeudaAfiliado > 0
                     ? `Se aplica a la deuda más antigua (${mesesDeudaAfiliado} ${mesesDeudaAfiliado === 1 ? 'mes' : 'meses'} en mora).`
                     : 'Está al día: lo que pase de hoy queda como adelanto.'} Total: ${(montoMensual * mesesCubiertos).toFixed(2)}
@@ -423,7 +423,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
 
           {/* Método de Pago */}
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">
               Forma de Pago Recibida
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -449,7 +449,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                     }`}
                   >
                     <Icon className={`w-4 h-4 ${m.key === 'binance_usdt' && !isSelected ? 'text-[#F0B90B]' : ''}`} />
-                    <span className="text-[10px] leading-tight">{m.label}</span>
+                    <span className="text-[11px] leading-tight">{m.label}</span>
                   </button>
                 );
               })}
@@ -460,7 +460,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
           <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block mb-1">
+                <label className="text-[11px] font-black uppercase tracking-wider text-emerald-900 block mb-1">
                   Arancel Base (USD)
                 </label>
                 <div className="relative">
@@ -475,14 +475,14 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
                   />
                 </div>
                 {tipoConcepto === 'formalizacion_afiliacion' && (
-                  <p className="text-[10px] text-emerald-700 mt-1 font-medium">
+                  <p className="text-[11px] text-emerald-700 mt-1 font-medium">
                     Incluye: $25 inscripción + $5 mensualidad
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-emerald-900 block mb-1">
+                <label className="text-[11px] font-black uppercase tracking-wider text-emerald-900 block mb-1">
                   Tasa BCV (Bs./USD)
                 </label>
                 <div className="relative">
@@ -512,7 +512,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
           {/* Referencia y Banco (opcional si es digital o Binance) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+              <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1">
                 {metodoPago === 'binance_usdt' ? 'Nº Referencia / Order ID / Hash (Opcional)' : 'Nº Referencia / Confirmación (Opcional)'}
               </label>
               <input
@@ -525,7 +525,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
             </div>
 
             <div>
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+              <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1">
                 {metodoPago === 'binance_usdt' ? 'Cuenta / Binance Pay ID (Opcional)' : 'Banco Origen (Opcional)'}
               </label>
               <input
@@ -540,7 +540,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
 
           {/* Notas */}
           <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-1">
               Notas de Taquilla
             </label>
             <input

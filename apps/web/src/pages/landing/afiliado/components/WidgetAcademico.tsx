@@ -391,28 +391,28 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 )}
                 {/* Badge Status */}
                 {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo') ? (
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">
                     Solo Informativo
                   </div>
                 ) : isApproved ? (
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-600 flex items-center gap-1">
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-600 flex items-center gap-1">
                     ✓ Aprobado
                   </div>
                 ) : course.estatus === 'Próximamente' ? (
-                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-500">
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-emerald-500">
                     Próximamente
                   </div>
                 ) : null}
                 {/* Badge Curso Privado */}
                 {!course.isFlagship && (course.solo_afiliados === 1 || course.solo_afiliados === true) && (
-                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500 flex items-center gap-1">
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500 flex items-center gap-1">
                     <span>🔒</span> Afiliados
                   </div>
                 )}
                 {/* Badge Enrolled */}
                 {isEnrolled && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10">
-                    <span className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">
+                    <span className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg">
                       En Curso
                     </span>
                   </div>
@@ -421,7 +421,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
 
               <div className="mt-3">
                 <span
-                  className="text-[9px] font-bold uppercase tracking-widest mb-1 block"
+                  className="text-[11px] font-bold uppercase tracking-widest mb-1 block"
                   style={{ color: 'var(--color-accent-hover)' }}
                 >
                   {course.nivel_academico || course.categoria || 'Libre'}
@@ -439,7 +439,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 )}
                 {!isEnrolled && (
                   <div
-                    className="mt-3 flex items-center text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-transform -translate-x-2 group-hover:translate-x-0"
+                    className="mt-3 flex items-center text-[11px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-transform -translate-x-2 group-hover:translate-x-0"
                     style={{ color: isApproved ? 'var(--color-primary)' : 'var(--color-accent-hover)' }}
                   >
                     {(course.solo_informativo === 1 || course.solo_informativo === true || course.estatus === 'Solo Informativo')

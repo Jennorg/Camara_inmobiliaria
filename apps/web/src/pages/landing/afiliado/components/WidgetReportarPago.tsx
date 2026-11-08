@@ -46,7 +46,7 @@ const METODO_DE_CUENTA: Partial<Record<CuentaBancariaDTO['tipo'], MetodoPago>> =
 };
 
 const inputClase = 'w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-white text-xs font-medium';
-const etiquetaClase = 'text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1';
+const etiquetaClase = 'text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1';
 
 /**
  * Formulario del afiliado para reportar un pago digital: mensualidades (uno o varios meses) o un
@@ -282,7 +282,7 @@ const WidgetReportarPago = ({ idAfiliado, onReportado, mesesFijos }: Props) => {
           )}
 
           <div className="md:col-span-2 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900">Monto a pagar</span>
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-900">Monto a pagar</span>
             <span className="text-lg font-black tabular-nums text-emerald-900">
               ${montoUsd.toFixed(2)} USD
               {moneda === 'VES' && tasaBcv > 0 && (

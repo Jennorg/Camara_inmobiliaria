@@ -48,7 +48,7 @@ export default function Proposito() {
       >
         <div className="relative z-10 text-center space-y-4">
           <p
-            className="text-emerald-500 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs animate-header-text"
+            className="text-emerald-500 font-black uppercase tracking-[0.3em] text-[11px] sm:text-xs animate-header-text"
             style={{ animationDelay: "0.2s", opacity: 0 }}
           >
             Valores y Compromiso Ético
@@ -60,7 +60,7 @@ export default function Proposito() {
             Nuestro <span className="text-emerald-500 italic">Propósito</span>
           </h1>
           <p
-            className="text-emerald-100/60 max-w-2xl mx-auto font-medium animate-header-text uppercase tracking-widest text-[10px] sm:text-sm"
+            className="text-emerald-100/60 max-w-2xl mx-auto font-medium animate-header-text uppercase tracking-widest text-[11px] sm:text-sm"
             style={{ animationDelay: "0.6s", opacity: 0 }}
           >
             Pilares fundamentales para el desarrollo del sector inmobiliario
@@ -70,7 +70,7 @@ export default function Proposito() {
       <main className="bg-white text-slate-900 rounded-t-[4rem] -mt-12 relative z-10 px-6 lg:px-20 py-24">
         <div className="max-w-5xl mx-auto space-y-16">
           <section ref={setRevealCuerpo} className="reveal-slide-up space-y-6">
-            <div className="inline-block border-l-4 border-emerald-500 pl-6">
+            <div className="inline-block border-l border-emerald-500 pl-6">
               <h2 className="text-2xl font-black text-[#022c22] uppercase tracking-tight leading-none">
                 Cámara Inmobiliaria del estado Bolívar
               </h2>

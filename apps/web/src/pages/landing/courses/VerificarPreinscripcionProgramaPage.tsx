@@ -751,7 +751,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                     <div className="flex items-center justify-between">
                       <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
                       {pendingDiplomadoFecha && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
                           {formatDateLatina(pendingDiplomadoFecha)}
                         </span>
                       )}
@@ -886,10 +886,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                           {isCompleted ? <Check size={16} strokeWidth={3} /> : <StepIcon size={16} />}
                         </div>
                         <div className="space-y-0.5">
-                          <p className={`text-[8px] font-black uppercase tracking-wider ${isCurrent ? 'text-emerald-300' : isCompleted ? 'text-emerald-400' : 'text-emerald-100/40'}`}>
+                          <p className={`text-[11px] font-black uppercase tracking-wider ${isCurrent ? 'text-emerald-300' : isCompleted ? 'text-emerald-400' : 'text-emerald-100/40'}`}>
                             Paso {idx + 1}
                           </p>
-                          <p className={`text-[10px] font-bold leading-tight truncate max-w-[95px] mx-auto ${isCurrent ? 'text-white' : 'text-emerald-100/60'}`}>
+                          <p className={`text-[11px] font-bold leading-tight truncate max-w-[95px] mx-auto ${isCurrent ? 'text-white' : 'text-emerald-100/60'}`}>
                             {step.label}
                           </p>
                         </div>
@@ -904,7 +904,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                   <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
                     <CheckCircle2 size={16} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400">
                     Paso 1
                   </span>
                 </div>
@@ -913,7 +913,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'success' ? 'bg-emerald-500' : 'bg-emerald-500/20 border border-emerald-500/40'}`}>
                     {status === 'success' ? <CheckCircle2 size={16} className="text-white" /> : <span className="text-emerald-400 text-xs font-black">2</span>}
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'success' ? 'text-emerald-400' : 'text-emerald-100/60'}`}>
+                  <span className={`text-[11px] font-black uppercase tracking-widest ${status === 'success' ? 'text-emerald-400' : 'text-emerald-100/60'}`}>
                     Paso 2
                   </span>
                 </div>
@@ -1187,7 +1187,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           <div className="flex items-center justify-between">
                             <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Nacimiento</label>
                             {formData.fecha_nacimiento && (
-                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
                                 {formatDateLatina(formData.fecha_nacimiento)}
                               </span>
                             )}
@@ -1374,7 +1374,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                           <div className="flex items-center justify-between">
                             <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha de Finalización</label>
                             {pendingEspecializacionFecha && (
-                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
                                 {formatDateLatina(pendingEspecializacionFecha)}
                               </span>
                             )}
@@ -1500,7 +1500,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <div className="flex items-center justify-between">
                         <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Certificado</label>
                         {pendingCursoFecha && (
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
                             {formatDateLatina(pendingCursoFecha)}
                           </span>
                         )}
@@ -1649,7 +1649,7 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <div className="flex items-center justify-between">
                         <label className="text-xs md:text-sm font-black uppercase tracking-wider text-slate-400 ml-1">Fecha del Documento</label>
                         {pendingOtroFecha && (
-                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             {formatDateLatina(pendingOtroFecha)}
                           </span>
                         )}

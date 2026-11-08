@@ -142,7 +142,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700 block">
+                        <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700 block">
                           {a.categoria} · {a.codigo}
                         </span>
                         {isEditing ? (

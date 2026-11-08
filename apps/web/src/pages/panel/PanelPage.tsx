@@ -593,7 +593,7 @@ const PanelPage = () => {
                     })().map(role => (
                       <span
                         key={role}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-[10px] font-black uppercase tracking-widest border ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-sm text-[11px] font-black uppercase tracking-widest border ${
                           role === 'admin'
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                             : 'border-[var(--color-border-accent)] bg-[var(--color-accent-muted)] text-[var(--color-accent-hover)]'

@@ -68,7 +68,7 @@ const WidgetNotificaciones = () => {
                     <p className="text-xs mt-1 leading-relaxed line-clamp-2" style={{ color: 'var(--color-text-muted)' }}>
                       {notif.mensaje}
                     </p>
-                    <span className="text-[9px] font-bold uppercase mt-2 block tracking-wider" style={{ color: 'var(--color-text-faint)' }}>
+                    <span className="text-[11px] font-bold uppercase mt-2 block tracking-wider" style={{ color: 'var(--color-text-faint)' }}>
                       {formatDistanceToNow(new Date(notif.creado_en), { addSuffix: true, locale: es })}
                     </span>
                   </div>

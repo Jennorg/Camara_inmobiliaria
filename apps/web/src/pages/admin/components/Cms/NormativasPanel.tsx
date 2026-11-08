@@ -508,7 +508,7 @@ export const NormativasPanel = () => {
               {/* Banner de animación cuando la página detecta arrastre de documento en pantalla */}
               {isDraggingFileInWindow && !uploading && (
                 <div className="absolute inset-0 bg-emerald-100 rounded-2xl flex flex-col items-center justify-center text-center p-4 z-20 pointer-events-none border-2 border-emerald-500 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 animate-bounce mb-2">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 mb-2">
                     <Upload size={24} />
                   </div>
                   <p className="text-sm font-black text-emerald-950 uppercase tracking-wider">
@@ -535,7 +535,7 @@ export const NormativasPanel = () => {
                         ? decodeURIComponent(form.url_archivo.split('/').pop() || '').replace(/^[a-f0-9-]{30,}-/i, '') 
                         : 'Haz clic o arrastra un archivo PDF aquí'}
                 </span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">
                   {uploadedFileName || form.url_archivo ? 'Archivo PDF cargado correctamente' : 'PDF (Máx. 25MB)'}
                 </span>
               </div>
@@ -732,7 +732,7 @@ export const NormativasPanel = () => {
                         aria-label={`Seleccionar ${item.titulo}`}
                         className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
                       />}
-                      <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100/80 shadow-2xs truncate max-w-[150px]">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100/80 shadow-2xs truncate max-w-[150px]">
                         <FileText size={12} className="text-rose-500 shrink-0" strokeWidth={2.5} />
                         <span className="truncate">{item.categoria || 'Normativa'}</span>
                       </span>
@@ -742,7 +742,7 @@ export const NormativasPanel = () => {
                       type="button"
                       onClick={(e) => toggleVisibility(item, e)}
                       disabled={!can(item.categoria, 'editar')}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border cursor-pointer transition-colors shrink-0 ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border cursor-pointer transition-colors shrink-0 ${
                         isPublic
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                           : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
@@ -768,13 +768,13 @@ export const NormativasPanel = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-emerald-600 transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-emerald-600 transition-colors"
                     >
                       <ExternalLink size={12} />
                       <span>Abrir PDF</span>
                     </a>
                   ) : (
-                    <span className="text-[10px] text-slate-400 font-medium">Sin archivo</span>
+                    <span className="text-[11px] text-slate-400 font-medium">Sin archivo</span>
                   )}
 
                   <div className="flex items-center gap-1">
@@ -874,7 +874,7 @@ export const NormativasPanel = () => {
                             type="button"
                             onClick={(e) => toggleVisibility(item, e)}
                       disabled={!can(item.categoria, 'editar')}
-                            className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-100 shrink-0 transition-colors cursor-pointer"
+                            className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-100 shrink-0 transition-colors cursor-pointer"
                             title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : "Clic para ocultar en el portal web"}
                           >
                             <Eye size={10} /> Público
@@ -884,14 +884,14 @@ export const NormativasPanel = () => {
                             type="button"
                             onClick={(e) => toggleVisibility(item, e)}
                       disabled={!can(item.categoria, 'editar')}
-                            className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-100 shrink-0 transition-colors cursor-pointer"
+                            className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full border border-amber-100 shrink-0 transition-colors cursor-pointer"
                             title={!can(item.categoria, 'editar') ? 'Sin permiso para editar' : "Clic para mostrar en el portal web"}
                           >
                             <EyeOff size={10} /> Oculto
                           </button>
                         )}
                         {item.categoria && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">
                             {item.categoria}
                           </span>
                         )}
@@ -928,7 +928,7 @@ export const NormativasPanel = () => {
                       <FileText size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-emerald-600">
                         {item.categoria || 'Normativa Legal'}
                       </span>
                       <h3 className="text-lg font-black text-slate-800 leading-tight">{item.titulo}</h3>

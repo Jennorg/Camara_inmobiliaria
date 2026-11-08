@@ -427,7 +427,7 @@ const CertificadoAfiliacionPage: React.FC = () => {
                   />
                 </div>
                 <p
-                  className="text-emerald-100 text-[10px] mt-1.5 font-bold tracking-wide select-none drop-shadow-xs"
+                  className="text-emerald-100 text-[11px] mt-1.5 font-bold tracking-wide select-none drop-shadow-xs"
                   style={{ fontFamily: "'Playfair Display', Georgia, serif", fontStyle: 'italic' }}
                 >
                   Código de afiliación
@@ -444,17 +444,17 @@ const CertificadoAfiliacionPage: React.FC = () => {
                   />
                 </div>
                 <div className="w-48 h-[1.5px] bg-slate-400 mb-1" />
-                <span className="text-[10px] font-black text-emerald-950 uppercase tracking-widest font-sans">
+                <span className="text-[11px] font-black text-emerald-950 uppercase tracking-widest font-sans">
                   Francisco Piñango
                 </span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-sans mt-0.5">
                   Presidente de la Junta Directiva
                 </span>
               </div>
 
               {/* Código de Afiliado a la derecha */}
               <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] font-black text-emerald-900 uppercase tracking-widest font-sans mb-1.5 text-center">
+                <span className="text-[11px] font-black text-emerald-900 uppercase tracking-widest font-sans mb-1.5 text-center">
                   Código de Afiliado
                 </span>
                 <span className="inline-flex items-center justify-center text-xl font-bold font-mono text-emerald-950 border border-slate-200 bg-white px-6 py-2 rounded-xl shadow-md">

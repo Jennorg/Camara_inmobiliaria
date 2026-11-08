@@ -118,7 +118,7 @@ function MatrizPorConcepto({ anio, ruta, titulo, colorTotal, vacio }: { anio: nu
       </div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-xs tabular-nums">
-          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+          <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
             <tr>
               <th className="px-3 py-3 text-left">Concepto</th>
               {MESES.map(m => <th key={m} className="px-2 py-3 text-right">{m}</th>)}
@@ -187,7 +187,7 @@ export function IngresosPorCohorte() {
       </div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-xs">
-          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+          <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
             <tr><th className="px-3 py-3 text-left">Programa</th><th className="px-3 py-3 text-left">Cohorte</th><th className="px-3 py-3 text-left">Estado</th><th className="px-3 py-3 text-right">Inscritos</th><th className="px-3 py-3 text-right">Pagos</th><th className="px-3 py-3 text-right">Ingreso</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -246,7 +246,7 @@ export function CuentasPorCobrar() {
         {data.tramos.map(t => (
           <button key={t.tramo} type="button" aria-pressed={tramo === t.tramo} onClick={() => setTramo(tramo === t.tramo ? null : t.tramo)}
             className={`text-left p-3 rounded-2xl border transition-colors ${tramo === t.tramo ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">{t.tramo} días</span>
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">{t.tramo} días</span>
             <span className="text-lg font-black tabular-nums text-slate-900">{usd(t.monto_usd)}</span>
             <span className="text-[11px] text-slate-500 block">{t.cantidad} {t.cantidad === 1 ? 'cuenta' : 'cuentas'}</span>
           </button>
@@ -254,7 +254,7 @@ export function CuentasPorCobrar() {
       </div>
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-xs">
-          <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+          <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
             <tr><th className="px-3 py-3 text-left">Persona</th><th className="px-3 py-3 text-left">Detalle</th><th className="px-3 py-3 text-right">Monto</th><th className="px-3 py-3 text-right">Días</th><th className="px-3 py-3" /></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -271,7 +271,7 @@ export function CuentasPorCobrar() {
                 <td className="px-3 py-2 text-right">
                   {f.id_afiliado && puedeRecordar && (
                     <button type="button" onClick={() => recordar(f.id_afiliado!)} aria-label={`Enviar recordatorio a ${f.nombre}`}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-700 bg-red-50 hover:bg-red-100">
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider text-red-700 bg-red-50 hover:bg-red-100">
                       <Send size={11} aria-hidden="true" /> Recordar
                     </button>
                   )}

@@ -175,7 +175,9 @@ interface Contacto { id_afiliado: number; id_user: number | null; email: string 
 const nombreMes = (ym: string) =>
   new Date(`${ym}-15T12:00:00Z`).toLocaleDateString('es-VE', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
-function textoAviso(tipo: TipoAvisoEnvio, s: SolvenciaAfiliado, cfg: ConfigCobranza, monto: number, mesHoy: string) {
+const FORMAS_DE_PAGO = 'Acércate a la sede de la Cámara para realizar tu pago.'
+
+export function textoAviso(tipo: TipoAvisoEnvio, s: SolvenciaAfiliado, cfg: ConfigCobranza, monto: number, mesHoy: string) {
   const usd = (n: number) => `$${n.toFixed(2)}`
   const enlace = `${env.APP_URL.replace(/\/$/, '')}/panel`
   if (tipo === 'previo' || tipo === 'vencimiento') {
@@ -183,6 +185,13 @@ function textoAviso(tipo: TipoAvisoEnvio, s: SolvenciaAfiliado, cfg: ConfigCobra
     return {
       titulo: tipo === 'previo' ? 'Recordatorio de mensualidad' : 'Tu mensualidad vence hoy',
       mensaje: `Tu mensualidad de ${nombreMes(mesHoy)} (${usd(monto)}) ${cuando}. Puedes reportar tu pago desde "Estado de Cuenta" en tu panel: ${enlace}`,
+      intro: tipo === 'previo' ? 'Te recordamos que tu mensualidad está próxima a vencer.' : 'Hoy vence tu mensualidad.',
+      detalle: [
+        { etiqueta: 'Mensualidad', valor: nombreMes(mesHoy).replace(/^./, c => c.toUpperCase()) },
+        { etiqueta: 'Fecha de vencimiento', valor: `${String(cfg.diaVencimiento).padStart(2, '0')}/${mesHoy.slice(5, 7)}/${mesHoy.slice(2, 4)}` },
+        { etiqueta: 'Monto', valor: usd(monto) },
+      ],
+      nota: FORMAS_DE_PAGO,
     }
   }
   const bloqueo = s.bloqueado
@@ -191,6 +200,14 @@ function textoAviso(tipo: TipoAvisoEnvio, s: SolvenciaAfiliado, cfg: ConfigCobra
   return {
     titulo: 'Tienes mensualidades pendientes',
     mensaje: `Tienes ${s.mesesDeuda} ${s.mesesDeuda === 1 ? 'mensualidad pendiente' : 'mensualidades pendientes'} desde ${nombreMes(s.mesMasAntiguo!)} por ${usd(s.montoUsd)}. ${bloqueo} Reporta tu pago desde "Estado de Cuenta" en tu panel: ${enlace}`,
+    intro: `Tienes ${s.mesesDeuda} ${s.mesesDeuda === 1 ? 'mensualidad pendiente' : 'mensualidades pendientes'} de pago.`,
+    detalle: [
+      { etiqueta: 'Pendiente desde', valor: nombreMes(s.mesMasAntiguo!) },
+      { etiqueta: 'Mensualidades', valor: String(s.mesesDeuda) },
+      { etiqueta: 'Monto adeudado', valor: usd(s.montoUsd) },
+    ],
+    // Los correos no avisan de bloqueos: solo invitan a pagar
+    nota: FORMAS_DE_PAGO,
   }
 }
 
@@ -226,14 +243,14 @@ async function enviarAvisos(lista: { s: SolvenciaAfiliado; tipo: TipoAvisoEnvio 
     if (!reg.rowsAffected) continue
     registrados++
     const c = contactos.get(s.id_afiliado)
-    const { titulo, mensaje } = textoAviso(tipo, s, cfg, monto, hoy.slice(0, 7))
+    const { titulo, mensaje, intro, detalle, nota } = textoAviso(tipo, s, cfg, monto, hoy.slice(0, 7))
     if (c?.id_user) {
       inApp.push({
         sql: `INSERT INTO notificaciones (id_user, tipo, prioridad, titulo, mensaje, data_json) VALUES (?, 'COBRANZA', ?, ?, ?, ?)`,
         args: [c.id_user, tipo === 'mora' || tipo === 'manual' ? 'ALTA' : 'NORMAL', titulo, mensaje, JSON.stringify({ id_afiliado: s.id_afiliado, tipo, meses_deuda: s.mesesDeuda })],
       })
     }
-    if (c?.email) correos.push({ to: c.email, subject: titulo, titulo, parrafos: [`Hola, ${c.nombre}.`, mensaje] })
+    if (c?.email) correos.push({ to: c.email, subject: titulo, titulo, parrafos: [`Hola, ${c.nombre}.`, intro], detalle, nota })
   }
   if (inApp.length) await db.batch(inApp, 'write')
   const emails = await enviarCorreosLote(correos)

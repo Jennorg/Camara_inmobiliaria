@@ -67,6 +67,24 @@ function parseRoles(rolesField: unknown): UserRole[] {
  * Autentica al usuario con email + contraseña.
  * Devuelve un JWT con array de roles.
  */
+const ETAPAS_SIN_ACCESO = ['1_PREINSCRIPCION', '2_EXPEDIENTE', '3_ENTREVISTA', '4_VERIFICACION', '5_CIBIR']
+const MENSAJE_SIN_ACCESO = 'Tu solicitud de afiliación sigue en proceso. Podrás ingresar al sistema cuando la Junta Directiva apruebe tu CIBIR; te lo notificaremos por correo.'
+
+/** Aspirante a afiliado cuyo CIBIR aún no aprueba la Junta: no entra al sistema. El personal (cualquier otro rol) queda fuera de esta regla. */
+async function aspiranteSinAcceso(user: Record<string, unknown>): Promise<boolean> {
+  if (!parseRoles(user.roles).every(r => r === 'estudiante' || r === 'afiliado')) return false
+  const r = await db.execute({
+    sql: `SELECT 1 FROM afiliados a
+          LEFT JOIN personas p ON a.id_persona = p.id
+          LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+          WHERE a.eliminado_en IS NULL AND a.estatus IN (${ETAPAS_SIN_ACCESO.map(() => '?').join(',')})
+            AND (a.id_user = ? OR LOWER(p.email) = LOWER(?) OR LOWER(e.email) = LOWER(?))
+          LIMIT 1`,
+    args: [...ETAPAS_SIN_ACCESO, user.id as number, user.email as string, user.email as string],
+  })
+  return r.rows.length > 0
+}
+
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body
@@ -98,6 +116,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const passwordMatch = await bcrypt.compare(password, user.password_hash as string)
     if (!passwordMatch) {
       res.status(401).json({ success: false, message: 'Credenciales incorrectas' })
+      return
+    }
+
+    if (await aspiranteSinAcceso(user)) {
+      res.status(403).json({ success: false, code: 'CIBIR_PENDIENTE', message: MENSAJE_SIN_ACCESO })
       return
     }
 
@@ -464,6 +487,12 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     
+    if (await aspiranteSinAcceso(user)) {
+      await db.execute({ sql: `DELETE FROM user_refresh_tokens WHERE id_user = ?`, args: [session.id_user] })
+      res.status(403).json({ success: false, code: 'CIBIR_PENDIENTE', message: MENSAJE_SIN_ACCESO })
+      return
+    }
+
     // Eliminar el refresh token viejo (Rotación de Refresh Tokens)
     await db.execute({
       sql: `DELETE FROM user_refresh_tokens WHERE token_hash = ?`,

@@ -144,7 +144,7 @@ const WidgetMisCertificados: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirCertificadoAfiliacion}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-colors shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-white transition-colors shadow-xs cursor-pointer"
                   >
                     <ExternalLink size={14} />
                     Ver Certificado
@@ -152,7 +152,7 @@ const WidgetMisCertificados: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => copiar(urlAfiliacion)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
                   >
                     <Copy size={14} />
                     Copiar Enlace
@@ -231,7 +231,7 @@ const WidgetMisCertificados: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => abrirPublico(codigo)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-emerald-700 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white hover:bg-emerald-700 cursor-pointer"
                       >
                         <ExternalLink size={14} />
                         Abrir certificado
@@ -239,7 +239,7 @@ const WidgetMisCertificados: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => copiar(url)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50 cursor-pointer"
                       >
                         <Copy size={14} />
                         Copiar enlace

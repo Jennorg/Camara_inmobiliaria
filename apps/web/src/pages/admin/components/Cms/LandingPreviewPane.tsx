@@ -85,12 +85,12 @@ export const LandingPreviewPane = ({
         <div className="flex items-center gap-3">
           {/* Live indicator */}
           {iframeReady ? (
-            <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-semibold">
+            <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Live
             </span>
           ) : (
-            <span className="text-[10px] text-slate-500">Cargando…</span>
+            <span className="text-[11px] text-slate-500">Cargando…</span>
           )}
 
           {/* Open in tab */}

@@ -225,7 +225,7 @@ const ComprobantePublicoPage: React.FC = () => {
               Volver
             </button>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Verificación pública</p>
+              <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600">Verificación pública</p>
               <h2 className="text-sm font-bold text-slate-800">Comprobante de aprobación digital</h2>
             </div>
           </div>

@@ -215,11 +215,11 @@ const SuperAdminUsersPanel = () => {
               <div className="flex items-start justify-between gap-2 pl-1">
                 <div className="space-y-1 min-w-0">
                   <span className="font-bold text-slate-800 text-sm truncate block">{u.email}</span>
-                  <span className="text-[10px] text-slate-400 font-medium block">
+                  <span className="text-[11px] text-slate-400 font-medium block">
                     Creado: {new Date(u.creado_en).toLocaleDateString()}
                   </span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0 ${
                   u.rol === 'super_admin' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-blue-50 text-blue-700 border border-blue-100'
                 }`}>
                   {u.rol}

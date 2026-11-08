@@ -84,7 +84,7 @@ export default function DirectivaSection() {
       <div className='max-w-7xl mx-auto space-y-16 relative'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-6'>
           <div className='space-y-4'>
-            <p className='text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs'>
+            <p className='text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-[0.3em] text-[11px] sm:text-xs'>
               {s.subtitulo}
             </p>
             <h2 className='text-4xl sm:text-5xl lg:text-7xl font-black text-[#022c22] dark:text-white tracking-tighter'>
@@ -121,7 +121,7 @@ export default function DirectivaSection() {
                     </div>
                     <div className="w-full flex flex-col items-center">
                       <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-snug line-clamp-2">{formatNombreCard(m.nombres || m.nombre, m.apellidos)}</h4>
-                      <p className="text-[9px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full inline-block mt-1.5 line-clamp-1 border border-emerald-100 dark:border-emerald-500/30">{m.cargo}</p>
+                      <p className="text-[11px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full inline-block mt-1.5 line-clamp-1 border border-emerald-100 dark:border-emerald-500/30">{m.cargo}</p>
                     </div>
                   </div>
                 )
@@ -179,7 +179,7 @@ export default function DirectivaSection() {
                     </div>
                     <div>
                       <h4 className="text-base sm:text-lg font-bold text-slate-800">{formatNombreCard(m.nombres || m.nombre, m.apellidos)}</h4>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{m.cargo}</p>
+                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-1">{m.cargo}</p>
                     </div>
                   </>
                 )

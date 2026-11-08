@@ -60,7 +60,7 @@ function DonutChart({
           </svg>
           <div className='absolute inset-0 flex flex-col items-center justify-center text-center px-1'>
             <span className='text-xl font-black text-slate-900 leading-none'>{centerValue}</span>
-            <span className='text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[70px]'>{centerLabel}</span>
+            <span className='text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[70px]'>{centerLabel}</span>
           </div>
         </div>
         <div className='flex flex-col gap-2.5 flex-1 w-full min-w-0'>
@@ -69,9 +69,9 @@ function DonutChart({
               <div className='flex items-center justify-between gap-2'>
                 <div className='flex items-center gap-1.5 min-w-0'>
                   <span className='w-2 h-2 rounded-full flex-shrink-0' style={{ background: a.color }} />
-                  <span className='text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate'>{a.label}</span>
+                  <span className='text-[11px] font-bold text-slate-500 uppercase tracking-wide truncate'>{a.label}</span>
                 </div>
-                <span className='text-[10px] font-black text-slate-700 tabular-nums flex-shrink-0'>{a.value}</span>
+                <span className='text-[11px] font-black text-slate-700 tabular-nums flex-shrink-0'>{a.value}</span>
               </div>
               <div className='w-full h-1 bg-slate-50 rounded-full overflow-hidden'>
                 <div className='h-full rounded-full transition-colors duration-1000' style={{ width: `${a.pct * 100}%`, background: a.color }} />
@@ -108,12 +108,12 @@ function BarChartCard({
           const pct = Math.min(100, Math.round((s.value / maxVal) * 100));
           return (
             <div key={s.label} className='space-y-1'>
-              <div className='flex items-center justify-between text-[10px] font-bold'>
+              <div className='flex items-center justify-between text-[11px] font-bold'>
                 <div className='flex items-center gap-1.5 min-w-0'>
                   <span className='w-2.5 h-2.5 rounded-sm flex-shrink-0' style={{ background: s.color }} />
                   <span className='text-slate-600 uppercase tracking-wide truncate'>{s.label}</span>
                 </div>
-                <span className='text-slate-900 font-black tabular-nums shrink-0 ml-1'>{s.value} <span className='text-[9px] font-normal text-slate-400'>faltantes</span></span>
+                <span className='text-slate-900 font-black tabular-nums shrink-0 ml-1'>{s.value} <span className='text-[11px] font-normal text-slate-400'>faltantes</span></span>
               </div>
               <div className='w-full h-1.5 bg-slate-50 rounded-full overflow-hidden'>
                 <div 
@@ -256,29 +256,29 @@ const AnalyticsPanel = () => {
         <div className='flex flex-wrap justify-center gap-4'>
           <div className='group bg-white rounded-[1.75rem] p-5 border border-slate-100 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-colors transition-transform duration-300 w-72'>
             <div className='flex items-start justify-between gap-2'>
-              <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Afiliados Activos</p>
+              <p className='text-[11px] font-black text-slate-400 uppercase tracking-widest'>Afiliados Activos</p>
               <div className='w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500'>
                 <Users size={18} className='text-emerald-500' />
               </div>
             </div>
             <p className='text-3xl font-black text-slate-900 leading-none'>{kpis.afiliadosActivos || 0}</p>
-            <p className='text-[10px] text-slate-400 font-medium'>Miembros con estatus Afiliado</p>
+            <p className='text-[11px] text-slate-400 font-medium'>Miembros con estatus Afiliado</p>
           </div>
           <div className='group bg-white rounded-[1.75rem] p-5 border border-slate-100 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-colors transition-transform duration-300 w-72'>
             <div className='flex items-start justify-between gap-2'>
-              <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Solicitudes Pendientes</p>
+              <p className='text-[11px] font-black text-slate-400 uppercase tracking-widest'>Solicitudes Pendientes</p>
               <div className='w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500'>
                 <Clock size={18} className='text-amber-500' />
               </div>
             </div>
             <p className='text-3xl font-black text-slate-900 leading-none'>{kpis.solicitudesPendientes || 0}</p>
-            <p className='text-[10px] text-slate-400 font-medium'>
+            <p className='text-[11px] text-slate-400 font-medium'>
               {kpis.afiliadosAprobados || 0} aprobados · {kpis.afiliadosRechazados || 0} rechazados
             </p>
           </div>
           <div className='group bg-white rounded-[1.75rem] p-5 border border-slate-100 flex flex-col gap-3 hover:shadow-lg hover:-translate-y-0.5 transition-colors transition-transform duration-300 w-72'>
             <div className='flex items-start justify-between gap-2'>
-              <p className='text-[10px] font-black text-slate-400 uppercase tracking-widest'>Logos Corporativos</p>
+              <p className='text-[11px] font-black text-slate-400 uppercase tracking-widest'>Logos Corporativos</p>
               <div className='w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500'>
                 <Building2 size={18} className='text-blue-500' />
               </div>
@@ -286,7 +286,7 @@ const AnalyticsPanel = () => {
             <p className='text-3xl font-black text-slate-900 leading-none'>
               {kpis.afiliadosCorpConLogo || 0} <span className='text-sm text-slate-400 font-bold'>/ {kpis.totalAfiliadosCorp || 0}</span>
             </p>
-            <p className='text-[10px] text-slate-400 font-medium'>
+            <p className='text-[11px] text-slate-400 font-medium'>
               {kpis.totalAfiliadosCorp > 0 ? Math.round(((kpis.afiliadosCorpConLogo || 0) / kpis.totalAfiliadosCorp) * 100) : 0}% de empresas tienen su logo cargado
             </p>
           </div>
@@ -365,10 +365,10 @@ const AnalyticsPanel = () => {
                     </div>
                     <p className='text-xs text-slate-600 leading-relaxed'>{a.mensaje}</p>
                     <div className='flex items-center gap-2 pt-0.5'>
-                      <span className='inline-block text-[9px] font-black px-2 py-0.5 rounded-lg text-emerald-700 bg-emerald-50'>
+                      <span className='inline-block text-[11px] font-black px-2 py-0.5 rounded-lg text-emerald-700 bg-emerald-50'>
                         {cfg.label}
                       </span>
-                      <span className='text-[10px] text-slate-400'>{formatRelativeTime(a.creado_en)}</span>
+                      <span className='text-[11px] text-slate-400'>{formatRelativeTime(a.creado_en)}</span>
                     </div>
                   </div>
                 </div>

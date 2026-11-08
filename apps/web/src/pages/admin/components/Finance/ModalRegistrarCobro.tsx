@@ -184,9 +184,9 @@ const ModalRegistrarCobro: React.FC<Props> = ({ open, onClose, onCobrado, authHe
                     <p className="text-xs text-slate-500 truncate">{p.identificacion}{p.codigo ? ` · ${p.codigo}` : ''}</p>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">{p.estatus.replace(/^\d_/, '').replace('_', ' ')}</span>
-                    {!!p.formalizacion_pendiente && <span className="text-[10px] font-bold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5">Formalización pendiente</span>}
-                    {!!p.cibir_pendiente && <span className="text-[10px] font-bold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5">CIBIR pendiente</span>}
+                    <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">{p.estatus.replace(/^\d_/, '').replace('_', ' ')}</span>
+                    {!!p.formalizacion_pendiente && <span className="text-[11px] font-bold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5">Formalización pendiente</span>}
+                    {!!p.cibir_pendiente && <span className="text-[11px] font-bold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5">CIBIR pendiente</span>}
                   </div>
                 </button>
               ))}

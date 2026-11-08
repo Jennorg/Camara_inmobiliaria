@@ -199,26 +199,26 @@ export default function CursosCatalogPage() {
                   <svg className="w-16 h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                 )}
                 <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none' />
-                <div className='absolute top-5 left-5 bg-emerald-500 text-[#022c22] px-4 py-1.5 rounded-xl text-[10px] font-black uppercase shadow-lg'>
+                <div className='absolute top-5 left-5 bg-emerald-500 text-[#022c22] px-4 py-1.5 rounded-xl text-[11px] font-black uppercase shadow-lg'>
                   {curso.categoria || curso.nivel_academico || 'Curso'}
                 </div>
                 {(curso.solo_afiliados === 1 || curso.solo_afiliados === true) && (
-                  <div className='absolute top-14 left-5 bg-amber-500 text-white px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1'>
+                  <div className='absolute top-14 left-5 bg-amber-500 text-white px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1'>
                     <span>🔒</span> Solo Afiliados
                   </div>
                 )}
                 {isInformative ? (
-                  <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">Solo Informativo</div>
+                  <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-purple-600">Solo Informativo</div>
                 ) : (
                   <>
                     {curso.estatus === 'Próximamente' && (
-                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-blue-500">Próximamente</div>
+                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-blue-500">Próximamente</div>
                     )}
                     {curso.estatus === 'En curso' && (
-                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500">En curso</div>
+                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-amber-500">En curso</div>
                     )}
                     {curso.estatus === 'Cerrado' && (
-                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg bg-red-500">Cerrado</div>
+                      <div className="absolute top-5 right-5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest text-white shadow-lg bg-red-500">Cerrado</div>
                     )}
                   </>
                 )}

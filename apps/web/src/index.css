@@ -724,3 +724,33 @@ body { margin: 0; padding: 0; min-height: 100%; -webkit-font-smoothing: antialia
     backdrop-filter: none !important;
   }
 }
+/* ── Refinamiento "Registro Oficial" (ver DESIGN.md) ──────────────────────── */
+/* Contraste: slate-400/500 pasan a tonos que cumplen 4.5:1 sobre blanco al usarse como texto. */
+@theme {
+  --color-slate-400: #66758b;
+  --color-slate-500: #4f5d73;
+}
+
+::selection { background: var(--color-accent-muted); color: var(--color-primary); }
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent-hover);
+  outline-offset: 2px;
+}
+
+input, textarea { caret-color: var(--color-accent-hover); }
+
+/* Movimiento reducido: sin animaciones ni transiciones largas para quien lo pide */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal-on-scroll { opacity: 1; transform: none; }
+  .animate-affiliation-ticker, .animate-marquee { animation: none !important; }
+}
+
+/* Cifras alineadas en tablas y montos */
+table, .tabular-nums { font-variant-numeric: tabular-nums; }

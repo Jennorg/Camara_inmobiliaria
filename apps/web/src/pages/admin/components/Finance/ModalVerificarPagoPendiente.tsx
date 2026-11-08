@@ -157,7 +157,7 @@ export const ModalVerificarPagoPendiente: React.FC<ModalVerificarPagoPendientePr
           {/* Aspirante Info */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 grid grid-cols-2 gap-3">
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Aspirante
               </span>
               <p className="text-sm font-black text-slate-900 mt-0.5">
@@ -169,7 +169,7 @@ export const ModalVerificarPagoPendiente: React.FC<ModalVerificarPagoPendientePr
             </div>
 
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Concepto
               </span>
               <p className="text-xs font-bold text-emerald-800 mt-0.5">
@@ -181,43 +181,43 @@ export const ModalVerificarPagoPendiente: React.FC<ModalVerificarPagoPendientePr
           {/* Transaction Info */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Monto Declarado
               </span>
               <p className="text-base font-black font-mono text-emerald-900 mt-0.5">
                 {pago.moneda === 'USD' ? `$${pago.monto.toFixed(2)}` : `Bs. ${pago.monto.toFixed(2)}`}
               </p>
               {pago.moneda === 'VES' && pago.monto_usd_equivalente && (
-                <span className="text-[10px] text-emerald-700">(${pago.monto_usd_equivalente.toFixed(2)} USD)</span>
+                <span className="text-[11px] text-emerald-700">(${pago.monto_usd_equivalente.toFixed(2)} USD)</span>
               )}
             </div>
 
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Método de Pago
               </span>
               <p className="text-xs font-bold text-slate-800 mt-1 uppercase">
                 {pago.metodo_pago.replace('_', ' ')}
               </p>
               {pago.banco_origen && (
-                <p className="text-[10px] text-slate-500">{pago.banco_origen}</p>
+                <p className="text-[11px] text-slate-500">{pago.banco_origen}</p>
               )}
             </div>
 
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                 Referencia
               </span>
               <p className="text-xs font-mono font-black text-slate-900 mt-1">
                 {pago.referencia || 'S/R'}
               </p>
-              <span className="text-[10px] text-slate-400">{formatDateLatina(pago.fecha_pago || pago.creado_en)}</span>
+              <span className="text-[11px] text-slate-400">{formatDateLatina(pago.fecha_pago || pago.creado_en)}</span>
             </div>
           </div>
 
           {/* Comprobante Adjunto */}
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2">
               Comprobante de Pago Adjunto
             </span>
             {pago.comprobante_url ? (

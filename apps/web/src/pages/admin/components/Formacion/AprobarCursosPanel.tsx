@@ -506,7 +506,7 @@ export default function AprobarCursosPanel() {
               <button
                 type="button"
                 onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-[#00B870] transition-colors"
+                className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-slate-600 hover:text-[#00B870] transition-colors"
               >
                 <span>
                   {searchField === 'nombre' && 'Nombre'}
@@ -532,7 +532,7 @@ export default function AprobarCursosPanel() {
                           setSearchField(option.key as any);
                           setShowSearchDropdown(false);
                         }}
-                        className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${searchField === option.key
+                        className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors ${searchField === option.key
                           ? 'bg-[#E9FAF4] text-[#00B870] font-extrabold'
                           : 'text-slate-600 hover:bg-slate-50'
                           }`}
@@ -578,7 +578,7 @@ export default function AprobarCursosPanel() {
                 key={f.key}
                 onClick={() => setUiFilter(f.key)}
                 className={[
-                  'text-[10px] font-bold px-3 py-1.5 rounded-full transition-transform flex items-center gap-1.5 active:scale-95',
+                  'text-[11px] font-bold px-3 py-1.5 rounded-full transition-transform flex items-center gap-1.5 active:scale-95',
                   uiFilter === f.key
                     ? 'bg-[#00D084] text-white shadow-sm shadow-[#00D084]/20'
                     : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border border-slate-100',
@@ -586,7 +586,7 @@ export default function AprobarCursosPanel() {
               >
                 {f.label}
                 <span className={[
-                  'px-1.5 py-0.5 rounded-full text-[9px] font-black',
+                  'px-1.5 py-0.5 rounded-full text-[11px] font-black',
                   uiFilter === f.key ? 'bg-white/25 text-white' : 'bg-slate-200/60 text-slate-500'
                 ].join(' ')}>
                   {counts[f.key]}
@@ -601,7 +601,7 @@ export default function AprobarCursosPanel() {
           {loading ? (
             <div className="p-10 text-center flex flex-col items-center justify-center gap-2">
               <div className="w-5 h-5 border-2 border-[#00D084] border-t-transparent rounded-full animate-spin" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cargando...</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Cargando...</span>
             </div>
           ) : error ? (
             <div className="p-6 text-center text-xs text-red-500 font-semibold">{error}</div>
@@ -617,7 +617,7 @@ export default function AprobarCursosPanel() {
                   key={r.id_inscripcion}
                   onClick={() => { setSelected(r); fetchDocumentos(r.id_estudiante); fetchModulos(r.id_inscripcion); }}
                   className={[
-                    'w-full text-left px-4 py-4 transition-colors flex flex-col gap-1.5 border-l-4 border-transparent',
+                    'w-full text-left px-4 py-4 transition-colors flex flex-col gap-1.5 border-l border-transparent',
                     selected?.id_inscripcion === r.id_inscripcion
                       ? 'bg-[#E9FAF4] border-l-[#00D084]'
                       : 'hover:bg-slate-50/50',
@@ -630,7 +630,7 @@ export default function AprobarCursosPanel() {
                     ].join(' ')}>
                       {r.estudiante_nombre}
                     </span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border flex items-center gap-1 ${isCompletado
+                    <span className={`text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border flex items-center gap-1 ${isCompletado
                       ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                       : 'bg-amber-50 text-amber-600 border-amber-100'
                       }`}>
@@ -650,12 +650,12 @@ export default function AprobarCursosPanel() {
                         style={{ width: `${((r.modulos_aprobados || 0) / (r.num_modulos || 1)) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-slate-400 font-black whitespace-nowrap">
+                    <span className="text-[11px] text-slate-400 font-black whitespace-nowrap">
                       {r.modulos_aprobados || 0} / {r.num_modulos || 1} Mód.
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium mt-0.5">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium mt-0.5">
                     <span>ID: {r.estudiante_cedula || 'S/N'}</span>
                     <span>{new Date(r.fecha_inscripcion).toLocaleDateString('es-ES', { month: 'short', day: '2-digit' })}</span>
                   </div>
@@ -691,14 +691,14 @@ export default function AprobarCursosPanel() {
                   <h3 className="text-base font-bold text-slate-900 leading-tight">{selected.estudiante_nombre}</h3>
                   <button
                     onClick={() => setIsInfoModalOpen(true)}
-                    className="px-2.5 py-1 text-[10px] font-bold text-slate-500 hover:text-[#00B870] bg-slate-50 hover:bg-[#E9FAF4] border border-slate-200 hover:border-[#00D084]/20 rounded-lg transition-colors"
+                    className="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-[#00B870] bg-slate-50 hover:bg-[#E9FAF4] border border-slate-200 hover:border-[#00D084]/20 rounded-lg transition-colors"
                   >
                     Más información
                   </button>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5 font-bold uppercase tracking-wider">Estudiante Inscrito</p>
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border flex items-center gap-1 ${Number(selected.completado) === 1
+              <span className={`text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border flex items-center gap-1 ${Number(selected.completado) === 1
                 ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                 : 'bg-amber-50 text-amber-600 border-amber-100'
                 }`}>
@@ -710,7 +710,7 @@ export default function AprobarCursosPanel() {
             <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex flex-col gap-3">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
                 <GraduationCap className="w-4 h-4 text-emerald-600" />
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Curso / Programa</h4>
+                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Curso / Programa</h4>
               </div>
               <div>
                 <p className="text-sm font-extrabold text-slate-800 leading-tight">
@@ -728,17 +728,17 @@ export default function AprobarCursosPanel() {
               <div className="flex items-center justify-between pb-2 border-b border-slate-50">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-emerald-600" />
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progreso por Módulos</h4>
+                  <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Progreso por Módulos</h4>
                 </div>
                 {Number(selected.completado) === 1 ? (
-                  <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
                     Aprobado y Certificado
                   </span>
                 ) : (
                   <button
                     onClick={handleAprobarTodos}
                     disabled={completing || evaluating !== null}
-                    className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:pointer-events-none"
+                    className="text-[11px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors transition-transform px-2.5 py-1 rounded border border-emerald-200 active:scale-95 flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:pointer-events-none"
                   >
                     {completing ? (
                       <>
@@ -755,7 +755,7 @@ export default function AprobarCursosPanel() {
               {loadingModulos ? (
                 <div className="py-8 flex flex-col items-center justify-center gap-2">
                   <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cargando módulos...</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Cargando módulos...</span>
                 </div>
               ) : !Array.isArray(modulos) || modulos.length === 0 ? (
                 <p className="text-xs text-slate-400 italic">No hay módulos configurados para este curso.</p>
@@ -789,7 +789,7 @@ export default function AprobarCursosPanel() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-bold text-slate-800 break-words">{mod.nombre_modulo}</span>
                               {mod.profesor && (
-                                <span className="text-[10px] text-slate-500 font-semibold italic">
+                                <span className="text-[11px] text-slate-500 font-semibold italic">
                                   (Prof. {mod.profesor})
                                 </span>
                               )}
@@ -800,7 +800,7 @@ export default function AprobarCursosPanel() {
                               </p>
                             )}
                             {isAprobado && mod.fecha_evaluacion && (
-                              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
                                 Aprobado el {new Date(mod.fecha_evaluacion).toLocaleDateString()}
                               </p>
                             )}
@@ -809,17 +809,17 @@ export default function AprobarCursosPanel() {
                           <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                             {/* Badges */}
                             {isAprobado && (
-                              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-wider border border-emerald-100 flex items-center gap-1">
+                              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-wider border border-emerald-100 flex items-center gap-1">
                                 <CheckCircle2 size={10} /> Aprobado
                               </span>
                             )}
                             {isRechazado && (
-                              <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-500 text-[9px] font-black uppercase tracking-wider border border-rose-100 flex items-center gap-1">
+                              <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-500 text-[11px] font-black uppercase tracking-wider border border-rose-100 flex items-center gap-1">
                                 Rechazado
                               </span>
                             )}
                             {!isAprobado && !isRechazado && (
-                              <span className="px-2.5 py-1 rounded-full bg-slate-50 text-slate-400 text-[9px] font-black uppercase tracking-wider border border-slate-100 flex items-center gap-1">
+                              <span className="px-2.5 py-1 rounded-full bg-slate-50 text-slate-400 text-[11px] font-black uppercase tracking-wider border border-slate-100 flex items-center gap-1">
                                 Pendiente
                               </span>
                             )}
@@ -830,7 +830,7 @@ export default function AprobarCursosPanel() {
                                 <button
                                   onClick={() => handleAprobarModulo(mod.nombre_modulo)}
                                   disabled={evaluating !== null || completing}
-                                  className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1"
+                                  className="px-2 py-1.5 bg-[#E9FAF4] hover:bg-[#00D084] text-[#00B870] hover:text-white rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors transition-transform border border-[#00D084]/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1"
                                 >
                                   {evaluating === mod.nombre_modulo ? (
                                     <>
@@ -846,7 +846,7 @@ export default function AprobarCursosPanel() {
                                 <button
                                   onClick={() => handleRechazarModulo(mod.nombre_modulo)}
                                   disabled={evaluating !== null || completing}
-                                  className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1"
+                                  className="px-2 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors transition-transform border border-rose-100 active:scale-95 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center gap-1"
                                 >
                                   {evaluating === mod.nombre_modulo ? (
                                     <>
@@ -905,15 +905,15 @@ export default function AprobarCursosPanel() {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
                   <User className="w-4 h-4 text-[#00D084]" />
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Información Personal</h4>
+                  <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Información Personal</h4>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Cédula o RIF</span>
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Cédula o RIF</span>
                     <p className="text-xs font-bold text-slate-700">{selected.estudiante_cedula || 'No especificado'}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Correo Electrónico</span>
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Correo Electrónico</span>
                     <div className="flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-slate-400" />
                       <a href={`mailto:${selected.estudiante_email}`} className="text-xs font-bold text-[#00B870] hover:underline break-all">
@@ -922,7 +922,7 @@ export default function AprobarCursosPanel() {
                     </div>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Teléfono</span>
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Teléfono</span>
                     <div className="flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-slate-400" />
                       <p className="text-xs font-bold text-slate-700">{selected.estudiante_telefono || 'No registrado'}</p>
@@ -936,9 +936,9 @@ export default function AprobarCursosPanel() {
                 <div className="flex items-center justify-between pb-2 border-b border-slate-50">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-[#00D084]" />
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documentos Adjuntos</h4>
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Documentos Adjuntos</h4>
                   </div>
-                  {loadingDocs && <span className="text-[9px] font-bold text-[#00B870] animate-pulse">Cargando...</span>}
+                  {loadingDocs && <span className="text-[11px] font-bold text-[#00B870] animate-pulse">Cargando...</span>}
                 </div>
                 {loadingDocs ? (
                   <div className="py-6 flex justify-center">
@@ -960,7 +960,7 @@ export default function AprobarCursosPanel() {
                           <FileText className="w-4 h-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider truncate leading-tight">
+                          <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider truncate leading-tight">
                             {doc.tipo_doc.replace(/_/g, ' ')}
                           </p>
                           <p className="text-[11px] font-bold text-slate-700 truncate group-hover:text-emerald-700 mt-0.5">
@@ -999,7 +999,7 @@ export default function AprobarCursosPanel() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">Inscribir Alumno / Persona</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Asignar estudiante a un curso activo</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Asignar estudiante a un curso activo</p>
                 </div>
               </div>
               <button
@@ -1015,7 +1015,7 @@ export default function AprobarCursosPanel() {
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 {/* Seleccionar Curso */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
                     1. Seleccionar Curso o Programa *
                   </label>
                   <select
@@ -1035,7 +1035,7 @@ export default function AprobarCursosPanel() {
 
                 {/* Tipo de Inscrito Switcher */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
                     2. Origen del Estudiante *
                   </label>
                   <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
@@ -1067,7 +1067,7 @@ export default function AprobarCursosPanel() {
                 {/* Si elige Afiliado Existente */}
                 {enrollMode === 'afiliado' && (
                   <div className="space-y-3 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 relative z-30">
-                    <label className="block text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">
+                    <label className="block text-[11px] font-black text-emerald-800 uppercase tracking-widest mb-1">
                       Buscar en Directorio de Afiliados
                     </label>
 
@@ -1082,7 +1082,7 @@ export default function AprobarCursosPanel() {
                               e.stopPropagation();
                               setShowAfiliadoSearchDropdown(prev => !prev);
                             }}
-                            className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 hover:text-[#00B870] transition-colors"
+                            className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-800 hover:text-[#00B870] transition-colors"
                           >
                             <span>
                               {afiliadoSearchField === 'nombre' && 'Nombre'}
@@ -1115,7 +1115,7 @@ export default function AprobarCursosPanel() {
                                       setAfiliadoSearchField(option.key as any);
                                       setShowAfiliadoSearchDropdown(false);
                                     }}
-                                    className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${afiliadoSearchField === option.key
+                                    className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors ${afiliadoSearchField === option.key
                                       ? 'bg-[#E9FAF4] text-[#00B870] font-extrabold'
                                       : 'text-slate-600 hover:bg-slate-50'
                                       }`}
@@ -1189,17 +1189,17 @@ export default function AprobarCursosPanel() {
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <p className="font-bold truncate text-slate-900">{nombre}</p>
                                       {af.codigo && (
-                                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shrink-0">
+                                        <span className="text-[11px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shrink-0">
                                           {af.codigo}
                                         </span>
                                       )}
                                       {af.tipo_afiliado && (
-                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                                        <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
                                           {af.tipo_afiliado}
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
                                       {af.email || af.empresa_email || 'Sin correo'} • C.I/RIF: {af.cedula || af.rif || 'S/N'}
                                       {af.empresa_razon_social && af.tipo_afiliado !== 'Corporativo' ? ` • ${af.empresa_razon_social}` : ''}
                                     </p>
@@ -1218,7 +1218,7 @@ export default function AprobarCursosPanel() {
                 <div className="space-y-3 pt-1">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Nombre(s) *
                       </label>
                       <input
@@ -1238,7 +1238,7 @@ export default function AprobarCursosPanel() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Apellido(s) *
                       </label>
                       <input
@@ -1261,7 +1261,7 @@ export default function AprobarCursosPanel() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Correo Electrónico *
                       </label>
                       <input
@@ -1275,7 +1275,7 @@ export default function AprobarCursosPanel() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Tipo y Cédula / RIF
                       </label>
                       <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
@@ -1302,7 +1302,7 @@ export default function AprobarCursosPanel() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                       Teléfono de Contacto
                     </label>
                     <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">

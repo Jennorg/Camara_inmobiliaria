@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middlewares/auth.middleware.js'
 import { randomUUID, createHash } from 'crypto'
 import { esProgramaCohorte } from '../lib/cohortes.js'
 import { db } from '../lib/db.js'
+import { concederAccesoAlAprobarCibir } from '../lib/credentials.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
@@ -25,12 +26,13 @@ const generateSlug = (str: string) => {
 import { emitirComprobanteSiCompleto, ensureCibirCertificate } from '../lib/certificados.js'
 import {
   enviarCorreoConfirmacionPreinscripcionPrograma,
-  notificarAdminNuevaPreinscripcion,
   enviarCorreoAprobacionEstudiante,
   enviarCorreoSetPasswordEstudiante,
   obtenerEstadoCorreo,
   enviarCorreoResultadoEntrevista,
   enviarCorreoInvitacionCibir,
+  enviarCorreoAprobacion,
+  enviarCorreoAccesoCibirAprobado,
   enviarCorreoRechazo,
   enviarCorreoReservaCurso,
 } from '../lib/email.js'
@@ -1317,18 +1319,6 @@ export const publicConfirmarPreinscripcionPrograma = async (req: Request, res: R
       }
     }
 
-    // Notificar al admin (Deshabilitado para AFILIACION temporalmente por solicitud del usuario)
-    if (programaCodigo !== 'AFILIACION') {
-      notificarAdminNuevaPreinscripcion({
-        idInscripcion: Number(result.rows[0].id_inscripcion),
-        nombre: nombreCompleto,
-        email: email,
-        programaCodigo: programaCodigo,
-        cedulaRif: cedulaRif,
-        telefono: telefono
-      }).catch(e => console.error('Error notificando admin (programa):', e))
-    }
-
     NotificationService.notifyAdmins({
       title: `Expediente Recibido: ${programaCodigo}`,
       message: `El aspirante ${nombreCompleto} (${email}) ha enviado su expediente para ${programaCodigo}.`,
@@ -1736,7 +1726,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
     const message = reservaVence
       ? `Cupo reservado. Monto a pagar: $${montoUsd.toFixed(2)}${esAfiliado ? ' (precio de afiliado)' : ''}. ` +
         `La reserva vence el ${new Date(reservaVence).toLocaleString('es-VE', { timeZone: 'America/Caracas', dateStyle: 'medium', timeStyle: 'short' })}: ` +
-        `paga en la taquilla de la Cámara${esAfiliado ? ' o reporta tu pago desde tu panel' : ''} antes de esa fecha para conservar el cupo.`
+        `paga en la sede de la Cámara${esAfiliado ? ' o reporta tu pago desde tu panel' : ''} antes de esa fecha para conservar el cupo.`
       : 'Inscripción procesada. Pronto nos pondremos en contacto.'
 
     res.status(201).json({
@@ -2455,6 +2445,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
                     AND (pg.id_afiliado = af.id_afiliado OR pg.id_estudiante = ic.id_estudiante)) as pago_cibir,
           EXISTS (SELECT 1 FROM pagos pg WHERE pg.tipo_concepto = 'programa' AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL
                     AND pg.id_estudiante = ic.id_estudiante AND pg.codigo_arancel = 'programa_' || LOWER(ic.programa_codigo)) as pago_programa,
+          (ic.estatus = 'Pagado' OR EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_inscripcion_curso = ic.id_inscripcion AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL)) as pago_curso,
           emp_vinc.razon_social as empresa_vinculada_nombre,
           af.ano_inicio_servicio as ano_inicio_servicio,
           entr.fecha as entrevista_fecha,
@@ -2954,55 +2945,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       args: [req.user?.id || null, now, id]
     })
 
-    let tokenToUse = randomUUID()
-    let shouldSendToken = false
-
-    // 3. Crear/Verificar Acceso de Usuario
-    try {
-      const userRes = await db.execute({
-        sql: `SELECT id FROM users WHERE email = ?`,
-        args: [row.email]
-      })
-      const existingUser = userRes.rows[0] as any
-
-      if (!existingUser) {
-        shouldSendToken = true
-        const placeholderPass = await bcrypt.hash(randomUUID(), 10)
-
-        await db.execute({
-          sql: `INSERT INTO users (email, password_hash, roles)
-                VALUES (?, ?, '["estudiante", "afiliado"]')`,
-          args: [row.email, placeholderPass]
-        })
-      } else {
-        // Check if there is an unused reset_password token
-        const tokCheck = await db.execute({
-          sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
-          args: [row.email, now]
-        })
-        if (tokCheck.rows.length > 0) {
-          shouldSendToken = true
-        }
-      }
-
-      if (shouldSendToken) {
-        const expiracion = new Date()
-        expiracion.setDate(expiracion.getDate() + 30) // 30 días de validez
-        // clean up old tokens
-        await db.execute({
-          sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`,
-          args: [row.email]
-        })
-        const tokenHash = sha256(tokenToUse)
-        await db.execute({
-          sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion)
-                VALUES (?, 'reset_password', ?, 0, ?)`,
-          args: [tokenHash, row.email, expiracion.toISOString()]
-        })
-      }
-    } catch (err) {
-      console.error('Error preparando acceso para CIBIR:', err)
-    }
+    // El aspirante no tiene acceso al sistema hasta que la Junta Directiva apruebe su CIBIR
 
     // 4. Vincular como Afiliado con estatus '5_CIBIR'
     try {
@@ -3016,7 +2959,6 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       await enviarCorreoInvitacionCibir({
         nombre: row.nombre_completo,
         emailOriginal: row.email,
-        token: shouldSendToken ? tokenToUse : undefined
       })
     } catch (err) {
       console.error('Error enviando correo de invitación CIBIR:', err)
@@ -3117,6 +3059,9 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     let insertedAfiliadoId: number | null = null
     let tokenToUse = randomUUID()
     let shouldSendToken = false
+    // En la afiliación, aprobar la entrevista solo mueve al aspirante a la siguiente etapa: sin acceso ni correo
+    // (el acceso llega al aprobar el CIBIR)
+    const sinAcceso = row.programa_codigo === 'AFILIACION'
 
     // Crear/Verificar Acceso
     try {
@@ -3126,7 +3071,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       })
       const existingUser = userRes.rows[0] as any
 
-      if (!existingUser) {
+      if (!existingUser && !sinAcceso) {
         shouldSendToken = true
         const placeholderPass = await bcrypt.hash(randomUUID(), 10)
         const defaultRoles = row.programa_codigo === 'AFILIACION' ? '["estudiante", "afiliado"]' : '["estudiante"]'
@@ -3136,7 +3081,7 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
                 VALUES (?, ?, ?)`,
           args: [row.email, placeholderPass, defaultRoles]
         })
-      } else {
+      } else if (existingUser && !sinAcceso) {
         // Check if there is an unused reset_password token
         const tokCheck = await db.execute({
           sql: `SELECT id FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
@@ -3196,17 +3141,19 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
       }
     }
 
-    // Correo de bienvenida definitivo
-    try {
-      await enviarCorreoResultadoEntrevista({
-        nombre: row.nombre_completo,
-        emailOriginal: row.email,
-        resultado: resultado as 'Aprobado' | 'Parcial' | 'Rechazado',
-        programaCodigo: row.programa_codigo || 'Curso',
-        token: shouldSendToken ? tokenToUse : undefined
-      })
-    } catch (err) {
-      console.error('Error enviando correo de bienvenida:', err)
+    // Correo de bienvenida definitivo (no aplica a la afiliación: ahí el aspirante solo cambia de etapa)
+    if (!sinAcceso) {
+      try {
+        await enviarCorreoResultadoEntrevista({
+          nombre: row.nombre_completo,
+          emailOriginal: row.email,
+          resultado: resultado as 'Aprobado' | 'Parcial' | 'Rechazado',
+          programaCodigo: row.programa_codigo || 'Curso',
+          token: shouldSendToken ? tokenToUse : undefined,
+        })
+      } catch (err) {
+        console.error('Error enviando correo de bienvenida:', err)
+      }
     }
 
     res.json({ success: true, message: `Inscripción finalizada como ${resultado}.` })
@@ -4136,7 +4083,9 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     const targetAfiliadoStatus = statusValues[etapa]
 
     // 2. Crear acceso al portal si pasa a 'Inscrito' (etapa >= 3)
-    if (targetInscripcionStatus === 'Inscrito' && row.email) {
+    // En la afiliación, el acceso solo se concede al aprobar el CIBIR (etapa 5 en adelante)
+    const concedeAcceso = !(row.programa_codigo === 'AFILIACION' && etapa < 5)
+    if (targetInscripcionStatus === 'Inscrito' && row.email && concedeAcceso) {
       try {
         const userRes = await db.execute({
           sql: `SELECT id FROM users WHERE email = ?`,
@@ -4186,33 +4135,39 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
           })
         }
 
-        // Si se cambia a la etapa 4 (CIBIR), notificar por correo de invitación CIBIR
-        if (etapa === 4 && row.programa_codigo === 'AFILIACION') {
+        if (etapa === 5 || etapa === 6) {
           try {
-            await enviarCorreoInvitacionCibir({
-              nombre: row.nombre_completo,
-              emailOriginal: row.email,
-              token: shouldSendToken ? tokenToUse : undefined
-            })
-          } catch (mailErr) {
-            console.error('Error enviando correo de invitación CIBIR en cambio de etapa:', mailErr)
-          }
-        } else if (etapa === 5 || etapa === 6) {
-          try {
-            await enviarCorreoResultadoEntrevista({
-              nombre: row.nombre_completo,
-              emailOriginal: row.email,
-              resultado: 'Aprobado',
-              programaCodigo: row.programa_codigo || 'Curso',
-              token: shouldSendToken ? tokenToUse : undefined,
-              sinEntrevista: true
-            })
+            const nombreCorreo = row.nombre_completo
+            const tokenCorreo = shouldSendToken ? tokenToUse : undefined
+            if (row.programa_codigo !== 'AFILIACION') {
+              await enviarCorreoResultadoEntrevista({
+                nombre: nombreCorreo,
+                emailOriginal: row.email,
+                resultado: 'Aprobado',
+                programaCodigo: row.programa_codigo || 'Curso',
+                token: tokenCorreo,
+                sinEntrevista: true
+              })
+            } else if (etapa === 6) {
+              await enviarCorreoAprobacion(nombreCorreo, row.email, tokenCorreo)
+            } else if (tokenCorreo) {
+              await enviarCorreoAccesoCibirAprobado(nombreCorreo, row.email, tokenCorreo)
+            }
           } catch (mailErr) {
             console.error('Error enviando correo de aprobación en cambio de etapa:', mailErr)
           }
         }
       } catch (err) {
         console.error('Error preparando acceso etapa:', err)
+      }
+    }
+
+    // Etapa 4 (CIBIR): solo se informa; el acceso llega al aprobar el CIBIR
+    if (etapa === 4 && row.programa_codigo === 'AFILIACION' && row.email) {
+      try {
+        await enviarCorreoInvitacionCibir({ nombre: row.nombre_completo, emailOriginal: row.email })
+      } catch (mailErr) {
+        console.error('Error enviando correo de información CIBIR en cambio de etapa:', mailErr)
       }
     }
 
@@ -4685,6 +4640,7 @@ export const adminAprobarModuloInscripcion = async (req: Request, res: Response)
           sql: `UPDATE afiliados SET cibir_acreditado = 1, estatus = '6_INSCRIPCION', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
           args: [now, idAfiliado]
         })
+        await concederAccesoAlAprobarCibir(Number(idAfiliado)).catch(e => console.error('concederAccesoAlAprobarCibir:', e))
         await db.execute({
           sql: `UPDATE inscripciones_cursos SET completado = 1, actualizado_en = ? WHERE id_inscripcion = ?`,
           args: [now, id]
@@ -4945,6 +4901,7 @@ export const adminAprobarTodosModulosInscripcion = async (req: Request, res: Res
         sql: `UPDATE afiliados SET cibir_acreditado = 1, estatus = 'Afiliado', fecha_ultimo_cambio_estatus = ? WHERE id_afiliado = ?`,
         args: [now, idAfiliado]
       })
+      await concederAccesoAlAprobarCibir(Number(idAfiliado)).catch(e => console.error('concederAccesoAlAprobarCibir:', e))
     } else {
       const mcRes = await db.execute({
         sql: `SELECT nombre_modulo FROM modulos_curso WHERE id_curso = ?`,

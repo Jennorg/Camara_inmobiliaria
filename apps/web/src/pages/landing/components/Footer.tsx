@@ -46,7 +46,7 @@ export default function Footer() {
             <div className='group-hover:scale-110 transition-transform duration-300'>
               {social.icon}
             </div>
-            <span className='text-[10px] uppercase tracking-[0.15em] font-medium'>
+            <span className='text-[11px] uppercase tracking-[0.15em] font-medium'>
               {social.name}
             </span>
           </a>
@@ -61,7 +61,7 @@ export default function Footer() {
         <span className='text-emerald-500/40'>•</span>
         <a href='/miembros' className='hover:text-emerald-400 transition-colors'>Directorio de Afiliados</a>
       </div>
-      <p className='text-white text-[10px] pt-4'>
+      <p className='text-white text-[11px] pt-4'>
         {s.copyright}
       </p>
     </footer>

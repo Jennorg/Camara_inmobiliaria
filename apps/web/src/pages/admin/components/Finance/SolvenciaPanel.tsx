@@ -179,14 +179,14 @@ export default function SolvenciaPanel() {
     <div className="p-4 sm:p-6 space-y-5">
       <div className="flex flex-wrap items-end gap-4 justify-between">
         <div className="flex gap-6 text-sm">
-          <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Solventes</p><p className="text-2xl font-black text-emerald-600 tabular-nums">{data.afiliados.length - enMora.length}</p></div>
-          <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">En mora</p><p className="text-2xl font-black text-red-600 tabular-nums">{enMora.length}</p></div>
-          <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Deuda total</p><p className="text-2xl font-black text-slate-800 tabular-nums">${deudaTotal.toFixed(2)}</p></div>
+          <div><p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Solventes</p><p className="text-2xl font-black text-emerald-600 tabular-nums">{data.afiliados.length - enMora.length}</p></div>
+          <div><p className="text-[11px] font-black uppercase tracking-wider text-slate-400">En mora</p><p className="text-2xl font-black text-red-600 tabular-nums">{enMora.length}</p></div>
+          <div><p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Deuda total</p><p className="text-2xl font-black text-slate-800 tabular-nums">${deudaTotal.toFixed(2)}</p></div>
         </div>
 
         <div className="flex items-end gap-2">
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Sin historial, la deuda cuenta desde</span>
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">Sin historial, la deuda cuenta desde</span>
             <input type="month" readOnly={!puedeEditar} value={inicio} onChange={e => setInicio(e.target.value)}
               className="px-3 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </label>
@@ -208,7 +208,7 @@ export default function SolvenciaPanel() {
           >
             {CAMPOS_COBRANZA.map(c => (
               <label key={c.key} className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">{c.label}</span>
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">{c.label}</span>
                 <input
                   type="number" inputMode="numeric" readOnly={!puedeEditar} min={c.min} max={c.max} step={1} required
                   value={cobranza[c.key]}
@@ -234,7 +234,7 @@ export default function SolvenciaPanel() {
         <div className="relative flex-1 min-w-[240px] max-w-md flex items-center bg-slate-50 border border-slate-200/80 rounded-xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-9 z-20">
           <div className="relative shrink-0 border-r border-slate-200/80 h-full flex items-center">
             <button type="button" onClick={() => setMenuCriterio(v => !v)}
-              className="flex items-center gap-0.5 px-2.5 h-full text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
+              className="flex items-center gap-0.5 px-2.5 h-full text-[11px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
               <span>{CRITERIOS.find(c => c.key === criterio)?.label}</span>
               <ChevronDown size={11} className={`text-slate-400 transition-transform ${menuCriterio ? 'rotate-180' : ''}`} />
             </button>
@@ -244,7 +244,7 @@ export default function SolvenciaPanel() {
                 <div className="absolute left-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px]">
                   {CRITERIOS.map(c => (
                     <button key={c.key} type="button" onClick={() => { setCriterio(c.key); setMenuCriterio(false) }}
-                      className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${criterio === c.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+                      className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${criterio === c.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
                       {c.label}
                     </button>
                   ))}
@@ -269,7 +269,7 @@ export default function SolvenciaPanel() {
           <input type="checkbox" checked={soloMora} onChange={e => setSoloMora(e.target.checked)} className="accent-emerald-600" />
           Solo en mora
         </label>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-slate-500 ml-auto">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold text-slate-500 ml-auto">
           {(Object.keys(CELDA) as EstadoMes[]).map(k => (
             <span key={k} className="inline-flex items-center gap-1"><span className={`w-3 h-3 rounded-sm ${CELDA[k].clase.split(' ')[0]}`} />{CELDA[k].titulo}</span>
           ))}
@@ -279,7 +279,7 @@ export default function SolvenciaPanel() {
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
-            <tr className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <tr className="text-[11px] font-black uppercase tracking-wider text-slate-400">
               <th className="px-3 py-3 text-left w-14">N°</th>
               <th className="px-3 py-3 text-left">Afiliado</th>
               {MESES.map(m => <th key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
@@ -309,7 +309,7 @@ export default function SolvenciaPanel() {
                   ))}
                   <td className={`px-3 py-2 text-right text-xs font-bold tabular-nums ${a.solvente ? 'text-emerald-600' : 'text-red-600'}`}>
                     {a.solvente ? 'Solvente' : `$${a.deuda_usd.toFixed(2)}`}
-                    {a.bloqueado && <span className="block text-[9px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
+                    {a.bloqueado && <span className="block text-[11px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
                   <td className="px-2 py-2 text-center">
                     {puedeCrear && <button type="button" onClick={() => setPagando(a)} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}

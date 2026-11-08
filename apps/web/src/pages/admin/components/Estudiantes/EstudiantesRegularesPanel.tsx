@@ -153,12 +153,12 @@ export default function EstudiantesRegularesPanel() {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold truncate text-slate-800">{formatNombreCard(e.nombre_completo)}</span>
 
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                     #{e.id_estudiante}
                   </span>
                 </div>
                 <span className="text-xs text-slate-400 truncate">{e.email}</span>
-                <span className="text-[10px] text-slate-300">
+                <span className="text-[11px] text-slate-300">
                   {e.cedula || '—'} · {new Date(e.creado_en).toLocaleDateString('es-ES')}
                 </span>
               </button>

@@ -187,13 +187,13 @@ export default function SetupPasswordPage() {
                 />
               </div>
               {confirmPassword && !isMatch && (
-                <p className="text-[10px] text-rose-500 font-bold ml-1">Las contraseñas no coinciden</p>
+                <p className="text-[11px] text-rose-500 font-bold ml-1">Las contraseñas no coinciden</p>
               )}
             </div>
 
             {/* Password guidelines */}
             <div className="bg-slate-50/50 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
                 <div className={`w-1.5 h-1.5 rounded-full ${hasMinLength ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                 Al menos 8 caracteres
               </div>

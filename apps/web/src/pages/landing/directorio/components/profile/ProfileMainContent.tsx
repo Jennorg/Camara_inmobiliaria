@@ -34,19 +34,19 @@ export const ProfileMainContent = ({ afiliado }: ProfileMainContentProps) => {
             {((afiliado.nivel_academico && !afiliado.nivel_academico.toLowerCase().includes('bachiller')) || afiliado.profesion) && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {afiliado.nivel_academico && !afiliado.nivel_academico.toLowerCase().includes('bachiller') && (
-                  <span className="inline-flex items-center gap-1 bg-slate-50 text-[10px] font-bold text-slate-500 px-2 py-0.5 rounded-lg border border-slate-100">
+                  <span className="inline-flex items-center gap-1 bg-slate-50 text-[11px] font-bold text-slate-500 px-2 py-0.5 rounded-lg border border-slate-100">
                     🎓 {afiliado.nivel_academico}
                   </span>
                 )}
                 {afiliado.profesion && (
-                  <span className="inline-flex items-center gap-1 bg-slate-50 text-[10px] font-bold text-slate-500 px-2 py-0.5 rounded-lg border border-slate-100">
+                  <span className="inline-flex items-center gap-1 bg-slate-50 text-[11px] font-bold text-slate-500 px-2 py-0.5 rounded-lg border border-slate-100">
                     💼 {afiliado.profesion}
                   </span>
                 )}
               </div>
             )}
           </div>
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             <span className="text-emerald-600 font-black flex items-center gap-1">
               Ver Trayectoria <span className="text-xs">→</span>
             </span>
@@ -67,7 +67,7 @@ export const ProfileMainContent = ({ afiliado }: ProfileMainContentProps) => {
               Operaciones inmobiliarias regidas bajo el código de ética de la Cámara. Convalidación formal garantizada en el estado Bolívar.
             </p>
           </div>
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             <span className="flex items-center gap-1">
               Código de Ética CIB
             </span>
@@ -81,19 +81,19 @@ export const ProfileMainContent = ({ afiliado }: ProfileMainContentProps) => {
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none" />
           
           <div>
-            <span className="text-[9px] font-black tracking-widest text-emerald-400 uppercase block mb-3">
+            <span className="text-[11px] font-black tracking-widest text-emerald-400 uppercase block mb-3">
               ESTADO DEL AFILIADO
             </span>
             <h3 className="text-base font-black tracking-tight leading-tight">
               {isCibir ? 'Capacitación CIBIR Convalidada' : 'Programa CIBIR en Curso'}
             </h3>
-            <p className="text-[10px] text-emerald-100/60 font-semibold mt-1">
+            <p className="text-[11px] text-emerald-100/60 font-semibold mt-1">
               Cámara Inmobiliaria de Bolívar
             </p>
           </div>
 
           <div className="mt-6">
-            <div className="flex justify-between items-center text-[10px] font-bold mb-1.5 text-emerald-300">
+            <div className="flex justify-between items-center text-[11px] font-bold mb-1.5 text-emerald-300">
               <span>{isCibir ? 'CONVALIDADO' : 'PENDIENTE CONVALIDACIÓN'}</span>
               <span>{progressPercent}%</span>
             </div>

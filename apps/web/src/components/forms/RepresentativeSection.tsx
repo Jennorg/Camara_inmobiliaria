@@ -23,13 +23,13 @@ export default function RepresentativeSection() {
         </div>
         <div>
           <h3 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-100">Representante Legal</h3>
-          <p className="text-[10px] text-emerald-100/40 font-medium uppercase tracking-widest mt-0.5">Persona Autorizada</p>
+          <p className="text-[11px] text-emerald-100/40 font-medium uppercase tracking-widest mt-0.5">Persona Autorizada</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.representanteNombres ? 'text-red-400' : 'text-emerald-100/60'}`}>
+          <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.representanteNombres ? 'text-red-400' : 'text-emerald-100/60'}`}>
             Nombres <span className="text-emerald-500">*</span>
           </label>
           <Input 
@@ -38,11 +38,11 @@ export default function RepresentativeSection() {
             icon={<User size={16} />}
             className={errors.representanteNombres ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.representanteNombres && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.representanteNombres.message as string}</p>}
+          {errors.representanteNombres && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.representanteNombres.message as string}</p>}
         </div>
 
         <div className="space-y-2">
-          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.representanteApellidos ? 'text-red-400' : 'text-emerald-100/60'}`}>
+          <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.representanteApellidos ? 'text-red-400' : 'text-emerald-100/60'}`}>
             Apellidos <span className="text-emerald-500">*</span>
           </label>
           <Input 
@@ -51,11 +51,11 @@ export default function RepresentativeSection() {
             icon={<User size={16} />}
             className={errors.representanteApellidos ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.representanteApellidos && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.representanteApellidos.message as string}</p>}
+          {errors.representanteApellidos && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.representanteApellidos.message as string}</p>}
         </div>
 
         <div className="space-y-2">
-          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.cedulaRepresentante ? 'text-red-400' : 'text-emerald-100/60'}`}>
+          <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.cedulaRepresentante ? 'text-red-400' : 'text-emerald-100/60'}`}>
             Cédula <span className="text-emerald-500">*</span>
           </label>
           <div className="flex gap-2">
@@ -71,11 +71,11 @@ export default function RepresentativeSection() {
               className={errors.cedulaRepresentante ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
           </div>
-          {errors.cedulaRepresentante && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.cedulaRepresentante.message as string}</p>}
+          {errors.cedulaRepresentante && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.cedulaRepresentante.message as string}</p>}
         </div>
 
         <div className="space-y-2">
-          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailRepresentante ? 'text-red-400' : 'text-emerald-100/60'}`}>
+          <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.emailRepresentante ? 'text-red-400' : 'text-emerald-100/60'}`}>
             Correo Personal <span className="text-emerald-500">*</span>
           </label>
           <Input 
@@ -85,11 +85,11 @@ export default function RepresentativeSection() {
             icon={<Mail size={16} />}
             className={errors.emailRepresentante ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
           />
-          {errors.emailRepresentante && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.emailRepresentante.message as string}</p>}
+          {errors.emailRepresentante && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.emailRepresentante.message as string}</p>}
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <label className={`text-[10px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.telefono ? 'text-red-400' : 'text-emerald-100/60'}`}>
+          <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${errors.telefono ? 'text-red-400' : 'text-emerald-100/60'}`}>
             Teléfono de Contacto <span className="text-emerald-500">*</span>
           </label>
           <div className="flex gap-2">
@@ -105,7 +105,7 @@ export default function RepresentativeSection() {
               className={errors.telefono ? 'border-red-500 ring-2 ring-red-500/10' : 'bg-white text-slate-800 border-slate-200 focus:border-emerald-500'}
             />
           </div>
-          {errors.telefono && <p className="transition-opacity transition-transform text-[10px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.telefono.message as string}</p>}
+          {errors.telefono && <p className="transition-opacity transition-transform text-[11px] text-red-400 font-bold ml-1 uppercase fade-in slide-in-from-left-2 duration-300">{errors.telefono.message as string}</p>}
         </div>
       </div>
     </div>

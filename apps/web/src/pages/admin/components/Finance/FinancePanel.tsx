@@ -442,7 +442,7 @@ export default function FinancePanel() {
       <div className="flex items-start sm:items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
               Contabilidad & Finanzas
             </span>
             <span className="text-xs text-slate-400">· Flujo de Caja & Libros Fiscales</span>
@@ -733,7 +733,7 @@ export default function FinancePanel() {
                     <div className="relative h-36 w-11 shrink-0" aria-hidden="true">
                       {ticks.map(t => (
                         <span key={t} style={{ bottom: `${(t / maxVal) * 100}%` }}
-                          className="absolute right-0 translate-y-1/2 text-[10px] font-semibold text-slate-400 tabular-nums">
+                          className="absolute right-0 translate-y-1/2 text-[11px] font-semibold text-slate-400 tabular-nums">
                           {montoCorto(t)}
                         </span>
                       ))}
@@ -780,10 +780,10 @@ export default function FinancePanel() {
                                 />
                               </div>
                               {/* Eje X: mes y montos del mes */}
-                              <span className={`mt-1.5 text-[10px] font-bold ${seleccionado ? 'text-emerald-800' : 'text-slate-500'}`}>{m.mes}</span>
-                              <span className="hidden sm:block text-[9px] font-semibold tabular-nums text-emerald-700 leading-tight">{m.ingresos > 0 ? montoCorto(m.ingresos) : '–'}</span>
-                              <span className={`hidden sm:block text-[9px] font-bold tabular-nums leading-tight ${m.adelantos > 0 ? 'text-teal-700' : 'invisible'}`}>↗{montoCorto(m.adelantos)}</span>
-                              <span className="hidden sm:block text-[9px] font-semibold tabular-nums text-amber-600 leading-tight pb-1">{m.egresos > 0 ? montoCorto(m.egresos) : '–'}</span>
+                              <span className={`mt-1.5 text-[11px] font-bold ${seleccionado ? 'text-emerald-800' : 'text-slate-500'}`}>{m.mes}</span>
+                              <span className="hidden sm:block text-[11px] font-semibold tabular-nums text-emerald-700 leading-tight">{m.ingresos > 0 ? montoCorto(m.ingresos) : '–'}</span>
+                              <span className={`hidden sm:block text-[11px] font-bold tabular-nums leading-tight ${m.adelantos > 0 ? 'text-teal-700' : 'invisible'}`}>↗{montoCorto(m.adelantos)}</span>
+                              <span className="hidden sm:block text-[11px] font-semibold tabular-nums text-amber-600 leading-tight pb-1">{m.egresos > 0 ? montoCorto(m.egresos) : '–'}</span>
                             </button>
                           )
                         })}
@@ -970,7 +970,7 @@ export default function FinancePanel() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-4">Fecha</th>
                     <th className="py-3 px-4">Recibo / Doc</th>
                     <th className="py-3 px-4">Cliente / Afiliado</th>
@@ -1025,13 +1025,13 @@ export default function FinancePanel() {
                             <button
                               onClick={() => abrirRecibo(item.id_pago!)}
                               title="Ver Recibo Digital Oficial"
-                              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors inline-flex items-center gap-1 text-[10px] font-bold"
+                              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
                             >
                               <Receipt size={13} />
                               <span>Ver</span>
                             </button>
                           ) : (
-                            <span className="text-[10px] text-slate-400 italic" title={item.tipo_origen === 'cuota_importada' ? 'Cuota del listado de solvencia importado, sin recibo' : undefined}>
+                            <span className="text-[11px] text-slate-400 italic" title={item.tipo_origen === 'cuota_importada' ? 'Cuota del listado de solvencia importado, sin recibo' : undefined}>
                               {item.tipo_origen === 'cuota_importada' ? 'Importado' : 'Manual'}
                             </span>
                           )}
@@ -1117,7 +1117,7 @@ export default function FinancePanel() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-4">Fecha</th>
                     <th className="py-3 px-4">Nro. Factura</th>
                     <th className="py-3 px-4">Proveedor</th>
@@ -1155,7 +1155,7 @@ export default function FinancePanel() {
                           </td>
                           <td className="py-3 px-4 max-w-[190px]">
                             <p className="truncate text-slate-700 font-medium">{item.concepto}</p>
-                            <span className="text-[9px] font-bold text-slate-400 capitalize">
+                            <span className="text-[11px] font-bold text-slate-400 capitalize">
                               {CATEGORIAS[item.categoria]?.label || item.categoria}
                             </span>
                           </td>
@@ -1169,13 +1169,13 @@ export default function FinancePanel() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 title="Ver Comprobante Digital"
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors inline-flex items-center gap-1 text-[10px] font-bold"
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors inline-flex items-center gap-1 text-[11px] font-bold"
                               >
                                 <ExternalLink size={12} />
                                 <span>Doc</span>
                               </a>
                             ) : (
-                              <span className="text-[10px] text-slate-300">-</span>
+                              <span className="text-[11px] text-slate-300">-</span>
                             )}
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -1190,7 +1190,7 @@ export default function FinancePanel() {
                               </button>
                             )}
                             {esAnulado && (
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-red-100 text-red-700">
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-red-100 text-red-700">
                                 Anulado
                               </span>
                             )}

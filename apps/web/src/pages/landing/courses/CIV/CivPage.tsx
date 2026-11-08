@@ -64,7 +64,7 @@ export default function CodigoEtica() {
               <p className='text-lg text-slate-600 leading-relaxed'>
                 El Código de Ética de la Cámara Inmobiliaria de Venezuela (CIV) no es solo un reglamento, es la garantía de que cada operación realizada a través de nuestros afiliados cuenta con el respaldo de los más altos valores profesionales.
               </p>
-              <div className='p-6 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-2xl italic text-emerald-900'>
+              <div className='p-6 bg-emerald-50 border-l border-emerald-500 rounded-r-2xl italic text-emerald-900'>
                 "Ser un profesional inmobiliario de la Cámara es sinónimo de seguridad jurídica y transparencia."
               </div>
             </div>

@@ -102,7 +102,7 @@ export default function BentoGallerySection() {
       {/* Total count Indicator */}
       <div className="mt-12 flex flex-col items-center gap-2 opacity-35">
         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-        <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white">
+        <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white">
           {ALL_IMAGES.length} Momentos compartidos
         </p>
       </div>

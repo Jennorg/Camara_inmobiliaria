@@ -49,7 +49,7 @@ export const OrganigramView = ({
       <div className="flex flex-col items-center w-full">
         {/* Nodo líder */}
         <div className="flex flex-col items-center w-full">
-          <p className="text-[10px] font-black text-slate-400 dark:text-emerald-400/60 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+          <p className="text-[11px] font-black text-slate-400 dark:text-emerald-400/60 uppercase tracking-widest mb-3 flex items-center gap-1.5">
             <User size={10} className="text-emerald-600 dark:text-emerald-400" />
             {leaderIsCorporativo ? 'Representante Legal' : 'Liderazgo'}
           </p>

@@ -438,7 +438,7 @@ export const ConfigPanel = () => {
                               {k.label}
                             </label>
                             {isModified && (
-                              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                              <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
                                 Modificado
                               </span>
                             )}
@@ -472,7 +472,7 @@ export const ConfigPanel = () => {
                           </div>
 
                           {k.helpText && (
-                            <p className="text-[10px] text-slate-400 font-medium pl-1">
+                            <p className="text-[11px] text-slate-400 font-medium pl-1">
                               {k.helpText}
                             </p>
                           )}

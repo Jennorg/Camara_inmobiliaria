@@ -371,7 +371,7 @@ export default function WidgetCarnetAfiliado({
             miembros afiliados que tengan un código de membresía activo en el sistema.
           </p>
           {afiliado && !afiliado.codigo && (
-            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 rounded-lg">
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/20 px-3 py-1.5 rounded-lg">
               Estado actual: Tu expediente aún no tiene un código asignado. Contacta a
               administración para formalizar.
             </p>
@@ -447,7 +447,7 @@ export default function WidgetCarnetAfiliado({
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="font-black text-slate-800 text-lg">Encuadrar Foto</h3>
-                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+                  <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
                     Aspecto carnet (155x185)
                   </p>
                 </div>
@@ -490,10 +490,10 @@ export default function WidgetCarnetAfiliado({
 
               <div className="px-2">
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
                     Zoom
                   </span>
-                  <span className="text-[10px] font-bold text-slate-600">
+                  <span className="text-[11px] font-bold text-slate-600">
                     {Math.round(cropperZoom * 100)}%
                   </span>
                 </div>
@@ -513,7 +513,7 @@ export default function WidgetCarnetAfiliado({
                 type="button"
                 disabled={savingCrop}
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full text-[10px] font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center justify-center gap-1 uppercase tracking-widest cursor-pointer"
+                className="w-full text-[11px] font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors flex items-center justify-center gap-1 uppercase tracking-widest cursor-pointer"
               >
                 <ImageIcon size={12} /> Cargar foto diferente
               </button>

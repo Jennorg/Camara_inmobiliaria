@@ -149,7 +149,7 @@ END:VCARD`;
                   ? (afiliado.empresa_razon_social || afiliado.nombre_completo)
                   : formatNombreCard(afiliado.nombres || afiliado.nombre_completo, afiliado.apellidos)}
               </h1>
-              <span className="shrink-0 inline-flex items-center text-[9px] font-black tracking-widest text-emerald-700 bg-emerald-100/60 px-3 py-1.5 rounded-md uppercase">
+              <span className="shrink-0 inline-flex items-center text-[11px] font-black tracking-widest text-emerald-700 bg-emerald-100/60 px-3 py-1.5 rounded-md uppercase">
                 {isCorporativo ? 'MIEMBRO CORPORATIVO' : isAgent ? 'AGENTE CORPORATIVO' : 'ASESOR INMOBILIARIO'}
               </span>
             </div>
@@ -202,7 +202,7 @@ END:VCARD`;
               {logoToShow && (
                 <div className="flex flex-col items-center gap-2">
                   {isAgent && (
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
                       FORMA PARTE DE:
                     </span>
                   )}
@@ -216,7 +216,7 @@ END:VCARD`;
                 </div>
               )}
               {afiliado.codigo && (
-                <span className="shrink-0 inline-flex items-center text-[10px] font-black tracking-[0.2em] text-emerald-700 bg-emerald-100/60 px-4 py-2 rounded-md uppercase">
+                <span className="shrink-0 inline-flex items-center text-[11px] font-black tracking-[0.2em] text-emerald-700 bg-emerald-100/60 px-4 py-2 rounded-md uppercase">
                   CÓDIGO: {afiliado.codigo}
                 </span>
               )}

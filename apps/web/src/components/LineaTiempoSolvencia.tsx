@@ -71,7 +71,7 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border ${
           data.solvente ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'
         }`}>
           {data.solvente ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
@@ -98,7 +98,7 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
               <div className="flex items-stretch gap-3">
                 <div className="w-16 shrink-0 text-right pt-2" aria-label={mesLargo(m.periodo)}>
                   <p className={`text-xl font-black uppercase leading-none tracking-tight ${e.texto}`}>{mesCorto(m.periodo)}</p>
-                  <p className="text-[10px] font-bold text-slate-300 tabular-nums mt-0.5">{anio}</p>
+                  <p className="text-[11px] font-bold text-slate-300 tabular-nums mt-0.5">{anio}</p>
                 </div>
 
                 <div className="relative flex flex-col items-center shrink-0 w-5">
@@ -118,19 +118,19 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {m.pago && (
                         <button type="button" disabled={ocupado} onClick={() => corregir(m)}
-                          className="px-2 py-0.5 rounded-md border border-red-200 bg-white text-[10px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
+                          className="px-2 py-0.5 rounded-md border border-red-200 bg-white text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
                           Anular pago
                         </button>
                       )}
                       {m.historico && (
                         <button type="button" disabled={ocupado} onClick={() => corregir(m)}
-                          className="px-2 py-0.5 rounded-md border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                          className="px-2 py-0.5 rounded-md border border-slate-200 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
                           Quitar marca
                         </button>
                       )}
                       {!m.pago && (m.estado === 'deuda' || m.estado === 'por_pagar') && (
                         <button type="button" disabled={ocupado} onClick={() => corregir(m)}
-                          className="px-2 py-0.5 rounded-md border border-emerald-200 bg-white text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+                          className="px-2 py-0.5 rounded-md border border-emerald-200 bg-white text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
                           Marcar como pagado
                         </button>
                       )}

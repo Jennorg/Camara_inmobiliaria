@@ -74,6 +74,7 @@ export default function ExportAfiliadosModal({
     activo: initialFilters?.activo ?? 'todos',
     foto: initialFilters?.foto ?? 'todos',
     cohorte: '',
+    pago: 'todos',
     search: initialFilters?.search ?? '',
     searchField: 'todos',
     desdeCodigo: '',
@@ -97,6 +98,7 @@ export default function ExportAfiliadosModal({
         activo: initialFilters?.activo ?? 'todos',
         foto: initialFilters?.foto ?? 'todos',
         cohorte: '',
+        pago: 'todos',
         search: initialFilters?.search ?? '',
         desdeCodigo: '',
         fechaDesde: '',
@@ -118,6 +120,7 @@ export default function ExportAfiliadosModal({
       const [clave, valor] = (filters.cohorte ?? '').split(':')
       if (clave === 'programa') qs.set('programa', valor)
       if (clave === 'cohorte') qs.set('id_cohorte', valor)
+      if (clave && filters.pago && filters.pago !== 'todos') qs.set('pago', filters.pago)
       const url = `${API_URL}/api/afiliados${qs.toString() ? `?${qs}` : ''}`
       const res = await fetch(url, { headers: authHeaders, signal })
       const json = await res.json()
@@ -131,7 +134,7 @@ export default function ExportAfiliadosModal({
       }
       throw err
     }
-  }, [authHeaders, filters.estatus, filters.tipo, filters.cohorte])
+  }, [authHeaders, filters.estatus, filters.tipo, filters.cohorte, filters.pago])
 
   useEffect(() => {
     if (!open) return
@@ -217,6 +220,7 @@ export default function ExportAfiliadosModal({
       activo: 'todos',
       foto: 'todos',
       cohorte: '',
+      pago: 'todos',
       search: '',
       desdeCodigo: '',
       fechaDesde: '',
@@ -339,13 +343,13 @@ export default function ExportAfiliadosModal({
             <button
               type="button"
               onClick={resetFilters}
-              className="text-[10px] font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-wider transition-colors flex items-center gap-1"
+              className="text-[11px] font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-wider transition-colors flex items-center gap-1"
             >
               <RotateCcw size={10} /> Restablecer filtros
             </button>
           )}
           {activeTab === 'columnas' && (
-            <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider">
+            <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider">
               <button
                 type="button"
                 onClick={toggleSelectAllColumns}
@@ -379,7 +383,7 @@ export default function ExportAfiliadosModal({
             <div className="space-y-4">
               {/* Buscador libre con dropdown de criterio igual a la vista principal */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Search size={12} className="text-emerald-600" /> Búsqueda por Texto
                 </label>
                 <div className="relative flex items-center bg-slate-50 border border-gray-200 rounded-2xl focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:border-emerald-500 transition-colors h-10">
@@ -388,7 +392,7 @@ export default function ExportAfiliadosModal({
                     <button
                       type="button"
                       onClick={() => setShowSearchDropdown(!showSearchDropdown)}
-                      className="flex items-center gap-1 px-2 h-full text-[10px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      className="flex items-center gap-1 px-2 h-full text-[11px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                     >
                       <span>
                         {filters.searchField === 'nombre' && 'Nombre'}
@@ -416,7 +420,7 @@ export default function ExportAfiliadosModal({
                                 setFilters((f) => ({ ...f, searchField: option.key }))
                                 setShowSearchDropdown(false)
                               }}
-                              className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ${(filters.searchField || 'todos') === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
+                              className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${(filters.searchField || 'todos') === option.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                             >
                               {option.label}
@@ -457,7 +461,7 @@ export default function ExportAfiliadosModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Tipo Afiliado */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <UserCheck size={12} className="text-emerald-600" /> Tipo de Afiliado
                   </label>
                   <select
@@ -476,7 +480,7 @@ export default function ExportAfiliadosModal({
 
                 {/* Estatus */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Filter size={12} className="text-emerald-600" /> Estatus del Proceso
                   </label>
                   <select
@@ -511,7 +515,7 @@ export default function ExportAfiliadosModal({
               {/* Programa y Cohorte: dos dropdowns; al elegir uno se relaja el estatus para no dar 0 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Filter size={12} className="text-emerald-600" /> Programa
                   </label>
                   <select
@@ -521,6 +525,7 @@ export default function ExportAfiliadosModal({
                         ...f,
                         cohorte: e.target.value ? `programa:${e.target.value}` : '',
                         estatus: e.target.value ? 'Todos' : f.estatus,
+                        pago: e.target.value ? f.pago : 'todos',
                       }))
                     }
                     className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -532,7 +537,7 @@ export default function ExportAfiliadosModal({
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Filter size={12} className="text-emerald-600" /> Cohorte
                   </label>
                   <select
@@ -558,11 +563,28 @@ export default function ExportAfiliadosModal({
                 </div>
               </div>
 
+              {/* Pago del programa: solo aplica cuando hay programa o cohorte elegido */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <Filter size={12} className="text-emerald-600" /> Estado del pago del programa
+                </label>
+                <select
+                  value={filters.pago ?? 'todos'}
+                  disabled={!programaSel}
+                  onChange={(e) => setFilters((f) => ({ ...f, pago: e.target.value as ExportRowFilters['pago'] }))}
+                  className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="todos">{programaSel ? 'Todos' : 'Seleccione un programa primero'}</option>
+                  <option value="pagaron">Pago realizado</option>
+                  <option value="sin_pagar">Pago pendiente</option>
+                </select>
+              </div>
+
               {/* Grid 2 Columnas para Filtro Activo y Fotografía */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Activo / Inactivo */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
                     Condición Activo / Inactivo
                   </label>
                   <select
@@ -583,7 +605,7 @@ export default function ExportAfiliadosModal({
 
                 {/* Fotografía */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                     <Camera size={12} className="text-emerald-600" /> Fotografía
                   </label>
                   <select
@@ -605,7 +627,7 @@ export default function ExportAfiliadosModal({
 
               {/* Desde Código determinado */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Hash size={12} className="text-emerald-600" /> Desde Código Numérico
                 </label>
                 <input
@@ -619,7 +641,7 @@ export default function ExportAfiliadosModal({
 
               {/* Rango de Fechas de Registro */}
               <div className="space-y-1.5 pt-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
                   <Calendar size={12} className="text-emerald-600" /> Rango por Fecha de Registro
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -641,7 +663,7 @@ export default function ExportAfiliadosModal({
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">
                   Seleccione las columnas a incluir en el PDF
                 </span>
               </div>

@@ -94,7 +94,7 @@ export default function MarcoLegalPage() {
         }}
       >
         <div className="text-center space-y-3 md:space-y-4">
-          <p className="text-emerald-400 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] text-[10px] md:text-xs">
+          <p className="text-emerald-400 font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] text-[11px] md:text-xs">
             Marco legal
           </p>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black tracking-tighter drop-shadow-lg">
@@ -112,14 +112,14 @@ export default function MarcoLegalPage() {
           <div className="max-w-xl mx-auto text-center py-16 px-4 rounded-3xl bg-white border border-slate-100 text-slate-600 text-sm space-y-4">
             <h2 className="text-xl font-black text-slate-800">Sección no encontrada</h2>
             <p>La sección del Marco Legal que buscas no existe o no está disponible.</p>
-            <Link to="/" className="inline-flex items-center justify-center rounded-full bg-[#022c22] text-white text-[10px] md:text-xs font-black uppercase tracking-widest px-5 py-3 hover:bg-emerald-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            <Link to="/" className="inline-flex items-center justify-center rounded-full bg-[#022c22] text-white text-[11px] md:text-xs font-black uppercase tracking-widest px-5 py-3 hover:bg-emerald-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
               Volver al inicio
             </Link>
           </div>
         ) : loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-4 border-b-4 border-emerald-600" />
-            <p className="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-widest animate-pulse">
+            <p className="text-slate-400 text-[11px] md:text-xs font-bold uppercase tracking-widest animate-pulse">
               Cargando documentos...
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function MarcoLegalPage() {
                   <div className="absolute top-0 left-0 w-full h-1 md:h-1.5 bg-gradient-to-r from-emerald-400 to-[#022c22] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                   <div className="flex justify-center md:justify-start mb-3">
-                    <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] md:text-[10px] font-black uppercase tracking-[0.15em] rounded-full border border-emerald-100/60 truncate max-w-full">
+                    <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-[11px] md:text-[11px] font-black uppercase tracking-[0.15em] rounded-full border border-emerald-100/60 truncate max-w-full">
                       {item.categoria?.trim() || 'General'}
                     </span>
                   </div>
@@ -168,7 +168,7 @@ export default function MarcoLegalPage() {
                     href={item.url_archivo}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#022c22] text-white text-[10px] md:text-xs font-black uppercase tracking-widest px-5 py-3 hover:bg-emerald-600 transition-colors"
+                    className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#022c22] text-white text-[11px] md:text-xs font-black uppercase tracking-widest px-5 py-3 hover:bg-emerald-600 transition-colors"
                   >
                     Abrir documento
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>

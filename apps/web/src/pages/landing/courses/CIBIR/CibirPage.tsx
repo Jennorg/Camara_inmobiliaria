@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from '@/pages/landing/components/Footer';
 import bgCibir from "@/assets/Pzo.webp";
-import heroCibir from "@/assets/Cibir.webp";
+import logoCibir from "@/assets/Cibir_logo.png";
 import pegiImg from "@/assets/Pegi.webp";
 import cibirImg from "@/assets/Cibir.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
@@ -169,9 +169,9 @@ export default function Cibir() {
           <div className="flex flex-col lg:flex-row items-center gap-12 mb-20 bg-slate-50 p-8 lg:p-16 rounded-[3rem] border border-emerald-50 relative overflow-hidden">
             <div className="w-full lg:w-1/3 flex justify-center relative z-10">
               <img
-                src={heroCibir}
-                alt="Capacitación CIBIR"
-                className="w-full h-auto drop-shadow-2xl rounded-2xl"
+                src={logoCibir}
+                alt="Logo CIBIR — Curso Introductorio de Bienes Raíces"
+                className="w-72 lg:w-full max-w-sm h-auto"
               />
             </div>
             <div className="w-full lg:w-2/3 space-y-6 relative z-10">

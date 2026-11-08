@@ -75,7 +75,7 @@ export default function ConveniosSection({ cfg = {} }: { cfg?: Record<string, st
                       <span className='text-3xl lg:text-4xl' aria-hidden>📄</span>
                     )}
                   </div>
-                  <p className='mt-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700 max-w-56 lg:max-w-80 truncate'>
+                  <p className='mt-2 text-center text-[11px] font-black uppercase tracking-[0.12em] text-emerald-700 max-w-56 lg:max-w-80 truncate'>
                     {item.nombre_aliado || item.nombre}
                   </p>
                 </a>

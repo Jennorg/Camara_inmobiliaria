@@ -185,7 +185,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
         <p className="text-emerald-100/60 max-w-md mx-auto leading-relaxed font-medium">
           Hemos recibido tus datos. Te enviamos un correo electrónico para confirmar tu dirección y continuar con el proceso.
         </p>
-        <p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/40">
+        <p className="mt-6 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400/40">
           Revisa tu bandeja de entrada o SPAM
         </p>
       </div>
@@ -211,7 +211,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
                   setTipoAfiliado(val)
                   setEmpresaSelected(null)
                 }}
-                className={`min-h-[56px] sm:min-h-[72px] px-4 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-2 text-center leading-tight ${
+                className={`min-h-[56px] sm:min-h-[72px] px-4 py-2.5 sm:px-2 sm:py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-colors flex flex-row sm:flex-col items-center justify-center gap-3 sm:gap-2 text-center leading-tight ${
                   tipoAfiliado === val ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' : 'text-white/40 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -222,7 +222,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           </div>
 
           {/* Descripción contextual del tipo seleccionado */}
-          <div className="text-[10px] font-medium px-3 py-2 rounded-lg transition-colors text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20">
+          <div className="text-[11px] font-medium px-3 py-2 rounded-lg transition-colors text-emerald-300/90 bg-emerald-500/10 border border-emerald-500/20">
             {tipoAfiliado === 'Agente Corporativo'
               ? 'Agente que opera bajo una empresa ya afiliada a la Cámara'
               : tipoAfiliado === 'Corporativo'
@@ -243,7 +243,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
           {/* Campo de búsqueda de empresa (solo Agente Corporativo) */}
           {isAgenteCorporativo && (
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">
                 Empresa a la que perteneces <span className="text-red-400">*</span>
               </label>
               <CompanySearchSelector
@@ -272,7 +272,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombres</label>
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nombres</label>
               <div className="relative group">
                 <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 <input type="text" name="nombres" required value={formData.nombres} onChange={handleChange} placeholder="Ej. Carlos" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
@@ -280,7 +280,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Apellidos</label>
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Apellidos</label>
               <div className="relative group">
                 <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 <input type="text" name="apellidos" required value={formData.apellidos} onChange={handleChange} placeholder="Ej. Mendoza" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
@@ -288,7 +288,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Cédula de Identidad</label>
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Cédula de Identidad</label>
               <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                 <select name="cedulaPrefix" value={formData.cedulaPrefix} onChange={handleChange} className="bg-slate-50 border-r border-slate-200 px-4 h-full text-sm font-black text-slate-700 outline-none">
                   {['V', 'E'].map(p => <option key={p} value={p}>{p}</option>)}
@@ -298,7 +298,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Correo Electrónico</label>
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Correo Electrónico</label>
               <div className="relative group">
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 <input type="email" name="email" required value={formData.email} onChange={handleChange} placeholder="usuario@ejemplo.com" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
@@ -306,7 +306,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Teléfono</label>
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Teléfono</label>
               <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                 <button type="button" className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center gap-2 text-sm font-black text-slate-700">
                   <span>{COUNTRIES.find(c => c.code === formData.phonePrefix)?.flag}</span>
@@ -317,10 +317,10 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">¿Eres actualmente corredor inmobiliario?</label>
+              <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">¿Eres actualmente corredor inmobiliario?</label>
               <div className={`grid grid-cols-2 bg-white/5 rounded-xl border border-white/10 overflow-hidden ${BOX_H}`}>
                 {['si', 'no'].map(opt => (
-                  <button key={opt} type="button" onClick={() => setFormData(prev => ({ ...prev, esCorredorInmobiliario: opt }))} className={`h-full text-[10px] font-black uppercase tracking-widest transition-colors ${formData.esCorredorInmobiliario === opt ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+                  <button key={opt} type="button" onClick={() => setFormData(prev => ({ ...prev, esCorredorInmobiliario: opt }))} className={`h-full text-[11px] font-black uppercase tracking-widest transition-colors ${formData.esCorredorInmobiliario === opt ? 'bg-emerald-500 text-white shadow-lg' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
                     {opt === 'si' ? 'Sí, lo soy' : 'No'}
                   </button>
                 ))}
@@ -330,7 +330,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             {!['AFILIACION', 'CIBIR'].includes(programaCodigo) && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nivel Académico</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Nivel Académico</label>
                   <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
                     <select name="nivelProfesional" value={formData.nivelProfesional} onChange={handleChange} className="flex-1 px-5 h-full bg-white outline-none text-sm font-medium text-slate-800">
                       <option value="">Selecciona tu nivel</option>
@@ -344,7 +344,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
 
                 {formData.nivelProfesional !== 'Bachiller' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Profesión</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-emerald-100/60">Profesión</label>
                     <div className="relative group">
                       <Briefcase size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                       <input type="text" name="profesion" value={formData.profesion} onChange={handleChange} placeholder="Ej. Abogado, Ingeniero" className={`w-full pl-11 pr-5 ${BOX_H} bg-white rounded-xl outline-none border border-slate-200 text-slate-800 focus:border-emerald-500 shadow-sm text-sm font-medium`} />
@@ -372,7 +372,7 @@ export default function PreinscripcionProgramaForm({ programaCodigo, ctaLabel, i
             </div>
           )}
 
-          <p className="text-[9px] text-center uppercase tracking-[0.2em] font-bold text-emerald-100/40">
+          <p className="text-[11px] text-center uppercase tracking-[0.2em] font-bold text-emerald-100/40">
             Cámara Inmobiliaria • Todos los derechos reservados • 2026
           </p>
         </form>

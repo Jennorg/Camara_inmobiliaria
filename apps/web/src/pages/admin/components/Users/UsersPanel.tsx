@@ -548,7 +548,7 @@ export default function UsersPanel() {
                   </button>
                 </div>
               </div>
-              <p className='text-[10px] text-slate-400 leading-relaxed italic'>
+              <p className='text-[11px] text-slate-400 leading-relaxed italic'>
                 El afiliado podrá iniciar sesión de inmediato con esta clave (se activa la cuenta).
               </p>
             </div>
@@ -677,7 +677,7 @@ export default function UsersPanel() {
 
         {/* Filtro Rol Dropdown */}
         <div className='flex items-center gap-2 w-full md:w-auto'>
-          <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Rol:</span>
+          <span className='text-[11px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Rol:</span>
           <select
             value={filtroRol}
             onChange={e => setFiltroRol(e.target.value as FiltroRol)}
@@ -693,7 +693,7 @@ export default function UsersPanel() {
 
         {/* Filtro Estado Dropdown */}
         <div className='flex items-center gap-2 w-full md:w-auto'>
-          <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Estado:</span>
+          <span className='text-[11px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Estado:</span>
           <select
             value={filtroActivo}
             onChange={e => setFiltroActivo(e.target.value as FiltroActivo)}
@@ -707,7 +707,7 @@ export default function UsersPanel() {
 
         {/* Filtro Etapa Dropdown */}
         <div className='flex items-center gap-2 w-full md:w-auto'>
-          <span className='text-[10px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Etapa:</span>
+          <span className='text-[11px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap'>Etapa:</span>
           <select
             value={filtroEtapa}
             onChange={e => setFiltroEtapa(e.target.value)}
@@ -836,7 +836,7 @@ export default function UsersPanel() {
                                 {u.codigo && (
                                   <>
                                     <span className='text-slate-300'>·</span>
-                                    <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                                    <span className='text-[11px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
                                       {u.codigo}
                                     </span>
                                   </>
@@ -844,7 +844,7 @@ export default function UsersPanel() {
                               </div>
                               {personaNombre && (
                                 <p className='text-[11px] text-slate-600 font-medium flex items-center gap-1 truncate max-w-[300px]' title={personaNombre}>
-                                  <span className='text-slate-400 text-[10px] font-bold uppercase tracking-wider'>Afiliado:</span>
+                                  <span className='text-slate-400 text-[11px] font-bold uppercase tracking-wider'>Afiliado:</span>
                                   <span className='font-semibold text-slate-700 truncate'>{personaNombre}</span>
                                 </p>
                               )}
@@ -859,7 +859,7 @@ export default function UsersPanel() {
                                 {u.codigo && (
                                   <>
                                     <span className='text-slate-300'>·</span>
-                                    <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                                    <span className='text-[11px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
                                       {u.codigo}
                                     </span>
                                   </>
@@ -868,7 +868,7 @@ export default function UsersPanel() {
                               {empresaNombre && (
                                 <p className='text-[11px] text-slate-600 font-medium flex items-center gap-1 truncate max-w-[300px]' title={empresaNombre}>
                                   <Building2 size={11} className='text-slate-400 shrink-0' />
-                                  <span className='text-slate-400 text-[10px] font-bold uppercase tracking-wider'>Empresa:</span>
+                                  <span className='text-slate-400 text-[11px] font-bold uppercase tracking-wider'>Empresa:</span>
                                   <span className='font-semibold text-slate-700 truncate'>{empresaNombre}</span>
                                 </p>
                               )}
@@ -882,14 +882,14 @@ export default function UsersPanel() {
                                     {personaNombre || u.nombre_completo}
                                   </p>
                                 ) : (
-                                  <span className='text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md tracking-tight'>
+                                  <span className='text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md tracking-tight'>
                                     {u.email ? u.email.split('@')[0] : 'Cuenta sin vincular'}
                                   </span>
                                 )}
                                 {u.codigo && (
                                   <>
                                     <span className='text-slate-300'>·</span>
-                                    <span className='text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
+                                    <span className='text-[11px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter'>
                                       {u.codigo}
                                     </span>
                                   </>
@@ -898,7 +898,7 @@ export default function UsersPanel() {
                             </div>
                           )}
 
-                          <p className='text-[10px] text-slate-400 mt-0.5'>
+                          <p className='text-[11px] text-slate-400 mt-0.5'>
                             {new Date(u.creado_en).toLocaleDateString('es-VE')}
                             {u.id_afiliado ? ` · Afiliado #${u.id_afiliado}` : ''}
                           </p>
@@ -1108,7 +1108,7 @@ export default function UsersPanel() {
                             </h4>
                             {isCorp && personaNombre && (
                               <p className='text-[11px] text-slate-500 font-medium truncate mt-0.5 flex items-center gap-1' title={personaNombre}>
-                                <span className='text-slate-400 text-[9px] font-bold uppercase'>Afil:</span>
+                                <span className='text-slate-400 text-[11px] font-bold uppercase'>Afil:</span>
                                 <span className='text-slate-700 truncate font-semibold'>{personaNombre}</span>
                               </p>
                             )}
@@ -1129,7 +1129,7 @@ export default function UsersPanel() {
                               {u.codigo}
                             </span>
                           ) : (
-                            <span className='text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md'>
+                            <span className='text-[11px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md'>
                               S/C
                             </span>
                           )}
@@ -1140,7 +1140,7 @@ export default function UsersPanel() {
                       <div className='bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/60 space-y-2 text-xs'>
                         {/* Correo de Acceso */}
                         <div className='flex flex-col min-w-0'>
-                          <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>CORREO DE ACCESO:</span>
+                          <span className='text-[11px] font-black text-slate-400 uppercase tracking-wider block'>CORREO DE ACCESO:</span>
                           {u.tipo_afiliado === 'Corporativo' ? (
                             <div className='relative inline-flex items-center group/select-email max-w-full mt-0.5'>
                               <select
@@ -1175,7 +1175,7 @@ export default function UsersPanel() {
                         <div className='grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/50'>
                           {/* Cédula / RIF */}
                           <div className='space-y-0.5 min-w-0'>
-                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>CÉDULA / RIF:</span>
+                            <span className='text-[11px] font-black text-slate-400 uppercase tracking-wider block'>CÉDULA / RIF:</span>
                             <p className='font-bold text-slate-800 truncate text-[12px]'>
                               {u.cedula
                                 ? `${u.cedula_tipo || 'V'}-${u.cedula}`
@@ -1187,7 +1187,7 @@ export default function UsersPanel() {
 
                           {/* ID & Fecha Registro */}
                           <div className='space-y-0.5 min-w-0'>
-                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>REGISTRO / ID:</span>
+                            <span className='text-[11px] font-black text-slate-400 uppercase tracking-wider block'>REGISTRO / ID:</span>
                             <p className='font-semibold text-slate-700 truncate text-[11.5px]'>
                               {new Date(u.creado_en).toLocaleDateString('es-VE')} {u.id_afiliado ? `(#${u.id_afiliado})` : ''}
                             </p>
@@ -1198,7 +1198,7 @@ export default function UsersPanel() {
                         <div className='grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/50 items-center'>
                           {/* Rol */}
                           <div className='space-y-0.5 min-w-0'>
-                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>ROL:</span>
+                            <span className='text-[11px] font-black text-slate-400 uppercase tracking-wider block'>ROL:</span>
                             {puedeSelectorRol(u) ? (
                               <div className='relative inline-flex items-center group/select max-w-full'>
                                 <select
@@ -1246,7 +1246,7 @@ export default function UsersPanel() {
 
                           {/* Estado Activo / Estatus */}
                           <div className='space-y-0.5 min-w-0 flex flex-col items-start'>
-                            <span className='text-[9px] font-black text-slate-400 uppercase tracking-wider block'>ESTADO:</span>
+                            <span className='text-[11px] font-black text-slate-400 uppercase tracking-wider block'>ESTADO:</span>
                             <div className='flex items-center gap-1.5 flex-wrap'>
                               <button
                                 type='button'

@@ -260,7 +260,7 @@ const DirectorioPage = () => {
                   )}
                   <div className="absolute right-6 flex items-center gap-2">
                     {filterType !== 'Todos' && (
-                      <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2.5 py-1 rounded-md">
+                      <span className="hidden sm:inline-block text-[11px] font-black uppercase tracking-tighter bg-emerald-500 text-white px-2.5 py-1 rounded-md">
                         {filterType === 'Natural' ? 'Agentes Independientes' : filterType === 'Agente' ? 'Agentes Corporativos' : 'Corporativos'}
                       </span>
                     )}
@@ -287,14 +287,14 @@ const DirectorioPage = () => {
                     <button
                       key={f.id}
                       onClick={() => setFilterType(f.id as any)}
-                      className={`flex-shrink-0 px-4 md:px-5 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-colors duration-300 flex items-center justify-center text-center gap-1.5 ${filterType === f.id
+                      className={`flex-shrink-0 px-4 md:px-5 py-2.5 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-colors duration-300 flex items-center justify-center text-center gap-1.5 ${filterType === f.id
                           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 scale-105'
                           : 'bg-white dark:bg-[#04432f] text-slate-500 dark:text-emerald-100/50 border border-slate-200 dark:border-emerald-500/10 hover:border-emerald-500/30'
                         }`}
                     >
                       <span>{f.label}</span>
                       {f.count > 0 && (
-                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-extrabold transition-colors ${filterType === f.id
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-extrabold transition-colors ${filterType === f.id
                             ? 'bg-white/20 text-white'
                             : 'bg-slate-100 dark:bg-emerald-900/60 text-slate-600 dark:text-emerald-200'
                           }`}>

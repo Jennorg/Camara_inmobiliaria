@@ -127,7 +127,7 @@ const AtributosCurso = ({ curso }: { curso: CursoDB }) => {
 
   if (!esInformativo && !esPrivado && excluyentes.length === 0) return null;
 
-  const marca = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap';
+  const marca = 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap';
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {esPrivado && (
@@ -852,12 +852,12 @@ const CursosAdminPanel = () => {
                         alt={c.titulo || c.nombre}
                         className={`object-cover group-hover:scale-105 transition-transform duration-500 ${c.estatus === 'Cerrado' ? 'grayscale opacity-60' : ''}`}
                         silueta={<GraduationCap size={32} strokeWidth={1.25} />}
-                        alternativa={<div className="flex flex-col items-center justify-center text-slate-400 space-y-1"><GraduationCap size={32} className="opacity-40" /><span className="text-[10px] font-medium opacity-70">Sin portada</span></div>}
+                        alternativa={<div className="flex flex-col items-center justify-center text-slate-400 space-y-1"><GraduationCap size={32} className="opacity-40" /><span className="text-[11px] font-medium opacity-70">Sin portada</span></div>}
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
                         <GraduationCap size={32} className="opacity-40" />
-                        <span className="text-[10px] font-medium opacity-70">Sin portada</span>
+                        <span className="text-[11px] font-medium opacity-70">Sin portada</span>
                       </div>
                     )}
                   </div>
@@ -877,11 +877,11 @@ const CursosAdminPanel = () => {
                     <div className="flex items-center justify-between gap-2">
                       <EstatusIndicador estatus={c.estatus} />
                       {c.categoria && (
-                        <span className="text-[10px] font-medium text-slate-400 truncate">{c.categoria}</span>
+                        <span className="text-[11px] font-medium text-slate-400 truncate">{c.categoria}</span>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 font-semibold">
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 font-semibold">
                       <span className="inline-flex items-center gap-1">
                         <Calendar size={12} className="text-slate-400" />
                         {c.fecha_inicio ? formatDateLatinaMes(c.fecha_inicio) : 'Por definir'}
@@ -893,13 +893,13 @@ const CursosAdminPanel = () => {
 
                     {!(Number(c.solo_informativo) === 1 || c.solo_informativo === true || (c.estatus as string) === 'Solo Informativo') && (
                       isIlimitado ? (
-                        <div className="flex items-center justify-between text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
                           <span>Cupos ilimitados</span>
                           <span>{ins} inscritos</span>
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                          <div className="flex justify-between items-center text-[11px] font-bold text-slate-500">
                             <span>Cupos ocupados</span>
                             <span>{ins}/{totales} ({Math.round(pct)}%)</span>
                           </div>
@@ -980,11 +980,11 @@ const CursosAdminPanel = () => {
             <table className="w-full text-sm min-w-[700px] table-auto">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200/80">
-                  <th className="px-4 py-3.5 text-left text-[10px] font-black text-slate-400 tracking-wider uppercase w-[35%]">CURSO</th>
-                  <th className="px-4 py-3.5 text-center text-[10px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSTRUCTOR</th>
-                  <th className="px-4 py-3.5 text-center text-[10px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSCRITOS</th>
-                  <th className="px-4 py-3.5 text-center text-[10px] font-black text-slate-400 tracking-wider uppercase w-[12%]">INICIO</th>
-                  <th className="px-4 py-3.5 text-center text-[10px] font-black text-slate-400 tracking-wider uppercase w-[13%]">ACCIONES</th>
+                  <th className="px-4 py-3.5 text-left text-[11px] font-black text-slate-400 tracking-wider uppercase w-[35%]">CURSO</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSTRUCTOR</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSCRITOS</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[12%]">INICIO</th>
+                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[13%]">ACCIONES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1005,7 +1005,7 @@ const CursosAdminPanel = () => {
                           <div className="flex items-center gap-2.5 flex-wrap">
                             <EstatusIndicador estatus={c.estatus} />
                             {c.categoria && (
-                              <span className="text-[10px] font-medium text-slate-400">{c.categoria}</span>
+                              <span className="text-[11px] font-medium text-slate-400">{c.categoria}</span>
                             )}
                           </div>
                           <AtributosCurso curso={c} />
@@ -1015,7 +1015,7 @@ const CursosAdminPanel = () => {
                       <td className="px-4 py-3.5 text-center">
                         {isIlimitado ? (
                           <div className="flex items-center justify-center gap-2">
-                            <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Ilimitados</span>
+                            <span className="text-[11px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Ilimitados</span>
                             <span className="text-xs text-slate-500 tabular-nums">({ins})</span>
                           </div>
                         ) : (
@@ -1479,7 +1479,7 @@ const CursosAdminPanel = () => {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
               <div>
                 <h4 className="font-bold text-slate-800 text-sm">Registrar Profesor</h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vincular o crear docente</p>
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Vincular o crear docente</p>
               </div>
               <button onClick={() => setIsProfModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-2xl leading-none">&times;</button>
             </div>
@@ -1511,7 +1511,7 @@ const CursosAdminPanel = () => {
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-4 pr-3">
                 {profRegisterMode === 'existente' ? (
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Seleccionar Persona</label>
+                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Seleccionar Persona</label>
                     {loadingPersonas ? (
                       <div className="text-xs text-slate-400 italic">Cargando personas...</div>
                     ) : (
@@ -1529,7 +1529,7 @@ const CursosAdminPanel = () => {
                         ))}
                       </select>
                     )}
-                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-normal">
+                    <p className="text-[11px] text-slate-400 mt-1.5 font-medium leading-normal">
                       Solo se muestran personas registradas en el sistema (afiliados, postulantes, estudiantes) que no son profesores actualmente.
                     </p>
                   </div>
@@ -1537,7 +1537,7 @@ const CursosAdminPanel = () => {
                   <div className="space-y-3.5">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombres</label>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombres</label>
                         <input
                           type="text"
                           required
@@ -1548,7 +1548,7 @@ const CursosAdminPanel = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Apellidos</label>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Apellidos</label>
                         <input
                           type="text"
                           required
@@ -1562,7 +1562,7 @@ const CursosAdminPanel = () => {
 
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Tipo</label>
                         <select
                           value={profFormData.cedula_tipo}
                           onChange={e => setProfFormData({ ...profFormData, cedula_tipo: e.target.value })}
@@ -1575,7 +1575,7 @@ const CursosAdminPanel = () => {
                         </select>
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cédula</label>
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Cédula</label>
                         <input
                           type="text"
                           required
@@ -1588,7 +1588,7 @@ const CursosAdminPanel = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</label>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</label>
                       <input
                         type="email"
                         required
@@ -1600,7 +1600,7 @@ const CursosAdminPanel = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Teléfono (Opcional)</label>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Teléfono (Opcional)</label>
                       <input
                         type="text"
                         placeholder="Ej. 04141234567"
@@ -2406,9 +2406,9 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <h3 className="font-bold text-slate-900 text-lg sm:text-xl tracking-tight leading-none">{curso.titulo || curso.nombre}</h3>
-              <span className="px-2 py-0.5 rounded-md bg-[#E9FAF4] text-[#00B870] text-[10px] font-black uppercase tracking-widest">Inscritos</span>
+              <span className="px-2 py-0.5 rounded-md bg-[#E9FAF4] text-[#00B870] text-[11px] font-black uppercase tracking-widest">Inscritos</span>
             </div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestión de participantes y admisiones</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Gestión de participantes y admisiones</p>
           </div>
         </div>
 
@@ -2485,7 +2485,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 <div className="fixed inset-0 z-30" onClick={() => setShowCertFormatMenu(false)} />
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 z-40 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="px-3 py-2 border-b border-gray-100 mb-1">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Descargar Certificados (Todos)</p>
+                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Descargar Certificados (Todos)</p>
                     <p className="text-xs font-bold text-slate-700">{rows.length} {rows.length === 1 ? 'participante' : 'participantes'}</p>
                   </div>
                   <button
@@ -2499,7 +2499,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     <div>
                       <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <span>PDFs Separados</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">ZIP</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">ZIP</span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">Un archivo PDF independiente por cada participante</p>
                     </div>
@@ -2515,7 +2515,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     <div>
                       <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <span>PDF Unificado</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold uppercase">1 PDF</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold uppercase">1 PDF</span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">Todos los certificados en un solo documento multipágina</p>
                     </div>
@@ -2531,7 +2531,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     <div>
                       <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                         <span>Descargar PNG</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold uppercase">300 DPI</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold uppercase">300 DPI</span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">Máxima resolución en imágenes para impresión profesional</p>
                     </div>
@@ -2552,7 +2552,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
           {!(Number(curso.solo_informativo) === 1 || curso.solo_informativo === true || (curso.estatus as string) === 'Solo Informativo') && (
             <div className="hidden sm:flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl border border-gray-100 shadow-sm">
               <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Disponibilidad</span>
                 <span className="text-sm font-bold text-slate-700 tabular-nums">
                   {cuposTotales >= 999999 ? '∞' : Math.max(0, cuposTotales - cuposOcupados)} <span className="text-slate-300 font-medium">/ {cuposTotales >= 999999 ? '∞' : cuposTotales}</span>
                 </span>
@@ -2577,7 +2577,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               <span className="text-xs font-bold text-slate-800 tracking-tight">
                 {selectedIds.length === 1 ? '1 participante seleccionado' : `${selectedIds.length} participantes seleccionados`}
               </span>
-              <span className="text-[10px] text-slate-400 font-semibold">Acciones disponibles para el lote</span>
+              <span className="text-[11px] text-slate-400 font-semibold">Acciones disponibles para el lote</span>
             </div>
           </div>
 
@@ -2604,7 +2604,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   <div className="fixed inset-0 z-30" onClick={() => setShowBatchCertFormatMenu(false)} />
                   <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <div className="px-3 py-2 border-b border-gray-100 mb-1">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Certificados Seleccionados</p>
+                      <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Certificados Seleccionados</p>
                       <p className="text-xs font-bold text-slate-700">{selectedIds.length} {selectedIds.length === 1 ? 'participante' : 'participantes'}</p>
                     </div>
                     <button
@@ -2618,7 +2618,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <div>
                         <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                           <span>PDFs Separados</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">ZIP</span>
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold uppercase">ZIP</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">Un archivo PDF independiente por cada participante</p>
                       </div>
@@ -2634,7 +2634,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <div>
                         <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                           <span>PDF Unificado</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold uppercase">1 PDF</span>
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold uppercase">1 PDF</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">Todos los certificados en un solo documento multipágina</p>
                       </div>
@@ -2650,7 +2650,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <div>
                         <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                           <span>Descargar PNG</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold uppercase">300 DPI</span>
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold uppercase">300 DPI</span>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">Máxima calidad lista para impresión profesional</p>
                       </div>
@@ -2721,7 +2721,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center gap-4">
             <div className="w-8 h-8 border-3 border-[#00D084] border-t-transparent rounded-full animate-spin" />
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Cargando lista...</span>
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Cargando lista...</span>
           </div>
         ) : rows.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-12 text-center">
@@ -2780,7 +2780,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <th
                         key={col.id}
                         onClick={() => handleSort(col.id as any)}
-                        className={`${col.pad} py-4 text-left text-[10px] font-black tracking-widest uppercase cursor-pointer select-none transition-colors hover:text-[#00D084] ${isActive ? 'text-[#00B870]' : 'text-slate-400'
+                        className={`${col.pad} py-4 text-left text-[11px] font-black tracking-widest uppercase cursor-pointer select-none transition-colors hover:text-[#00D084] ${isActive ? 'text-[#00B870]' : 'text-slate-400'
                           }`}
                         title={`Ordenar por ${col.label}`}
                       >
@@ -2799,7 +2799,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </th>
                     );
                   })}
-                  <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 tracking-widest uppercase">Acciones</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-black text-slate-400 tracking-widest uppercase">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -2834,7 +2834,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <td className="px-4 py-4">
                         <span className="text-xs font-semibold text-slate-600 truncate max-w-[220px] block" title={r.estudiante_email || ''}>{r.estudiante_email || 'Sin correo'}</span>
                         {correoSt && (
-                          <span className={`mt-1 inline-flex items-center gap-1 text-[10px] font-bold ${{
+                          <span className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${{
                             previo: 'text-slate-500', enviando: 'text-slate-400', enviado: 'text-blue-500', aceptado: 'text-blue-600', entregado: 'text-emerald-600',
                             demorado: 'text-amber-600', rebotado: 'text-red-500', error: 'text-red-500',
                           }[correoSt]}`}>
@@ -2856,11 +2856,11 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </td>
                       {requiereAprobacion && <td className="px-6 py-4">
                         {r.completado === 1 ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 text-[11px] font-black uppercase tracking-widest border border-blue-100">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> Completado
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${r.estatus === 'Preinscrito' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border ${r.estatus === 'Preinscrito' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                             r.estatus === 'Inscrito' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                               'bg-red-50 text-red-500 border-red-100'
                             }`}>
@@ -2890,7 +2890,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'aprobar')}
                                       disabled={isRowDisabled}
-                                      className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                      className="px-3 py-2 bg-[#00D084] text-white rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-[#00B870] shadow-sm active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                                     >
                                       {isValidating ? (
                                         <>
@@ -2905,7 +2905,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'rechazar')}
                                       disabled={isRowDisabled}
-                                      className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                      className="px-3 py-2 bg-white text-red-500 border border-red-100 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                                     >
                                       {isRejecting ? (
                                         <>
@@ -2924,7 +2924,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'completar')}
                                       disabled={isRowDisabled}
-                                      className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                      className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                                     >
                                       {isCompleting ? (
                                         <>
@@ -2943,7 +2943,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                       type="button"
                                       onClick={() => procesar(r.id_inscripcion, 'rechazar')}
                                       disabled={isRowDisabled}
-                                      className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                                      className="px-3 py-2 border border-red-100 text-red-400 bg-white rounded-lg text-[11px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                                     >
                                       {isRejecting ? (
                                         <>
@@ -2958,7 +2958,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                   </>
                                 )}
                                 {r.completado === 1 && (
-                                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
+                                  <span className="text-[11px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Finalizado</span>
                                 )}
                                 {(r.estatus === 'Inscrito' || r.completado === 1 || (!requiereAprobacion && r.estatus === 'Preinscrito')) && (
                                   <a
@@ -3025,7 +3025,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">Inscribir en {curso.titulo || curso.nombre}</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Asignar estudiante directamente a este curso</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Asignar estudiante directamente a este curso</p>
                 </div>
               </div>
               <button
@@ -3040,7 +3040,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 {/* Tipo de Inscrito Switcher */}
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
                     Origen del Estudiante *
                   </label>
                   <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl text-xs font-bold">
@@ -3072,7 +3072,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 {/* Si elige Afiliado Existente */}
                 {enrollMode === 'afiliado' && (
                   <div className="space-y-3 bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 relative z-30">
-                    <label className="block text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">
+                    <label className="block text-[11px] font-black text-emerald-800 uppercase tracking-widest mb-1">
                       Buscar en Directorio de Afiliados
                     </label>
 
@@ -3087,7 +3087,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                               e.stopPropagation();
                               setShowAfiliadoSearchDropdown(prev => !prev);
                             }}
-                            className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 hover:text-[#00B870] transition-colors"
+                            className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-800 hover:text-[#00B870] transition-colors"
                           >
                             <span>
                               {afiliadoSearchField === 'nombre' && 'Nombre'}
@@ -3120,7 +3120,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                       setAfiliadoSearchField(option.key as any);
                                       setShowAfiliadoSearchDropdown(false);
                                     }}
-                                    className={`w-full text-left px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${afiliadoSearchField === option.key
+                                    className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors ${afiliadoSearchField === option.key
                                       ? 'bg-[#E9FAF4] text-[#00B870] font-extrabold'
                                       : 'text-slate-600 hover:bg-slate-50'
                                       }`}
@@ -3194,17 +3194,17 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <p className="font-bold truncate text-slate-900">{nombre}</p>
                                       {af.codigo && (
-                                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shrink-0">
+                                        <span className="text-[11px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md shrink-0">
                                           {af.codigo}
                                         </span>
                                       )}
                                       {af.tipo_afiliado && (
-                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                                        <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
                                           {af.tipo_afiliado}
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
                                       {af.email || af.empresa_email || 'Sin correo'} • C.I/RIF: {af.cedula || af.rif || 'S/N'}
                                       {af.empresa_razon_social && af.tipo_afiliado !== 'Corporativo' ? ` • ${af.empresa_razon_social}` : ''}
                                     </p>
@@ -3223,7 +3223,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 <div className="space-y-3 pt-1">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Nombre(s) *
                       </label>
                       <input
@@ -3243,7 +3243,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Apellido(s) *
                       </label>
                       <input
@@ -3266,7 +3266,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Correo Electrónico *
                       </label>
                       <input
@@ -3280,7 +3280,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Tipo y Cédula
                       </label>
                       <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
@@ -3307,7 +3307,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                       Teléfono de Contacto
                     </label>
                     <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
@@ -3382,7 +3382,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">Editar Participante</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Modificar datos personales</p>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Modificar datos personales</p>
                 </div>
               </div>
               <button
@@ -3397,7 +3397,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     Nombre(s) *
                   </label>
                   <input
@@ -3417,7 +3417,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     Apellido(s) *
                   </label>
                   <input
@@ -3440,7 +3440,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     Correo Electrónico *
                   </label>
                   <input
@@ -3454,7 +3454,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                     Tipo y Cédula
                   </label>
                   <div className="flex rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-[#00D084]/20 focus-within:border-[#00D084] transition-colors bg-white">
@@ -3481,7 +3481,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">
                   Teléfono de Contacto
                 </label>
                 <input

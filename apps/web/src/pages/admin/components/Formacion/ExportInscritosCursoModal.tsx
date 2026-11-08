@@ -35,6 +35,7 @@ export type ExportColumnId =
   | 'telefono'
   | 'fecha'
   | 'estatus'
+  | 'pago'
   | 'observaciones';
 
 export interface InscritosExportColumn {
@@ -147,6 +148,7 @@ export const INSCRITOS_EXPORT_COLUMNS: InscritosExportColumn[] = [
   { id: 'telefono', label: 'Teléfono', description: 'Número telefónico de contacto', defaultSelected: true },
   { id: 'fecha', label: 'Fecha de Registro', description: 'Fecha en que se inscribió o preinscribió', defaultSelected: true },
   { id: 'estatus', label: 'Estatus del Alumno', description: 'Preinscrito, Admitido, Graduado o Revocado', defaultSelected: true },
+  { id: 'pago', label: 'Estado del Pago', description: 'Indica si el pago del participante consta como realizado o pendiente', defaultSelected: false },
   { id: 'observaciones', label: 'Asistencia / Observaciones', description: 'Casilla o anotación para control de asistencia presencial', defaultSelected: false },
 ];
 
@@ -280,16 +282,16 @@ function DraggableColumnItem({
               {col.label}
             </h4>
             {isSelected && orderNumber !== null ? (
-              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-[#00D084]/15 text-[#00B870] border border-[#00D084]/30 shrink-0">
+              <span className="text-[11px] font-black px-1.5 py-0.5 rounded-md bg-[#00D084]/15 text-[#00B870] border border-[#00D084]/30 shrink-0">
                 Col #{orderNumber}
               </span>
             ) : (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 border border-slate-200 shrink-0">
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-400 border border-slate-200 shrink-0">
                 Omitida
               </span>
             )}
           </div>
-          <p className="text-[10px] font-medium text-slate-400 leading-tight mt-0.5">
+          <p className="text-[11px] font-medium text-slate-400 leading-tight mt-0.5">
             {col.description}
           </p>
         </div>
@@ -315,6 +317,7 @@ export default function ExportInscritosCursoModal({
 
   // Filtros State
   const [estatusFilter, setEstatusFilter] = useState<'Todos' | 'Preinscrito' | 'Inscrito' | 'Completado' | 'Rechazado'>('Todos');
+  const [pagoFilter, setPagoFilter] = useState<'Todos' | 'Pagaron' | 'SinPagar'>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'email' | 'telefono'>('nombre');
   const [fechaDesde, setFechaDesde] = useState('');
@@ -373,6 +376,8 @@ export default function ExportInscritosCursoModal({
   // Filtrado de rows en tiempo real
   const filteredRows = useMemo(() => {
     return rows.filter(r => {
+      if (pagoFilter === 'Pagaron' && !r.pago_curso) return false;
+      if (pagoFilter === 'SinPagar' && r.pago_curso) return false;
       // 1. Filtro por Estatus
       if (estatusFilter !== 'Todos') {
         if (estatusFilter === 'Completado') {
@@ -464,7 +469,7 @@ export default function ExportInscritosCursoModal({
       const cmp = valA.localeCompare(valB, 'es', { sensitivity: 'base' });
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [rows, sinAprobacion, estatusFilter, searchQuery, searchField, fechaDesde, fechaHasta, sortBy, sortDirection]);
+  }, [rows, sinAprobacion, estatusFilter, pagoFilter, searchQuery, searchField, fechaDesde, fechaHasta, sortBy, sortDirection]);
 
   const visibleSelectedCount = useMemo(() => {
     return selectedColumns.filter(c => INSCRITOS_EXPORT_COLUMNS.some(col => col.id === c)).length;
@@ -492,6 +497,7 @@ export default function ExportInscritosCursoModal({
     setExportMode('general');
     setCantFirmas(1);
     setEstatusFilter('Todos');
+    setPagoFilter('Todos');
     setSearchQuery('');
     setSearchField('nombre');
     setFechaDesde('');
@@ -601,6 +607,7 @@ export default function ExportInscritosCursoModal({
         if (cId === 'telefono') return 'Teléfono';
         if (cId === 'fecha') return 'Fecha Registro';
         if (cId === 'estatus') return 'Estatus';
+        if (cId === 'pago') return 'Estado del Pago';
         if (cId === 'observaciones') return 'Asistencia / Observaciones';
         if (cId === 'firma') return 'Firma';
         if (cId.startsWith('firma_')) {
@@ -628,6 +635,8 @@ export default function ExportInscritosCursoModal({
             const est = estatusDe(r, sinAprobacion);
             const st = r.completado === 1 ? 'Graduado' : est === 'Preinscrito' ? 'Pendiente' : est === 'Inscrito' ? 'Admitido' : (est || 'Registrado');
             rowData.push(st);
+          } else if (cId === 'pago') {
+            rowData.push(r.pago_curso ? 'Pago realizado' : 'Pago pendiente');
           } else if (cId.startsWith('firma')) {
             rowData.push('');
           } else if (cId === 'observaciones') {
@@ -826,7 +835,7 @@ export default function ExportInscritosCursoModal({
                       {cantFirmas === 1 ? 'columna' : 'columnas'}
                     </span>
                   </div>
-                  <p className="text-[10px] font-medium text-slate-500 leading-normal">
+                  <p className="text-[11px] font-medium text-slate-500 leading-normal">
                     Indica cuántas columnas vacías para firma física deseas incluir en la lista (se agregan de forma automática).
                   </p>
                 </div>
@@ -852,6 +861,28 @@ export default function ExportInscritosCursoModal({
                         st === 'Preinscrito' ? 'Pendientes' :
                           st === 'Inscrito' ? 'Admitidos' :
                             st === 'Completado' ? 'Graduados' : 'Revocados'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro por Pago */}
+              <div>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Estado del Pago
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([['Todos', 'Todos'], ['Pagaron', 'Pago realizado'], ['SinPagar', 'Pago pendiente']] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setPagoFilter(val)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border ${pagoFilter === val
+                        ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/40 shadow-xs'
+                        : 'bg-white text-slate-600 border-gray-200 hover:bg-slate-50'
+                        }`}
+                    >
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -902,7 +933,7 @@ export default function ExportInscritosCursoModal({
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Desde</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Desde</span>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input
@@ -915,7 +946,7 @@ export default function ExportInscritosCursoModal({
                   </div>
 
                   <div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Hasta</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Hasta</span>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input
@@ -936,14 +967,14 @@ export default function ExportInscritosCursoModal({
                     <ArrowUpDown size={14} className="text-[#00B870]" />
                     <span>Organizar Registros (Orden de la Lista)</span>
                   </label>
-                  <span className="text-[10px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-semibold text-slate-400">
                     {sortDirection === 'asc' ? 'Orden Ascendente (A → Z)' : 'Orden Descendente (Z → A)'}
                   </span>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                       Ordenar por Columna / Criterio
                     </label>
                     <select
@@ -963,7 +994,7 @@ export default function ExportInscritosCursoModal({
                   </div>
 
                   <div>
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                       Dirección del Orden
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1094,7 +1125,7 @@ export default function ExportInscritosCursoModal({
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 shrink-0">
               <span><span className="text-[#00B870] font-black">{filteredRows.length}</span> / {rows.length} seleccionados</span>
             </span>
-            <span className="hidden sm:inline-flex items-center text-[10px] text-slate-500 font-medium px-2 py-0.5 bg-slate-200/60 rounded-lg truncate" title={`Orden: ${sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} (${sortDirection === 'asc' ? 'A-Z' : 'Z-A'})`}>
+            <span className="hidden sm:inline-flex items-center text-[11px] text-slate-500 font-medium px-2 py-0.5 bg-slate-200/60 rounded-lg truncate" title={`Orden: ${sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} (${sortDirection === 'asc' ? 'A-Z' : 'Z-A'})`}>
               {sortBy === 'apellidos' ? 'Apellidos' : sortBy === 'nombres' ? 'Nombres' : sortBy === 'apellido_nombre' ? 'Apellido' : sortBy === 'nombre' ? 'Nombre' : sortBy === 'cedula' ? 'Cédula' : sortBy === 'fecha' ? 'Fecha' : sortBy === 'estatus' ? 'Estatus' : 'Correo'} ({sortDirection === 'asc' ? 'A-Z' : 'Z-A'})
             </span>
           </div>

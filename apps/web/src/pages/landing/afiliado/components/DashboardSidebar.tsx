@@ -111,7 +111,7 @@ const SidebarContent = ({
             <span className="font-extrabold text-[11px] tracking-tighter uppercase leading-none text-white">
               Cámara Inmobiliaria
             </span>
-            <span className="text-[10px] font-bold tracking-widest uppercase text-white/50">
+            <span className="text-[11px] font-bold tracking-widest uppercase text-white/50">
               de Bolívar
             </span>
           </div>
@@ -139,7 +139,7 @@ const SidebarContent = ({
               {/* El rótulo de sección abre su altura con la rejilla (0fr → 1fr) para no dar un salto */}
               <div className={`grid transition-[grid-template-rows,opacity] duration-300 ${EASE} motion-reduce:transition-none ${isCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`} style={{ transitionDelay: retardo }}>
                 <div className="overflow-hidden min-h-0">
-                  <span className="block pb-1 text-[9px] font-black tracking-widest uppercase opacity-40 text-white leading-none whitespace-nowrap">
+                  <span className="block pb-1 text-[11px] font-black tracking-widest uppercase opacity-40 text-white leading-none whitespace-nowrap">
                     {item.label.replace('— ', '').replace(' —', '')}
                   </span>
                 </div>
@@ -186,7 +186,7 @@ const SidebarContent = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-sm tracking-tight truncate whitespace-nowrap">{item.label}</span>
                     {item.count !== undefined && item.count > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-[#00D084] text-white text-[9px] font-black leading-none">
+                      <span className="px-1.5 py-0.5 rounded-md bg-[#00D084] text-white text-[11px] font-black leading-none">
                         {item.count}
                       </span>
                     )}

@@ -69,14 +69,14 @@ export default function ConstanciaSolvenciaPage() {
 
       <article className="mx-auto max-w-[680px] rounded-2xl border-2 border-emerald-200/80 bg-white p-8 sm:p-10 shadow-sm print:shadow-none print:border-slate-300">
         <header className="flex flex-col items-center text-center gap-2 border-b border-slate-100 pb-6">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Cámara Inmobiliaria del Estado Bolívar</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Cámara Inmobiliaria del Estado Bolívar</p>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 text-balance">Constancia de Solvencia</h1>
           {data.vigente ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
               <ShieldCheck size={12} aria-hidden="true" /> Vigente
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-800">
               Vencida
             </span>
           )}
@@ -91,15 +91,15 @@ export default function ConstanciaSolvenciaPage() {
 
         <dl className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm">
           <div>
-            <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Código</dt>
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Código</dt>
             <dd className="mt-1 font-mono font-bold text-emerald-800">{data.codigo_validacion}</dd>
           </div>
           <div>
-            <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Emitida</dt>
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Emitida</dt>
             <dd className="mt-1 font-medium text-slate-800">{formatDateLatina(data.emitida_en)}</dd>
           </div>
           <div>
-            <dt className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Válida hasta</dt>
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Válida hasta</dt>
             <dd className="mt-1 font-medium text-slate-800">{formatDateLatina(`${data.valida_hasta}T12:00:00`)}</dd>
           </div>
         </dl>
@@ -107,13 +107,13 @@ export default function ConstanciaSolvenciaPage() {
         <div className="mt-8 flex items-center gap-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
           {qr && <img src={qr} alt="Código QR de verificación" width={96} height={96} className="shrink-0" />}
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Verificación pública</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Verificación pública</p>
             <p className="mt-1 break-all text-xs font-medium text-emerald-700">{url}</p>
             <p className="mt-1 text-[11px] text-slate-500">Escanea el código o visita el enlace para comprobar su autenticidad y vigencia.</p>
           </div>
         </div>
 
-        <p className="mt-8 text-center text-[10px] text-slate-400">Documento emitido electrónicamente · No requiere firma autógrafa</p>
+        <p className="mt-8 text-center text-[11px] text-slate-400">Documento emitido electrónicamente · No requiere firma autógrafa</p>
       </article>
     </main>
   )
