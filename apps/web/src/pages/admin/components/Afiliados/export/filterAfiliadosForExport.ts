@@ -14,6 +14,8 @@ export interface ExportRowFilters {
   foto: ExportFotoFilter
   /** '' = todos; 'programa:CIBIR' = todo el programa; 'cohorte:12' = una cohorte (lo filtra la API) */
   cohorte?: string
+  /** Solo con programa/cohorte elegido: 'pagaron' | 'sin_pagar' (lo filtra la API) */
+  pago?: 'todos' | 'pagaron' | 'sin_pagar'
   search: string
   searchField?: SearchFieldType
   desdeCodigo: string
@@ -152,6 +154,10 @@ export function describeExportFilters(filters: ExportRowFilters): string[] {
     lines.push(
       `Fotografía: ${filters.foto === 'con_foto' ? 'Con foto' : 'Sin foto'}`
     )
+  }
+
+  if (filters.pago && filters.pago !== 'todos') {
+    lines.push(`Estado del pago: ${filters.pago === 'pagaron' ? 'Pago realizado' : 'Pago pendiente'}`)
   }
 
   if (filters.desdeCodigo) {

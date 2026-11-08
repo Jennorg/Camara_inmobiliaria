@@ -35,6 +35,7 @@ export type ExportColumnId =
   | 'telefono'
   | 'fecha'
   | 'estatus'
+  | 'pago'
   | 'observaciones';
 
 export interface InscritosExportColumn {
@@ -147,6 +148,7 @@ export const INSCRITOS_EXPORT_COLUMNS: InscritosExportColumn[] = [
   { id: 'telefono', label: 'Teléfono', description: 'Número telefónico de contacto', defaultSelected: true },
   { id: 'fecha', label: 'Fecha de Registro', description: 'Fecha en que se inscribió o preinscribió', defaultSelected: true },
   { id: 'estatus', label: 'Estatus del Alumno', description: 'Preinscrito, Admitido, Graduado o Revocado', defaultSelected: true },
+  { id: 'pago', label: 'Estado del Pago', description: 'Indica si el pago del participante consta como realizado o pendiente', defaultSelected: false },
   { id: 'observaciones', label: 'Asistencia / Observaciones', description: 'Casilla o anotación para control de asistencia presencial', defaultSelected: false },
 ];
 
@@ -315,6 +317,7 @@ export default function ExportInscritosCursoModal({
 
   // Filtros State
   const [estatusFilter, setEstatusFilter] = useState<'Todos' | 'Preinscrito' | 'Inscrito' | 'Completado' | 'Rechazado'>('Todos');
+  const [pagoFilter, setPagoFilter] = useState<'Todos' | 'Pagaron' | 'SinPagar'>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState<'nombre' | 'cedula' | 'email' | 'telefono'>('nombre');
   const [fechaDesde, setFechaDesde] = useState('');
@@ -373,6 +376,8 @@ export default function ExportInscritosCursoModal({
   // Filtrado de rows en tiempo real
   const filteredRows = useMemo(() => {
     return rows.filter(r => {
+      if (pagoFilter === 'Pagaron' && !r.pago_curso) return false;
+      if (pagoFilter === 'SinPagar' && r.pago_curso) return false;
       // 1. Filtro por Estatus
       if (estatusFilter !== 'Todos') {
         if (estatusFilter === 'Completado') {
@@ -464,7 +469,7 @@ export default function ExportInscritosCursoModal({
       const cmp = valA.localeCompare(valB, 'es', { sensitivity: 'base' });
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [rows, sinAprobacion, estatusFilter, searchQuery, searchField, fechaDesde, fechaHasta, sortBy, sortDirection]);
+  }, [rows, sinAprobacion, estatusFilter, pagoFilter, searchQuery, searchField, fechaDesde, fechaHasta, sortBy, sortDirection]);
 
   const visibleSelectedCount = useMemo(() => {
     return selectedColumns.filter(c => INSCRITOS_EXPORT_COLUMNS.some(col => col.id === c)).length;
@@ -492,6 +497,7 @@ export default function ExportInscritosCursoModal({
     setExportMode('general');
     setCantFirmas(1);
     setEstatusFilter('Todos');
+    setPagoFilter('Todos');
     setSearchQuery('');
     setSearchField('nombre');
     setFechaDesde('');
@@ -601,6 +607,7 @@ export default function ExportInscritosCursoModal({
         if (cId === 'telefono') return 'Teléfono';
         if (cId === 'fecha') return 'Fecha Registro';
         if (cId === 'estatus') return 'Estatus';
+        if (cId === 'pago') return 'Estado del Pago';
         if (cId === 'observaciones') return 'Asistencia / Observaciones';
         if (cId === 'firma') return 'Firma';
         if (cId.startsWith('firma_')) {
@@ -628,6 +635,8 @@ export default function ExportInscritosCursoModal({
             const est = estatusDe(r, sinAprobacion);
             const st = r.completado === 1 ? 'Graduado' : est === 'Preinscrito' ? 'Pendiente' : est === 'Inscrito' ? 'Admitido' : (est || 'Registrado');
             rowData.push(st);
+          } else if (cId === 'pago') {
+            rowData.push(r.pago_curso ? 'Pago realizado' : 'Pago pendiente');
           } else if (cId.startsWith('firma')) {
             rowData.push('');
           } else if (cId === 'observaciones') {
@@ -852,6 +861,28 @@ export default function ExportInscritosCursoModal({
                         st === 'Preinscrito' ? 'Pendientes' :
                           st === 'Inscrito' ? 'Admitidos' :
                             st === 'Completado' ? 'Graduados' : 'Revocados'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro por Pago */}
+              <div>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Estado del Pago
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([['Todos', 'Todos'], ['Pagaron', 'Pago realizado'], ['SinPagar', 'Pago pendiente']] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setPagoFilter(val)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer border ${pagoFilter === val
+                        ? 'bg-[#E9FAF4] text-[#00B870] border-[#00D084]/40 shadow-xs'
+                        : 'bg-white text-slate-600 border-gray-200 hover:bg-slate-50'
+                        }`}
+                    >
+                      {label}
                     </button>
                   ))}
                 </div>

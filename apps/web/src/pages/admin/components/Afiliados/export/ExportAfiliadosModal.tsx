@@ -74,6 +74,7 @@ export default function ExportAfiliadosModal({
     activo: initialFilters?.activo ?? 'todos',
     foto: initialFilters?.foto ?? 'todos',
     cohorte: '',
+    pago: 'todos',
     search: initialFilters?.search ?? '',
     searchField: 'todos',
     desdeCodigo: '',
@@ -97,6 +98,7 @@ export default function ExportAfiliadosModal({
         activo: initialFilters?.activo ?? 'todos',
         foto: initialFilters?.foto ?? 'todos',
         cohorte: '',
+        pago: 'todos',
         search: initialFilters?.search ?? '',
         desdeCodigo: '',
         fechaDesde: '',
@@ -118,6 +120,7 @@ export default function ExportAfiliadosModal({
       const [clave, valor] = (filters.cohorte ?? '').split(':')
       if (clave === 'programa') qs.set('programa', valor)
       if (clave === 'cohorte') qs.set('id_cohorte', valor)
+      if (clave && filters.pago && filters.pago !== 'todos') qs.set('pago', filters.pago)
       const url = `${API_URL}/api/afiliados${qs.toString() ? `?${qs}` : ''}`
       const res = await fetch(url, { headers: authHeaders, signal })
       const json = await res.json()
@@ -131,7 +134,7 @@ export default function ExportAfiliadosModal({
       }
       throw err
     }
-  }, [authHeaders, filters.estatus, filters.tipo, filters.cohorte])
+  }, [authHeaders, filters.estatus, filters.tipo, filters.cohorte, filters.pago])
 
   useEffect(() => {
     if (!open) return
@@ -217,6 +220,7 @@ export default function ExportAfiliadosModal({
       activo: 'todos',
       foto: 'todos',
       cohorte: '',
+      pago: 'todos',
       search: '',
       desdeCodigo: '',
       fechaDesde: '',
@@ -521,6 +525,7 @@ export default function ExportAfiliadosModal({
                         ...f,
                         cohorte: e.target.value ? `programa:${e.target.value}` : '',
                         estatus: e.target.value ? 'Todos' : f.estatus,
+                        pago: e.target.value ? f.pago : 'todos',
                       }))
                     }
                     className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -556,6 +561,23 @@ export default function ExportAfiliadosModal({
                       ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Pago del programa: solo aplica cuando hay programa o cohorte elegido */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1.5">
+                  <Filter size={12} className="text-emerald-600" /> Estado del pago del programa
+                </label>
+                <select
+                  value={filters.pago ?? 'todos'}
+                  disabled={!programaSel}
+                  onChange={(e) => setFilters((f) => ({ ...f, pago: e.target.value as ExportRowFilters['pago'] }))}
+                  className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="todos">{programaSel ? 'Todos' : 'Seleccione un programa primero'}</option>
+                  <option value="pagaron">Pago realizado</option>
+                  <option value="sin_pagar">Pago pendiente</option>
+                </select>
               </div>
 
               {/* Grid 2 Columnas para Filtro Activo y Fotografía */}

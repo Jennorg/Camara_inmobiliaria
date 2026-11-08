@@ -913,13 +913,18 @@ export const getAfiliados = async (req: Request, res: Response) => {
     const idCohorte = Number(id_cohorte);
     if (idCohorte > 0 || esProgramaCohorte(programa)) {
       await asegurarCohortes();
+      // pago=pagaron|sin_pagar: pago verificado del programa (CIBIR = curso_cibir; el resto, el arancel del programa)
+      const pagoProg = `EXISTS (SELECT 1 FROM pagos pg WHERE pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL AND (
+            (pg.tipo_concepto = 'curso_cibir' AND c.programa_codigo = 'CIBIR' AND (pg.id_afiliado = a.id_afiliado OR pg.id_estudiante = es.id_estudiante))
+            OR (pg.tipo_concepto = 'programa' AND pg.id_estudiante = es.id_estudiante AND pg.codigo_arancel = 'programa_' || LOWER(c.programa_codigo))))`;
+      const filtroPago = req.query.pago === 'pagaron' ? ` AND ${pagoProg}` : req.query.pago === 'sin_pagar' ? ` AND NOT ${pagoProg}` : '';
       sql += ` AND EXISTS (
         SELECT 1 FROM inscripciones_cursos ic
         JOIN estudiantes es ON es.id_estudiante = ic.id_estudiante
         JOIN cohortes c ON c.id_cohorte = ic.id_cohorte
         WHERE ((es.id_persona IS NOT NULL AND es.id_persona = a.id_persona)
             OR (es.id_empresa IS NOT NULL AND es.id_empresa = a.id_empresa))
-          AND ${idCohorte > 0 ? 'c.id_cohorte = ?' : 'c.programa_codigo = ?'})`;
+          AND ${idCohorte > 0 ? 'c.id_cohorte = ?' : 'c.programa_codigo = ?'}${filtroPago})`;
       args.push(idCohorte > 0 ? idCohorte : (programa as string));
     }
 

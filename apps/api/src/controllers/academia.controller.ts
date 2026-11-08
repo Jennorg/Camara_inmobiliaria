@@ -2445,6 +2445,7 @@ export const adminListPreinscripciones = async (req: Request, res: Response): Pr
           e.tipo as tipo_estudiante,
           COALESCE(p_rep.nombres, '') || ' ' || COALESCE(p_rep.apellidos, '') as representante_nombre,
           p_rep.cedula as representante_cedula,
+          (ic.estatus = 'Pagado' OR EXISTS (SELECT 1 FROM pagos pg WHERE pg.id_inscripcion_curso = ic.id_inscripcion AND pg.estatus = 'Verificado' AND pg.eliminado_en IS NULL)) as pago_curso,
           p_rep.email as representante_email,
           p_rep.telefono as representante_telefono,
           af.id_afiliado as id_afiliado,
