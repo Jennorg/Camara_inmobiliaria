@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { createHash, randomBytes } from 'crypto'
 import { db } from './db.js'
-import { enviarCorreoOnboardingMasivo } from './email.js'
+import { enviarCorreoOnboardingMasivo, enviarCorreoAccesoCibirAprobado } from './email.js'
 
 /**
  * Invitación de acceso: guarda (hasheado) un token reset_password de 30 días, reemplazando
@@ -185,4 +185,47 @@ export async function establecerAccesoPanelAfiliado(
   }
 
   return { userId: userId!, email, created }
+}
+
+/**
+ * Acceso al sistema de un aspirante: solo cuando la Junta Directiva aprueba su CIBIR.
+ * Crea el usuario (contraseña inservible hasta que la establezca) y envía el enlace por correo.
+ * Si ya tiene usuario, solo reenvía cuando aún no ha establecido su contraseña (token vigente sin usar).
+ */
+export async function concederAccesoAlAprobarCibir(idAfiliado: number): Promise<void> {
+  const r = await db.execute({
+    sql: `SELECT COALESCE(NULLIF(TRIM(p.email), ''), e.email) AS email,
+                 COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), e.razon_social) AS nombre
+          FROM afiliados a
+          LEFT JOIN personas p ON a.id_persona = p.id
+          LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
+          WHERE a.id_afiliado = ?`,
+    args: [idAfiliado],
+  })
+  const a = r.rows[0] as { email?: string; nombre?: string } | undefined
+  if (!a?.email) return
+  const email = a.email.trim().toLowerCase()
+
+  const existente = await db.execute({ sql: `SELECT id FROM users WHERE email = ?`, args: [email] })
+  if (existente.rows.length) {
+    const pendiente = await db.execute({
+      sql: `SELECT 1 FROM tokens_accion WHERE email = ? AND tipo = 'reset_password' AND usado = 0 AND fecha_expiracion > ? LIMIT 1`,
+      args: [email, new Date().toISOString()],
+    })
+    if (!pendiente.rows.length) return // ya estableció su contraseña
+  } else {
+    const ins = await db.execute({
+      sql: `INSERT INTO users (email, password_hash, roles) VALUES (?, ?, '["estudiante", "afiliado"]') RETURNING id`,
+      args: [email, await bcrypt.hash(randomBytes(16).toString('hex'), 10)],
+    })
+    await db.execute({ sql: `UPDATE afiliados SET id_user = ? WHERE id_afiliado = ? AND id_user IS NULL`, args: [ins.rows[0].id, idAfiliado] })
+  }
+
+  const token = randomBytes(32).toString('hex')
+  await db.execute({ sql: `DELETE FROM tokens_accion WHERE email = ? AND tipo = 'reset_password'`, args: [email] })
+  await db.execute({
+    sql: `INSERT INTO tokens_accion (token, tipo, email, usado, fecha_expiracion) VALUES (?, 'reset_password', ?, 0, ?)`,
+    args: [createHash('sha256').update(token).digest('hex'), email, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()],
+  })
+  await enviarCorreoAccesoCibirAprobado(String(a.nombre ?? ''), email, token)
 }

@@ -14,6 +14,7 @@
     "db:backup": "tsx scratch/backup_db.ts",
     "db:migrate": "tsx scratch/migrate_db.ts",
     "db:verify": "tsx scratch/verify_migration.ts",
+    "emails:preview": "tsx email-previews/generar.mts",
     "test": "vitest run"
   },
   "dependencies": {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { db } from '../lib/db.js'
+import { concederAccesoAlAprobarCibir } from '../lib/credentials.js'
 
 /**
  * GET /api/admin/cibir/ediciones
@@ -449,7 +450,7 @@ export const aprobarRechazarInscrito = async (req: Request, res: Response): Prom
 
     // Regla R4: Si aprueba el CIBIR, avanzar automáticamente a 6_INSCRIPCION
     if (estatus === 'Aprobado') {
-      await db.execute({
+      const avance = await db.execute({
         sql: `UPDATE afiliados 
               SET estatus = '6_INSCRIPCION', 
                   fecha_ultimo_cambio_estatus = ?, 
@@ -457,6 +458,8 @@ export const aprobarRechazarInscrito = async (req: Request, res: Response): Prom
               WHERE id_afiliado = ? AND estatus = '5_CIBIR'`,
         args: [now, now, idAfiliado]
       })
+      // La Junta aprobó el CIBIR: recién ahora el aspirante recibe el enlace para establecer su contraseña
+      if (avance.rowsAffected) await concederAccesoAlAprobarCibir(idAfiliado).catch(e => console.error('concederAccesoAlAprobarCibir:', e))
     }
 
     res.json({
