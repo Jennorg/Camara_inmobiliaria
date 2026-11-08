@@ -60,6 +60,7 @@ describe('avisoDelDia', () => {
     expect(avisoDelDia('2026-10-05', cfg, 'pagado', 0, null)).toBeNull()
   })
   it('con deuda: mora la primera vez y luego cada N días', () => {
+    expect(avisoDelDia('2026-10-10', cfg, 'por_pagar', 1, null)).toBeNull() // un solo mes: aún no hay mora
     expect(avisoDelDia('2026-10-10', cfg, 'por_pagar', 2, null)).toBe('mora')
     expect(avisoDelDia('2026-10-16', cfg, 'por_pagar', 2, '2026-10-10')).toBeNull()
     expect(avisoDelDia('2026-10-17', cfg, 'por_pagar', 2, '2026-10-10')).toBe('mora')

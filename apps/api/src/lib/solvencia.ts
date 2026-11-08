@@ -128,11 +128,13 @@ export type TipoAviso = 'previo' | 'vencimiento' | 'mora'
 
 /**
  * Qué aviso de cobranza le toca hoy (YYYY-MM-DD) a un afiliado, o null.
- * Con deuda vencida: aviso de mora, repetido cada `frecuenciaMoraDias` desde el último (`ultimaMora`).
+ * Con 2 o más meses de deuda vencida: aviso de mora, repetido cada `frecuenciaMoraDias` desde el último (`ultimaMora`).
  * Al día pero con el mes en curso sin pagar: aviso el día del vencimiento y `diasAvisoPrevio` días antes.
  */
 export function avisoDelDia(hoy: string, cfg: ConfigCobranza, estadoMesActual: EstadoMes | undefined, mesesDeuda: number, ultimaMora: string | null): TipoAviso | null {
   if (mesesDeuda > 0) {
+    // Con un solo mes vencido no se envía aviso de mora: empieza a partir del segundo mes
+    if (mesesDeuda < 2) return null
     if (!ultimaMora) return 'mora'
     const dias = (Date.parse(hoy) - Date.parse(ultimaMora)) / 86_400_000
     return dias >= cfg.frecuenciaMoraDias ? 'mora' : null
