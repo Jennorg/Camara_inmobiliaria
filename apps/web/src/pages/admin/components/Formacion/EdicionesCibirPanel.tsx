@@ -255,7 +255,7 @@ export default function EdicionesCibirPanel() {
               Ediciones CIBIR
             </h2>
             <p className="text-[11px] text-slate-500 font-medium">
-              Control de cohortes del Curso de Inducción de Bienes Raíces
+              Control de cohortes del Curso Introductorio de Bienes Raíces
             </p>
           </div>
         </div>

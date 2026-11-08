@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Footer from '@/pages/landing/components/Footer'
 import bgPegi from "@/assets/Pzo.webp";
-import logoPegi from "@/assets/Pegi.webp";
+import logoPegi from "@/assets/Pegi_logo.png";
 import Estudiosa from "@/assets/estudiosa1.webp";
 import Estudioso from "@/assets/estudioso1.webp";
 import Navbar from "@/pages/landing/components/navbar/Navbar";
@@ -92,7 +92,7 @@ export default function PegiPage() {
             className="text-emerald-100/60 text-lg md:text-xl font-light max-w-2xl mx-auto animate-header-text"
             style={{ animationDelay: "0.3s", opacity: 0 }}
           >
-            Programa de Especializacion en Gerencia Inmobiliaria.
+            Programa de Especialización en Gerencia Inmobiliaria.
           </p>
         </div>
       </header>
@@ -103,8 +103,8 @@ export default function PegiPage() {
             <div className="w-full lg:w-1/3 flex justify-center relative z-10">
               <img
                 src={logoPegi}
-                alt="Formación Gerencial PEGI"
-                className="w-full h-auto drop-shadow-2xl rounded-2xl shadow-emerald-900/10"
+                alt="Logo PEGI — Programa de Especialización en Gerencia Inmobiliaria"
+                className="w-72 lg:w-full max-w-sm h-auto"
               />
             </div>
             <div className="w-full lg:w-2/3 space-y-6 relative z-10">
