@@ -1,3 +1,5 @@
+import UltimaModificacion from '@/components/UltimaModificacion'
+import { elegirModoBorrado, conModo } from '@/lib/borrado'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -162,7 +164,7 @@ export default function PreinscripcionesPrincipalesPanel({
 }: {
   initialPrograma?: ProgramaCodigo | 'Todos'
 }) {
-  const { token } = useAuth()
+  const { token, isSuperAdmin } = useAuth()
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
   type UiEstatus = typeof UI_ESTATUS[number]
   const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Inscrito')
@@ -886,16 +888,18 @@ export default function PreinscripcionesPrincipalesPanel({
     if (processingAction) return
     const result = await Swal.fire({
       title: '¿Eliminar solicitud?',
-      text: 'Esta acción es irreversible y borrará todos los datos del aspirante.',
+      text: 'La solicitud y los datos del aspirante dejarán de verse. Se guarda una copia que el súper administrador puede restaurar desde la papelera.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, borrar todo'
+      confirmButtonText: 'Sí, eliminar'
     })
     if (result.isConfirmed) {
+      const modo = await elegirModoBorrado(isSuperAdmin)
+      if (!modo) return
       setProcessingAction('eliminar')
       try {
-        const res = await fetch(`${API_URL}/api/academia/inscripciones/${id}`, {
+        const res = await fetch(conModo(`${API_URL}/api/academia/inscripciones/${id}`, modo), {
           method: 'DELETE',
           headers: { ...authHeaders },
         })
@@ -1323,6 +1327,7 @@ export default function PreinscripcionesPrincipalesPanel({
                 <h3 className="text-base font-black text-slate-900 leading-tight uppercase">
                     {formatNombreCard(selected.estudiante_nombres, selected.estudiante_apellidos)}
                   </h3>
+                <UltimaModificacion entidad="inscripciones" id={selected.id_inscripcion} className="mt-1" />
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{selected.estudiante_cedula || 'S/D'}</p>
                   {selected.afiliado_estatus === 'Afiliado' && (

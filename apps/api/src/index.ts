@@ -1,7 +1,8 @@
 import express, { Request, Response } from 'express'
 import { env } from './config/env.js'
 import { isOriginAllowed, corsMiddleware } from './lib/cors.js'
-import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes, cibirRoutes, pagosRoutes, finanzasRoutes, denunciasRoutes, cronRoutes, asambleasRoutes, rolesRoutes } from './routes/index.js'
+import { auditoria } from './middlewares/auditoria.middleware.js'
+import { afiliadosRoutes, publicRoutes, cmsRoutes, uploadsRoutes, authRoutes, usersRoutes, academiaRoutes, notificationsRoutes, analyticsRoutes, cibirRoutes, pagosRoutes, finanzasRoutes, denunciasRoutes, cronRoutes, asambleasRoutes, rolesRoutes, respaldosRoutes, auditoriaRoutes } from './routes/index.js'
 
 
 const app = express() // v1.0.3
@@ -19,6 +20,7 @@ app.use((req, _res, next) => {
 app.use(corsMiddleware)
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
+app.use('/api', auditoria)
 
 // ── Debug: endpoint para diagnosticar CORS desde producción ──────────
 app.get('/api/cors-check', (req, res) => {
@@ -48,6 +50,8 @@ app.use('/api/pagos', pagosRoutes)
 app.use('/api/finanzas', finanzasRoutes)
 app.use('/api/asambleas', asambleasRoutes)
 app.use('/api/roles', rolesRoutes)
+app.use('/api/respaldos', respaldosRoutes)
+app.use('/api/auditoria', auditoriaRoutes)
 app.use('/api/denuncias', denunciasRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/analytics', analyticsRoutes)

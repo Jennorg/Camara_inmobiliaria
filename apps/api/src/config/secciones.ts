@@ -17,10 +17,12 @@ export const SECCIONES: { id: string; etiqueta: string }[] = [
   { id: 'admin_users', etiqueta: 'Administradores' },
   { id: 'analytics', etiqueta: 'Análisis y Métricas' },
   { id: 'roles', etiqueta: 'Roles y permisos' },
+  { id: 'respaldos', etiqueta: 'Respaldos' },
+  { id: 'auditoria', etiqueta: 'Auditoría y papelera' },
 ]
 
 // Solo super_admin; nunca se guardan en rol_permisos.
-export const SECCIONES_SOLO_SUPERADMIN = ['roles', 'admin_users']
+export const SECCIONES_SOLO_SUPERADMIN = ['roles', 'admin_users', 'respaldos', 'auditoria']
 
 export const ACCIONES = ['ver', 'crear', 'editar', 'eliminar'] as const
 export type Accion = (typeof ACCIONES)[number]

@@ -17,6 +17,8 @@ export const NAV_PANEL: Record<string, string> = {
   directiva: 'junta-directiva',
   roles: 'roles-y-permisos',
   admin_users: 'administradores',
+  respaldos: 'respaldos',
+  auditoria: 'auditoria-y-papelera',
   noticias: 'cms-noticias',
   marco_legal: 'cms-marco-legal',
   leyes: 'cms-marco-legal',

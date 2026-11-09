@@ -4,6 +4,9 @@ import { randomUUID, createHash } from 'crypto'
 import { esProgramaCohorte } from '../lib/cohortes.js'
 import { db } from '../lib/db.js'
 import { concederAccesoAlAprobarCibir } from '../lib/credentials.js'
+import { borrarLogico, marcarBorrado, modoDeBorrado } from '../lib/borrado.js'
+import { fotografiar } from '../lib/auditoria.js'
+import { guardarInstantanea, type Semilla } from '../lib/instantaneas.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
@@ -1562,7 +1565,7 @@ export const publicPreinscribirCurso = async (req: Request, res: Response): Prom
       sql: `SELECT id_curso, titulo, titulo AS nombre, estatus, solo_informativo, solo_afiliados, requiere_aprobacion,
                    cupos_totales, precio_afiliado_usd, precio_publico_usd, horas_reserva,
                    (SELECT COUNT(*) FROM inscripciones_cursos ic WHERE ic.id_curso = cursos.id_curso AND ${sqlOcupaCupo('ic')}) AS ocupados
-            FROM cursos WHERE id_curso = ? LIMIT 1`,
+            FROM cursos WHERE id_curso = ? AND eliminado_en IS NULL LIMIT 1`,
       args: [idCurso],
     })
     if (cursoRes.rows.length === 0) {
@@ -1752,7 +1755,7 @@ export const adminListCursos = async (req: Request, res: Response): Promise<void
     const programaCodigo = typeof req.query?.programaCodigo === 'string' ? req.query.programaCodigo.toUpperCase() : undefined
     const allowedEstatus = new Set(['Abierto', 'Cerrado', 'En curso', 'Solo Informativo'])
 
-    const whereParts: string[] = []
+    const whereParts: string[] = ['c.eliminado_en IS NULL']
     const args: any[] = []
 
     if (estatus && allowedEstatus.has(estatus)) {
@@ -2126,7 +2129,8 @@ export const adminUpdateCurso = async (req: Request, res: Response): Promise<voi
 
 /**
  * DELETE /api/academia/cursos/:id
- * Soft-delete: marca el curso como 'Cerrado'. Preserva inscripciones históricas.
+ * Borrado lógico (todos los roles): el curso se oculta y conserva sus inscripciones.
+ * `?definitivo=true` (solo súper administrador): borra el curso, sus módulos e inscripciones.
  */
 export const adminDeleteCurso = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -2136,24 +2140,23 @@ export const adminDeleteCurso = async (req: Request, res: Response): Promise<voi
       return
     }
 
-    await db.execute({
-      sql: `DELETE FROM modulos_inscripcion WHERE id_inscripcion IN (SELECT id_inscripcion FROM inscripciones_cursos WHERE id_curso = ?)`,
-      args: [id],
-    })
-    await db.execute({
-      sql: `DELETE FROM inscripciones_cursos WHERE id_curso = ?`,
-      args: [id],
-    })
-    await db.execute({
-      sql: `DELETE FROM modulos_curso WHERE id_curso = ?`,
-      args: [id],
-    })
-    await db.execute({
-      sql: `DELETE FROM cursos WHERE id_curso = ?`,
-      args: [id],
-    })
+    const modo = modoDeBorrado(req, res)
+    if (!modo) return
+    if (modo === 'definitivo') {
+      // Solo súper administrador: borra también el historial de inscripciones del curso (su respaldo previo queda en la auditoría)
+      for (const sql of [
+        `DELETE FROM modulos_inscripcion WHERE id_inscripcion IN (SELECT id_inscripcion FROM inscripciones_cursos WHERE id_curso = ?)`,
+        `DELETE FROM inscripciones_cursos WHERE id_curso = ?`,
+        `DELETE FROM modulos_curso WHERE id_curso = ?`,
+        `DELETE FROM cursos WHERE id_curso = ?`,
+      ]) await db.execute({ sql, args: [id] })
+    } else {
+      // Borrado lógico: el curso deja de verse y de aceptar inscripciones, pero se conserva su historial
+      await borrarLogico(db, 'cursos', 'id_curso', [id], req.user?.id)
+    }
+    marcarBorrado(res, modo)
 
-    res.json({ success: true, message: 'Curso eliminado permanentemente.' })
+    res.json({ success: true, message: modo === 'definitivo' ? 'Curso eliminado permanentemente.' : 'Curso eliminado. Se conserva su historial de inscripciones.' })
   } catch (error) {
     console.error('adminDeleteCurso:', error)
     res.status(500).json({ success: false, message: 'Error al eliminar el curso' })
@@ -2531,7 +2534,7 @@ export const adminAsignarEstudianteACurso = async (req: Request, res: Response):
     const cursoRes = await db.execute({
       sql: `SELECT id_curso, cupos_totales, estatus, solo_informativo,
                    (SELECT COUNT(*) FROM inscripciones_cursos ic WHERE ic.id_curso = cursos.id_curso AND ${sqlOcupaCupo('ic')}) as inscritos
-            FROM cursos WHERE id_curso = ? LIMIT 1`,
+            FROM cursos WHERE id_curso = ? AND eliminado_en IS NULL LIMIT 1`,
       args: [idCurso],
     })
     const curso = cursoRes.rows[0] as any
@@ -3375,11 +3378,15 @@ export const adminDeleteInscripcion = async (req: Request, res: Response): Promi
       res.status(400).json({ success: false, message: 'ID de inscripción inválido' })
       return
     }
+    // Todos los roles: se guarda una instantánea restaurable. Solo el súper administrador puede borrar sin dejarla (?definitivo=true).
+    const modo = modoDeBorrado(req, res)
+    if (!modo) return
 
     // 1. Obtener la inscripción y sus relaciones
     const insRes = await db.execute({
       sql: `SELECT ic.*, e.id_persona, e.id_empresa, 
-                   p.email as persona_email, emp.email as empresa_email
+                   p.email as persona_email, emp.email as empresa_email,
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
             JOIN estudiantes e ON e.id_estudiante = ic.id_estudiante
             LEFT JOIN personas p ON e.id_persona = p.id
@@ -3399,12 +3406,31 @@ export const adminDeleteInscripcion = async (req: Request, res: Response): Promi
     const idEmpresa = ins.id_empresa
     const email = ins.persona_email || ins.empresa_email
 
+    // Borrado definitivo: la auditoría conserva una fotografía de lo que se elimina y quién lo hizo
+    marcarBorrado(res, modo, {
+      resumen: `${modo === 'definitivo' ? 'eliminar definitivamente' : 'eliminar'} · preinscripción #${id}${ins.nombre_completo ? ` de ${ins.nombre_completo}` : ''}`,
+      antes: await fotografiar(db, { inscripciones_cursos: ['id_inscripcion', [id]], estudiantes: ['id_estudiante', [idEstudiante]], personas: ['id', [idPersona]], empresas: ['id_empresa', [idEmpresa]], documentos: ['entidad_id', [idEstudiante]] }),
+    })
+
     // 2. Verificar cuántas inscripciones tiene este estudiante
     const otherInsRes = await db.execute({
       sql: `SELECT COUNT(*) as count FROM inscripciones_cursos WHERE id_estudiante = ? AND id_inscripcion != ?`,
       args: [idEstudiante, id]
     })
     const hasOtherInscriptions = Number(otherInsRes.rows[0]?.count ?? 0) > 0
+
+    // Instantánea restaurable de todo lo que esta eliminación puede llevarse (con la limpieza profunda, la identidad completa)
+    if (modo === 'logico') {
+      const semillas: Semilla[] = [{ tabla: 'inscripciones_cursos', donde: 'id_inscripcion = ?', args: [id] }]
+      if (!hasOtherInscriptions) {
+        if (idPersona) semillas.push({ tabla: 'personas', donde: 'id = ?', args: [idPersona] })
+        if (idEmpresa) semillas.push({ tabla: 'empresas', donde: 'id_empresa = ?', args: [idEmpresa] })
+        semillas.push({ tabla: 'estudiantes', donde: 'id_estudiante = ?', args: [idEstudiante] })
+        semillas.push({ tabla: 'documentos', donde: `entidad_tipo = 'estudiante' AND entidad_id = ?`, args: [idEstudiante] })
+        if (email) semillas.push({ tabla: 'users', donde: 'email = ?', args: [email] })
+      }
+      await guardarInstantanea(db, { tipo: 'preinscripcion', idEntidad: id, nombre: `Preinscripción #${id}${ins.nombre_completo ? ` — ${ins.nombre_completo}` : ''}${ins.programa_codigo ? ` (${ins.programa_codigo})` : ''}`, eliminadoPor: req.user?.id, semillas })
+    }
 
     // 3. Borrar la inscripción actual
     await db.execute({
@@ -3502,7 +3528,7 @@ export const adminDeleteInscripcion = async (req: Request, res: Response): Promi
       }
     }
 
-    res.json({ success: true, message: 'Solicitud e inscripción borradas completamente.' })
+    res.json({ success: true, message: modo === 'definitivo' ? 'Solicitud e inscripción borradas definitivamente.' : 'Solicitud eliminada. El súper administrador puede restaurarla desde la papelera.' })
   } catch (error) {
     console.error('adminDeleteInscripcion:', error)
     res.status(500).json({ success: false, message: 'Error al borrar la solicitud de inscripción' })

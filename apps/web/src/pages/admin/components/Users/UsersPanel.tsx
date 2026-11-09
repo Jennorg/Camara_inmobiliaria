@@ -84,6 +84,7 @@ function getTipoAfiliadoMeta(tipo?: string | null, rol?: string) {
 
 const ic = 'shrink-0 opacity-95'
 import { useAuth } from '@/context/AuthContext'
+import { elegirModoBorrado, conModo } from '@/lib/borrado'
 import { API_URL } from '@/config/env'
 import { toast } from 'sonner'
 import { AsignarRolesModal, ChipsRoles, NuevoStaffModal, etiquetaRol, tieneRolCustom, type RolCatalogo } from './RolesUsuario'
@@ -438,9 +439,11 @@ export default function UsersPanel() {
   
   const confirmDelete = async () => {
     if (!userToDelete) return
+    const modo = await elegirModoBorrado(isSuperAdmin)
+    if (!modo) return
     setSaving(true)
     try {
-      const r = await fetch(`${API_URL}/api/users/${userToDelete.id}`, {
+      const r = await fetch(conModo(`${API_URL}/api/users/${userToDelete.id}`, modo), {
         method: 'DELETE',
         headers: authHeaders,
       })

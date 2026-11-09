@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import type { Accion } from '@/lib/permisos'
+import { elegirModoBorrado, conModo } from '@/lib/borrado'
 import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { SeccionesMarcoLegal, type SeccionNormativa } from '@/pages/admin/components/Cms/SeccionesMarcoLegal'
 
@@ -20,7 +21,7 @@ interface NormativaItem {
 const OTROS = 'Otros'
 
 export const NormativasPanel = () => {
-  const { puede, isAdmin } = useAuth()
+  const { puede, isAdmin, isSuperAdmin } = useAuth()
   const [secciones, setSecciones] = useState<SeccionNormativa[]>([])
   const nombresSecciones = secciones.map(s => s.nombre)
   // Igual que la API: una sección existente → marco_legal; «Otros», sin categoría o desconocida → solo admin.
@@ -212,10 +213,12 @@ export const NormativasPanel = () => {
   const busyBatchRemoveRef = useRef(false)
   const confirmRemoveBatch = async () => {
     if (selectedIds.length === 0 || busyBatchRemoveRef.current) return
+    const modo = await elegirModoBorrado(isSuperAdmin)
+    if (!modo) return
     busyBatchRemoveRef.current = true
     setDeletingBatch(true)
     try {
-      const res = await api.post('/api/cms/normativas-batch-delete', { ids: selectedIds })
+      const res = await api.post(conModo('/api/cms/normativas-batch-delete', modo), { ids: selectedIds })
       if (res.success) {
         setSelectedIds([])
         setSelectedId(null)
@@ -237,10 +240,12 @@ export const NormativasPanel = () => {
   const busySingleRemoveRef = useRef(false)
   const confirmRemoveSingle = async () => {
     if (!itemToDelete || busySingleRemoveRef.current) return
+    const modo = await elegirModoBorrado(isSuperAdmin)
+    if (!modo) return
     busySingleRemoveRef.current = true
     const id = itemToDelete.id
     try {
-      await api.delete(`/api/cms/normativas/${id}`)
+      await api.delete(conModo(`/api/cms/normativas/${id}`, modo))
       setSelectedId(null)
       setSelectedIds(prev => prev.filter(i => i !== id))
       setItemToDelete(null)

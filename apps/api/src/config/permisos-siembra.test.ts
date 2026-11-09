@@ -1,6 +1,6 @@
 import { createClient } from '@libsql/client'
 import { describe, expect, it } from 'vitest'
-import { sembrarRoles, SECCIONES } from './secciones.js'
+import { sembrarRoles, SECCIONES, SECCIONES_SOLO_SUPERADMIN } from './secciones.js'
 
 const DDL = [
   `CREATE TABLE roles (id INTEGER PRIMARY KEY, clave TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL, es_sistema INTEGER NOT NULL DEFAULT 0, activo INTEGER NOT NULL DEFAULT 1, creado_en TEXT)`,
@@ -30,7 +30,7 @@ describe('permisos: siembra', () => {
     const p = await permisos(db)
     const ALL = 'ver,crear,editar,eliminar'
     for (const s of SECCIONES) {
-      expect(p.admin[s.id]).toBe(['roles', 'admin_users'].includes(s.id) ? undefined : ALL)
+      expect(p.admin[s.id]).toBe(SECCIONES_SOLO_SUPERADMIN.includes(s.id) ? undefined : ALL)
     }
     const AF = 'ver,crear,editar'
     const SC = 'ver,editar'
@@ -58,6 +58,6 @@ describe('permisos: siembra', () => {
     await db.batch(DDL, 'write')
     await sembrarRoles(db)
     expect((await db.execute(`SELECT clave FROM roles`)).rows.map((r: any) => r.clave)).toEqual(['admin'])
-    expect((await db.execute(`SELECT COUNT(*) c FROM rol_permisos`)).rows[0].c).toBe(SECCIONES.length - 2)
+    expect((await db.execute(`SELECT COUNT(*) c FROM rol_permisos`)).rows[0].c).toBe(SECCIONES.length - SECCIONES_SOLO_SUPERADMIN.length)
   })
 })
