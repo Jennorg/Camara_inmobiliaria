@@ -43,6 +43,9 @@ const envSchema = z.object({
   GOOGLE_REFRESH_TOKEN: z.string().optional(),
   /** Secreto que Vercel Cron envía como `Authorization: Bearer …` (sin él, /api/cron responde 503). */
   CRON_SECRET: z.string().min(16).optional(),
+  /** Base Turso SEPARADA donde se guarda el historial de respaldos. Sin ella el módulo solo permite descargar y restaurar archivos. */
+  BACKUP_DATABASE_URL: z.string().optional(),
+  BACKUP_DATABASE_AUTH_TOKEN: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().default('info@camarainmobiliariadebolivar.com'),
   ADMIN_EMAIL: z.string().email().default('info@camarainmobiliariadebolivar.com'),
 
