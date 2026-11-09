@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { createHash } from 'crypto'
 import { db } from '../lib/db.js'
+import { borrarLogico, marcarBorrado, modoDeBorrado } from '../lib/borrado.js'
 import { resetCredenciales, enviarInvitacion } from '../lib/credentials.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
@@ -335,6 +336,7 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
             LEFT JOIN afiliados a_e_email ON e_by_email.id_empresa = a_e_email.id_empresa AND a_e_email.eliminado_en IS NULL
             LEFT JOIN afiliados a_rep ON e_by_email.id_representante_legal = a_rep.id_afiliado AND a_rep.eliminado_en IS NULL
             LEFT JOIN personas p_rep ON a_rep.id_persona = p_rep.id
+            WHERE u.eliminado_en IS NULL
             GROUP BY u.id
             ORDER BY u.creado_en DESC`,
       args: [],
@@ -479,7 +481,17 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    await db.execute({ sql: `DELETE FROM users WHERE id = ?`, args: [Number(id)] })
+    const modo = modoDeBorrado(req, res)
+    if (!modo) return
+    if (modo === 'definitivo') {
+      await db.execute({ sql: `DELETE FROM users WHERE id = ?`, args: [Number(id)] })
+    } else {
+      // Borrado lógico: la cuenta queda desactivada (no puede entrar) y se cierran sus sesiones; se puede restaurar desde la papelera
+      await borrarLogico(db, 'users', 'id', [Number(id)], req.user?.id)
+      await db.execute({ sql: `UPDATE users SET activo = 0 WHERE id = ?`, args: [Number(id)] })
+      await db.execute({ sql: `DELETE FROM user_refresh_tokens WHERE id_user = ?`, args: [Number(id)] })
+    }
+    marcarBorrado(res, modo)
 
     res.status(200).json({ success: true, message: 'Usuario eliminado correctamente' })
   } catch (error) {

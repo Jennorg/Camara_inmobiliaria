@@ -5,7 +5,7 @@ export type MapaPermisos = Record<string, Partial<Record<Accion, boolean>>>
 // Fallback legacy: solo cuando la respuesta no trae `permisos` (API vieja). `{}` NO activa el fallback.
 // Se puede eliminar cuando la API con permisos esté desplegada en todos lados.
 export type RolLegacy = 'admin' | null
-const SOLO_SUPERADMIN = ['roles', 'admin_users']
+const SOLO_SUPERADMIN = ['roles', 'admin_users', 'respaldos', 'auditoria']
 
 export const puede = (
   permisos: MapaPermisos | undefined,

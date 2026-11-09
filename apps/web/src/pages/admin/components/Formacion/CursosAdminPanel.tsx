@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
+import { elegirModoBorrado, conModo } from '@/lib/borrado';
+import UltimaModificacion from '@/components/UltimaModificacion';
 import { toast } from 'sonner';
 import { formatNombreCard, formatPrecioCurso, formatDateLatinaMes } from '@/utils/formatters';
 import DateInput from '@/components/ui/DateInput';
@@ -269,7 +271,7 @@ const MontoUsd = ({ id, value, onChange, required }: { id: string; value: string
 );
 
 const CursosAdminPanel = () => {
-  const { token, puede } = useAuth();
+  const { token, puede, isSuperAdmin } = useAuth();
   const puedeCrear = puede('formacion', 'crear');
   const puedeEditar = puede('formacion', 'editar');
   const puedeEliminar = puede('formacion', 'eliminar');
@@ -750,7 +752,7 @@ const CursosAdminPanel = () => {
     if (processingCourseId) return;
     const result = await Swal.fire({
       title: '¿Eliminar curso?',
-      text: 'Esta acción eliminará permanentemente el curso y sus módulos configurados.',
+      text: 'El curso dejará de mostrarse. Su historial de inscripciones se conserva.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#EF4444',
@@ -760,16 +762,18 @@ const CursosAdminPanel = () => {
     });
 
     if (result.isConfirmed) {
+      const modo = await elegirModoBorrado(isSuperAdmin);
+      if (!modo) return;
       setProcessingCourseId({ id, action: 'delete' });
       try {
-        const res = await fetch(`${API_URL}/api/academia/cursos/${id}`, {
+        const res = await fetch(conModo(`${API_URL}/api/academia/cursos/${id}`, modo), {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const json = await res.json();
         if (json.success) {
-          Swal.fire('Eliminado', 'El curso fue eliminado permanentemente.', 'success');
+          Swal.fire('Eliminado', json.message || 'El curso fue eliminado.', 'success');
           fetchCursos();
         } else {
           Swal.fire('Error', json.message || 'No se pudo eliminar el curso', 'error');
@@ -1102,6 +1106,7 @@ const CursosAdminPanel = () => {
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4 flex-shrink-0">
               <div>
                 <h3 id="titulo-form-curso" className="text-base font-semibold text-slate-900">{editingId ? 'Editar curso' : 'Nuevo curso'}</h3>
+                {editingId && <UltimaModificacion entidad="cursos" id={editingId} className="mt-1" />}
                 <p className="text-xs text-slate-500 mt-0.5">{editingId ? 'Los cambios se aplican en cuanto guardes.' : 'Completa los datos; podrás editarlos después.'}</p>
               </div>
               <button type="button" onClick={handleCloseModal} aria-label="Cerrar" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">

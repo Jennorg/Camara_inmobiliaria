@@ -24,7 +24,8 @@ beforeAll(async () => {
   await mem.batch([
     `CREATE TABLE roles (id INTEGER PRIMARY KEY, clave TEXT UNIQUE NOT NULL, nombre TEXT NOT NULL, es_sistema INTEGER NOT NULL DEFAULT 0, activo INTEGER NOT NULL DEFAULT 1, creado_en TEXT)`,
     `CREATE TABLE rol_permisos (id_rol INTEGER NOT NULL, seccion TEXT NOT NULL, ver INTEGER NOT NULL DEFAULT 0, crear INTEGER NOT NULL DEFAULT 0, editar INTEGER NOT NULL DEFAULT 0, eliminar INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id_rol, seccion))`,
-    `CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, roles TEXT)`,
+    `CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, roles TEXT, activo INTEGER DEFAULT 1, eliminado_en TEXT)`,
+    `CREATE TABLE user_refresh_tokens (id INTEGER PRIMARY KEY, id_user INTEGER)`,
     `INSERT INTO users (id, email, roles) VALUES (77, 'a@x', '["afiliado"]'), (78, 'adm@x', '["admin"]')`,
     `INSERT INTO roles (clave, nombre) VALUES ('con_eliminar', 'e'), ('sin_eliminar', 's')`,
   ], 'write')

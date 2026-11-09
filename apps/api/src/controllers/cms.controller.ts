@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { actasPublicadas } from '../services/asambleas.service.js';
 import { db } from '../lib/db.js';
+import { borrarLogico, marcarBorrado, modoDeBorrado } from '../lib/borrado.js';
 import { CATEGORIA_OTROS, slugify } from '../config/secciones-normativa.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10,11 +11,11 @@ import { CATEGORIA_OTROS, slugify } from '../config/secciones-normativa.js';
 export const getNoticias = async (req: Request, res: Response) => {
   try {
     const { publicado } = req.query;
-    let sql = 'SELECT * FROM cms_noticias';
+    let sql = 'SELECT * FROM cms_noticias WHERE eliminado_en IS NULL';
     const args: any[] = [];
     if (publicado !== undefined) {
       const isPub = publicado === '1' || publicado === 'true';
-      sql += ' WHERE (publicado = ? OR publicado = ? OR publicado IS NULL)';
+      sql += ' AND (publicado = ? OR publicado = ? OR publicado IS NULL)';
       args.push(isPub ? 1 : 0, isPub ? '1' : '0');
     }
     sql += ' ORDER BY CASE WHEN orden IS NULL OR orden = 0 THEN 999999 ELSE orden END ASC, fecha_publicacion DESC';
@@ -171,7 +172,11 @@ export const updateNoticia = async (req: Request, res: Response) => {
 
 export const deleteNoticia = async (req: Request, res: Response) => {
   try {
-    await db.execute({ sql: 'DELETE FROM cms_noticias WHERE id_noticia=?', args: [String(req.params.id)] });
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
+    if (modo === 'definitivo') await db.execute({ sql: 'DELETE FROM cms_noticias WHERE id_noticia=?', args: [String(req.params.id)] });
+    else await borrarLogico(db, 'cms_noticias', 'id_noticia', [String(req.params.id)], req.user?.id);
+    marcarBorrado(res, modo);
     return res.json({ success: true, message: 'Noticia eliminada' });
   } catch (error) {
     console.error('deleteNoticia:', error);
@@ -214,7 +219,7 @@ export const reorderNoticias = async (req: Request, res: Response) => {
 
 export const getCursos = async (_req: Request, res: Response) => {
   try {
-    const result = await db.execute('SELECT * FROM cms_cursos ORDER BY id_cms_curso ASC');
+    const result = await db.execute('SELECT * FROM cms_cursos WHERE eliminado_en IS NULL ORDER BY id_cms_curso ASC');
     return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('getCursos:', error);
@@ -255,7 +260,11 @@ export const updateCurso = async (req: Request, res: Response) => {
 
 export const deleteCurso = async (req: Request, res: Response) => {
   try {
-    await db.execute({ sql: 'DELETE FROM cms_cursos WHERE id_cms_curso=?', args: [String(req.params.id)] });
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
+    if (modo === 'definitivo') await db.execute({ sql: 'DELETE FROM cms_cursos WHERE id_cms_curso=?', args: [String(req.params.id)] });
+    else await borrarLogico(db, 'cms_cursos', 'id_cms_curso', [String(req.params.id)], req.user?.id);
+    marcarBorrado(res, modo);
     return res.json({ success: true, message: 'Curso eliminado' });
   } catch (error) {
     console.error('deleteCurso:', error);
@@ -269,7 +278,7 @@ export const deleteCurso = async (req: Request, res: Response) => {
 
 export const getConvenios = async (_req: Request, res: Response) => {
   try {
-    const result = await db.execute('SELECT * FROM cms_convenios ORDER BY id_convenio ASC');
+    const result = await db.execute('SELECT * FROM cms_convenios WHERE eliminado_en IS NULL ORDER BY id_convenio ASC');
     return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('getConvenios:', error);
@@ -315,7 +324,11 @@ export const updateConvenio = async (req: Request, res: Response) => {
 
 export const deleteConvenio = async (req: Request, res: Response) => {
   try {
-    await db.execute({ sql: 'DELETE FROM cms_convenios WHERE id_convenio=?', args: [String(req.params.id)] });
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
+    if (modo === 'definitivo') await db.execute({ sql: 'DELETE FROM cms_convenios WHERE id_convenio=?', args: [String(req.params.id)] });
+    else await borrarLogico(db, 'cms_convenios', 'id_convenio', [String(req.params.id)], req.user?.id);
+    marcarBorrado(res, modo);
     return res.json({ success: true, message: 'Convenio eliminado' });
   } catch (error) {
     console.error('deleteConvenio:', error);
@@ -444,7 +457,7 @@ export const deleteMiembroDirectiva = async (req: Request, res: Response) => {
 
 export const getHitos = async (_req: Request, res: Response) => {
   try {
-    const result = await db.execute('SELECT * FROM cms_hitos ORDER BY año ASC, id_hito ASC');
+    const result = await db.execute('SELECT * FROM cms_hitos WHERE eliminado_en IS NULL ORDER BY año ASC, id_hito ASC');
     return res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('getHitos:', error);
@@ -485,7 +498,11 @@ export const updateHito = async (req: Request, res: Response) => {
 
 export const deleteHito = async (req: Request, res: Response) => {
   try {
-    await db.execute({ sql: 'DELETE FROM cms_hitos WHERE id_hito=?', args: [String(req.params.id)] });
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
+    if (modo === 'definitivo') await db.execute({ sql: 'DELETE FROM cms_hitos WHERE id_hito=?', args: [String(req.params.id)] });
+    else await borrarLogico(db, 'cms_hitos', 'id_hito', [String(req.params.id)], req.user?.id);
+    marcarBorrado(res, modo);
     return res.json({ success: true, message: 'Hito eliminado' });
   } catch (error) {
     console.error('deleteHito:', error);
@@ -664,10 +681,10 @@ export const publicListSeccionesNormativa = async (_req: Request, res: Response)
 export const getNormativas = async (req: Request, res: Response) => {
   try {
     const { categoria } = req.query;
-    let sql = `SELECT * FROM cms_normativas`;
+    let sql = `SELECT * FROM cms_normativas WHERE eliminado_en IS NULL`;
     const args: any[] = [];
     if (categoria) { 
-      sql += ` WHERE categoria = ?`; 
+      sql += ` AND categoria = ?`; 
       args.push(categoria); 
     }
     sql += ` ORDER BY orden ASC, creado_en DESC`;
@@ -853,7 +870,11 @@ export const updateNormativa = async (req: Request, res: Response) => {
 
 export const deleteNormativa = async (req: Request, res: Response) => {
   try {
-    await db.execute({ sql: 'DELETE FROM cms_normativas WHERE id_normativa=?', args: [String(req.params.id)] });
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
+    if (modo === 'definitivo') await db.execute({ sql: 'DELETE FROM cms_normativas WHERE id_normativa=?', args: [String(req.params.id)] });
+    else await borrarLogico(db, 'cms_normativas', 'id_normativa', [String(req.params.id)], req.user?.id);
+    marcarBorrado(res, modo);
     return res.json({ success: true, message: 'Normativa eliminada' });
   } catch (error) {
     console.error('deleteNormativa:', error);
@@ -868,11 +889,13 @@ export const deleteBatchNormativas = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Debe proporcionar un arreglo de IDs a eliminar' });
     }
 
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
     const placeholders = ids.map(() => '?').join(',');
-    await db.execute({
-      sql: `DELETE FROM cms_normativas WHERE id_normativa IN (${placeholders})`,
-      args: ids.map(id => String(id))
-    });
+    const antes = (await db.execute({ sql: `SELECT * FROM cms_normativas WHERE id_normativa IN (${placeholders})`, args: ids.map(id => String(id)) })).rows;
+    if (modo === 'definitivo') await db.execute({ sql: `DELETE FROM cms_normativas WHERE id_normativa IN (${placeholders})`, args: ids.map(id => String(id)) });
+    else await borrarLogico(db, 'cms_normativas', 'id_normativa', ids.map(id => String(id)), req.user?.id);
+    marcarBorrado(res, modo, { antes, resumen: `${modo === 'definitivo' ? 'eliminar definitivamente' : 'eliminar'} ${ids.length} documentos de Marco Legal` });
 
     return res.json({ success: true, message: `${ids.length} documentos eliminados correctamente` });
   } catch (error) {

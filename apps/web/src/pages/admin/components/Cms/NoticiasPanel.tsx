@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@/context/AuthContext'
+import { elegirModoBorrado, conModo } from '@/lib/borrado'
+import UltimaModificacion from '@/components/UltimaModificacion'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { 
@@ -315,7 +317,7 @@ const PragmaticNewsListItem = ({
 
 // ── Panel Principal de Noticias ─────────────────────────────────────────────
 export const NoticiasPanel = () => {
-  const { puede } = useAuth()
+  const { puede, isSuperAdmin } = useAuth()
   const puedeCrear = puede('noticias', 'crear')
   const puedeEditar = puede('noticias', 'editar')
   const puedeEliminar = puede('noticias', 'eliminar')
@@ -535,9 +537,11 @@ export const NoticiasPanel = () => {
 
   const confirmDeleteNoticia = async () => {
     if (!itemToDelete || deletingNoticia) return
+    const modo = await elegirModoBorrado(isSuperAdmin)
+    if (!modo) return
     setDeletingNoticia(true)
     try {
-      await api.delete(`/api/cms/noticias/${itemToDelete.id}`)
+      await api.delete(conModo(`/api/cms/noticias/${itemToDelete.id}`, modo))
       if (String(selectedId) === String(itemToDelete.id)) {
         setSelectedId(null)
         setIsEditing(false)
@@ -619,6 +623,7 @@ export const NoticiasPanel = () => {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
               Publicación en Portal Web de la Cámara
             </p>
+            {selectedId !== 'new' && <UltimaModificacion entidad="noticias" id={selectedId} className="mt-1" />}
           </div>
         </div>
         <div className="flex items-center gap-3">

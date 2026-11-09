@@ -15,6 +15,7 @@ import {
   Briefcase, StickyNote, Globe, FileDown, Download, Music2, Facebook, Instagram, Linkedin,
   ExternalLink, GraduationCap, Award
 } from 'lucide-react'
+import UltimaModificacion from '@/components/UltimaModificacion'
 import ExportAfiliadosModal from '@/pages/admin/components/Afiliados/export/ExportAfiliadosModal'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '@/utils/cropImage'
@@ -1554,6 +1555,7 @@ export default function MiembrosPanel() {
                         ? (isEditing ? editForm.empresa_razon_social : selected.empresa_razon_social)
                         : (isEditing ? `${editForm.nombres || ''} ${editForm.apellidos || ''}` : formatNombreCard(selected.nombres || selected.nombre_completo, selected.apellidos))}
                     </h2>
+                    <UltimaModificacion entidad="afiliados" id={selected.id_afiliado} />
                     {selected.tipo_afiliado === 'Corporativo' && (
                       <p className="text-sm font-bold text-slate-500">
                         Representante: {isEditing ? `${editForm.nombres || ''} ${editForm.apellidos || ''}` : `${selected.nombres} ${selected.apellidos}`}

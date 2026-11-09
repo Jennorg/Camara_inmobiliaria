@@ -18,6 +18,8 @@ import {
   BookOpen,
   Image as ImageIcon,
   UserCog,
+  DatabaseBackup,
+  History,
   FileText,
   UserPlus,
   UserCheck,
@@ -43,6 +45,8 @@ import { AfiliadoDTO } from '@/types/afiliados';
 // Componentes Administrativos
 import UsersPanel from '@/pages/admin/components/Users/UsersPanel';
 import RolesPanel from '@/pages/admin/components/Roles/RolesPanel';
+import RespaldosPanel from '@/pages/admin/components/Respaldos/RespaldosPanel';
+import AuditoriaPanel from '@/pages/admin/components/Auditoria/AuditoriaPanel';
 import SuperAdminUsersPanel from '@/pages/admin/components/Users/SuperAdminUsersPanel';
 import EstudiantesRegularesPanel from '@/pages/admin/components/Estudiantes/EstudiantesRegularesPanel';
 import { DirectivaPanel } from '@/pages/admin/components/Cms/DirectivaPanel';
@@ -108,6 +112,8 @@ const NAV_SUPER_ADMIN: NavStaff[] = [
   { icon: UserCog, label: 'Junta Directiva', seccion: 'directiva' },
   { icon: ShieldCheck, label: 'Roles y permisos', seccion: 'roles' },
   { icon: UserCog, label: 'Administradores', seccion: 'admin_users' },
+  { icon: DatabaseBackup, label: 'Respaldos', seccion: 'respaldos' },
+  { icon: History, label: 'Auditoría y papelera', seccion: 'auditoria' },
 ];
 
 const NAV_DIVIDER_ADMIN = { icon: ShieldCheck, label: '— Administración —', isDivider: true };
@@ -494,6 +500,8 @@ const PanelPage = () => {
     if (activeTab === 'Administradores') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><SuperAdminUsersPanel /></div>;
 
     if (activeTab === 'Directorio de Miembros') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><MiembrosPanel /></div>;
+    if (activeTab === 'Auditoría y papelera') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><AuditoriaPanel /></div>;
+    if (activeTab === 'Respaldos') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><RespaldosPanel /></div>;
     if (activeTab === 'Roles y permisos') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><RolesPanel /></div>;
     if (activeTab === 'Control de Acceso') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><UsersPanel /></div>;
     if (activeTab === 'Preinscripciones') return <div className="col-span-1 lg:col-span-3 h-full bg-white border border-gray-100 rounded-3xl shadow-xs overflow-hidden"><PreinscripcionesPrincipalesPanel /></div>;
@@ -523,7 +531,7 @@ const PanelPage = () => {
     return null;
   };
 
-  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Directorio de Miembros', 'Control de Acceso', 'Roles y permisos', 'Administradores', 'Afiliaciones', 'Estudiantes', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
+  const isFullPanel = (activeTab.startsWith('CMS ·') || ['Directorio de Miembros', 'Control de Acceso', 'Roles y permisos', 'Respaldos', 'Auditoría y papelera', 'Administradores', 'Afiliaciones', 'Estudiantes', 'Preinscripciones', 'Junta Directiva', 'Análisis y Métricas', 'Gestión de Formación', 'Mis Agentes', 'Solicitudes de Agentes', 'Solicitudes de Cambio', 'Finanzas', 'Control de Finanzas', 'Gestión de Asambleas', 'Tribunal de Ética', 'Denuncias', 'Sistema de Denuncias', 'Configuración', 'Estado de Cuenta'].includes(activeTab)) || (activeTab === 'Resumen / Inicio' && isAdmin);
 
   return (
     <BatchDownloadProvider>

@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { randomUUID, createHash } from 'crypto';
 import { db } from '../lib/db.js';
+import { fotografiar } from '../lib/auditoria.js';
+import { guardarInstantanea, type Semilla } from '../lib/instantaneas.js';
+import { marcarBorrado, modoDeBorrado } from '../lib/borrado.js';
 import { env } from '../config/env.js';
 import { isStaff } from '../middlewares/auth.middleware.js';
 import { puedeAlgunPermiso, SECCIONES_AFILIADO } from '../services/permisos.service.js';
@@ -2875,11 +2878,15 @@ export const publicRegistrarPorInvitacion = async (req: Request, res: Response):
 export const deleteAfiliado = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    // Todos los roles: se guarda una instantánea restaurable. Solo el súper administrador puede borrar sin dejarla (?definitivo=true).
+    const modo = modoDeBorrado(req, res);
+    if (!modo) return;
 
     // 1. Obtener toda la información relacionada antes de borrar nada
     const check = await db.execute({
-      sql: `SELECT a.id_afiliado, a.id_persona, a.id_user, a.id_empresa, a.tipo_afiliado,
-                   p.email, p.cedula, e.rif_numero as empresa_rif
+      sql: `SELECT a.id_afiliado, a.id_persona, a.id_user, a.id_empresa, a.tipo_afiliado, a.codigo,
+                   p.email, p.cedula, e.rif_numero as empresa_rif,
+                   COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), e.razon_social) as nombre_completo
             FROM afiliados a
             JOIN personas p ON a.id_persona = p.id
             LEFT JOIN empresas e ON a.id_empresa = e.id_empresa
@@ -2892,7 +2899,33 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const { id_persona, id_user, id_empresa, tipo_afiliado, email, cedula, empresa_rif } = check.rows[0] as any;
+    const { id_persona, id_user, id_empresa, tipo_afiliado, email, cedula, empresa_rif, nombre_completo, codigo } = check.rows[0] as any;
+
+    // La auditoría conserva una fotografía de todo lo que se elimina y quién lo hizo
+    marcarBorrado(res, modo, {
+      resumen: `${modo === 'definitivo' ? 'eliminar definitivamente' : 'eliminar'} · afiliado #${id}${nombre_completo ? ` (${nombre_completo})` : ''} y todos sus registros`,
+      antes: await fotografiar(db, {
+        afiliados: ['id_afiliado', [id as string]], personas: ['id', [id_persona]], empresas: ['id_empresa', [id_empresa]], users: ['id', [id_user]],
+        estudiantes: ['id_persona', [id_persona]],
+        documentos: ['entidad_id', [id as string]],
+      }),
+    });
+
+    // Instantánea restaurable: el afiliado, su persona, usuario, empresa (si es el titular), estudiante, documentos y todo lo que cae en cascada
+    if (modo === 'logico') {
+      const semillas: Semilla[] = [
+        { tabla: 'afiliados', donde: 'id_afiliado = ?', args: [Number(id)] },
+        { tabla: 'personas', donde: 'id = ?', args: [id_persona] },
+        { tabla: 'documentos', donde: `entidad_tipo = 'afiliado' AND entidad_id = ?`, args: [Number(id)] },
+        { tabla: 'estudiantes', donde: 'id_persona = ? OR (id_empresa = ? AND id_empresa IS NOT NULL)', args: [id_persona, id_empresa || -1] },
+      ];
+      if (id_user) semillas.push({ tabla: 'users', donde: 'id = ?', args: [id_user] });
+      if (id_empresa && tipo_afiliado === 'Corporativo') {
+        semillas.push({ tabla: 'empresas', donde: 'id_empresa = ?', args: [id_empresa] });
+        semillas.push({ tabla: 'documentos', donde: `entidad_tipo = 'empresa' AND entidad_id = ?`, args: [id_empresa] });
+      }
+      await guardarInstantanea(db, { tipo: 'afiliado', idEntidad: Number(id), nombre: `Afiliado #${id}${codigo ? ` (código ${codigo})` : ''}${nombre_completo ? ` — ${nombre_completo}` : ''}`, eliminadoPor: req.user?.id, semillas });
+    }
 
     // 2. Preparar lote de borrado
     const batch: any[] = [];
@@ -2970,7 +3003,9 @@ export const deleteAfiliado = async (req: Request, res: Response): Promise<void>
 
     res.json({
       success: true,
-      message: 'Afiliado y todos sus registros asociados han sido eliminados. Ahora puede volver a registrarlo con los mismos datos si lo desea.'
+      message: modo === 'definitivo'
+        ? 'Afiliado y todos sus registros asociados han sido eliminados definitivamente. Ahora puede volver a registrarlo con los mismos datos si lo desea.'
+        : 'Afiliado y sus registros asociados eliminados. Puede volver a registrarlo con los mismos datos; el súper administrador puede restaurarlo desde la papelera.'
     });
 
   } catch (error) {

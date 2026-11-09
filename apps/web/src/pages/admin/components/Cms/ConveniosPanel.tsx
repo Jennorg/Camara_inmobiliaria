@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@/context/AuthContext'
+import { elegirModoBorrado, conModo } from '@/lib/borrado'
 import { api, FormField, Input, Textarea, BtnPrimary, BtnDanger, BtnSecondary, ListDetail, uploadFileStorage, CmsPanelHeader } from '@/pages/admin/components/Cms/CmsShared'
 import { Edit, Upload, CheckCircle, Trash2, Globe, ArrowLeft, Loader2, Handshake } from 'lucide-react'
 import { sendToPreview } from '@/pages/admin/components/Cms/LandingPreviewPane'
@@ -15,7 +16,7 @@ interface ConvenioItem {
 
 export const ConveniosPanel = () => {
   // Convenios del CMS: sección «config» (no «formacion»: el staff la tiene por academia y el CMS es solo admin)
-  const { puede } = useAuth()
+  const { puede, isSuperAdmin } = useAuth()
   const puedeCrear = puede('config', 'crear')
   const puedeEditar = puede('config', 'editar')
   const puedeEliminar = puede('config', 'eliminar')
@@ -152,9 +153,11 @@ export const ConveniosPanel = () => {
 
   const confirmDeleteConvenio = async () => {
     if (!itemToDelete || deletingConvenio) return
+    const modo = await elegirModoBorrado(isSuperAdmin)
+    if (!modo) return
     setDeletingConvenio(true)
     try {
-      await api.delete(`/api/cms/convenios/${itemToDelete.id}`)
+      await api.delete(conModo(`/api/cms/convenios/${itemToDelete.id}`, modo))
       if (String(selectedId) === String(itemToDelete.id)) {
         setSelectedId(null)
         setIsEditing(false)
