@@ -292,7 +292,16 @@ export default function SolvenciaPanel() {
             {filas.map(a => (
               <tr key={a.id_afiliado} className="hover:bg-slate-50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-400 tabular-nums">{a.codigo}</td>
-                  <td className="px-3 py-2 font-bold text-slate-800 truncate max-w-[260px]" title={a.nombre}>{formatNombreCard(a.nombres, a.apellidos) || a.razon_social || a.nombre}</td>
+                  <td className="px-3 py-2 max-w-[260px]">
+                    <span className="block font-bold text-slate-800 truncate leading-snug" title={a.razon_social ?? a.nombre}>
+                      {a.razon_social || formatNombreCard(a.nombres, a.apellidos) || a.nombre}
+                    </span>
+                    {a.razon_social && (a.nombres || a.apellidos) && (
+                      <span className="block text-[11px] font-semibold text-slate-400 truncate leading-tight mt-0.5">
+                        Rep.{' '}<span className="text-slate-500">{formatNombreCard(a.nombres, a.apellidos)}</span>
+                      </span>
+                    )}
+                  </td>
                   {a.celdas.map((c, i) => (
                     <td key={i} className="px-1 py-2 text-center">
                       {c ? (
