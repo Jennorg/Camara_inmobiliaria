@@ -15,7 +15,7 @@ import { agendarEntrevista } from '../services/entrevistas.service.js'
 import { asegurarAgenda } from '../services/agenda.service.js'
 import { borrarEventoPrevio } from './agenda.controller.js'
 import { esCupoIlimitado, precioCurso, sqlOcupaCupo, venceReserva } from '../lib/cursos-pago.js'
-import { asegurarCohortes } from '../services/cohortes.service.js'
+import { MENSAJE_COHORTE_CIBIR_REQUERIDA, asegurarCohortes, faltaCohorteParaCibir } from '../services/cohortes.service.js'
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex')
 const generateSlug = (str: string) => {
@@ -2938,6 +2938,10 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO })
       return
     }
+    if (await faltaCohorteParaCibir({ idEstudiante: row.id_estudiante })) {
+      res.status(409).json({ success: false, code: 'COHORTE_CIBIR_REQUERIDA', message: MENSAJE_COHORTE_CIBIR_REQUERIDA })
+      return
+    }
 
     // 2. Marcar como 'Inscrito' (o mantener AFILIACION pero procesado)
     // Para simplificar, lo aprobamos como 'Inscrito' sin cambiar el programa_codigo (sigue siendo AFILIACION)
@@ -3043,6 +3047,10 @@ export const adminFinalizarEntrevista = async (req: Request, res: Response): Pro
     // Una aprobación parcial manda al aspirante a la etapa CIBIR: exige el pago del arancel
     if (resultado === 'Parcial' && row.programa_codigo === 'AFILIACION' && !(await puedeEntrarACibir({ idEstudiante: row.id_estudiante }))) {
       res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO })
+      return
+    }
+    if (resultado === 'Parcial' && row.programa_codigo === 'AFILIACION' && (await faltaCohorteParaCibir({ idEstudiante: row.id_estudiante }))) {
+      res.status(409).json({ success: false, code: 'COHORTE_CIBIR_REQUERIDA', message: MENSAJE_COHORTE_CIBIR_REQUERIDA })
       return
     }
 
@@ -3994,7 +4002,7 @@ export const adminCrearInscripcionManual = async (req: Request, res: Response): 
       args: [id_estudiante, programaInsc, now, now],
     })
     const idInscripcion = Number(r.rows[0].id_inscripcion)
-    // La solicitud queda sin cohorte (el trigger asigna la abierta al insertar): se elige después desde la ficha
+    // La solicitud queda sin cohorte aunque el trigger le haya heredado la de su afiliación: se elige después desde la ficha
     await db.execute({ sql: `UPDATE inscripciones_cursos SET id_cohorte = NULL WHERE id_inscripcion = ?`, args: [idInscripcion] })
     res.status(201).json({ success: true, data: { id_inscripcion: idInscripcion, id_estudiante } })
   } catch (error) {
@@ -4078,6 +4086,10 @@ export const adminCambiarEtapaInscripcion = async (req: Request, res: Response):
     // La etapa 4 de la afiliación es CIBIR: exige tener registrado el pago del arancel
     if (etapa === 4 && row.programa_codigo === 'AFILIACION' && !(await puedeEntrarACibir({ idEstudiante: row.id_estudiante }))) {
       res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO })
+      return
+    }
+    if (etapa === 4 && row.programa_codigo === 'AFILIACION' && (await faltaCohorteParaCibir({ idEstudiante: row.id_estudiante }))) {
+      res.status(409).json({ success: false, code: 'COHORTE_CIBIR_REQUERIDA', message: MENSAJE_COHORTE_CIBIR_REQUERIDA })
       return
     }
 

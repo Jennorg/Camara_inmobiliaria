@@ -8,7 +8,7 @@ import { marcarBorrado, modoDeBorrado } from '../lib/borrado.js';
 import { env } from '../config/env.js';
 import { isStaff } from '../middlewares/auth.middleware.js';
 import { puedeAlgunPermiso, SECCIONES_AFILIADO } from '../services/permisos.service.js';
-import { asegurarCohortes } from '../services/cohortes.service.js';
+import { MENSAJE_COHORTE_CIBIR_REQUERIDA, asegurarCohortes, faltaCohorteParaCibir } from '../services/cohortes.service.js';
 import { esProgramaCohorte } from '../lib/cohortes.js';
 
 const sha256 = (raw: string) => createHash('sha256').update(raw).digest('hex');
@@ -1678,6 +1678,9 @@ export const updateEstatusAfiliado = async (req: Request, res: Response) => {
       if (!(await puedeEntrarACibir({ idAfiliado: Number(id) }))) {
         return res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO });
       }
+      if (await faltaCohorteParaCibir({ idAfiliado: Number(id) })) {
+        return res.status(409).json({ success: false, code: 'COHORTE_CIBIR_REQUERIDA', message: MENSAJE_COHORTE_CIBIR_REQUERIDA });
+      }
     }
 
     const setParts: string[] = [];
@@ -1787,6 +1790,9 @@ export const updateAfiliado = async (req: Request, res: Response) => {
     // Entrar a la etapa CIBIR exige tener registrado el pago del arancel
     if (fields.estatus === '5_CIBIR' && !(await puedeEntrarACibir({ idAfiliado: Number(id) }))) {
       return res.status(409).json({ success: false, code: 'PAGO_CIBIR_REQUERIDO', message: MENSAJE_PAGO_CIBIR_REQUERIDO });
+    }
+    if (fields.estatus === '5_CIBIR' && (await faltaCohorteParaCibir({ idAfiliado: Number(id) }))) {
+      return res.status(409).json({ success: false, code: 'COHORTE_CIBIR_REQUERIDA', message: MENSAJE_COHORTE_CIBIR_REQUERIDA });
     }
 
     // Campos permitidos por entidad
