@@ -33,6 +33,7 @@ const asentada = (n: number) => vi.waitFor(async () => expect((await filas()).le
 beforeAll(async () => {
   await mem.execute(`CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, nombre TEXT)`)
   await mem.execute(`INSERT INTO users VALUES (4, 'ana@ciebo.test', 'Ana Contreras')`)
+  await mem.execute(`CREATE TABLE personas (id INTEGER PRIMARY KEY, nombres TEXT, apellidos TEXT, email TEXT, eliminado_en TEXT)`)
   await mem.execute(`CREATE TABLE cms_noticias (id_noticia INTEGER PRIMARY KEY, titulo TEXT, eliminado_en TEXT)`)
   await mem.execute(`INSERT INTO cms_noticias VALUES (12, 'Título original', NULL)`)
 })
@@ -83,6 +84,11 @@ describe('consulta de la auditoría', () => {
     const r = await request(app).get('/api/auditoria/ultimo?entidad=noticias&ids=12,13').set('Authorization', SUPER)
     expect(r.status).toBe(200)
     expect(r.body.data['12']).toMatchObject({ accion: 'eliminar_definitivo', email: 'ana@ciebo.test', usuario: 'Ana Contreras' })
+    // con ficha de persona: primer nombre y primer apellido, no el correo ni el nombre completo
+    await mem.execute(`INSERT INTO personas (id, nombres, apellidos, email) VALUES (1, 'Anita María', 'Contreras Pérez', 'ANA@ciebo.test')`)
+    const corto = await request(app).get('/api/auditoria/ultimo?entidad=noticias&ids=12').set('Authorization', SUPER)
+    expect(corto.body.data['12'].usuario).toBe('Anita Contreras')
+    await mem.execute(`DELETE FROM personas`)
     expect(r.body.data['13']).toBeUndefined()
     for (const rol of ['admin', 'afiliado']) expect((await request(app).get('/api/auditoria/ultimo?entidad=noticias&ids=12').set('Authorization', token([rol]))).status).toBe(403)
   })

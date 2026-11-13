@@ -26,10 +26,18 @@ const cohorteDe = async (idInscripcion: number) =>
   (await db.execute({ sql: `SELECT c.numero FROM inscripciones_cursos i LEFT JOIN cohortes c ON c.id_cohorte = i.id_cohorte WHERE i.id_inscripcion = ?`, args: [idInscripcion] })).rows[0].numero
 
 describe('cohortes: asignación automática', () => {
-  it('una inscripción nueva de programa entra a la cohorte abierta de ese programa', async () => {
+  it('una inscripción nueva de programa queda sin cohorte (sala de espera) aunque haya una abierta', async () => {
     await cohorte('CIBIR', 1, 'Cerrada'); await cohorte('CIBIR', 2, 'Abierta'); await cohorte('PEGI', 1, 'Abierta')
-    expect(await cohorteDe(await insc(1, 'CIBIR'))).toBe(2)
-    expect(await cohorteDe(await insc(2, 'PEGI'))).toBe(1)
+    expect(await cohorteDe(await insc(1, 'CIBIR'))).toBeNull()
+    expect(await cohorteDe(await insc(2, 'PEGI'))).toBeNull()
+  })
+
+  it('retira el trigger antiguo que asignaba la cohorte abierta en bases ya migradas', async () => {
+    await cohorte('CIBIR', 1, 'Abierta')
+    await db.execute(`CREATE TRIGGER trg_cohorte_inscripcion_programa AFTER INSERT ON inscripciones_cursos
+      BEGIN UPDATE inscripciones_cursos SET id_cohorte = 1 WHERE id_inscripcion = NEW.id_inscripcion; END`)
+    await asegurarEsquemaCohortes(db)
+    expect(await cohorteDe(await insc(1, 'CIBIR'))).toBeNull()
   })
 
   it('no toca cursos, AFILIACION ni programas sin cohorte abierta', async () => {
@@ -47,7 +55,7 @@ describe('cohortes: asignación automática', () => {
 
     await db.batch([`UPDATE cohortes SET estado = 'Cerrada' WHERE numero = 1`, `INSERT INTO cohortes (programa_codigo, numero, nombre) VALUES ('CIBIR', 2, 'Cohorte 2')`])
     expect(await cohorteDe(await insc(1, 'CIBIR'))).toBe(1) // la suya, no la 2
-    expect(await cohorteDe(await insc(2, 'CIBIR'))).toBe(2) // sin AFILIACION: la abierta
+    expect(await cohorteDe(await insc(2, 'CIBIR'))).toBeNull() // sin AFILIACION en cohorte: sala de espera
   })
 
   it('pasar a 5_CIBIR asigna la cohorte abierta solo si aún no tenía, y no se repite', async () => {
@@ -61,6 +69,14 @@ describe('cohortes: asignación automática', () => {
     await db.execute(`UPDATE afiliados SET estatus = '4_VERIFICACION' WHERE id_afiliado = 1`)
     await db.execute(`UPDATE afiliados SET estatus = '5_CIBIR' WHERE id_afiliado = 1`)
     expect(await cohorteDe(a)).toBe(1) // no se reasigna
+  })
+
+  it('crear el afiliado directamente en 5_CIBIR también le asigna la cohorte abierta', async () => {
+    await cohorte('CIBIR', 1, 'Abierta')
+    await db.execute(`INSERT INTO estudiantes VALUES (3, 30, NULL)`)
+    const afiliacion = await insc(3, 'AFILIACION')
+    await db.execute(`INSERT INTO afiliados VALUES (3, 30, NULL, '5_CIBIR')`)
+    expect(await cohorteDe(afiliacion)).toBe(1)
   })
 
   it('solo puede haber una cohorte abierta por programa y el esquema se puede crear dos veces', async () => {
@@ -87,8 +103,8 @@ describe('cohortes: etapas', () => {
   it('cuenta por etapa dentro de cada cohorte, con documentos y etapa del afiliado', async () => {
     await cohorte('CIBIR', 1, 'Abierta'); await cohorte('PEGI', 1, 'Abierta')
     const nueva = async (idEstudiante: number, programa: string, estatus: string, completado: number) =>
-      db.execute({ sql: `INSERT INTO inscripciones_cursos (id_estudiante, programa_codigo, estatus, completado) VALUES (?, ?, ?, ?)`, args: [idEstudiante, programa, estatus, completado] })
-    await nueva(1, 'CIBIR', 'Inscrito', 1)               // completado (cohorte CIBIR 1, por trigger)
+      db.execute({ sql: `INSERT INTO inscripciones_cursos (id_estudiante, programa_codigo, estatus, completado, id_cohorte) VALUES (?, ?, ?, ?, (SELECT id_cohorte FROM cohortes WHERE programa_codigo = ?))`, args: [idEstudiante, programa, estatus, completado, programa] })
+    await nueva(1, 'CIBIR', 'Inscrito', 1)               // completado (cohorte CIBIR 1, asignada a mano)
     await nueva(2, 'CIBIR', 'Inscrito', 1)               // completado
     await nueva(1, 'PEGI', 'Preinscrito', 0)             // sin expediente (cohorte PEGI 1)
     await db.execute(`INSERT INTO documentos VALUES ('estudiante', 2, NULL), ('estudiante', 2, '2026-01-01')`) // solo 1 vigente

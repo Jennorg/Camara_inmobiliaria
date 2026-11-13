@@ -9,6 +9,27 @@ let esquema: Promise<void> | null = null
 export const asegurarCohortes = (): Promise<void> =>
   (esquema ??= asegurarEsquemaCohortes(db).catch(e => { esquema = null; throw e }))
 
+export const MENSAJE_COHORTE_CIBIR_REQUERIDA =
+  'No hay ninguna cohorte CIBIR abierta. Crea una nueva cohorte para poder pasar aspirantes a la etapa CIBIR.'
+
+/**
+ * Nadie entra a la etapa CIBIR sin cohorte: hace falta una abierta (el trigger se la asigna al entrar).
+ * A quien ya está en la etapa no se le vuelve a exigir, igual que con el pago del arancel.
+ */
+export async function faltaCohorteParaCibir(params: { idAfiliado?: number | null; idEstudiante?: number | null }): Promise<boolean> {
+  await asegurarCohortes()
+  const r = await db.execute({
+    sql: `SELECT 1 WHERE EXISTS (SELECT 1 FROM cohortes WHERE programa_codigo = 'CIBIR' AND estado = 'Abierta')
+             OR EXISTS (SELECT 1 FROM afiliados a
+                        WHERE a.estatus = '5_CIBIR'
+                          AND (a.id_afiliado = ?1
+                               OR a.id_afiliado IN (SELECT a2.id_afiliado FROM afiliados a2 JOIN estudiantes e ON (a2.id_persona = e.id_persona OR (a2.id_empresa IS NOT NULL AND a2.id_empresa = e.id_empresa))
+                                                    WHERE e.id_estudiante = ?2)))`,
+    args: [params.idAfiliado ?? null, params.idEstudiante ?? null],
+  })
+  return r.rows.length === 0
+}
+
 /** Fecha de hoy en Venezuela (YYYY-MM-DD). */
 const hoyCaracas = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' })
 

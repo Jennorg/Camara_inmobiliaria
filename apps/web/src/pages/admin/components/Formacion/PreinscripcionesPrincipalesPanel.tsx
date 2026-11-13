@@ -155,6 +155,19 @@ const estadoUi = (r: FilaEstado): EstadoUi | null => {
 }
 
 const PROGRAMAS_CON_COHORTE = ['CIBIR', 'PREANI', 'PEGI', 'PADI']
+// Filtros con los que abre la lista. No se recuerda lo que el usuario elija: al cambiar de programa o de cohorte vuelven a estos.
+// Sin programa elegido, o dentro de una cohorte, no se aplica ninguno. La vista general del CIBIR abre en los pendientes
+// (la sala de espera, con o sin expediente); la de los demás programas, en quienes están inscritos y deben.
+const filtrosPorDefecto = (programa: string, cohorte: number | null): { estado: 'Todos' | 'Pendiente' | 'Inscrito'; pago: 'Todos' | 'Deben' } => {
+  if (programa === 'Todos' || cohorte !== null) return { estado: 'Todos', pago: 'Todos' }
+  if (programa === 'CIBIR' && cohorte === null) return { estado: 'Pendiente', pago: 'Todos' }
+  return { estado: 'Inscrito', pago: 'Deben' }
+}
+/** El filtro «Pendiente» abarca también a quienes aún no han subido expediente; «Sin Expediente» los aísla. */
+const cumpleEstado = (r: FilaEstado, filtro: EstadoUi) => {
+  const e = estadoUi(r)
+  return e === filtro || (filtro === 'Pendiente' && e === 'Sin Expediente')
+}
 /** Aparición de la franja al cambiar de programa y de las primeras filas al cambiar de lista (sin movimiento si el usuario lo prefiere) */
 const ENTRADA_FRANJA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-300'
 const ENTRADA_FILA = 'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-300 motion-safe:fill-mode-backwards'
@@ -167,8 +180,8 @@ export default function PreinscripcionesPrincipalesPanel({
   const { token, isSuperAdmin } = useAuth()
   const [programa, setPrograma] = useState<ProgramaCodigo | 'Todos'>(initialPrograma)
   type UiEstatus = typeof UI_ESTATUS[number]
-  const [uiEstatus, setUiEstatus] = useState<UiEstatus>('Inscrito')
-  const [pagoSel, setPagoSel] = useState<'Todos' | 'Deben' | 'No deben'>('Deben')
+  const [uiEstatus, setUiEstatus] = useState<UiEstatus>(filtrosPorDefecto(initialPrograma, null).estado)
+  const [pagoSel, setPagoSel] = useState<'Todos' | 'Deben' | 'No deben'>(filtrosPorDefecto(initialPrograma, null).pago)
   const [search, setSearch] = useState('')
   const [criterio, setCriterio] = useState<keyof typeof CRITERIOS_BUSQUEDA>('nombre')
   const [menuCriterio, setMenuCriterio] = useState(false)
@@ -212,7 +225,11 @@ export default function PreinscripcionesPrincipalesPanel({
     } catch { /* el panel sigue funcionando sin cohortes */ }
   }, [authHeaders])
   useEffect(() => { fetchCohortes() }, [fetchCohortes])
-  useEffect(() => { setCohorteFiltro(null); setViaCibir('Todas') }, [programa])
+  useEffect(() => { setCohorteFiltro(null) }, [programa])
+  useEffect(() => {
+    const d = filtrosPorDefecto(programa, cohorteFiltro); setUiEstatus(d.estado); setPagoSel(d.pago); setSearch(''); setCriterio('nombre')
+    setEtapaAcredSel('Todas'); setTipoAcredSel(''); setViaCibir('Todas')
+  }, [programa, cohorteFiltro])
 
   const cohortesDelPrograma = useMemo(
     () => cohortes.filter(c => c.programa_codigo === programa),
@@ -220,8 +237,6 @@ export default function PreinscripcionesPrincipalesPanel({
   )
   const seleccionarCohorte = (id: number | null) => {
     setCohorteFiltro(id)
-    setUiEstatus('Todos') // una cohorte cerrada no tiene "pendientes": mostrar a todos, no el filtro por defecto
-    setPagoSel('Todos')
     setSelected(null)
   }
 
@@ -357,8 +372,8 @@ export default function PreinscripcionesPrincipalesPanel({
     const r = await Swal.fire({
       title: `Nueva cohorte de ${programa}`,
       html: abierta
-        ? `Se cerrará la <b>${abierta.nombre}</b> y las nuevas inscripciones entrarán a la nueva cohorte.`
-        : 'Las nuevas inscripciones entrarán a esta cohorte.',
+        ? `Se cerrará la <b>${abierta.nombre}</b>. Las inscripciones nuevas siguen entrando sin cohorte${programa === 'CIBIR' ? '; quienes pasen a la etapa CIBIR entrarán a la nueva' : ''}.`
+        : `Las inscripciones nuevas entran sin cohorte${programa === 'CIBIR' ? '; quienes pasen a la etapa CIBIR entrarán a esta' : ': las asignas tú'}.`,
       input: 'text', inputLabel: 'Nombre (opcional)', inputPlaceholder: `Cohorte ${(cohortesDelPrograma.at(-1)?.numero ?? 0) + 1}`,
       showCancelButton: true, confirmButtonText: 'Crear', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
     })
@@ -378,14 +393,37 @@ export default function PreinscripcionesPrincipalesPanel({
     }
   }
 
+  /** Sin cohorte CIBIR abierta nadie pasa a la etapa CIBIR: se ofrece crearla ahí mismo. */
+  const ofrecerCrearCohorteCibir = async (mensaje: string) => {
+    const r = await Swal.fire({
+      title: 'Hace falta una cohorte CIBIR', text: mensaje, icon: 'warning',
+      input: 'text', inputLabel: 'Nombre de la nueva cohorte (opcional)',
+      showCancelButton: true, confirmButtonText: 'Crear cohorte', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
+    })
+    if (!r.isConfirmed) return
+    try {
+      const res = await fetch(`${API_URL}/api/academia/cohortes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ programa_codigo: 'CIBIR', nombre: r.value || undefined }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo crear la cohorte')
+      await fetchCohortes()
+      await Swal.fire({ title: 'Cohorte creada', text: `${json.data.nombre} quedó abierta. Repite la acción para pasar al aspirante a la etapa CIBIR.`, icon: 'success', confirmButtonColor: '#059669' })
+    } catch (e) {
+      mostrarError(e, 'No se pudo crear la cohorte')
+    }
+  }
+
   const cambiarEstadoCohorte = async (c: Cohorte) => {
     const cerrar = c.estado === 'Abierta'
     const otraAbierta = cohortesDelPrograma.find(o => o.estado === 'Abierta' && o.id_cohorte !== c.id_cohorte)
     const r = await Swal.fire({
       title: `${cerrar ? 'Cerrar' : 'Reabrir'} ${c.nombre}`,
       html: cerrar
-        ? `Las nuevas inscripciones de ${c.programa_codigo} quedarán sin cohorte hasta que abras otra.`
-        : `Las nuevas inscripciones entrarán a la <b>${c.nombre}</b>.${otraAbierta ? ` Se cerrará la <b>${otraAbierta.nombre}</b>.` : ''}`,
+        ? `Las inscripciones nuevas ya entran sin cohorte.${c.programa_codigo === 'CIBIR' ? ' Nadie podrá pasar a la etapa CIBIR hasta que abras otra.' : ''}`
+        : `Las inscripciones nuevas siguen entrando sin cohorte: las asignas tú.${c.programa_codigo === 'CIBIR' ? ` Quienes pasen a cursar el CIBIR entrarán a la <b>${c.nombre}</b>.` : ''}${otraAbierta ? ` Se cerrará la <b>${otraAbierta.nombre}</b>.` : ''}`,
       showCancelButton: true, confirmButtonText: cerrar ? 'Cerrar' : 'Reabrir', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
     })
     if (!r.isConfirmed) return
@@ -797,6 +835,11 @@ export default function PreinscripcionesPrincipalesPanel({
         await ofrecerCobroCibir(json.message)
         return
       }
+      if (json.code === 'COHORTE_CIBIR_REQUERIDA') {
+        Swal.close()
+        await ofrecerCrearCohorteCibir(json.message)
+        return
+      }
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo remitir')
 
       Swal.fire({
@@ -845,6 +888,11 @@ export default function PreinscripcionesPrincipalesPanel({
       if (json.code === 'PAGO_CIBIR_REQUERIDO') {
         Swal.close()
         await ofrecerCobroCibir(json.message)
+        return
+      }
+      if (json.code === 'COHORTE_CIBIR_REQUERIDA') {
+        Swal.close()
+        await ofrecerCrearCohorteCibir(json.message)
         return
       }
       if (!res.ok || !json.success) throw new Error(json.message || 'No se pudo cambiar la etapa')
@@ -997,6 +1045,7 @@ export default function PreinscripcionesPrincipalesPanel({
     const c = Object.fromEntries(UI_ESTATUS.map(e => [e, 0])) as Record<typeof UI_ESTATUS[number], number>
     c.Todos = base.length
     base.forEach(r => { const e = estadoUi(r); if (e) c[e]++ })
+    c.Pendiente += c['Sin Expediente'] // el filtro Pendiente los incluye
     return c
   }, [baseRows])
 
@@ -1012,7 +1061,7 @@ export default function PreinscripcionesPrincipalesPanel({
     if (esAcred) {
       if (etapaAcredSel !== 'Todas') result = result.filter(r => etapaAcred(r) === etapaAcredSel)
     } else if (uiEstatus !== 'Todos') {
-      result = result.filter(r => estadoUi(r) === uiEstatus)
+      result = result.filter(r => cumpleEstado(r, uiEstatus))
     }
     if (pagoSel !== 'Todos') result = result.filter(r => debe(r) === (pagoSel === 'Deben'))
     if (!search.trim()) return result
@@ -1036,7 +1085,10 @@ export default function PreinscripcionesPrincipalesPanel({
             ? { label: 'Sin Expediente', styles: 'bg-rose-50 text-rose-600 border-rose-200' }
             : { label: 'Preinscrito', styles: 'bg-amber-50 text-amber-700 border-amber-200' }
         case '2_EXPEDIENTE':
-          return { label: 'Expediente', styles: 'bg-slate-100 text-slate-700 border-slate-200' }
+          // Está en la etapa de expediente, pero la etiqueta dice si ya lo cargó o no
+          return numDocumentos === 0
+            ? { label: 'Sin Expediente', styles: 'bg-rose-50 text-rose-600 border-rose-200' }
+            : { label: 'Expediente', styles: 'bg-slate-100 text-slate-700 border-slate-200' }
         case '3_ENTREVISTA':
           return { label: 'Entrevista', styles: 'bg-purple-50 text-purple-700 border-purple-200' }
         case '4_VERIFICACION':

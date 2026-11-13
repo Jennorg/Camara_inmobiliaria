@@ -43,6 +43,11 @@ export const filtros = async (_req: Request, res: Response) => {
   } catch (e) { fallo(res, 'cargar los filtros de auditoría', e) }
 }
 
+const primera = (s: unknown) => String(s ?? '').trim().split(/\s+/)[0]
+/** «Ana Contreras»: primer nombre y primer apellido de la persona del usuario; si no tiene ficha, su nombre de usuario; si tampoco, el correo. */
+const nombreCorto = (x: { nombres?: unknown; apellidos?: unknown; nombre_usuario?: unknown; email?: unknown }) =>
+  [primera(x.nombres), primera(x.apellidos)].filter(Boolean).join(' ') || String(x.nombre_usuario ?? '').trim() || (x.email as string | null)
+
 // GET /api/auditoria/ultimo?entidad=afiliados&ids=1,2,3 → quién hizo lo último sobre cada registro («Modificado por»)
 export const ultimo = async (req: Request, res: Response) => {
   try {
@@ -51,13 +56,15 @@ export const ultimo = async (req: Request, res: Response) => {
     if (!entidad || !ids.length) { res.json({ success: true, data: {} }); return }
     await asegurarEsquemaAuditoria(db)
     const r = await db.execute({
-      sql: `SELECT a.id_entidad, a.accion, a.email, a.creado_en, u.nombre AS nombre_usuario
+      sql: `SELECT a.id_entidad, a.accion, a.email, a.creado_en, u.nombre AS nombre_usuario,
+              (SELECT p.nombres FROM personas p WHERE LOWER(p.email) = LOWER(COALESCE(u.email, a.email)) AND p.eliminado_en IS NULL LIMIT 1) AS nombres,
+              (SELECT p.apellidos FROM personas p WHERE LOWER(p.email) = LOWER(COALESCE(u.email, a.email)) AND p.eliminado_en IS NULL LIMIT 1) AS apellidos
             FROM auditoria a LEFT JOIN users u ON u.id = a.id_user
             WHERE a.entidad = ? AND a.id_entidad IN (${ids.map(() => '?').join(',')})
               AND a.id = (SELECT MAX(b.id) FROM auditoria b WHERE b.entidad = a.entidad AND b.id_entidad = a.id_entidad)`,
       args: [entidad, ...ids],
     })
-    res.json({ success: true, data: Object.fromEntries((r.rows as any[]).map(x => [String(x.id_entidad), { accion: x.accion, usuario: x.nombre_usuario || x.email, email: x.email, fecha: x.creado_en }])) })
+    res.json({ success: true, data: Object.fromEntries((r.rows as any[]).map(x => [String(x.id_entidad), { accion: x.accion, usuario: nombreCorto(x), email: x.email, fecha: x.creado_en }])) })
   } catch (e) { fallo(res, 'consultar la última modificación', e) }
 }
 
