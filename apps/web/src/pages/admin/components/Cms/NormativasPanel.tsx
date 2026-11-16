@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { FileText, Upload, FolderSearch, CheckCircle, Edit, Trash2, GripVertical, ArrowUp, ArrowDown, Eye, EyeOff, ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
@@ -604,7 +605,7 @@ export const NormativasPanel = () => {
 
         {/* Modal de confirmación individual */}
         {itemToDelete && createPortal(
-          <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+          <Modal onClose={() => setItemToDelete(null)} aria-label="Confirmar eliminación" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
             <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
               <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
                 <Trash2 size={32} />
@@ -632,7 +633,7 @@ export const NormativasPanel = () => {
                 </button>
               </div>
             </div>
-          </div>,
+          </Modal>,
           document.body
         )}
       </>
@@ -981,7 +982,7 @@ export const NormativasPanel = () => {
 
       {/* Modal de confirmación individual (Esquema Control de Acceso) */}
       {itemToDelete && createPortal(
-        <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <Modal onClose={() => setItemToDelete(null)} aria-label="Confirmar eliminación" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
@@ -1009,13 +1010,13 @@ export const NormativasPanel = () => {
               </button>
             </div>
           </div>
-        </div>,
+        </Modal>,
         document.body
       )}
 
       {/* Modal de confirmación masiva (Esquema Control de Acceso) */}
       {showBatchDeleteModal && createPortal(
-        <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <Modal onClose={() => setShowBatchDeleteModal(false)} aria-label="Confirmar eliminación" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
@@ -1045,7 +1046,7 @@ export const NormativasPanel = () => {
               </button>
             </div>
           </div>
-        </div>,
+        </Modal>,
         document.body
       )}
     </div>

@@ -1,4 +1,7 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
+import Modal from '@/components/ui/Modal'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import DateInput from '@/components/ui/DateInput'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatNombreCard, formatRif, getInitials, formatDateLatina, sanitizeDateForInput } from '@/utils/formatters'
@@ -23,14 +26,13 @@ import CarnetAfiliadoModal from '@/components/CarnetAfiliadoModal'
 import { CarnetCardPreview } from '@/components/CarnetCardPreview'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
 import { useBatchDownload } from '@/context/BatchDownloadContext'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
 import { toPng } from 'html-to-image'
 import LogoBgImg from '@/assets/logo_ciebo_green.svg'
 import JSZip from 'jszip'
 import QRCode from 'qrcode'
-import DateInput from '@/components/ui/DateInput'
 
 
 const CarnetIcon = ({ w = 16, h = 16 }: { w?: number; h?: number }) => {
@@ -1144,8 +1146,7 @@ export default function MiembrosPanel() {
 
                 {showSearchDropdown && (
                   <>
-                    <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowSearchDropdown(false)} />
-                    <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] fade-in slide-in-from-top-1 duration-100">
+                    <MenuEmergente onClose={() => setShowSearchDropdown(false)} separacion={4} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[130px] fade-in slide-in-from-top-1 duration-100">
                       {([
                         { key: 'nombre', label: 'Nombre' },
                         { key: 'id', label: 'Cédula / RIF' },
@@ -1165,7 +1166,7 @@ export default function MiembrosPanel() {
                           {option.label}
                         </button>
                       ))}
-                    </div>
+                    </MenuEmergente>
                   </>
                 )}
               </div>
@@ -1237,8 +1238,7 @@ export default function MiembrosPanel() {
 
             {showFilterDropdown && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
-                <div className="transition-opacity transition-transform absolute left-0 right-0 mt-1.5 rounded-xl bg-white shadow-xl border border-gray-100 overflow-hidden z-50 fade-in slide-in-from-top-1 duration-200">
+                <MenuEmergente onClose={() => setShowFilterDropdown(false)} anchoCompleto separacion={6} className="transition-opacity transition-transform rounded-xl bg-white shadow-xl border border-gray-100 overflow-hidden fade-in slide-in-from-top-1 duration-200">
                   <div className="py-1">
                     {[
                       { id: 'Todos', label: 'Todos', icon: Users },
@@ -1264,7 +1264,7 @@ export default function MiembrosPanel() {
                       );
                     })}
                   </div>
-                </div>
+                </MenuEmergente>
               </>
             )}
           </div>
@@ -2089,7 +2089,7 @@ export default function MiembrosPanel() {
 
       {/* Modal Nuevo Miembro */}
       {showNewModal && (
-        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md fade-in duration-300">
+        <Modal onClose={() => setShowNewModal(false)} aria-label="Nuevo miembro" className="transition-opacity flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md fade-in duration-300">
           <div className="transition-transform bg-white w-full max-w-2xl max-h-[90vh] rounded-[3rem] shadow-2xl overflow-hidden flex flex-col zoom-in-95 duration-300">
             <div className="bg-slate-50 p-8 border-b border-gray-100 flex items-center justify-between shrink-0">
               <div>
@@ -2126,8 +2126,7 @@ export default function MiembrosPanel() {
                       </button>
                       {showTipoDropdown && (
                         <>
-                          <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowTipoDropdown(false)} />
-                          <div className="transition-opacity transition-transform absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl py-1.5 z-50 fade-in slide-in-from-top-1 duration-200">
+                          <MenuEmergente onClose={() => setShowTipoDropdown(false)} anchoCompleto separacion={4} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-2xl shadow-xl py-1.5 fade-in slide-in-from-top-1 duration-200">
                             {([
                               { value: 'Natural', label: 'Agente Independiente' },
                               { value: 'Agente Corporativo', label: 'Agente Corporativo' },
@@ -2145,7 +2144,7 @@ export default function MiembrosPanel() {
                                 {opt.label}
                               </button>
                             ))}
-                          </div>
+                          </MenuEmergente>
                         </>
                       )}
                     </div>
@@ -2445,13 +2444,13 @@ export default function MiembrosPanel() {
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── EDITOR DE IMAGEN (logo o foto de perfil) ─────────────────────────── */}
       {imageEditKind && selected && (
-        <div
-          className="transition-opacity fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm fade-in duration-200"
+        <Modal onClose={closeImageEditor} aria-label="Editar imagen"
+          className="transition-opacity flex items-center justify-center bg-slate-900/50 backdrop-blur-sm fade-in duration-200"
           onClick={closeImageEditor}
         >
           <div
@@ -2653,7 +2652,7 @@ export default function MiembrosPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
 
@@ -2673,7 +2672,7 @@ export default function MiembrosPanel() {
       />
 
       {showChangeTypeModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+        <Modal onClose={() => setShowChangeTypeModal(false)} aria-label="Cambiar tipo de afiliado" className="flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" aria-hidden="true" onClick={() => setShowChangeTypeModal(false)} />
           <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-colors duration-500 ease-in-out">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
@@ -2884,12 +2883,12 @@ export default function MiembrosPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Delete confirmation modal */}
       {affiliateToDelete !== null && (
-        <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+        <Modal onClose={() => setAffiliateToDelete(null)} aria-label="Eliminar afiliado" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-3'>
               <Trash2 size={28} />
@@ -2917,12 +2916,12 @@ export default function MiembrosPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Natural Transition confirmation modal */}
       {naturalTransitionTarget && (
-        <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+        <Modal onClose={() => setNaturalTransitionTarget(null)} aria-label="Cambiar a miembro natural" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-3'>
               <ShieldAlert size={28} />
@@ -2951,7 +2950,7 @@ export default function MiembrosPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       <CarnetAfiliadoModal
@@ -3139,8 +3138,7 @@ function VinculacionCorporativaSection({
             </button>
             {showCorpDropdown && (
               <>
-                <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowCorpDropdown(false)} />
-                <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-200">
+                <MenuEmergente onClose={() => setShowCorpDropdown(false)} separacion={4} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[120px] fade-in slide-in-from-top-1 duration-200">
                   {([
                     { key: 'nombre' as const, label: 'Nombre' },
                     { key: 'rif' as const, label: 'RIF' },
@@ -3155,7 +3153,7 @@ function VinculacionCorporativaSection({
                       {option.label}
                     </button>
                   ))}
-                </div>
+                </MenuEmergente>
               </>
             )}
           </div>
@@ -3205,9 +3203,7 @@ function VinculacionCorporativaSection({
         {/* Lista de resultados */}
         {showCorpResults && corpSearch.trim() && !selectedCompany && (
           <>
-            <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setShowCorpResults(false)} />
-            <div className="relative z-20">
-              <div className="absolute top-0 left-0 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto py-1">
+                          <MenuEmergente onClose={() => setShowCorpResults(false)} anchoCompleto separacion={4} className="bg-white border border-gray-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto py-1">
                 {filteredCompanies.length === 0 ? (
                   <p className="px-4 py-3 text-xs text-slate-400 font-semibold text-center">Sin resultados</p>
                 ) : (
@@ -3232,8 +3228,8 @@ function VinculacionCorporativaSection({
                     </button>
                   ))
                 )}
-              </div>
-            </div>
+              </MenuEmergente>
+            
           </>
         )}
       </div>
@@ -3680,8 +3676,7 @@ function CompanySearchField({
           </button>
           {showCorpDropdown && (
             <>
-              <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowCorpDropdown(false)} />
-              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] fade-in slide-in-from-top-1 duration-200">
+              <MenuEmergente onClose={() => setShowCorpDropdown(false)} separacion={4} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[110px] fade-in slide-in-from-top-1 duration-200">
                 {([
                   { key: 'nombre' as const, label: 'Nombre' },
                   { key: 'rif' as const, label: 'RIF' },
@@ -3696,7 +3691,7 @@ function CompanySearchField({
                     {option.label}
                   </button>
                 ))}
-              </div>
+              </MenuEmergente>
             </>
           )}
         </div>

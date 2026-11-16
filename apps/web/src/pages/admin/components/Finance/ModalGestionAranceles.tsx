@@ -1,9 +1,10 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Check, Loader2, Edit2, ShieldAlert } from 'lucide-react';
 import { ArancelDTO } from '@/types/pagos';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 import DateInput from '@/components/ui/DateInput';
 
 const ARANCEL_ANUAL = 'mensualidad_anual_adelantada';
@@ -95,7 +96,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
   if (!effectiveOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Aranceles y tarifas gremiales" className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
       <div className="relative bg-white w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100 max-h-[90vh]">
         
         {/* Header */}
@@ -246,7 +247,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };
 

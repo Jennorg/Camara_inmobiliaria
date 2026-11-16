@@ -1,8 +1,10 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
+import Modal from '@/components/ui/Modal'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { CheckCircle2, Search, FileText, User, Mail, Phone, GraduationCap, BookOpen, Award, Clock, X, UserPlus, Users, ChevronDown, Loader2 } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { matchesSearch } from '@/utils/searchUtils'
 
 type Row = {
@@ -518,8 +520,7 @@ export default function AprobarCursosPanel() {
 
               {showSearchDropdown && (
                 <>
-                  <div className="fixed inset-0 z-30" onClick={() => setShowSearchDropdown(false)} />
-                  <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 z-40 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
+                  <MenuEmergente onClose={() => setShowSearchDropdown(false)} separacion={4} className="transition-opacity transition-transform bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                     {[
                       { key: 'nombre', label: 'Nombre' },
                       { key: 'cedula', label: 'Cédula / RIF' },
@@ -540,7 +541,7 @@ export default function AprobarCursosPanel() {
                         {option.label}
                       </button>
                     ))}
-                  </div>
+                  </MenuEmergente>
                 </>
               )}
             </div>
@@ -883,7 +884,7 @@ export default function AprobarCursosPanel() {
 
       {/* ── MODAL DE MÁS INFORMACIÓN ── */}
       {isInfoModalOpen && selected && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <Modal onClose={() => setIsInfoModalOpen(false)} aria-label="Detalle del curso" className="bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="transition-opacity transition-transform bg-white rounded-2xl max-w-2xl w-full border border-slate-100 shadow-xl overflow-hidden flex flex-col max-h-[85vh] fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
@@ -984,12 +985,12 @@ export default function AprobarCursosPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── MODAL INSCRIBIR NUEVO ALUMNO / PERSONA ── */}
       {isEnrollModalOpen && (
-        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
+        <Modal onClose={() => setIsEnrollModalOpen(false)} aria-label="Inscribir participante" className="transition-opacity flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -1094,14 +1095,7 @@ export default function AprobarCursosPanel() {
 
                           {showAfiliadoSearchDropdown && (
                             <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowAfiliadoSearchDropdown(false);
-                                }}
-                              />
-                              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
+                              <MenuEmergente onClose={() => { setShowAfiliadoSearchDropdown(false) }} separacion={4} className="transition-opacity transition-transform bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                                 {[
                                   { key: 'nombre', label: 'Nombre' },
                                   { key: 'cedula', label: 'Cédula / RIF' },
@@ -1123,7 +1117,7 @@ export default function AprobarCursosPanel() {
                                     {option.label}
                                   </button>
                                 ))}
-                              </div>
+                              </MenuEmergente>
                             </>
                           )}
                         </div>
@@ -1364,7 +1358,7 @@ export default function AprobarCursosPanel() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

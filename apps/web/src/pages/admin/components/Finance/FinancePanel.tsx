@@ -32,7 +32,7 @@ import SolvenciaPanel from './SolvenciaPanel'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/ModalGestionCuentasBancarias'
 import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
 import ModalRegistrarGasto from '@/pages/admin/components/Finance/ModalRegistrarGasto'
@@ -583,7 +583,7 @@ export default function FinancePanel() {
 
         {/* Filtros de Año y Mes */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500">
             <Calendar size={14} className="text-slate-400" />
             <select
               value={selectedYear}
@@ -596,7 +596,7 @@ export default function FinancePanel() {
             </select>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500">
             <select
               value={selectedMonth === null ? '' : selectedMonth}
               onChange={e => setSelectedMonth(e.target.value === '' ? null : Number(e.target.value))}
@@ -967,18 +967,18 @@ export default function FinancePanel() {
 
           {/* Tabla del Libro de Ventas */}
           <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div tabIndex={0} role="region" aria-label="Libro de ventas" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto">
+              <table className="w-full text-left text-xs"><caption className="sr-only">Libro de ventas</caption>
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Fecha</th>
-                    <th className="py-3 px-4">Recibo / Doc</th>
-                    <th className="py-3 px-4">Cliente / Afiliado</th>
-                    <th className="py-3 px-4">RIF / C.I.</th>
-                    <th className="py-3 px-4">Concepto</th>
-                    <th className="py-3 px-4">Método</th>
-                    <th className="py-3 px-4 text-right">Total ($)</th>
-                    <th className="py-3 px-4 text-center">Recibo</th>
+                    <th scope="col" className="py-3 px-4">Fecha</th>
+                    <th scope="col" className="py-3 px-4">Recibo / Doc</th>
+                    <th scope="col" className="py-3 px-4">Cliente / Afiliado</th>
+                    <th scope="col" className="py-3 px-4">RIF / C.I.</th>
+                    <th scope="col" className="py-3 px-4">Concepto</th>
+                    <th scope="col" className="py-3 px-4">Método</th>
+                    <th scope="col" className="py-3 px-4 text-right">Total ($)</th>
+                    <th scope="col" className="py-3 px-4 text-center">Recibo</th>
                   </tr>
                 </thead>
                 <tbody aria-busy={loadingVentas} className={`divide-y divide-slate-100 text-slate-700 transition-opacity ${loadingVentas && libroVentas.length > 0 ? 'opacity-50' : ''}`}>
@@ -1114,18 +1114,18 @@ export default function FinancePanel() {
 
           {/* Tabla del Libro de Compras */}
           <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div tabIndex={0} role="region" aria-label="Libro de compras" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto">
+              <table className="w-full text-left text-xs"><caption className="sr-only">Libro de compras</caption>
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Fecha</th>
-                    <th className="py-3 px-4">Nro. Factura</th>
-                    <th className="py-3 px-4">Proveedor</th>
-                    <th className="py-3 px-4">RIF</th>
-                    <th className="py-3 px-4">Concepto / Categoría</th>
-                    <th className="py-3 px-4 text-right">Total ($)</th>
-                    <th className="py-3 px-4 text-center">Adjunto</th>
-                    <th className="py-3 px-4 text-center">Acción</th>
+                    <th scope="col" className="py-3 px-4">Fecha</th>
+                    <th scope="col" className="py-3 px-4">Nro. Factura</th>
+                    <th scope="col" className="py-3 px-4">Proveedor</th>
+                    <th scope="col" className="py-3 px-4">RIF</th>
+                    <th scope="col" className="py-3 px-4">Concepto / Categoría</th>
+                    <th scope="col" className="py-3 px-4 text-right">Total ($)</th>
+                    <th scope="col" className="py-3 px-4 text-center">Adjunto</th>
+                    <th scope="col" className="py-3 px-4 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody aria-busy={loadingCompras} className={`divide-y divide-slate-100 text-slate-700 transition-opacity ${loadingCompras && libroCompras.length > 0 ? 'opacity-50' : ''}`}>

@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   X,
@@ -724,7 +725,7 @@ export default function ExportInscritosCursoModal({
   if (!open) return null;
 
   return (
-    <div className="transition-opacity fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 fade-in duration-200">
+    <Modal onClose={onClose} aria-label="Exportar inscritos" className="transition-opacity flex items-center justify-center p-3 sm:p-4 fade-in duration-200">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative w-full max-w-2xl flex flex-col bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden max-h-[90vh]">
@@ -1151,6 +1152,6 @@ export default function ExportInscritosCursoModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import CapaAvisos from '@/components/ui/CapaAvisos'
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useLocation } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
@@ -114,7 +115,7 @@ export default function App() {
         <ScrollToHash />
         <ScrollToTop />
         <ToastProvider>
-          <Toaster position="bottom-right" />
+          <CapaAvisos><Toaster position="bottom-right" /></CapaAvisos>
           <AuthProvider>
             <AppRoutes />
           </AuthProvider>

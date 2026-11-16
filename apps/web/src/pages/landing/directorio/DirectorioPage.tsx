@@ -1,3 +1,4 @@
+import MenuEmergente from '@/components/ui/MenuEmergente';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Users, Loader2, ChevronDown, X } from 'lucide-react';
 import SEO from '@/components/SEO';
@@ -206,8 +207,7 @@ const DirectorioPage = () => {
 
                   {showSearchDropdown && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                      <div className="transition-opacity transition-transform absolute left-6 top-full mt-2 bg-white dark:bg-[#04432f] border border-slate-200 dark:border-emerald-500/20 rounded-xl shadow-xl py-2 z-50 min-w-[140px] fade-in slide-in-from-top-1 duration-150">
+                      <MenuEmergente onClose={() => setShowSearchDropdown(false)} separacion={8} className="ml-6 transition-opacity transition-transform bg-white dark:bg-[#04432f] border border-slate-200 dark:border-emerald-500/20 rounded-xl shadow-xl py-2 min-w-[140px] fade-in slide-in-from-top-1 duration-150">
                         {([
                           { key: 'nombre', label: 'Nombre' },
                           { key: 'id', label: 'Cédula / RIF' },
@@ -228,7 +228,7 @@ const DirectorioPage = () => {
                             {option.label}
                           </button>
                         ))}
-                      </div>
+                      </MenuEmergente>
                     </>
                   )}
                 </div>

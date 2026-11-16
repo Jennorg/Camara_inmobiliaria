@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { useEffect, useState } from 'react'
 import { Loader2, Plus, X } from 'lucide-react'
 import { API_URL } from '@/config/env'
@@ -59,8 +60,8 @@ export default function DisponibilidadEntrevistasModal({ onCerrar, authHeaders }
   const ordenadas = reglas.map((r, i) => ({ r, i })).sort((a, b) => orden(a.r.dia_semana) - orden(b.r.dia_semana) || a.r.hora_inicio.localeCompare(b.r.hora_inicio))
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 p-4" onClick={onCerrar}>
-      <div role="dialog" aria-modal="true" aria-label="Mi disponibilidad para entrevistas" className="flex max-h-[85vh] w-full max-w-md flex-col rounded-3xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+    <Modal onClose={onCerrar} aria-label="Mi disponibilidad para entrevistas" className="flex items-center justify-center bg-slate-900/60 p-4" onClick={onCerrar}>
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-3xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
             <h3 className="text-sm font-black uppercase tracking-tight text-slate-900">Mi disponibilidad</h3>
@@ -102,6 +103,6 @@ export default function DisponibilidadEntrevistasModal({ onCerrar, authHeaders }
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

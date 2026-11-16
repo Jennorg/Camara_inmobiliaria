@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
@@ -200,8 +201,8 @@ export function SeccionesMarcoLegal({ secciones, onCambio }: { secciones: Seccio
       )}
 
       {aBorrar && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" aria-labelledby="borrar-seccion-titulo" className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm text-center">
+        <Modal onClose={() => setABorrar(null)} aria-labelledby="borrar-seccion-titulo" className="flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm text-center">
             <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4">
               <Trash2 size={32} aria-hidden />
             </div>
@@ -223,7 +224,7 @@ export function SeccionesMarcoLegal({ secciones, onCambio }: { secciones: Seccio
               </button>
             </div>
           </div>
-        </div>,
+        </Modal>,
         document.body,
       )}
     </section>

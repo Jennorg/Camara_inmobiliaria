@@ -1,9 +1,10 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, DollarSign, CreditCard, Banknote, Landmark, CheckCircle2, Loader2, Info } from 'lucide-react';
 import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { API_URL } from '@/config/env';
 import { MetodoPago, TipoConceptoPago, PagoDTO } from '@/types/pagos';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 import SelectorMesesPago, { mesesPagables } from '@/pages/landing/afiliado/components/SelectorMesesPago';
 
 /** Inscripción a un curso de pago que se cobra en taquilla (puede ser de alguien sin afiliación). */
@@ -310,7 +311,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Registrar cobro" className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
       <div className="relative bg-white w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] border border-emerald-100">
         
         {/* Header */}
@@ -583,7 +584,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         </form>
 
       </div>
-    </div>
+    </Modal>
   );
 };
 

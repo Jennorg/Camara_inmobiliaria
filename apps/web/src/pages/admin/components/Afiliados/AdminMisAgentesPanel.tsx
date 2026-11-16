@@ -318,7 +318,7 @@ export default function AdminMisAgentesPanel() {
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                         <div className="flex items-center gap-3">
                           {agent.foto_url ? (
-                            <img
+                            <img loading="lazy"
                               src={agent.foto_url}
                               alt={agent.nombre_completo || 'Agente'}
                               className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-xs shrink-0"

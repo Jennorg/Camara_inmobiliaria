@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, CalendarPlus, Check, CheckCircle2, CircleDashed, Clock, Loader2, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -74,13 +75,6 @@ export default function EstadoCuentaAfiliado({ idAfiliado, onReportado }: Props)
   const indice = useMemo(() => new Map(lista.map((m, i) => [m.periodo, i])), [lista])
   const deudas = lista.filter(m => m.estado === 'deuda').length
 
-  useEffect(() => {
-    if (!modal) return
-    dialogRef.current?.focus()
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape') setModal(false) }
-    window.addEventListener('keydown', alTeclear)
-    return () => window.removeEventListener('keydown', alTeclear)
-  }, [modal])
 
   if (error) return <p className="p-6 text-sm font-medium text-red-600">No se pudo cargar tu estado de cuenta: {error}</p>
   if (!data) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-400" aria-label="Cargando" /></div>
@@ -253,8 +247,8 @@ export default function EstadoCuentaAfiliado({ idAfiliado, onReportado }: Props)
 
       {/* Modal de reporte de pago */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 p-0 sm:p-6" onMouseDown={e => { if (e.target === e.currentTarget) setModal(false) }}>
-          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="titulo-pago" tabIndex={-1}
+        <Modal onClose={() => setModal(false)} aria-labelledby="titulo-pago" className="flex items-end sm:items-center justify-center bg-slate-900/60 p-0 sm:p-6" onMouseDown={e => { if (e.target === e.currentTarget) setModal(false) }}>
+          <div ref={dialogRef} tabIndex={-1}
             className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl outline-none">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
               <div>
@@ -272,7 +266,7 @@ export default function EstadoCuentaAfiliado({ idAfiliado, onReportado }: Props)
               <WidgetReportarPago idAfiliado={idAfiliado} mesesFijos={sel} onReportado={alPagar} />
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

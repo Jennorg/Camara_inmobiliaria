@@ -1,7 +1,8 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import {
   GraduationCap,
@@ -508,7 +509,7 @@ export default function EdicionesCibirPanel() {
 
       {/* Modal de Crear / Editar Edición */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <Modal onClose={() => setShowCreateModal(false)} aria-label="Edición CIBIR" className="bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 p-6 space-y-4">
             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
               {editingEdicion ? 'Editar Edición CIBIR' : 'Nueva Edición CIBIR'}
@@ -614,7 +615,7 @@ export default function EdicionesCibirPanel() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

@@ -9,7 +9,7 @@ import {
   Linkedin, Twitter, Save, Loader2, ChevronRight, ChevronDown, Clock,
   Music2, FileText, Hash, Calendar
 } from 'lucide-react';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 import FileUpload from '@/components/common/FileUpload';
 import { formatSocialUrl } from '@/utils/formatters';
 
@@ -664,7 +664,7 @@ const SettingsPanel = () => {
                         Foto de Perfil
                       </span>
                       <div className="w-32 h-40 rounded-2xl overflow-hidden border-2 border-slate-100 dark:border-emerald-500/20 shadow-md bg-slate-50 flex items-center justify-center relative">
-                        <img src={formData.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
+                        <img loading="lazy" src={formData.foto_url} alt="Foto de perfil" className="w-full h-full object-cover" />
                       </div>
                     </div>
                   )

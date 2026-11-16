@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X,
@@ -110,16 +111,6 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
     fetchPage(0, true);
   }, [isOpen, fetchPage]);
 
-  // ── Bloquear scroll del body ──────────────────────────────────────────────
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [isOpen]);
-
   // ── Marcar como leída (local + callback) ─────────────────────────────────
   const markingReadSetRef = useRef(new Set<number>());
   const handleMarkAsRead = async (id: number) => {
@@ -193,19 +184,10 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* ── Overlay ─────────────────────────────────────────────────────── */}
+    // El <dialog> hace de fondo; el panel conserva su posición (hoja inferior en móvil, centrado en sm+)
+    <Modal onClose={onClose} aria-label="Historial de notificaciones" className="bg-black/40 backdrop-blur-sm transition-opacity duration-200"
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] transition-opacity duration-200"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* ── Modal ───────────────────────────────────────────────────────── */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Historial de notificaciones"
         className={[
           'fixed z-[61] bg-white shadow-2xl flex flex-col',
           'transition-opacity transition-transform duration-200',
@@ -378,7 +360,7 @@ export const NotificationHistoryModal = ({ isOpen, onClose, onMarkAsRead, onMark
           )}
         </div>
       </div>
-    </>
+    </Modal>
   );
 };
 

@@ -1,7 +1,9 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import {
   X,
@@ -225,7 +227,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6">
+    <Modal onClose={onClose} aria-label="Detalle de la edición CIBIR" className="bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6">
       <div className="bg-white rounded-3xl w-full max-w-6xl xl:max-w-7xl h-[92vh] max-h-[95vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header Modal */}
         <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/60">
@@ -277,8 +279,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
 
               {showSearchDropdown && (
                 <>
-                  <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowSearchDropdown(false)} />
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] animate-in fade-in slide-in-from-top-1 duration-100">
+                  <MenuEmergente onClose={() => setShowSearchDropdown(false)} separacion={4} className="bg-white border border-slate-100 rounded-xl shadow-xl py-1 min-w-[130px] animate-in fade-in slide-in-from-top-1 duration-100">
                     {([
                       { key: 'nombre', label: 'Nombre' },
                       { key: 'cedula', label: 'Cédula' },
@@ -298,7 +299,7 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                         {option.label}
                       </button>
                     ))}
-                  </div>
+                  </MenuEmergente>
                 </>
               )}
             </div>
@@ -384,10 +385,10 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
               <p className="text-xs font-bold">No hay participantes registrados en esta edición</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse"><caption className="sr-only">Inscritos de la edición</caption>
               <thead>
                 <tr className="bg-slate-50/70 text-[11px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  <th className="py-2.5 pl-4 pr-2 w-8">
+                  <th scope="col" className="py-2.5 pl-4 pr-2 w-8">
                     <input
                       type="checkbox"
                       checked={selectedIds.length > 0 && selectedIds.length === inscritos.length}
@@ -395,11 +396,11 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
                       className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                     />
                   </th>
-                  <th className="py-2.5 px-3">Participante</th>
-                  <th className="py-2.5 px-3">Cédula / Rif</th>
-                  <th className="py-2.5 px-3">Contacto</th>
-                  <th className="py-2.5 px-3">Estado CIBIR</th>
-                  <th className="py-2.5 px-3 text-right pr-4">Acciones</th>
+                  <th scope="col" className="py-2.5 px-3">Participante</th>
+                  <th scope="col" className="py-2.5 px-3">Cédula / Rif</th>
+                  <th scope="col" className="py-2.5 px-3">Contacto</th>
+                  <th scope="col" className="py-2.5 px-3">Estado CIBIR</th>
+                  <th scope="col" className="py-2.5 px-3 text-right pr-4">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -561,6 +562,6 @@ export default function EdicionCibirDetailModal({ edicion, onClose, onUpdated }:
           setSelectedPago(null)
         }}
       />
-    </div>
+    </Modal>
   )
 }

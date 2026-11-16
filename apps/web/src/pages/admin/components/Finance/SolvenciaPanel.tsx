@@ -1,6 +1,7 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
@@ -240,15 +241,14 @@ export default function SolvenciaPanel() {
             </button>
             {menuCriterio && (
               <>
-                <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setMenuCriterio(false)} />
-                <div className="absolute left-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px]">
+                <MenuEmergente onClose={() => setMenuCriterio(false)} separacion={4} className="bg-white border border-slate-100 rounded-xl shadow-xl py-1 min-w-[130px]">
                   {CRITERIOS.map(c => (
                     <button key={c.key} type="button" onClick={() => { setCriterio(c.key); setMenuCriterio(false) }}
                       className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${criterio === c.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
                       {c.label}
                     </button>
                   ))}
-                </div>
+                </MenuEmergente>
               </>
             )}
           </div>
@@ -276,15 +276,15 @@ export default function SolvenciaPanel() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div tabIndex={0} role="region" aria-label="Solvencia mensual de los afiliados" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-sm"><caption className="sr-only">Solvencia mensual de los afiliados</caption>
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-              <th className="px-3 py-3 text-left w-14">N°</th>
-              <th className="px-3 py-3 text-left">Afiliado</th>
-              {MESES.map(m => <th key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
-              <th className="px-3 py-3 text-right">Deuda</th>
-              <th className="px-2 py-3 text-center w-12"><span className="sr-only">Registrar pago</span></th>
+              <th scope="col" className="px-3 py-3 text-left w-14">N°</th>
+              <th scope="col" className="px-3 py-3 text-left">Afiliado</th>
+              {MESES.map(m => <th scope="col" key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
+              <th scope="col" className="px-3 py-3 text-right">Deuda</th>
+              <th scope="col" className="px-2 py-3 text-center w-12"><span className="sr-only">Registrar pago</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

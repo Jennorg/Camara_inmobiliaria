@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -220,7 +221,7 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Registrar compra o gasto" className="bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between shrink-0">
@@ -515,6 +516,6 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }

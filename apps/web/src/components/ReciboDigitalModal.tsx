@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useRef } from 'react';
 import { X, Printer, Download, CheckCircle2, ShieldCheck, DollarSign, Calendar, Hash, FileText } from 'lucide-react';
 import { PagoDTO } from '@/types/pagos';
@@ -31,7 +32,7 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Recibo digital" className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
       <div className="relative bg-white w-full max-w-2xl mx-auto rounded-[2rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100">
         
         {/* Header bar (no imprimible) */}
@@ -184,12 +185,12 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
               Desglose de Conceptos
             </span>
             <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs"><caption className="sr-only">Detalle del pago</caption>
                 <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[11px] tracking-wider border-b border-slate-200">
                   <tr>
-                    <th className="p-3">Concepto</th>
-                    <th className="p-3 text-right">Moneda</th>
-                    <th className="p-3 text-right">Monto</th>
+                    <th scope="col" className="p-3">Concepto</th>
+                    <th scope="col" className="p-3 text-right">Moneda</th>
+                    <th scope="col" className="p-3 text-right">Monto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -255,7 +256,7 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };
 

@@ -75,12 +75,12 @@ const RecentTransactionsTable = ({
       </div>
 
       {/* ── DESKTOP: full table ── */}
-      <div className="hidden sm:block overflow-x-auto">
-        <table className="w-full text-sm min-w-[560px]">
+      <div tabIndex={0} role="region" aria-label="Transacciones recientes" className="focus-visible:outline-2 focus-visible:outline-emerald-600 hidden sm:block overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]"><caption className="sr-only">Transacciones recientes</caption>
           <thead>
             <tr className="bg-gray-50/60">
               {['FECHA', 'ID TRANSACCIÓN', 'DESCRIPCIÓN', 'CATEGORÍA', 'ESTADO', 'MONTO'].map((h) => (
-                <th key={h} className="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap">
+                <th scope="col" key={h} className="px-5 py-2.5 text-left text-[11px] font-semibold text-slate-400 tracking-wide uppercase whitespace-nowrap">
                   {h}
                 </th>
               ))}

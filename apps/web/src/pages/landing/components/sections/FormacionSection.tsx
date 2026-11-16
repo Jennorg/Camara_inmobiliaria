@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
@@ -236,8 +237,8 @@ export default function FormacionSection() {
 
       {/* Lightbox Modal para afiches de cursos informativos */}
       {selectedPoster && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"
+        <Modal onClose={() => setSelectedPoster(null)} aria-label="Afiche del curso"
+          className="flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"
           onClick={() => setSelectedPoster(null)}
         >
           <div
@@ -254,7 +255,7 @@ export default function FormacionSection() {
               </svg>
             </button>
 
-            <img
+            <img loading="lazy"
               src={selectedPoster.imagen_url}
               alt={selectedPoster.titulo}
               className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
@@ -264,7 +265,7 @@ export default function FormacionSection() {
               <p className="text-emerald-400 text-xs font-bold mt-0.5">{selectedPoster.categoria || 'Formación Inmobiliaria'}</p>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </section>
   );

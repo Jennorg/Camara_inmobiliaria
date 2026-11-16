@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback, useMemo, useReducer } from 'react'
 import { api, FormField, Input, BtnPrimary, BtnDanger, BtnSecondary, uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import { 
@@ -617,7 +618,7 @@ export const DirectivaPanel = () => {
     
     const initial = (item.nombre || 'M').charAt(0).toUpperCase();
     const avatarHtml = item.foto_url 
-      ? `<img src="${item.foto_url}" class="w-10 h-10 rounded-xl object-cover shadow-xs" />`
+      ? `<img loading="lazy" src="${item.foto_url}" class="w-10 h-10 rounded-xl object-cover shadow-xs" />`
       : `<div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm border border-slate-200">${initial}</div>`;
 
     ghost.innerHTML = `
@@ -1221,15 +1222,15 @@ export const DirectivaPanel = () => {
           </div>
 
           {/* HIGH DENSITY TABLE VIEW FOR DESKTOP */}
-          <div className="hidden md:block bg-white rounded-3xl border border-slate-100 shadow-sm overflow-auto max-h-[calc(100vh-280px)] custom-scrollbar">
-            <table className="w-full text-left text-xs min-w-[700px] border-separate border-spacing-0">
+          <div tabIndex={0} role="region" aria-label="Junta directiva" className="focus-visible:outline-2 focus-visible:outline-emerald-600 hidden md:block bg-white rounded-3xl border border-slate-100 shadow-sm overflow-auto max-h-[calc(100vh-280px)] custom-scrollbar">
+            <table className="w-full text-left text-xs min-w-[700px] border-separate border-spacing-0"><caption className="sr-only">Junta directiva</caption>
               <thead className="sticky top-0 z-10 bg-slate-50 shadow-xs">
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  <th className="px-5 py-4 w-20 text-center bg-slate-50 border-b border-slate-200">ORDEN</th>
-                  <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">AUTORIDAD / CARGO</th>
-                  <th className="px-5 py-4 bg-slate-50 border-b border-slate-200">PERÍODO</th>
-                  <th className="px-5 py-4 text-center bg-slate-50 border-b border-slate-200">ESTATUS</th>
-                  <th className="px-5 py-4 text-right bg-slate-50 border-b border-slate-200">ACCIONES</th>
+                  <th scope="col" className="px-5 py-4 w-20 text-center bg-slate-50 border-b border-slate-200">ORDEN</th>
+                  <th scope="col" className="px-5 py-4 bg-slate-50 border-b border-slate-200">AUTORIDAD / CARGO</th>
+                  <th scope="col" className="px-5 py-4 bg-slate-50 border-b border-slate-200">PERÍODO</th>
+                  <th scope="col" className="px-5 py-4 text-center bg-slate-50 border-b border-slate-200">ESTATUS</th>
+                  <th scope="col" className="px-5 py-4 text-right bg-slate-50 border-b border-slate-200">ACCIONES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1411,7 +1412,7 @@ export const DirectivaPanel = () => {
 
       {/* ── MODAL: Crear / Editar Miembro ──────────────────────────────────── */}
       {isModalOpen && (
-        <div className="transition-opacity fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 fade-in duration-200">
+        <Modal onClose={() => setIsModalOpen(false)} aria-label="Miembro de la directiva" className="transition-opacity bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 fade-in duration-200">
           <div className="transition-transform bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col gap-6 zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             
             {/* Modal Header */}
@@ -1539,7 +1540,7 @@ export const DirectivaPanel = () => {
                     <div className="w-20 h-20 rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center shrink-0 relative shadow-sm">
                       {form.foto_junta_url ? (
                         <>
-                          <img 
+                          <img loading="lazy" 
                             src={form.foto_junta_url} 
                             alt="Foto Junta" 
                             className="w-full h-full object-cover object-top" 
@@ -1555,7 +1556,7 @@ export const DirectivaPanel = () => {
                         </>
                       ) : selectedAffiliate?.foto_url ? (
                         <div className="w-full h-full relative">
-                          <img 
+                          <img loading="lazy" 
                             src={selectedAffiliate.foto_url} 
                             alt="Foto Perfil (Default)" 
                             className="w-full h-full object-cover object-top opacity-50" 
@@ -1599,7 +1600,7 @@ export const DirectivaPanel = () => {
                   <div className="flex items-center gap-4">
                     <div className="w-32 h-14 rounded-xl border border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0 relative">
                       {form.firma_url ? (
-                        <img 
+                        <img loading="lazy" 
                           src={form.firma_url} 
                           alt="Firma Digital" 
                           className="max-h-12 w-auto object-contain" 
@@ -1740,14 +1741,14 @@ export const DirectivaPanel = () => {
             </div>
 
           </div>
-        </div>
+        </Modal>
       )}
 
 
 
       {/* ── MODAL: Editar Fechas del Período ──────────────────────────────── */}
       {showEditPeriodModal && (
-        <div className="transition-opacity fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 fade-in duration-200">
+        <Modal onClose={() => setShowEditPeriodModal(false)} aria-label="Editar período" className="transition-opacity bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 fade-in duration-200">
           <div className="transition-transform bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 zoom-in-95 duration-200">
             <div>
               <h3 className="text-base font-black text-slate-900">Editar Fechas del Período</h3>
@@ -1825,12 +1826,12 @@ export const DirectivaPanel = () => {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── MODAL: Crear Nueva Gestión ────────────────────────────────────── */}
       {showCreatePeriodModal && (
-        <div className="transition-opacity fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 fade-in duration-200">
+        <Modal onClose={() => setShowCreatePeriodModal(false)} aria-label="Nuevo período" className="transition-opacity bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 fade-in duration-200">
           <div className="transition-transform bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 flex flex-col gap-5 zoom-in-95 duration-200">
             <div>
               <h3 className="text-base font-black text-slate-900">Crear Nueva Gestión</h3>
@@ -1908,12 +1909,12 @@ export const DirectivaPanel = () => {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal para Recorte de Foto de Junta Directiva */}
       {showCropModal && cropPreview && (
-        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs fade-in duration-200">
+        <Modal onClose={() => { setShowCropModal(false); setCropPreview(null); setCropFile(null) }} aria-label="Recortar foto" className="transition-opacity flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs fade-in duration-200">
           <div className="transition-transform bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 relative flex flex-col gap-6 zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
@@ -2014,7 +2015,7 @@ export const DirectivaPanel = () => {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
     </div>

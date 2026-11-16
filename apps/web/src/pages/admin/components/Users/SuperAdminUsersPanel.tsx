@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -152,14 +153,14 @@ const SuperAdminUsersPanel = () => {
       <div className="flex-1 overflow-auto p-4 sm:p-8">
         {/* Desktop Table View */}
         <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse"><caption className="sr-only">Usuarios del sistema</caption>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
-                <th className="px-6 py-4 font-bold">Usuario</th>
-                <th className="px-6 py-4 font-bold">Rol</th>
-                <th className="px-6 py-4 font-bold">Estado</th>
-                <th className="px-6 py-4 font-bold">Creación</th>
-                <th className="px-6 py-4 font-bold text-right">Acciones</th>
+                <th scope="col" className="px-6 py-4 font-bold">Usuario</th>
+                <th scope="col" className="px-6 py-4 font-bold">Rol</th>
+                <th scope="col" className="px-6 py-4 font-bold">Estado</th>
+                <th scope="col" className="px-6 py-4 font-bold">Creación</th>
+                <th scope="col" className="px-6 py-4 font-bold text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -256,7 +257,7 @@ const SuperAdminUsersPanel = () => {
 
       {/* Delete confirmation modal */}
       {userToDelete && (
-        <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <Modal onClose={() => setUserToDelete(null)} aria-label="Eliminar usuario" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
@@ -285,12 +286,12 @@ const SuperAdminUsersPanel = () => {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+        <Modal onClose={() => setIsModalOpen(false)} aria-label="Usuario" className="flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="transition-opacity transition-transform bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden relative fade-in zoom-in-95 duration-200">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                <div>
@@ -356,7 +357,7 @@ const SuperAdminUsersPanel = () => {
                </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

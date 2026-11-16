@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   RefreshCw, 
@@ -17,7 +18,7 @@ import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 import type { ReferenciasSnapshotDTO, HistorialTasaDTO } from '@/types/tasas';
 
 export default function ReferenciasTasasPanel() {
@@ -332,7 +333,7 @@ export default function ReferenciasTasasPanel() {
 
       {/* MODAL DE EDICIÓN MANUAL */}
       {editingCodigo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <Modal onClose={() => setEditingCodigo(null)} aria-label="Ajustar tasa" className="flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 border border-slate-200 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-black text-slate-900">
@@ -369,7 +370,7 @@ export default function ReferenciasTasasPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── HISTORIAL DE COTIZACIONES (ESTÁNDAR GEMINI.MD) ── */}
@@ -405,15 +406,15 @@ export default function ReferenciasTasasPanel() {
         </div>
 
         {/* Tabla de Historial */}
-        <div className="overflow-x-auto border border-slate-200/70 rounded-xl">
-          <table className="w-full text-left text-xs">
+        <div tabIndex={0} role="region" aria-label="Historial de tasas de cambio" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto border border-slate-200/70 rounded-xl">
+          <table className="w-full text-left text-xs"><caption className="sr-only">Historial de tasas de cambio</caption>
             <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-black uppercase text-slate-500">
               <tr>
-                <th className="p-3">Fecha</th>
-                <th className="p-3">Tipo / Código</th>
-                <th className="p-3">Cotización</th>
-                <th className="p-3">Fuente</th>
-                <th className="p-3">Registro</th>
+                <th scope="col" className="p-3">Fecha</th>
+                <th scope="col" className="p-3">Tipo / Código</th>
+                <th scope="col" className="p-3">Cotización</th>
+                <th scope="col" className="p-3">Fuente</th>
+                <th scope="col" className="p-3">Registro</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">

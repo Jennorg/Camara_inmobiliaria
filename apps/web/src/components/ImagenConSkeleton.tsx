@@ -44,7 +44,7 @@ export default function ImagenConSkeleton({ src, alt, className = '', silueta, a
           <span aria-hidden="true" className="relative">{silueta}</span>
         </span>
       )}
-      <img
+      <img loading="lazy"
         ref={img}
         src={src}
         alt={alt}

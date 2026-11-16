@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@/context/AuthContext'
@@ -106,7 +107,7 @@ const PragmaticNewsCard = ({
         {/* PORTADA EN CARD CON BADGES (Format Vertical Instagram / Afiche) */}
         <div className="relative w-full aspect-[3/4] bg-slate-900/5 rounded-2xl overflow-hidden border border-slate-200/60 shadow-inner flex items-center justify-center">
           {item.imagen_url ? (
-            <img
+            <img loading="lazy"
               src={item.imagen_url}
               alt={item.titulo}
               className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ease-out"
@@ -279,7 +280,7 @@ const PragmaticNewsListItem = ({
         {/* Thumbnail Mini */}
         <div className="w-12 h-16 bg-slate-100 rounded-xl overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
           {item.imagen_url ? (
-            <img src={item.imagen_url} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={item.imagen_url} alt="" className="w-full h-full object-cover" />
           ) : (
             <ImageIcon size={18} className="text-slate-300" />
           )}
@@ -820,7 +821,7 @@ export const NoticiasPanel = () => {
             <div className="w-full max-w-[300px] mx-auto bg-white border border-slate-200/80 rounded-[2.5rem] p-4 shadow-md space-y-3 flex flex-col">
               <div className="relative w-full aspect-[3/4] bg-slate-900/5 rounded-[2rem] overflow-hidden shadow-inner flex items-center justify-center border border-slate-200/60">
                 {form.imagen_url ? (
-                  <img 
+                  <img loading="lazy" 
                     src={form.imagen_url} 
                     alt="Preview Noticia" 
                     className="w-full h-full object-contain transition-all duration-300"
@@ -928,7 +929,7 @@ export const NoticiasPanel = () => {
             {/* Left Column: Photo / Vertical Poster */}
             {selectedItem.imagen_url ? (
               <div className="md:col-span-5 lg:col-span-5 w-full aspect-[3/4] bg-slate-50 rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm flex items-center justify-center">
-                <img 
+                <img loading="lazy" 
                   src={selectedItem.imagen_url} 
                   alt={selectedItem.titulo} 
                   className="w-full h-full object-contain transition-colors duration-300" 
@@ -1056,7 +1057,7 @@ export const NoticiasPanel = () => {
 
       {/* Modal de confirmación de eliminación (Esquema Control de Acceso) */}
       {itemToDelete && createPortal(
-        <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <Modal onClose={() => setItemToDelete(null)} aria-label="Confirmar eliminación" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
@@ -1085,7 +1086,7 @@ export const NoticiasPanel = () => {
               </button>
             </div>
           </div>
-        </div>,
+        </Modal>,
         document.body
       )}
     </div>

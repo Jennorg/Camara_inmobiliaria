@@ -1,10 +1,12 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
+import Modal from '@/components/ui/Modal'
 import UltimaModificacion from '@/components/UltimaModificacion'
 import { elegirModoBorrado, conModo } from '@/lib/borrado'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { X, Pencil, Trash2, Plus, ClipboardList, FileText, Calendar, ShieldCheck, GraduationCap, CreditCard, Check, User, Building2, CheckCircle2, Clock, Mail, Loader2 } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import AfiliadosPanel from '@/pages/admin/components/Afiliados/AfiliadosPanel'
 import { etiquetaDocumento, formatNombreCard } from '@/utils/formatters'
@@ -1182,15 +1184,14 @@ export default function PreinscripcionesPrincipalesPanel({
               </button>
               {menuCriterio && (
                 <>
-                  <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setMenuCriterio(false)} />
-                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px]">
+                  <MenuEmergente onClose={() => setMenuCriterio(false)} separacion={4} className="bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[120px]">
                     {(Object.keys(CRITERIOS_BUSQUEDA) as (keyof typeof CRITERIOS_BUSQUEDA)[]).map(k => (
                       <button key={k} type="button" onClick={() => { setCriterio(k); setMenuCriterio(false) }}
                         className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider cursor-pointer ${criterio === k ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
                         {CRITERIOS_BUSQUEDA[k].label}
                       </button>
                     ))}
-                  </div>
+                  </MenuEmergente>
                 </>
               )}
             </div>
@@ -1999,7 +2000,7 @@ export default function PreinscripcionesPrincipalesPanel({
 
       {/* Modal Agendar */}
       {showModalAgendar && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <Modal onClose={() => setShowModalAgendar(false)} aria-label="Agendar entrevista" className="flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
             <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-4">Programar Entrevista</h3>
             <div className="grid grid-cols-2 gap-1 p-1 mb-4 rounded-xl bg-slate-100">
@@ -2052,7 +2053,7 @@ export default function PreinscripcionesPrincipalesPanel({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showDisponibilidad && <DisponibilidadEntrevistasModal onCerrar={() => setShowDisponibilidad(false)} authHeaders={authHeaders} />}
@@ -2076,7 +2077,7 @@ export default function PreinscripcionesPrincipalesPanel({
       <ReciboDigitalModal pago={reciboPago} onClose={() => setReciboPago(null)} />
 
       {showModalFinalizar && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <Modal onClose={() => setShowModalFinalizar(false)} aria-label="Finalizar entrevista" className="flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6">
             <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-6">Veredicto Administrativo</h3>
             <div className="flex flex-col gap-6">
@@ -2109,7 +2110,7 @@ export default function PreinscripcionesPrincipalesPanel({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
     </div>

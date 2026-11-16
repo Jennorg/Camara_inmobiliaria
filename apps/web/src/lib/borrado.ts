@@ -1,4 +1,4 @@
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 
 export type ModoBorrado = 'logico' | 'definitivo'
 

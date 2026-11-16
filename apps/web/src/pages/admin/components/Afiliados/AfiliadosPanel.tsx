@@ -1,3 +1,5 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
+import Modal from '@/components/ui/Modal'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -14,7 +16,7 @@ import ModalGestionCuentasBancarias from '@/pages/admin/components/Finance/Modal
 import ModalGestionAranceles from '@/pages/admin/components/Finance/ModalGestionAranceles'
 import type { PagoDTO } from '@/types/pagos'
 import type { ExportTipoFilter } from '@/pages/admin/components/Afiliados/export/filterAfiliadosForExport'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/apiClient'
@@ -1422,7 +1424,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
       />
 
       {showChangeTypeModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+        <Modal onClose={() => setShowChangeTypeModal(false)} aria-label="Cambiar tipo de afiliado" className="flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" aria-hidden="true" onClick={() => setShowChangeTypeModal(false)} />
           <div className="relative bg-white w-[calc(100vw-2rem)] sm:w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-fit max-h-[90vh] transition-colors duration-500 ease-in-out">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
@@ -1633,12 +1635,12 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Natural Transition confirmation modal */}
       {naturalTransitionTarget && (
-        <div className='fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+        <Modal onClose={() => setNaturalTransitionTarget(null)} aria-label="Cambiar a miembro natural" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-5 w-[calc(100vw-2rem)] sm:w-full max-w-sm mx-auto fade-in zoom-in duration-200 text-center'>
             <div className='w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mx-auto mb-3'>
               <ShieldAlert size={28} />
@@ -1667,7 +1669,7 @@ export default function AfiliadosPanel({ defaultViewMode = 'list', hideViewModeT
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
@@ -1752,8 +1754,7 @@ function CompanySearchField({
           </button>
           {showCorpDropdown && (
             <>
-              <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowCorpDropdown(false)} />
-              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[110px] fade-in slide-in-from-top-1 duration-200">
+              <MenuEmergente onClose={() => setShowCorpDropdown(false)} separacion={4} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[110px] fade-in slide-in-from-top-1 duration-200">
                 {([
                   { key: 'nombre' as const, label: 'Nombre' },
                   { key: 'rif' as const, label: 'RIF' },
@@ -1768,7 +1769,7 @@ function CompanySearchField({
                     {option.label}
                   </button>
                 ))}
-              </div>
+              </MenuEmergente>
             </>
           )}
         </div>

@@ -109,7 +109,7 @@ export default function CmsArticlesPanel({ externalTab = 'config' }: { externalT
             <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest text-slate-400">
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('cms-clear-selection'))}
-                className="uppercase hover:text-slate-700 transition-colors cursor-pointer outline-none"
+                className="uppercase hover:text-slate-700 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
                 title="Volver a la lista completa"
               >
                 {externalTab}

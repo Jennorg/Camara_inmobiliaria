@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import DateInput from '@/components/ui/DateInput'
 import { ArrowLeft, FileText, Gavel, Globe, Loader2, Plus, Trash2, Upload, Users, X } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 import { Skeleton } from '@/components/Skeleton'
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
-import DateInput from '@/components/ui/DateInput'
 
 type Tipo = 'Ordinaria' | 'Extraordinaria'
 interface Asamblea {

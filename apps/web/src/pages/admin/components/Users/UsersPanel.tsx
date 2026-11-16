@@ -768,13 +768,13 @@ export default function UsersPanel() {
         <>
           {viewMode === 'table' ? (
             /* Desktop / Table View */
-            <div className='bg-white border border-slate-100 rounded-2xl shadow-sm overflow-x-auto'>
-              <table className='w-full text-sm'>
+            <div tabIndex={0} role="region" aria-label="Usuarios" className='focus-visible:outline-2 focus-visible:outline-emerald-600 bg-white border border-slate-100 rounded-2xl shadow-sm overflow-x-auto'>
+              <table className='w-full text-sm'><caption className="sr-only">Usuarios</caption>
                 <thead className='bg-slate-50 border-b border-slate-100'>
                   <tr>
-                    <th className='w-14 px-3 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-center'>Tipo</th>
+                    <th scope="col" className='w-14 px-3 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider text-center'>Tipo</th>
                     {['Usuario', 'Rol', 'Estado', 'Acciones'].map(h => (
-                      <th key={h} className={`px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider ${h === 'Acciones' ? 'text-right' : 'text-left'}`}>{h}</th>
+                      <th scope="col" key={h} className={`px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider ${h === 'Acciones' ? 'text-right' : 'text-left'}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>

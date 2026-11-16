@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import Modal from '@/components/ui/Modal'
+import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -35,12 +36,6 @@ export default function ModalResolucionDenuncia({
   const [dictamen, setDictamen] = useState('')
   const [actaUrl, setActaUrl] = useState('')
 
-  useEffect(() => {
-    if (!isOpen) return
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) onClose() }
-    window.addEventListener('keydown', alTeclear)
-    return () => window.removeEventListener('keydown', alTeclear)
-  }, [isOpen, loading, onClose])
 
   if (!isOpen || !denuncia) return null
 
@@ -88,14 +83,11 @@ export default function ModalResolucionDenuncia({
   const estatusFinal = tipoResolucion === 'desestimacion_sin_lugar' ? 'desestimada' : 'resuelta'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 sm:p-6"
+    <Modal onClose={() => { if (!loading) onClose() }} aria-labelledby="titulo-resolucion"
+      className="flex items-end sm:items-center justify-center bg-slate-900/50 sm:p-6"
       onMouseDown={e => { if (e.target === e.currentTarget && !loading) onClose() }}
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="titulo-resolucion"
         className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white shadow-xl"
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
@@ -205,6 +197,6 @@ export default function ModalResolucionDenuncia({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }

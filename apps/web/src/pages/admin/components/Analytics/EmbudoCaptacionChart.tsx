@@ -355,7 +355,7 @@ export default function EmbudoCaptacionChart() {
 
         {/* Inputs de fecha Desde / Hasta (en formato latino con sanitize) */}
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Desde:</span>
             <DateInput
               value={sanitizeDateForInput(desde)}
@@ -367,7 +367,7 @@ export default function EmbudoCaptacionChart() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Hasta:</span>
             <DateInput
               value={sanitizeDateForInput(hasta)}

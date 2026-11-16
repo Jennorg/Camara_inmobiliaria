@@ -200,7 +200,7 @@ export default function Cibir() {
           {/* GRID DE ACCIÓN DETALLADO (PENSUM + INSCRIPCIÓN) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-32 items-stretch">
             <div className="relative rounded-[3rem] overflow-hidden group min-h-[400px]">
-              <img
+              <img loading="lazy"
                 src={pegiImg}
                 alt="Networking"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -227,7 +227,7 @@ export default function Cibir() {
             </div>
 
             <div className="relative rounded-[3rem] overflow-hidden flex items-end">
-              <img
+              <img loading="lazy"
                 src={cibirImg}
                 alt="Inscripción"
                 className="absolute inset-0 w-full h-full object-cover"
@@ -290,7 +290,7 @@ export default function Cibir() {
               ref={(el) => setRevealEstudiosa(el)}
               className="reveal-on-scroll absolute -bottom-50 -left-150 z-10 pointer-events-none hidden lg:block transition-colors duration-1000 opacity-0 [&.active]:opacity-20"
             >
-              <img
+              <img loading="lazy"
                 src={Estudiosa}
                 alt="Watermark"
                 className="h-[800px] w-auto max-w-none transform"
@@ -300,7 +300,7 @@ export default function Cibir() {
               ref={(el) => setRevealEstudioso(el)}
               className="reveal-on-scroll absolute -bottom-40 left-270 z-10 pointer-events-none hidden lg:block transition-colors duration-1000 opacity-0 [&.active]:opacity-20"
             >
-              <img
+              <img loading="lazy"
                 src={Estudioso}
                 alt="Watermark"
                 className="h-[650px] w-auto max-w-none transform"

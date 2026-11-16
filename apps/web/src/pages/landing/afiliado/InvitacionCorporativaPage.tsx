@@ -1,3 +1,4 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
@@ -276,8 +277,7 @@ export default function InvitacionCorporativaPage() {
                 </button>
                 {showNivelDropdown && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowNivelDropdown(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                    <MenuEmergente onClose={() => setShowNivelDropdown(false)} anchoCompleto separacion={8} className="bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
                       <div className="p-1.5 space-y-1">
                         {NIVELES.map(n => (
                           <button key={n.value} type="button"
@@ -291,7 +291,7 @@ export default function InvitacionCorporativaPage() {
                           </button>
                         ))}
                       </div>
-                    </div>
+                    </MenuEmergente>
                   </>
                 )}
               </div>

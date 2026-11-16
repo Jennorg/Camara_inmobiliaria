@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react'
+import Modal from '@/components/ui/Modal'
+import React from 'react'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -10,23 +11,17 @@ interface Props {
   children: React.ReactNode
 }
 
-/** Ventana para reportes anchos (matrices por mes): se cierra con la X, con Escape o haciendo clic fuera. */
+/** Ventana para reportes anchos (matrices por mes): se cierra con la X, con Escape (lo da el <dialog>) o haciendo clic fuera. */
 const ModalReporte: React.FC<Props> = ({ open, titulo, subtitulo, icono, onClose, children }) => {
-  useEffect(() => {
-    if (!open) return
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', alTeclear)
-    return () => window.removeEventListener('keydown', alTeclear)
-  }, [open, onClose])
 
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto cms-fade-up motion-reduce:animate-none"
+    <Modal onClose={onClose} aria-labelledby="titulo-modal-reporte"
+      className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto cms-fade-up motion-reduce:animate-none"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div role="dialog" aria-modal="true" aria-labelledby="titulo-modal-reporte"
+      <div
         className="relative bg-white w-full max-w-6xl mx-auto rounded-[2rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100">
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2.5">
@@ -43,7 +38,7 @@ const ModalReporte: React.FC<Props> = ({ open, titulo, subtitulo, icono, onClose
         </div>
         <div className="p-6 max-h-[75vh] overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

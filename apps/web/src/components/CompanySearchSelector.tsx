@@ -1,3 +1,4 @@
+import MenuEmergente from '@/components/ui/MenuEmergente';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Building2, Search, X, ChevronDown } from 'lucide-react';
 
@@ -65,7 +66,7 @@ function CompanyAvatar({
       <div className={`${sizeClasses} overflow-hidden shrink-0 border bg-white p-1 shadow-sm flex items-center justify-center transition-colors ${
         darkTheme ? 'border-emerald-500/30 ring-1 ring-emerald-500/20' : 'border-slate-200/80 ring-1 ring-slate-100'
       }`}>
-        <img
+        <img loading="lazy"
           src={logoUrl}
           alt={nombre || 'Logo empresa'}
           className="w-full h-full object-contain"
@@ -211,10 +212,7 @@ export default function CompanySearchSelector({
           </button>
           {showFilterDropdown && (
             <>
-              <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setShowFilterDropdown(false)} />
-              <div className={`absolute left-0 top-full mt-1 border rounded-xl shadow-xl py-1 z-50 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200 ${
-                darkTheme ? 'bg-[#022c22] border-emerald-500/40 text-white' : 'bg-white border-gray-100 text-slate-800'
-              }`}>
+              <MenuEmergente onClose={() => setShowFilterDropdown(false)} separacion={4} className={`border rounded-xl shadow-xl py-1 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-200 ${ darkTheme ? 'bg-[#022c22] border-emerald-500/40 text-white' : 'bg-white border-gray-100 text-slate-800' }`}>
                 {([
                   { key: 'nombre' as const, label: 'Nombre' },
                   { key: 'rif' as const, label: 'RIF' },
@@ -238,7 +236,7 @@ export default function CompanySearchSelector({
                     {opt.label}
                   </button>
                 ))}
-              </div>
+              </MenuEmergente>
             </>
           )}
         </div>
@@ -326,12 +324,7 @@ export default function CompanySearchSelector({
       {/* Suggestions Dropdown */}
       {isOpen && !selectedCompany && (
         <>
-          <div className="fixed inset-0 z-30" aria-hidden="true" onClick={() => setIsOpen(false)} />
-          <div className={`relative z-40 w-full border rounded-2xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y animate-in fade-in duration-150 ${
-            darkTheme
-              ? 'bg-[#022c22] border-emerald-500/30 divide-emerald-500/10 text-white'
-              : 'bg-white border-slate-200 divide-slate-100 text-slate-800'
-          }`}>
+          <MenuEmergente onClose={() => setIsOpen(false)} anchoCompleto separacion={0} className={`border rounded-2xl shadow-xl overflow-hidden max-h-56 overflow-y-auto divide-y animate-in fade-in duration-150 ${ darkTheme ? 'bg-[#022c22] border-emerald-500/30 divide-emerald-500/10 text-white' : 'bg-white border-slate-200 divide-slate-100 text-slate-800' }`}>
             {filteredEmpresas.length === 0 ? (
               <div className="p-4 text-center">
                 <p className={`text-xs font-bold ${darkTheme ? 'text-emerald-100/40' : 'text-slate-400'}`}>No se encontraron empresas coincidentes</p>
@@ -379,7 +372,7 @@ export default function CompanySearchSelector({
                 </button>
               ))
             )}
-          </div>
+          </MenuEmergente>
         </>
       )}
     </div>
