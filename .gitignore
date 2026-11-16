@@ -79,3 +79,6 @@ apps/web/dfds/
 *.db
 carnets/
 invitaciones/
+
+# Lock de skills instaladas para agentes
+skills-lock.json
