@@ -8,6 +8,7 @@ export interface PagoCubierto {
   meses_cubiertos: number | null
   monto_usd_equivalente: number
   fecha_pago: string
+  metodo_pago?: string
 }
 
 /** Mes ya conocido de un registro histórico importado (sin recibo). `no_afiliado` = aún no era afiliado. */
@@ -16,6 +17,8 @@ export interface HistorialMes {
   estado: 'pagado' | 'no_afiliado'
   /** Marcado a mano por un superadmin: corrige un mes, pero no define desde cuándo se cuenta la deuda */
   manual?: boolean
+  /** Cuándo se importó o marcó el mes */
+  importado_en?: string
 }
 
 const MES_VALIDO = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -38,6 +41,9 @@ export interface MesSolvencia {
   pago: PagoCubierto | null
   /** El pago viene de un historial importado y no tiene recibo */
   historico?: boolean
+  /** Mes histórico: marcado a mano (true) o del listado importado, y cuándo */
+  manual?: boolean
+  marcado_en?: string
 }
 
 export const sumarMeses = (ym: string, n: number): string => {
@@ -53,7 +59,7 @@ export const sumarMeses = (ym: string, n: number): string => {
  */
 export function calcularMeses(desde: string, hoy: string, pagos: PagoCubierto[], historial: HistorialMes[] = []): MesSolvencia[] {
   const noAfiliado = new Set(historial.filter(h => h.estado === 'no_afiliado').map(h => h.periodo))
-  const historicos = new Set(historial.filter(h => h.estado === 'pagado').map(h => h.periodo))
+  const historicos = new Map(historial.filter(h => h.estado === 'pagado').map(h => [h.periodo, h]))
   const porMes = new Map<string, PagoCubierto>()
   for (const p of pagos) {
     if (!p.periodo || (p.estatus !== 'Verificado' && p.estatus !== 'Pendiente')) continue
@@ -63,13 +69,14 @@ export function calcularMeses(desde: string, hoy: string, pagos: PagoCubierto[],
       if (!previo || (previo.estatus === 'Pendiente' && p.estatus === 'Verificado')) porMes.set(mes, p)
     }
   }
-  const ultimo = [...porMes.keys(), ...historicos].reduce((a, b) => (b > a ? b : a), hoy)
+  const ultimo = [...porMes.keys(), ...historicos.keys()].reduce((a, b) => (b > a ? b : a), hoy)
   const meses: MesSolvencia[] = []
   for (let m = desde; m <= ultimo; m = sumarMeses(m, 1)) {
     if (noAfiliado.has(m)) continue
     const pago = porMes.get(m) ?? null
-    if (!pago && historicos.has(m)) {
-      meses.push({ periodo: m, estado: m > hoy ? 'adelantado' : 'pagado', pago: null, historico: true })
+    const h = historicos.get(m)
+    if (!pago && h) {
+      meses.push({ periodo: m, estado: m > hoy ? 'adelantado' : 'pagado', pago: null, historico: true, manual: !!h.manual, marcado_en: h.importado_en })
       continue
     }
     let estado: EstadoMes

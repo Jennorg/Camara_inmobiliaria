@@ -4,6 +4,19 @@ import { X, Printer, Download, CheckCircle2, ShieldCheck, DollarSign, Calendar, 
 import { PagoDTO } from '@/types/pagos';
 import { formatDateLatina } from '@/utils/formatters';
 
+export const getMetodoLabel = (metodo: string) => {
+  switch (metodo) {
+    case 'efectivo_usd': return 'Efectivo Divisas (USD)';
+    case 'efectivo_bs': return 'Efectivo Bolívares (VES)';
+    case 'pago_movil': return 'Pago Móvil Interbancario';
+    case 'transferencia_bs': return 'Transferencia Bancaria Nacional';
+    case 'zelle': return 'Zelle (USD)';
+    case 'pos_debito': return 'Punto de Venta / Tarjeta Débito (POS)';
+    case 'binance_usdt': return 'Binance Pay / USDT';
+    default: return metodo.toUpperCase();
+  }
+};
+
 interface ReciboDigitalModalProps {
   pago: PagoDTO | null;
   onClose: () => void;
@@ -16,19 +29,6 @@ export const ReciboDigitalModal: React.FC<ReciboDigitalModalProps> = ({ pago, on
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const getMetodoLabel = (metodo: string) => {
-    switch (metodo) {
-      case 'efectivo_usd': return 'Efectivo Divisas (USD)';
-      case 'efectivo_bs': return 'Efectivo Bolívares (VES)';
-      case 'pago_movil': return 'Pago Móvil Interbancario';
-      case 'transferencia_bs': return 'Transferencia Bancaria Nacional';
-      case 'zelle': return 'Zelle (USD)';
-      case 'pos_debito': return 'Punto de Venta / Tarjeta Débito (POS)';
-      case 'binance_usdt': return 'Binance Pay / USDT';
-      default: return metodo.toUpperCase();
-    }
   };
 
   return (

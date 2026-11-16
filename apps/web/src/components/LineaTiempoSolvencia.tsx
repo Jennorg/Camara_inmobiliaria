@@ -4,14 +4,18 @@ import { CheckCircle2, Clock, AlertCircle, CircleDashed, CalendarPlus, Loader2 }
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
+import { formatDateLatina } from '@/utils/formatters'
+import { getMetodoLabel } from '@/components/ReciboDigitalModal'
 
 type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
 
 interface MesSolvencia {
   periodo: string
   estado: EstadoMes
-  pago: { id_pago: number; numero_recibo: string; estatus: string; fecha_pago: string; monto_usd_equivalente: number } | null
+  pago: { id_pago: number; numero_recibo: string; estatus: string; fecha_pago: string; monto_usd_equivalente: number; metodo_pago?: string } | null
   historico?: boolean
+  manual?: boolean
+  marcado_en?: string
 }
 
 interface Solvencia {
@@ -108,11 +112,23 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
 
                 <div className={`flex-1 min-w-0 mb-2 rounded-xl border px-3 py-2 ${e.tarjeta}`}>
                   <p className={`text-xs font-black flex items-center gap-1.5 ${e.texto}`}><e.Icono size={13} /> {e.label}</p>
-                  {m.historico && <p className="text-[11px] text-slate-400 font-medium mt-0.5">Registro del listado de solvencia</p>}
-                  {m.pago && (
+                  {m.historico && (
                     <p className="text-[11px] text-slate-500 font-medium tabular-nums mt-0.5">
-                      {m.pago.numero_recibo} · {new Date(m.pago.fecha_pago).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' })}
+                      {/* Sin recibo no hay fecha de pago real: la fecha es cuándo se registró en el sistema */}
+                      {m.manual
+                        ? <>Marcado como pagado{m.marcado_en && <> el {formatDateLatina(m.marcado_en)}</>} · sin recibo</>
+                        : 'Pagado según listado importado · sin fecha de pago registrada'}
                     </p>
+                  )}
+                  {m.pago && (
+                    <>
+                      <p className="text-[11px] text-slate-700 font-bold tabular-nums mt-0.5">
+                        {m.estado === 'en_revision' ? 'Reportado' : 'Pagado'} el {formatDateLatina(m.pago.fecha_pago)}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium tabular-nums">
+                        {m.pago.metodo_pago && <>{getMetodoLabel(m.pago.metodo_pago)} · </>}{m.pago.numero_recibo}
+                      </p>
+                    </>
                   )}
                   {isSuperAdmin && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">

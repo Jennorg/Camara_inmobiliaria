@@ -9,6 +9,7 @@ import { apiFetch } from '@/lib/apiClient'
 import { cleanSearchDigits, normalizeSearchText } from '@/utils/searchUtils'
 import { formatNombreCard } from '@/utils/formatters'
 import ModalCobroTaquilla from './ModalCobroTaquilla'
+import ModalPagosAfiliado from './ModalPagosAfiliado'
 import { accionDelMes, corregirMesSolvencia, type MesCorregible } from '@/utils/correccionesSolvencia'
 
 type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
@@ -88,6 +89,7 @@ export default function SolvenciaPanel() {
   const [guardando, setGuardando] = useState(false)
   const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
   const [pagando, setPagando] = useState<FilaSolvencia | null>(null)
+  const [viendo, setViendo] = useState<FilaSolvencia | null>(null)
 
   const cargar = useCallback(async () => {
     try {
@@ -293,9 +295,10 @@ export default function SolvenciaPanel() {
               <tr key={a.id_afiliado} className="hover:bg-slate-50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-400 tabular-nums">{a.codigo}</td>
                   <td className="px-3 py-2 max-w-[260px]">
-                    <span className="block font-bold text-slate-800 truncate leading-snug" title={a.razon_social ?? a.nombre}>
+                    <button type="button" onClick={() => setViendo(a)} title={`${a.razon_social ?? a.nombre} · ver pagos`}
+                      className="block max-w-full font-bold text-slate-800 truncate leading-snug text-left hover:text-emerald-700 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 rounded">
                       {a.razon_social || formatNombreCard(a.nombres, a.apellidos) || a.nombre}
-                    </span>
+                    </button>
                     {a.razon_social && (a.nombres || a.apellidos) && (
                       <span className="block text-[11px] font-semibold text-slate-400 truncate leading-tight mt-0.5">
                         Rep.{' '}<span className="text-slate-500">{formatNombreCard(a.nombres, a.apellidos)}</span>
@@ -339,6 +342,17 @@ export default function SolvenciaPanel() {
       <p className="text-xs text-slate-500 font-medium">
         Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso cuenta como deuda a partir del día {data.cobranza.diaVencimiento + 1}. Con más de {data.cobranza.mesesGracia} meses de deuda se bloquean el carnet, la constancia de solvencia y los certificados. Los afiliados sin historial importado deben desde el mes indicado arriba.
       </p>
+
+      {viendo && (
+        <ModalPagosAfiliado
+          idAfiliado={viendo.id_afiliado}
+          anio={anio}
+          nombre={viendo.razon_social || formatNombreCard(viendo.nombres, viendo.apellidos) || viendo.nombre}
+          representante={viendo.razon_social ? formatNombreCard(viendo.nombres, viendo.apellidos) : null}
+          // Desde el popup se pueden corregir meses: al cerrarlo se refresca la matriz
+          onClose={() => { setViendo(null); cargar() }}
+        />
+      )}
 
       {pagando && (
         <ModalCobroTaquilla

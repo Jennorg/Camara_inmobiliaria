@@ -90,13 +90,13 @@ export async function getMontoMensual(): Promise<number> {
   return Number(r.rows[0]?.monto_usd ?? 5)
 }
 
-const PAGOS_SQL = `SELECT id_pago, id_afiliado, numero_recibo, estatus, periodo, meses_cubiertos, monto_usd_equivalente, fecha_pago
+const PAGOS_SQL = `SELECT id_pago, id_afiliado, numero_recibo, estatus, periodo, meses_cubiertos, monto_usd_equivalente, fecha_pago, metodo_pago
                    FROM pagos
                    WHERE eliminado_en IS NULL AND periodo IS NOT NULL
                      AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion', 'curso_cibir')
                      AND estatus IN ('Verificado', 'Pendiente')`
 
-const HISTORIAL_SQL = `SELECT id_afiliado, periodo, estado, COALESCE(fuente, '') LIKE 'manual:%' AS manual FROM solvencia_historial`
+const HISTORIAL_SQL = `SELECT id_afiliado, periodo, estado, COALESCE(fuente, '') LIKE 'manual:%' AS manual, importado_en FROM solvencia_historial`
 
 
 export interface SolvenciaAfiliado extends ResumenDeuda {
