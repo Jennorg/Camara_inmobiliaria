@@ -685,7 +685,24 @@ export const adminDeleteCuenta = async (req: Request, res: Response): Promise<vo
 export const adminUpdateArancel = async (req: Request, res: Response): Promise<void> => {
   try {
     const { codigo } = req.params;
-    const { nombre, descripcion, monto_usd, activo } = req.body;
+    const { nombre, descripcion, monto_usd, activo, fecha_limite } = req.body;
+
+    // El año adelantado debe quedar por debajo de 12 cuotas: se valida al editarlo y al cambiar la cuota mensual
+    await pagosService.asegurarArancelAnual();
+    if (codigo === pagosService.ARANCEL_ANUAL || (codigo === 'mensualidad_base' && monto_usd !== undefined)) {
+      const r = await db.execute({ sql: `SELECT codigo, monto_usd, fecha_limite FROM aranceles_config WHERE codigo IN ('mensualidad_base', ?)`, args: [pagosService.ARANCEL_ANUAL] });
+      const fila = (c: string) => r.rows.find(x => x.codigo === c) as any;
+      const base = codigo === 'mensualidad_base' ? Number(monto_usd) : Number(fila('mensualidad_base')?.monto_usd);
+      const anual = fila(pagosService.ARANCEL_ANUAL);
+      const montoAnual = codigo === pagosService.ARANCEL_ANUAL && monto_usd !== undefined ? Number(monto_usd) : Number(anual?.monto_usd);
+      const fecha = codigo === pagosService.ARANCEL_ANUAL && fecha_limite !== undefined ? fecha_limite : anual?.fecha_limite;
+      // Si el año adelantado aún no se ofrece (monto 0), cambiar la cuota mensual no lo valida
+      const error = codigo === pagosService.ARANCEL_ANUAL || montoAnual > 0 ? pagosService.validarArancelAnual(montoAnual, fecha, base) : null;
+      if (error) {
+        res.status(400).json({ success: false, message: error });
+        return;
+      }
+    }
 
     // Las cuotas importadas ya ocurridas conservan el monto con que se registraron: se fija antes de cambiar el arancel
     if (codigo === 'mensualidad_base') await fijarMontoCuotas(true);
@@ -697,6 +714,7 @@ export const adminUpdateArancel = async (req: Request, res: Response): Promise<v
                 descripcion = COALESCE(?, descripcion),
                 monto_usd = COALESCE(?, monto_usd),
                 activo = COALESCE(?, activo),
+                fecha_limite = COALESCE(?, fecha_limite),
                 actualizado_en = ?
             WHERE codigo = ? RETURNING *`,
       args: [
@@ -704,6 +722,7 @@ export const adminUpdateArancel = async (req: Request, res: Response): Promise<v
         descripcion || null,
         monto_usd !== undefined ? Number(monto_usd) : null,
         activo !== undefined ? Number(activo) : null,
+        codigo === pagosService.ARANCEL_ANUAL ? fecha_limite ?? null : null,
         now,
         codigo
       ]

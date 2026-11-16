@@ -168,10 +168,36 @@ export async function conNumeroRecibo<T>(insertar: (numeroRecibo: string) => Pro
   }
 }
 
+export const ARANCEL_ANUAL = 'mensualidad_anual_adelantada';
+
+let arancelAnualListo: Promise<void> | null = null;
+
+/** Crea (una vez por proceso) la columna fecha_limite y el arancel del año adelantado; monto 0 = no ofrecido. */
+export function asegurarArancelAnual(): Promise<void> {
+  return (arancelAnualListo ??= (async () => {
+    const cols = (await db.execute(`SELECT name FROM pragma_table_info('aranceles_config')`)).rows.map(r => String(r.name));
+    if (!cols.includes('fecha_limite')) await db.execute(`ALTER TABLE aranceles_config ADD COLUMN fecha_limite TEXT`);
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO aranceles_config (codigo, nombre, descripcion, monto_usd, categoria, activo)
+            VALUES (?, 'Año de Sostenimiento Adelantado', 'Monto reducido por pagar las 12 cuotas del año antes de la fecha límite', 0, 'mensualidad', 1)`,
+      args: [ARANCEL_ANUAL],
+    });
+  })().catch(e => { arancelAnualListo = null; throw e; }));
+}
+
+/** Error de validación del año adelantado, o null si es válido. */
+export function validarArancelAnual(montoAnual: number, fechaLimite: unknown, cuotaMensual: number): string | null {
+  if (!(montoAnual > 0)) return 'El monto del año adelantado debe ser mayor a 0';
+  if (montoAnual >= cuotaMensual * 12) return `El monto del año adelantado debe ser menor a 12 cuotas de sostenimiento ($${(cuotaMensual * 12).toFixed(2)})`;
+  if (typeof fechaLimite !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fechaLimite) || isNaN(Date.parse(fechaLimite))) return 'Indique una fecha límite válida para considerar el pago como adelanto';
+  return null;
+}
+
 /**
  * Obtiene la lista de aranceles configurados
  */
 export async function getAranceles() {
+  await asegurarArancelAnual();
   const res = await db.execute({
     sql: `SELECT * FROM aranceles_config WHERE activo = 1 ORDER BY categoria, codigo`,
     args: []

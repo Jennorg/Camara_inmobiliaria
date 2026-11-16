@@ -5,6 +5,8 @@ import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
 
+const ARANCEL_ANUAL = 'mensualidad_anual_adelantada';
+
 interface ModalGestionArancelesProps {
   open?: boolean;
   isOpen?: boolean;
@@ -28,6 +30,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
   const [editMonto, setEditMonto] = useState<number>(0);
   const [editNombre, setEditNombre] = useState<string>('');
   const [editDesc, setEditDesc] = useState<string>('');
+  const [editFecha, setEditFecha] = useState<string>('');
 
   const fetchAranceles = async () => {
     setLoading(true);
@@ -55,6 +58,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
     setEditMonto(a.monto_usd);
     setEditNombre(a.nombre);
     setEditDesc(a.descripcion || '');
+    setEditFecha(a.fecha_limite || '');
   };
 
   const handleSave = async (codigo: string) => {
@@ -65,7 +69,8 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
         body: JSON.stringify({
           monto_usd: editMonto,
           nombre: editNombre,
-          descripcion: editDesc
+          descripcion: editDesc,
+          ...(codigo === ARANCEL_ANUAL && { fecha_limite: editFecha })
         })
       });
 
@@ -200,6 +205,24 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
                         )}
                       </div>
                     </div>
+
+                    {a.codigo === ARANCEL_ANUAL && (isEditing ? (
+                      <label className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                        Fecha límite para considerarlo adelanto
+                        <input
+                          type="date"
+                          value={editFecha}
+                          onChange={(e) => setEditFecha(e.target.value)}
+                          className="px-2 py-1 rounded-lg border border-emerald-300 text-xs focus:outline-none"
+                        />
+                      </label>
+                    ) : (
+                      <p className="text-[11px] font-bold text-slate-600">
+                        {Number(a.monto_usd) > 0 && a.fecha_limite
+                          ? `Pagando las 12 cuotas hasta el ${a.fecha_limite.split('-').reverse().join('/')}`
+                          : 'Sin configurar (no se ofrece)'}
+                      </p>
+                    ))}
 
                     {isEditing ? (
                       <input
