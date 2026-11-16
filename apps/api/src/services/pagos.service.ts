@@ -1,7 +1,7 @@
 import { db } from '../lib/db.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { NotificationService } from './notification.service.js';
-import { mesMasAntiguoImpago } from './cobranza.service.js';
+import { calcularSolvencias, mesMasAntiguoImpago } from './cobranza.service.js';
 import { fijarMontoCuotas, montoCuotaActual } from './cuotas-importadas.service.js';
 import { esCupoIlimitado, sqlOcupaCupo } from '../lib/cursos-pago.js';
 import { randomUUID } from 'crypto';
@@ -870,4 +870,17 @@ export async function marcarMesSolvencia(idAfiliado: number, periodo: string, pa
   });
   if (real.rows.length) throw Object.assign(new Error('Ese mes está cubierto por un pago con recibo: anula el pago para dejarlo sin pagar'), { status: 409 });
   await db.execute({ sql: `DELETE FROM solvencia_historial WHERE id_afiliado = ? AND periodo = ? AND estado = 'pagado'`, args: [idAfiliado, periodo] });
+}
+
+/**
+ * Quien sale del CIBIR ya pagó el bloque que trae la primera mensualidad: el mes en curso le queda pagado. Primero con el
+ * pago del CIBIR (lleva recibo); si ninguno lo cubre (pagado en partes o fuera del sistema), se marca el mes a mano.
+ */
+export async function cubrirMesActualCibir(idAfiliado: number, userId: number): Promise<void> {
+  await acreditarPrimeraCuotaDelCibir(idAfiliado);
+  const { solvencias, hoy } = await calcularSolvencias([idAfiliado]);
+  const mes = hoy.slice(0, 7);
+  const estado = solvencias.get(idAfiliado)?.meses.find(m => m.periodo === mes)?.estado;
+  if (estado === 'pagado' || estado === 'en_revision') return;
+  await marcarMesSolvencia(idAfiliado, mes, true, userId);
 }
