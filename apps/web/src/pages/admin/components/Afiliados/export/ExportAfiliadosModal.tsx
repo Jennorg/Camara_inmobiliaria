@@ -35,6 +35,7 @@ import {
   filterAfiliadosForExport,
 } from './filterAfiliadosForExport'
 import { generateAfiliadosPdf } from './generateAfiliadosPdf'
+import DateInput from '@/components/ui/DateInput'
 
 export interface ExportAfiliadosInitialFilters {
   tipo?: ExportTipoFilter
@@ -645,16 +646,14 @@ export default function ExportAfiliadosModal({
                   <Calendar size={12} className="text-emerald-600" /> Rango por Fecha de Registro
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="date"
+                  <DateInput
                     value={filters.fechaDesde}
-                    onChange={(e) => setFilters((f) => ({ ...f, fechaDesde: e.target.value }))}
+                    onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v }))}
                     className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
-                  <input
-                    type="date"
+                  <DateInput
                     value={filters.fechaHasta}
-                    onChange={(e) => setFilters((f) => ({ ...f, fechaHasta: e.target.value }))}
+                    onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v }))}
                     className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
                 </div>

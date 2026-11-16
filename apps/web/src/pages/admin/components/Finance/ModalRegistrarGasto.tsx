@@ -5,6 +5,7 @@ import { X, Check, DollarSign, FileText, UploadCloud, AlertCircle, Calculator, L
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
 import type { TxType, TxCategory } from '@/types/finanzas'
+import DateInput from '@/components/ui/DateInput'
 
 interface ModalRegistrarGastoProps {
   isOpen: boolean
@@ -329,11 +330,10 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Fecha de Emisión *
               </label>
-              <input
-                type="date"
+              <DateInput
                 required
                 value={fecha}
-                onChange={e => setFecha(e.target.value)}
+                onChange={(v) => setFecha(v)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>

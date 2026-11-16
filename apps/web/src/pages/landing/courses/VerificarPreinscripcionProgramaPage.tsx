@@ -12,6 +12,7 @@ import SEO from '@/components/SEO'
 import { useExpedienteProgress } from '@/hooks/useExpedienteProgress'
 import { useAuth } from '@/context/AuthContext'
 import { formatDateLatina, sanitizeDateForInput } from '@/utils/formatters'
+import DateInput from '@/components/ui/DateInput'
 
 const NIVELES = [
   { value: 'Bachiller', label: 'Bachiller', icon: School },
@@ -700,13 +701,12 @@ export default function VerificarPreinscripcionProgramaPage() {
                           <span className="text-xs font-bold text-slate-700">
                             {formatDateLatina(dip.fecha) !== '—' ? formatDateLatina(dip.fecha) : 'DD/MM/AAAA'}
                           </span>
-                          <input
-                            type="date"
+                          <DateInput
                             value={sanitizeDateForInput(dip.fecha)}
-                            onChange={(e) => setFormData(prev => ({
+                            onChange={(v) => setFormData(prev => ({
                               ...prev,
                               diplomados: prev.diplomados.map((d, i) =>
-                                i === idx ? { ...d, fecha: e.target.value } : d
+                                i === idx ? { ...d, fecha: v } : d
                               )
                             }))}
                             className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
@@ -758,12 +758,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                     </div>
                     <div className="relative">
                       <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="date"
+                      <DateInput
                         value={pendingDiplomadoFecha}
                         max={new Date().toISOString().split('T')[0]}
                         min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
-                        onChange={(e) => setPendingDiplomadoFecha(e.target.value)}
+                        onChange={(v) => setPendingDiplomadoFecha(v)}
                         className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition"
                       />
                     </div>
@@ -1017,12 +1016,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                       <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                         <Calendar size={18} />
                       </div>
-                      <input
-                        type="date"
+                      <DateInput
                         required
                         max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                         value={sanitizeDateForInput(formData.fecha_nacimiento)}
-                        onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                        onChange={(v) => setFormData(prev => ({ ...prev, fecha_nacimiento: v }))}
                         className={`w-full pl-14 pr-5 bg-white border-2 border-slate-100 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-colors text-base font-bold text-slate-700 ${INPUT_H}`}
                       />
                     </div>
@@ -1194,12 +1192,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                           </div>
                           <div className="relative group">
                             <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="date"
+                            <DateInput
                               required
                               max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
                               value={sanitizeDateForInput(formData.fecha_nacimiento)}
-                              onChange={(e) => setFormData(prev => ({ ...prev, fecha_nacimiento: e.target.value }))}
+                              onChange={(v) => setFormData(prev => ({ ...prev, fecha_nacimiento: v }))}
                               className="w-full pl-10 pr-4 bg-white border-2 border-slate-100 rounded-xl outline-none focus:border-emerald-500 transition-colors text-sm font-bold text-slate-700 h-[50px]"
                             />
                           </div>
@@ -1326,13 +1323,12 @@ export default function VerificarPreinscripcionProgramaPage() {
                                   <span className="text-xs font-bold text-emerald-900">
                                     {formatDateLatina(esp.fecha) !== '—' ? formatDateLatina(esp.fecha) : 'DD/MM/AAAA'}
                                   </span>
-                                  <input
-                                    type="date"
+                                  <DateInput
                                     value={sanitizeDateForInput(esp.fecha)}
-                                    onChange={(e) => setFormData(prev => ({
+                                    onChange={(v) => setFormData(prev => ({
                                       ...prev,
                                       especializaciones: prev.especializaciones.map((item, i) =>
-                                        i === idx ? { ...item, fecha: e.target.value } : item
+                                        i === idx ? { ...item, fecha: v } : item
                                       )
                                     }))}
                                     className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
@@ -1381,10 +1377,9 @@ export default function VerificarPreinscripcionProgramaPage() {
                           </div>
                           <div className="relative">
                             <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="date"
+                            <DateInput
                               value={pendingEspecializacionFecha}
-                              onChange={(e) => setPendingEspecializacionFecha(e.target.value)}
+                              onChange={(v) => setPendingEspecializacionFecha(v)}
                               className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 bg-white transition"
                             />
                           </div>
@@ -1452,13 +1447,12 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <span className="text-xs font-bold text-amber-900">
                                 {formatDateLatina(curso.fecha) !== '—' ? formatDateLatina(curso.fecha) : 'DD/MM/AAAA'}
                               </span>
-                              <input
-                                type="date"
+                              <DateInput
                                 value={sanitizeDateForInput(curso.fecha)}
-                                onChange={(e) => setFormData(prev => ({
+                                onChange={(v) => setFormData(prev => ({
                                   ...prev,
                                   cursos_extras: prev.cursos_extras.map((c, i) =>
-                                    i === idx ? { ...c, fecha: e.target.value } : c
+                                    i === idx ? { ...c, fecha: v } : c
                                   )
                                 }))}
                                 className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
@@ -1507,12 +1501,11 @@ export default function VerificarPreinscripcionProgramaPage() {
                       </div>
                       <div className="relative">
                         <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="date"
+                        <DateInput
                           value={pendingCursoFecha}
                           max={new Date().toISOString().split('T')[0]}
                           min={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
-                          onChange={(e) => setPendingCursoFecha(e.target.value)}
+                          onChange={(v) => setPendingCursoFecha(v)}
                           className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-emerald-400 bg-white transition"
                         />
                       </div>
@@ -1601,13 +1594,12 @@ export default function VerificarPreinscripcionProgramaPage() {
                               <span className="text-xs font-bold text-slate-700">
                                 {formatDateLatina(doc.fecha) !== '—' ? formatDateLatina(doc.fecha) : 'DD/MM/AAAA'}
                               </span>
-                              <input
-                                type="date"
+                              <DateInput
                                 value={sanitizeDateForInput(doc.fecha)}
-                                onChange={(e) => setFormData(prev => ({
+                                onChange={(v) => setFormData(prev => ({
                                   ...prev,
                                   otros_docs: prev.otros_docs.map((item, i) =>
-                                    i === idx ? { ...item, fecha: e.target.value } : item
+                                    i === idx ? { ...item, fecha: v } : item
                                   )
                                 }))}
                                 className="text-xs font-medium text-slate-500 bg-transparent border-none p-0 focus:ring-0 ml-1 cursor-pointer"
@@ -1656,11 +1648,10 @@ export default function VerificarPreinscripcionProgramaPage() {
                       </div>
                       <div className="relative">
                         <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                          type="date"
+                        <DateInput
                           value={pendingOtroFecha}
                           max={new Date().toISOString().split('T')[0]}
-                          onChange={(e) => setPendingOtroFecha(e.target.value)}
+                          onChange={(v) => setPendingOtroFecha(v)}
                           className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400/40 focus:border-emerald-400 bg-white transition"
                         />
                       </div>

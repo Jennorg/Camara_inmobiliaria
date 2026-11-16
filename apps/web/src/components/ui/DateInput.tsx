@@ -1,6 +1,7 @@
 import { useId, useRef } from 'react'
 import { CalendarDays } from 'lucide-react'
-import { formatDateLatinaMes } from '@/utils/formatters'
+import { formatDateLatina } from '@/utils/formatters'
+import { cn } from '@/lib/utils'
 
 interface Props {
   /** AAAA-MM-DD o vacío */
@@ -16,14 +17,14 @@ interface Props {
 }
 
 /**
- * Campo de fecha que se muestra en formato latino DD/mmm/AA (22/oct/26) y abre el calendario nativo al pulsarlo.
+ * Campo de fecha que se muestra en formato latino dd/mm/aaaa (22/10/2026), sin depender del idioma del navegador, y abre el calendario nativo al pulsarlo.
  * El valor que entrega sigue siendo AAAA-MM-DD, así que no cambia lo que espera la API.
  */
-export default function DateInput({ value, onChange, id, required, min, max, disabled, placeholder = 'dd/mmm/aa', className = '' }: Props) {
+export default function DateInput({ value, onChange, id, required, min, max, disabled, placeholder = 'dd/mm/aaaa', className = '' }: Props) {
   const nativo = useRef<HTMLInputElement>(null)
   const generado = useId()
   const idCampo = id ?? generado
-  const texto = value ? formatDateLatinaMes(value.slice(0, 10)) : ''
+  const texto = value ? formatDateLatina(value.slice(0, 10), { fallback: '' }) : ''
   // Sin showPicker (navegadores antiguos) el input nativo queda encima y recibe el clic directamente
   const soportaPicker = typeof HTMLInputElement !== 'undefined' && 'showPicker' in HTMLInputElement.prototype
 
@@ -34,7 +35,7 @@ export default function DateInput({ value, onChange, id, required, min, max, dis
         id={idCampo}
         disabled={disabled}
         onClick={() => { try { nativo.current?.showPicker?.() } catch { nativo.current?.focus() } }}
-        className={`w-full flex items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 disabled:bg-slate-50 disabled:text-slate-400 ${className}`}
+        className={cn('w-full flex items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 disabled:bg-slate-50 disabled:text-slate-400', className)}
       >
         <span className={texto ? 'text-slate-900' : 'text-slate-400'}>{texto || placeholder}</span>
         <CalendarDays size={16} className="shrink-0 text-slate-400" aria-hidden="true" />

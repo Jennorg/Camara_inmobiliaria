@@ -30,6 +30,7 @@ import { toPng } from 'html-to-image'
 import LogoBgImg from '@/assets/logo_ciebo_green.svg'
 import JSZip from 'jszip'
 import QRCode from 'qrcode'
+import DateInput from '@/components/ui/DateInput'
 
 
 const CarnetIcon = ({ w = 16, h = 16 }: { w?: number; h?: number }) => {
@@ -2991,11 +2992,17 @@ function DataField({ label, value, isEditing, fieldName, form, setForm, type = '
             </select>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
+        ) : type === 'date' ? (
+          <DateInput
+            className="bg-slate-50 border-gray-100 rounded-xl px-4 py-2 font-semibold"
+            value={sanitizeDateForInput(form[fieldName])}
+            onChange={(v) => setForm({ ...form, [fieldName]: v })}
+          />
         ) : (
           <input
             type={type}
             className="w-full bg-slate-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
-            value={type === 'date' ? sanitizeDateForInput(form[fieldName]) : (form[fieldName] || '')}
+            value={form[fieldName] || ''}
             onChange={(e) => setForm({ ...form, [fieldName]: e.target.value })}
           />
         )
@@ -3050,7 +3057,13 @@ function DataInput({ label, placeholder, value, onChange, type = 'text', isRequi
       <label className={`text-[11px] font-black uppercase tracking-widest ml-1 transition-colors ${hasError ? 'text-red-500' : 'text-slate-400'}`}>
         {label} {isRequired && <span className="text-emerald-500">*</span>}
       </label>
-      <input
+      {type === 'date' ? (
+        <DateInput
+          className="bg-slate-50 border-gray-100 rounded-2xl px-4 py-3 font-bold"
+          value={value || ''}
+          onChange={onChange}
+        />
+      ) : <input
         type={type}
         placeholder={placeholder}
         className={`w-full bg-slate-50 border rounded-2xl px-4 py-3 text-sm font-bold outline-none relative z-10 focus:z-20 focus:ring-4 transition-colors ${hasError
@@ -3059,7 +3072,7 @@ function DataInput({ label, placeholder, value, onChange, type = 'text', isRequi
           }`}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-      />
+      />}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
 import type { DenunciaDTO } from '@/types/denuncias'
+import DateInput from '@/components/ui/DateInput'
 
 interface ModalConvocarMediacionProps {
   isOpen: boolean
@@ -22,6 +23,7 @@ export default function ModalConvocarMediacion({
   const [loading, setLoading] = useState(false)
 
   const [fechaAudiencia, setFechaAudiencia] = useState('')
+  const [fechaAud = '', horaAud = ''] = fechaAudiencia.split('T')
   const [lugarModalidad, setLugarModalidad] = useState('Sede Cámara Inmobiliaria de Bolívar (Sala de Juntas)')
   const [notas, setNotas] = useState('')
 
@@ -38,7 +40,7 @@ export default function ModalConvocarMediacion({
     e.preventDefault()
     if (loading) return
 
-    if (!fechaAudiencia) {
+    if (!fechaAud || !horaAud) {
       toast.error('Indica la fecha y la hora de la audiencia.')
       return
     }
@@ -123,15 +125,24 @@ export default function ModalConvocarMediacion({
 
             <div>
               <label htmlFor="fecha-audiencia" className="text-sm font-semibold text-slate-900">Fecha y hora *</label>
-              <input
-                id="fecha-audiencia"
-                name="fecha_audiencia"
-                type="datetime-local"
-                required
-                value={fechaAudiencia}
-                onChange={e => setFechaAudiencia(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
-              />
+              {/* La fecha va con DateInput (dd/mm/aaaa sin depender del idioma del navegador); se guarda igual como AAAA-MM-DDTHH:mm */}
+              <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-2">
+                <DateInput
+                  id="fecha-audiencia"
+                  required
+                  value={fechaAud}
+                  onChange={v => setFechaAudiencia(`${v}T${horaAud}`)}
+                  className="rounded-xl px-3.5 py-2.5"
+                />
+                <input
+                  type="time"
+                  required
+                  aria-label="Hora de la audiencia"
+                  value={horaAud}
+                  onChange={e => setFechaAudiencia(`${fechaAud}T${e.target.value}`)}
+                  className="rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                />
+              </div>
             </div>
 
             <div>

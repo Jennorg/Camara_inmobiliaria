@@ -18,6 +18,7 @@ import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
 import ModalCobroTaquilla from '@/pages/admin/components/Finance/ModalCobroTaquilla'
 import ReciboDigitalModal from '@/components/ReciboDigitalModal'
 import type { PagoDTO } from '@/types/pagos'
+import DateInput from '@/components/ui/DateInput'
 
 const AFILIACION_STEPS_FLOW = [
   { label: 'Preinscripción', desc: 'Registro inicial de datos básicos', icon: ClipboardList, labelShort: 'Preins.' },
@@ -2023,7 +2024,7 @@ export default function PreinscripcionesPrincipalesPanel({
                 </>
               ) : (
                 <>
-              <input type="date" value={entrevista.fecha} onChange={e => setEntrevista({ ...entrevista, fecha: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
+              <DateInput value={entrevista.fecha} onChange={(v) => setEntrevista({ ...entrevista, fecha: v })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
               <input type="time" value={entrevista.hora} onChange={e => setEntrevista({ ...entrevista, hora: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" />
               <input type="text" value={entrevista.lugar} onChange={e => setEntrevista({ ...entrevista, lugar: e.target.value })} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm" placeholder="Lugar..." />
               <button 

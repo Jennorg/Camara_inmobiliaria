@@ -3,6 +3,7 @@ import { ArchiveRestore, ChevronDown, ChevronRight, ClipboardList, Loader2, Shie
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import DateInput from '@/components/ui/DateInput'
 
 interface Registro {
   id: number; creado_en: string; email: string | null; nombre_usuario: string | null; rol: string | null; suplantado_por: number | null
@@ -140,8 +141,8 @@ const AuditoriaPanel = () => {
             <label className="text-xs font-bold text-slate-600">Usuario<select className={`${SELECT} mt-1 block`} value={f.usuario} onChange={e => cambiar('usuario', e.target.value)}><option value="">Todos</option>{filtros.usuarios.map(u => <option key={u}>{u}</option>)}</select></label>
             <label className="text-xs font-bold text-slate-600">Acción<select className={`${SELECT} mt-1 block`} value={f.accion} onChange={e => cambiar('accion', e.target.value)}><option value="">Todas</option>{filtros.acciones.map(a => <option key={a} value={a}>{nombreAccion(a)}</option>)}</select></label>
             <label className="text-xs font-bold text-slate-600">Módulo<select className={`${SELECT} mt-1 block`} value={f.modulo} onChange={e => cambiar('modulo', e.target.value)}><option value="">Todos</option>{filtros.modulos.map(m => <option key={m}>{m}</option>)}</select></label>
-            <label className="text-xs font-bold text-slate-600">Desde<input type="date" className={`${SELECT} mt-1 block`} value={f.desde} onChange={e => cambiar('desde', e.target.value)} /></label>
-            <label className="text-xs font-bold text-slate-600">Hasta<input type="date" className={`${SELECT} mt-1 block`} value={f.hasta} onChange={e => cambiar('hasta', e.target.value)} /></label>
+            <label className="text-xs font-bold text-slate-600">Desde<DateInput className={`${SELECT} mt-1 block`} value={f.desde} onChange={(v) => cambiar('desde', v)} /></label>
+            <label className="text-xs font-bold text-slate-600">Hasta<DateInput className={`${SELECT} mt-1 block`} value={f.hasta} onChange={(v) => cambiar('hasta', v)} /></label>
           </div>
 
           {cargando ? <div className="flex items-center gap-2 py-10 text-slate-600"><Loader2 size={18} className="animate-spin" /> Cargando…</div>

@@ -7,6 +7,7 @@ import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 import { Skeleton } from '@/components/Skeleton'
 import { uploadFileStorage } from '@/pages/admin/components/Cms/CmsShared'
+import DateInput from '@/components/ui/DateInput'
 
 type Tipo = 'Ordinaria' | 'Extraordinaria'
 interface Asamblea {
@@ -208,7 +209,7 @@ function Ficha({ id, onVolver, onCreada }: { id: number | 'nueva'; onVolver: () 
         <h3 className="text-base font-black text-slate-900 sm:col-span-6">{nueva ? 'Nueva asamblea' : 'Datos de la asamblea'}</h3>
         <Etiqueta id="a-tipo" texto="Tipo" ancho="sm:col-span-2"><select id="a-tipo" value={f.tipo} onChange={set('tipo')} className={CAMPO}><option>Ordinaria</option><option>Extraordinaria</option></select></Etiqueta>
         <Etiqueta id="a-acta" texto="N° de acta" ancho="sm:col-span-2"><input id="a-acta" value={f.numero_acta} onChange={set('numero_acta')} className={CAMPO} /></Etiqueta>
-        <Etiqueta id="a-fecha" texto="Fecha" ancho="sm:col-span-1"><input id="a-fecha" type="date" value={f.fecha} onChange={set('fecha')} className={CAMPO} /></Etiqueta>
+        <Etiqueta id="a-fecha" texto="Fecha" ancho="sm:col-span-1"><DateInput id="a-fecha" value={f.fecha} onChange={v => setF(x => ({ ...x, fecha: v }))} className={CAMPO} /></Etiqueta>
         <Etiqueta id="a-hora" texto="Hora" ancho="sm:col-span-1"><input id="a-hora" type="time" value={f.hora} onChange={set('hora')} className={CAMPO} /></Etiqueta>
         <Etiqueta id="a-titulo" texto="Título" ancho="sm:col-span-4"><input id="a-titulo" value={f.titulo} onChange={set('titulo')} placeholder="Ej. Asamblea ordinaria anual 2026" className={CAMPO} /></Etiqueta>
         <Etiqueta id="a-lugar" texto="Lugar" ancho="sm:col-span-2"><input id="a-lugar" value={f.lugar} onChange={set('lugar')} className={CAMPO} /></Etiqueta>

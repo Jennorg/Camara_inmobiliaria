@@ -23,6 +23,7 @@ import autoTable from 'jspdf-autotable';
 import logoUrl from '@/assets/Logo2.webp';
 import { CursoDB } from './CursosAdminPanel';
 import { matchesSearch } from '@/utils/searchUtils';
+import DateInput from '@/components/ui/DateInput';
 
 export type ExportColumnId =
   | 'num'
@@ -936,10 +937,9 @@ export default function ExportInscritosCursoModal({
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Desde</span>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      <input
-                        type="date"
+                      <DateInput
                         value={fechaDesde}
-                        onChange={e => setFechaDesde(e.target.value)}
+                        onChange={(v) => setFechaDesde(v)}
                         className="w-full pl-9 pr-3 py-2 bg-white text-xs font-semibold text-slate-700 border border-gray-200 rounded-xl focus:outline-none focus:border-[#00D084]"
                       />
                     </div>
@@ -949,10 +949,9 @@ export default function ExportInscritosCursoModal({
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Fecha Hasta</span>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      <input
-                        type="date"
+                      <DateInput
                         value={fechaHasta}
-                        onChange={e => setFechaHasta(e.target.value)}
+                        onChange={(v) => setFechaHasta(v)}
                         className="w-full pl-9 pr-3 py-2 bg-white text-xs font-semibold text-slate-700 border border-gray-200 rounded-xl focus:outline-none focus:border-[#00D084]"
                       />
                     </div>

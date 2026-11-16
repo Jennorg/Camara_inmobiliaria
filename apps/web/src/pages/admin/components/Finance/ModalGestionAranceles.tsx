@@ -4,6 +4,7 @@ import { ArancelDTO } from '@/types/pagos';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
 import Swal from 'sweetalert2';
+import DateInput from '@/components/ui/DateInput';
 
 const ARANCEL_ANUAL = 'mensualidad_anual_adelantada';
 
@@ -209,10 +210,9 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
                     {a.codigo === ARANCEL_ANUAL && (isEditing ? (
                       <label className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
                         Fecha límite para considerarlo adelanto
-                        <input
-                          type="date"
+                        <DateInput
                           value={editFecha}
-                          onChange={(e) => setEditFecha(e.target.value)}
+                          onChange={(v) => setEditFecha(v)}
                           className="px-2 py-1 rounded-lg border border-emerald-300 text-xs focus:outline-none"
                         />
                       </label>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { formatDateLatina, numeroAOrdinalEdicion } from '@/utils/formatters'
 import EdicionCibirDetailModal from './EdicionCibirDetailModal'
+import DateInput from '@/components/ui/DateInput'
 
 export interface EdicionCibir {
   id_edicion: number
@@ -562,10 +563,9 @@ export default function EdicionesCibirPanel() {
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Fecha de Inicio *
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formFechaInicio}
-                    onChange={e => setFormFechaInicio(e.target.value)}
+                    onChange={(v) => setFormFechaInicio(v)}
                     required
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
                   />
@@ -574,10 +574,9 @@ export default function EdicionesCibirPanel() {
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                     Fecha de Fin
                   </label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={formFechaFin}
-                    onChange={e => setFormFechaFin(e.target.value)}
+                    onChange={(v) => setFormFechaFin(v)}
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
