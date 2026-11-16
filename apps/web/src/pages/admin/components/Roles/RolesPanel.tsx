@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, Plus, Save, ShieldAlert, Trash2 } from 'lucide-react'
 import { API_URL } from '@/config/env'
@@ -224,8 +225,8 @@ const RolesPanel = () => {
               {bloqueoBorrado && <p id="rol-borrado-aviso" className="text-xs text-slate-500">{bloqueoBorrado}</p>}
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto p-4">
-              <table className="w-full min-w-[34rem] border-collapse text-sm">
+            <div tabIndex={0} role="region" aria-label="Permisos por sección" className="focus-visible:outline-2 focus-visible:outline-emerald-600 min-h-0 flex-1 overflow-auto p-4">
+              <table className="w-full min-w-[34rem] border-collapse text-sm"><caption className="sr-only">Permisos por sección</caption>
                 <thead>
                   <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
                     <th scope="col" className="px-3 py-3 text-left font-bold">Sección</th>
@@ -268,8 +269,8 @@ const RolesPanel = () => {
       </section>
 
       {confirmando && sel && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm" onKeyDown={e => e.key === 'Escape' && setConfirmando(false)}>
-          <div role="alertdialog" aria-modal="true" aria-labelledby="rol-del-t" aria-describedby="rol-del-d" className="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-2xl">
+        <Modal onClose={() => setConfirmando(false)} role="alertdialog" aria-labelledby="rol-del-t" aria-describedby="rol-del-d" className="flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-2xl">
             <h3 id="rol-del-t" className="mb-2 text-lg font-black text-slate-800">¿Eliminar rol?</h3>
             <p id="rol-del-d" className="mb-6 text-sm text-slate-500">Se eliminará el rol <b className="text-slate-700">{sel.nombre}</b> y todos sus permisos.</p>
             <div className="flex flex-col gap-2">
@@ -279,7 +280,7 @@ const RolesPanel = () => {
               <button type="button" autoFocus onClick={() => setConfirmando(false)} className={`w-full rounded-xl py-3 text-sm font-bold text-slate-500 hover:text-slate-700 ${FOCO}`}>Cancelar</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

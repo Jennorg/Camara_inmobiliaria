@@ -30,6 +30,7 @@ import {
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { formatDateLatina, sanitizeDateForInput } from '@/utils/formatters'
+import DateInput from '@/components/ui/DateInput'
 
 export type ViewRouteMode = 'comparativo' | 'cibir' | 'acreditacion'
 export type ChartTypeMode = 'embudo' | 'temporal'
@@ -354,29 +355,27 @@ export default function EmbudoCaptacionChart() {
 
         {/* Inputs de fecha Desde / Hasta (en formato latino con sanitize) */}
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Desde:</span>
-            <input
-              type="date"
+            <DateInput
               value={sanitizeDateForInput(desde)}
-              onChange={(e) => {
+              onChange={(v) => {
                 setPreset('custom')
-                setDesde(e.target.value)
+                setDesde(v)
               }}
-              className="outline-none text-slate-800 font-bold bg-transparent cursor-pointer text-xs"
+              className="w-auto border-0 p-0 gap-1.5 outline-none text-slate-800 font-bold bg-transparent cursor-pointer text-xs"
             />
           </div>
 
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Hasta:</span>
-            <input
-              type="date"
+            <DateInput
               value={sanitizeDateForInput(hasta)}
-              onChange={(e) => {
+              onChange={(v) => {
                 setPreset('custom')
-                setHasta(e.target.value)
+                setHasta(v)
               }}
-              className="outline-none text-slate-800 font-bold bg-transparent cursor-pointer text-xs"
+              className="w-auto border-0 p-0 gap-1.5 outline-none text-slate-800 font-bold bg-transparent cursor-pointer text-xs"
             />
           </div>
 

@@ -1,3 +1,5 @@
+import MenuEmergente from '@/components/ui/MenuEmergente';
+import Modal from '@/components/ui/Modal';
 import React, { useRef, useState, useEffect } from 'react';
 import { Menu, User, X, Download, Loader2, Award, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
@@ -507,14 +509,9 @@ const DashboardHeader = ({
           {/* Floating Dropdown anchored to photo bubble */}
           {isOpen && (
             <>
-              <div
-                className="fixed inset-0 z-[100] bg-slate-900/10 backdrop-blur-[1px]"
-                aria-hidden="true"
-                onClick={() => setIsOpen(false)}
-              />
-              <div
+              <MenuEmergente onClose={() => setIsOpen(false)} alinear="fin" separacion={10}
                 ref={carnetPanelRef}
-                className="absolute right-0 top-full mt-2.5 z-[101] bg-white dark:bg-[#022c22] rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-emerald-500/20 fade-in slide-in-from-top-2 duration-200 w-[min(420px,calc(100vw-2rem))] max-h-[calc(100vh-6.5rem)] overflow-y-auto overscroll-y-contain custom-scrollbar-light select-none flex flex-col items-center gap-4"
+                className="bg-white dark:bg-[#022c22] rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-emerald-500/20 fade-in slide-in-from-top-2 duration-200 w-[min(420px,calc(100vw-2rem))] max-h-[calc(100vh-6.5rem)] overflow-y-auto overscroll-y-contain custom-scrollbar-light select-none flex flex-col items-center gap-4"
                 onClick={(e) => e.stopPropagation()}
               >
               {hasCredential ? (
@@ -558,7 +555,7 @@ const DashboardHeader = ({
                   </p>
                 </div>
               )}
-              </div>
+              </MenuEmergente>
             </>
           )}
         </div>
@@ -575,8 +572,8 @@ const DashboardHeader = ({
 
       {/* Modal Cropper Overlay */}
       {showCropper && imageToCrop && (
-        <div
-          className="transition-opacity fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm fade-in duration-200"
+        <Modal onClose={() => setShowCropper(false)} aria-label="Recortar foto"
+          className="transition-opacity overflow-y-auto bg-slate-900/60 backdrop-blur-sm fade-in duration-200"
           onClick={() => !savingCrop && setShowCropper(false)}
         >
           <div className="flex min-h-full items-center justify-center p-4">
@@ -685,7 +682,7 @@ const DashboardHeader = ({
             </div>
           </div>
         </div>
-      </div>
+      </Modal>
     )}
     </header>
   );

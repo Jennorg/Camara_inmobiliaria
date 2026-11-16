@@ -754,3 +754,12 @@ input, textarea { caret-color: var(--color-accent-hover); }
 
 /* Cifras alineadas en tablas y montos */
 table, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Modales <dialog>: que el scroll dentro del modal o sobre el fondo no desplace la página de atrás (sin tocar body) */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}

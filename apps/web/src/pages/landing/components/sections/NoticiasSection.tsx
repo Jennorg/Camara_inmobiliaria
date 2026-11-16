@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useRef } from 'react'
 import { Calendar, Clock, MapPin } from 'lucide-react'
 import { API_URL } from '@/config/env'
@@ -264,8 +265,8 @@ export default function NoticiasSection() {
 
         if (isSoloImagen) {
           return (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"
+            <Modal onClose={() => setSelectedNews(null)} aria-label="Noticia"
+              className="flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"
               onClick={() => setSelectedNews(null)}
             >
               <div
@@ -282,19 +283,19 @@ export default function NoticiasSection() {
                   </svg>
                 </button>
 
-                <img
+                <img loading="lazy"
                   src={selectedNews.imagen_url || selectedNews.img}
                   alt={selectedNews.titulo || 'Afiche Informativo'}
                   className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
                 />
               </div>
-            </div>
+            </Modal>
           );
         }
 
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300"
+          <Modal onClose={() => setSelectedNews(null)} aria-label="Noticia"
+            className="flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300"
             onClick={() => setSelectedNews(null)}
           >
             <div
@@ -303,7 +304,7 @@ export default function NoticiasSection() {
             >
               {/* Header Image */}
               <div className="relative w-full flex-shrink-0">
-                <img
+                <img loading="lazy"
                   src={selectedNews.imagen_url || selectedNews.img || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=75&w=600'}
                   alt={selectedNews.titulo}
                   className="w-full h-auto"
@@ -382,7 +383,7 @@ export default function NoticiasSection() {
                 </div>
               </div>
             </div>
-          </div>
+          </Modal>
         );
       })()}
     </section>

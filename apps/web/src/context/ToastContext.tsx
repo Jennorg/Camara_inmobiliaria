@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import CapaAvisos from '@/components/ui/CapaAvisos';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <ToastContainer toasts={toasts} dismiss={dismiss} />
+      <CapaAvisos><ToastContainer toasts={toasts} dismiss={dismiss} /></CapaAvisos>
     </ToastContext.Provider>
   );
 }

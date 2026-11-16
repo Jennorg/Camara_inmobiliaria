@@ -24,7 +24,7 @@ import {
   adminAnularPago,
   adminMarcarMesSolvencia
 } from '../controllers/pagos.controller.js';
-import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia, adminEnviarRecordatorio, emitirConstancia } from '../controllers/solvencia.controller.js';
+import { getSolvenciaAfiliado, adminResumenSolvencia, adminSetInicioSolvencia, adminEnviarRecordatorio, adminSincerarAnual, emitirConstancia } from '../controllers/solvencia.controller.js';
 
 const router = Router();
 const finanzas = requirePermiso('finanzas'); // acción según el verbo HTTP
@@ -48,6 +48,7 @@ router.get('/admin', requireAuth, finanzas, adminListPagos);
 router.get('/admin/solvencia', requireAuth, finanzas, adminResumenSolvencia);
 router.put('/admin/solvencia/config', requireAuth, finanzas, adminSetInicioSolvencia);
 router.post('/admin/solvencia/recordatorio', requireAuth, editar, adminEnviarRecordatorio);
+router.post('/admin/solvencia/afiliado/:idAfiliado/sincerar-anual', requireAuth, editar, adminSincerarAnual); // temporal
 router.get('/admin/cursos-por-cobrar', requireAuth, finanzas, adminCursosPorCobrar);
 router.put('/admin/modalidad', requireAuth, finanzas, adminSetModalidadPagos);
 router.get('/admin/pagadores', requireAuth, finanzas, adminBuscarPagadores);

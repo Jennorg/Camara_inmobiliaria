@@ -1,8 +1,10 @@
+import Modal from '@/components/ui/Modal'
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { ArchiveRestore, ChevronDown, ChevronRight, ClipboardList, Loader2, ShieldAlert, Trash2 } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import DateInput from '@/components/ui/DateInput'
 
 interface Registro {
   id: number; creado_en: string; email: string | null; nombre_usuario: string | null; rol: string | null; suplantado_por: number | null
@@ -140,16 +142,16 @@ const AuditoriaPanel = () => {
             <label className="text-xs font-bold text-slate-600">Usuario<select className={`${SELECT} mt-1 block`} value={f.usuario} onChange={e => cambiar('usuario', e.target.value)}><option value="">Todos</option>{filtros.usuarios.map(u => <option key={u}>{u}</option>)}</select></label>
             <label className="text-xs font-bold text-slate-600">Acción<select className={`${SELECT} mt-1 block`} value={f.accion} onChange={e => cambiar('accion', e.target.value)}><option value="">Todas</option>{filtros.acciones.map(a => <option key={a} value={a}>{nombreAccion(a)}</option>)}</select></label>
             <label className="text-xs font-bold text-slate-600">Módulo<select className={`${SELECT} mt-1 block`} value={f.modulo} onChange={e => cambiar('modulo', e.target.value)}><option value="">Todos</option>{filtros.modulos.map(m => <option key={m}>{m}</option>)}</select></label>
-            <label className="text-xs font-bold text-slate-600">Desde<input type="date" className={`${SELECT} mt-1 block`} value={f.desde} onChange={e => cambiar('desde', e.target.value)} /></label>
-            <label className="text-xs font-bold text-slate-600">Hasta<input type="date" className={`${SELECT} mt-1 block`} value={f.hasta} onChange={e => cambiar('hasta', e.target.value)} /></label>
+            <label className="text-xs font-bold text-slate-600">Desde<DateInput className={`${SELECT} mt-1 block`} value={f.desde} onChange={(v) => cambiar('desde', v)} /></label>
+            <label className="text-xs font-bold text-slate-600">Hasta<DateInput className={`${SELECT} mt-1 block`} value={f.hasta} onChange={(v) => cambiar('hasta', v)} /></label>
           </div>
 
           {cargando ? <div className="flex items-center gap-2 py-10 text-slate-600"><Loader2 size={18} className="animate-spin" /> Cargando…</div>
             : error ? <p className="rounded-xl bg-slate-100 px-5 py-4 text-sm text-slate-700">{error}</p>
               : (
                 <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600"><tr><th className="w-10 px-3 py-3" /><th className="px-3 py-3">Fecha</th><th className="px-3 py-3">Usuario</th><th className="px-3 py-3">Acción</th><th className="px-3 py-3">Detalle</th></tr></thead>
+                  <table className="w-full text-left text-sm"><caption className="sr-only">Registro de auditoría</caption>
+                    <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600"><tr><th scope="col" className="w-10 px-3 py-3" /><th scope="col" className="px-3 py-3">Fecha</th><th scope="col" className="px-3 py-3">Usuario</th><th scope="col" className="px-3 py-3">Acción</th><th scope="col" className="px-3 py-3">Detalle</th></tr></thead>
                     <tbody className="divide-y divide-slate-100">
                       {registros.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-600">No hay registros con estos filtros.</td></tr>}
                       {registros.map(r => (
@@ -182,8 +184,8 @@ const AuditoriaPanel = () => {
           <div className="mb-4"><label className="text-xs font-bold text-slate-600">Tipo<select className={`${SELECT} mt-1 block`} value={tipo} onChange={e => setTipo(e.target.value)}><option value="">Todos</option>{Object.entries(tipos).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label></div>
           {cargandoP ? <div className="flex items-center gap-2 py-10 text-slate-600"><Loader2 size={18} className="animate-spin" /> Cargando…</div> : (
             <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600"><tr><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Nombre</th><th className="px-4 py-3">Eliminado por</th><th className="px-4 py-3">Fecha</th><th className="px-4 py-3 text-right">Acciones</th></tr></thead>
+              <table className="w-full text-left text-sm"><caption className="sr-only">Papelera</caption>
+                <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600"><tr><th scope="col" className="px-4 py-3">Tipo</th><th scope="col" className="px-4 py-3">Nombre</th><th scope="col" className="px-4 py-3">Eliminado por</th><th scope="col" className="px-4 py-3">Fecha</th><th scope="col" className="px-4 py-3 text-right">Acciones</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
                   {items.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-600">La papelera está vacía.</td></tr>}
                   {items.map(i => (
@@ -206,7 +208,7 @@ const AuditoriaPanel = () => {
       )}
 
       {aBorrar && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-borrar">
+        <Modal onClose={() => setABorrar(null)} aria-labelledby="titulo-borrar" className="flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#022c22]/60" aria-hidden="true" onClick={() => setABorrar(null)} />
           <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <h3 id="titulo-borrar" className="text-xl font-black text-[#022c22]">Eliminar definitivamente</h3>
@@ -218,7 +220,7 @@ const AuditoriaPanel = () => {
               <button type="button" onClick={eliminarDefinitivo} disabled={palabra !== 'ELIMINAR' || ocupado !== null} className={`${BOTON} bg-[#022c22] text-white hover:bg-[#04432f]`}>{ocupado ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} Eliminar</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

@@ -70,7 +70,7 @@ export default function ConveniosSection({ cfg = {} }: { cfg?: Record<string, st
                 >
                   <div className='h-32 lg:h-40 w-56 lg:w-80 rounded-2xl overflow-hidden flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-500'>
                     {isImageUrl(item.logo_url) ? (
-                      <img src={item.logo_url} alt={item.nombre_aliado || item.nombre} className='w-full h-full object-contain p-4' />
+                      <img loading="lazy" src={item.logo_url} alt={item.nombre_aliado || item.nombre} className='w-full h-full object-contain p-4' />
                     ) : (
                       <span className='text-3xl lg:text-4xl' aria-hidden>📄</span>
                     )}

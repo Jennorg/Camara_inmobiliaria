@@ -1,7 +1,9 @@
+import MenuEmergente from '@/components/ui/MenuEmergente';
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 import { elegirModoBorrado, conModo } from '@/lib/borrado';
 import UltimaModificacion from '@/components/UltimaModificacion';
 import { toast } from 'sonner';
@@ -980,15 +982,15 @@ const CursosAdminPanel = () => {
       ) : (
         /* Vista Lista / Tabla */
         <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[700px] table-auto">
+          <div tabIndex={0} role="region" aria-label="Cursos" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px] table-auto"><caption className="sr-only">Cursos</caption>
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200/80">
-                  <th className="px-4 py-3.5 text-left text-[11px] font-black text-slate-400 tracking-wider uppercase w-[35%]">CURSO</th>
-                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSTRUCTOR</th>
-                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSCRITOS</th>
-                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[12%]">INICIO</th>
-                  <th className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[13%]">ACCIONES</th>
+                  <th scope="col" className="px-4 py-3.5 text-left text-[11px] font-black text-slate-400 tracking-wider uppercase w-[35%]">CURSO</th>
+                  <th scope="col" className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSTRUCTOR</th>
+                  <th scope="col" className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[20%]">INSCRITOS</th>
+                  <th scope="col" className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[12%]">INICIO</th>
+                  <th scope="col" className="px-4 py-3.5 text-center text-[11px] font-black text-slate-400 tracking-wider uppercase w-[13%]">ACCIONES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1101,8 +1103,8 @@ const CursosAdminPanel = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={e => { if (e.target === e.currentTarget) handleCloseModal() }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="titulo-form-curso" className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[92vh]">
+        <Modal onClose={handleCloseModal} aria-labelledby="titulo-form-curso" className="flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={e => { if (e.target === e.currentTarget) handleCloseModal() }}>
+          <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[92vh]">
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4 flex-shrink-0">
               <div>
                 <h3 id="titulo-form-curso" className="text-base font-semibold text-slate-900">{editingId ? 'Editar curso' : 'Nuevo curso'}</h3>
@@ -1433,7 +1435,7 @@ const CursosAdminPanel = () => {
 
                             <div className="flex items-center gap-3">
                               <div className="h-12 w-32 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 bg-slate-50">
-                                {firmante.firma_url ? <img src={firmante.firma_url} alt="Firma" className="max-h-10 w-auto object-contain" /> : <span className="text-[11px] text-slate-400">Sin imagen</span>}
+                                {firmante.firma_url ? <img loading="lazy" src={firmante.firma_url} alt="Firma" className="max-h-10 w-auto object-contain" /> : <span className="text-[11px] text-slate-400">Sin imagen</span>}
                               </div>
                               <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-600/30">
                                 <Upload size={14} aria-hidden="true" />
@@ -1474,12 +1476,12 @@ const CursosAdminPanel = () => {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Secondary Modal: Nuevo Profesor */}
       {isProfModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <Modal onClose={() => setIsProfModalOpen(false)} aria-label="Instructor" className="flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
           <div className="transition-opacity transition-transform bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden fade-in zoom-in-95 duration-200 border border-gray-100 flex flex-col max-h-[80vh]">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50/50 flex-shrink-0">
               <div>
@@ -1639,7 +1641,7 @@ const CursosAdminPanel = () => {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -2487,8 +2489,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
             {showCertFormatMenu && (
               <>
-                <div className="fixed inset-0 z-30" onClick={() => setShowCertFormatMenu(false)} />
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 z-40 animate-in fade-in slide-in-from-top-2 duration-150">
+                <MenuEmergente onClose={() => setShowCertFormatMenu(false)} alinear="fin" separacion={8} className="w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="px-3 py-2 border-b border-gray-100 mb-1">
                     <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Descargar Certificados (Todos)</p>
                     <p className="text-xs font-bold text-slate-700">{rows.length} {rows.length === 1 ? 'participante' : 'participantes'}</p>
@@ -2541,7 +2542,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       <p className="text-[11px] text-slate-500 mt-0.5">Máxima resolución en imágenes para impresión profesional</p>
                     </div>
                   </button>
-                </div>
+                </MenuEmergente>
               </>
             )}
           </div>
@@ -2606,8 +2607,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
               {showBatchCertFormatMenu && (
                 <>
-                  <div className="fixed inset-0 z-30" onClick={() => setShowBatchCertFormatMenu(false)} />
-                  <div className="absolute right-0 bottom-full mb-2 w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 z-40 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                  <MenuEmergente onClose={() => setShowBatchCertFormatMenu(false)} lado="arriba" alinear="fin" separacion={8} className="w-80 bg-white rounded-2xl shadow-2xl border border-emerald-100 p-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <div className="px-3 py-2 border-b border-gray-100 mb-1">
                       <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Certificados Seleccionados</p>
                       <p className="text-xs font-bold text-slate-700">{selectedIds.length} {selectedIds.length === 1 ? 'participante' : 'participantes'}</p>
@@ -2660,7 +2660,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                         <p className="text-[11px] text-slate-500 mt-0.5">Máxima calidad lista para impresión profesional</p>
                       </div>
                     </button>
-                  </div>
+                  </MenuEmergente>
                 </>
               )}
             </div>
@@ -2759,11 +2759,11 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
             </button>
           </div>
         ) : (
-          <div className="h-full overflow-auto">
-            <table className="w-full text-sm">
+          <div tabIndex={0} role="region" aria-label="Participantes del curso" className="focus-visible:outline-2 focus-visible:outline-emerald-600 h-full overflow-auto">
+            <table className="w-full text-sm"><caption className="sr-only">Participantes del curso</caption>
               <thead className="bg-slate-100 sticky top-0 z-10 border-b border-slate-200 shadow-2xs">
                 <tr>
-                  <th className="px-4 py-4 text-center w-12">
+                  <th scope="col" className="px-4 py-4 text-center w-12">
                     <input
                       type="checkbox"
                       checked={filteredRows.length > 0 && selectedIds.length === filteredRows.length}
@@ -2782,7 +2782,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                   ].map(col => {
                     const isActive = sortField === col.id;
                     return (
-                      <th
+                      <th scope="col"
                         key={col.id}
                         onClick={() => handleSort(col.id as any)}
                         className={`${col.pad} py-4 text-left text-[11px] font-black tracking-widest uppercase cursor-pointer select-none transition-colors hover:text-[#00D084] ${isActive ? 'text-[#00B870]' : 'text-slate-400'
@@ -2804,7 +2804,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                       </th>
                     );
                   })}
-                  <th className="px-6 py-4 text-right text-[11px] font-black text-slate-400 tracking-widest uppercase">Acciones</th>
+                  <th scope="col" className="px-6 py-4 text-right text-[11px] font-black text-slate-400 tracking-widest uppercase">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -3021,7 +3021,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
       {/* ── MODAL INSCRIBIR ESTUDIANTE EN ESTE CURSO ── */}
       {isEnrollModalOpen && (
-        <div className="transition-opacity fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
+        <Modal onClose={() => setIsEnrollModalOpen(false)} aria-label="Inscribir participante" className="transition-opacity flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2.5">
@@ -3104,14 +3104,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
 
                           {showAfiliadoSearchDropdown && (
                             <>
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowAfiliadoSearchDropdown(false);
-                                }}
-                              />
-                              <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
+                              <MenuEmergente onClose={() => { setShowAfiliadoSearchDropdown(false) }} separacion={4} className="transition-opacity transition-transform bg-white border border-emerald-200 rounded-xl shadow-xl py-1.5 min-w-[120px] fade-in slide-in-from-top-1 duration-150">
                                 {[
                                   { key: 'nombre', label: 'Nombre' },
                                   { key: 'cedula', label: 'Cédula' },
@@ -3133,7 +3126,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
                                     {option.label}
                                   </button>
                                 ))}
-                              </div>
+                              </MenuEmergente>
                             </>
                           )}
                         </div>
@@ -3373,12 +3366,12 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Modal Editar Participante */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+        <Modal onClose={() => setIsEditModalOpen(false)} aria-label="Editar participante" className="bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2.5">
@@ -3523,7 +3516,7 @@ const ListaInscritosCurso = ({ curso, onBack, token }: { curso: CursoDB, onBack:
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
 

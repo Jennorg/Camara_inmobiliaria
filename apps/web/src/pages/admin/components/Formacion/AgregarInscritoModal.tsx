@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { useState } from 'react'
 import { FileText, Loader2, Plus, Trash2, X } from 'lucide-react'
 import { etiquetaDocumento } from '@/utils/formatters'
@@ -78,8 +79,8 @@ export default function AgregarInscritoModal({ programa, authHeaders, onCerrar, 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={guardando ? undefined : cerrar}>
-      <form role="dialog" aria-modal="true" aria-label={`Agregar inscrito a ${programa}`} onSubmit={guardar} noValidate
+    <Modal onClose={() => { if (!guardando) cerrar() }} aria-label="Agregar inscrito" className="flex items-center justify-center bg-slate-900/40 p-4" onClick={guardando ? undefined : cerrar}>
+      <form aria-label={`Agregar inscrito a ${programa}`} onSubmit={guardar} noValidate
         className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
@@ -162,6 +163,6 @@ export default function AgregarInscritoModal({ programa, authHeaders, onCerrar, 
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }

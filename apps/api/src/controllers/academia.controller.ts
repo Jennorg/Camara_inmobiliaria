@@ -10,7 +10,7 @@ import { guardarInstantanea, type Semilla } from '../lib/instantaneas.js'
 import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
-import { MENSAJE_PAGO_CIBIR_REQUERIDO, puedeEntrarACibir } from '../services/pagos.service.js'
+import { MENSAJE_PAGO_CIBIR_REQUERIDO, acreditarPrimeraCuotaDelCibir, cubrirMesActualCibir, puedeEntrarACibir } from '../services/pagos.service.js'
 import { agendarEntrevista } from '../services/entrevistas.service.js'
 import { asegurarAgenda } from '../services/agenda.service.js'
 import { borrarEventoPrevio } from './agenda.controller.js'
@@ -2837,6 +2837,8 @@ async function promocionarYVincularAfiliado(
   })
 
   const insertedAfiliadoId = resIns.rows[0]?.id_afiliado as number || null
+  // El bloque CIBIR ya trae la primera mensualidad: al pasar a Afiliado cubre su mes de afiliación
+  if (isTargetAfiliado && insertedAfiliadoId) await acreditarPrimeraCuotaDelCibir(insertedAfiliadoId).catch(e => console.error('acreditarPrimeraCuotaDelCibir:', e))
 
   // 5. Vincular estudiante
   await db.execute({
@@ -3276,7 +3278,13 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
     // --- PUENTE HACIA AFILIADOS (Si es AFILIACION) ---
     if (row.programa_codigo === 'AFILIACION') {
       try {
-        await promocionarYVincularAfiliado(row.id_estudiante, row.email, now, 'Afiliado')
+        const previo = await db.execute({
+          sql: `SELECT a.estatus FROM afiliados a JOIN estudiantes e ON a.id_persona = e.id_persona WHERE e.id_estudiante = ? LIMIT 1`,
+          args: [row.id_estudiante]
+        })
+        const veniaDelCibir = ['5_CIBIR', '6_INSCRIPCION'].includes(String(previo.rows[0]?.estatus))
+        const idAfiliado = await promocionarYVincularAfiliado(row.id_estudiante, row.email, now, 'Afiliado')
+        if (veniaDelCibir && idAfiliado) await cubrirMesActualCibir(idAfiliado, Number(req.user?.id) || 0)
       } catch (err) {
         console.error('Error promocionando afiliado en aprobación directa:', err)
       }

@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import Modal from '@/components/ui/Modal'
+import React, { useState } from 'react'
+import DateInput from '@/components/ui/DateInput'
 import { X } from 'lucide-react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -22,15 +24,10 @@ export default function ModalConvocarMediacion({
   const [loading, setLoading] = useState(false)
 
   const [fechaAudiencia, setFechaAudiencia] = useState('')
+  const [fechaAud = '', horaAud = ''] = fechaAudiencia.split('T')
   const [lugarModalidad, setLugarModalidad] = useState('Sede Cámara Inmobiliaria de Bolívar (Sala de Juntas)')
   const [notas, setNotas] = useState('')
 
-  useEffect(() => {
-    if (!isOpen) return
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) onClose() }
-    window.addEventListener('keydown', alTeclear)
-    return () => window.removeEventListener('keydown', alTeclear)
-  }, [isOpen, loading, onClose])
 
   if (!isOpen || !denuncia) return null
 
@@ -38,7 +35,7 @@ export default function ModalConvocarMediacion({
     e.preventDefault()
     if (loading) return
 
-    if (!fechaAudiencia) {
+    if (!fechaAud || !horaAud) {
       toast.error('Indica la fecha y la hora de la audiencia.')
       return
     }
@@ -85,14 +82,11 @@ export default function ModalConvocarMediacion({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 sm:p-6"
+    <Modal onClose={() => { if (!loading) onClose() }} aria-labelledby="titulo-mediacion"
+      className="flex items-end sm:items-center justify-center bg-slate-900/50 sm:p-6"
       onMouseDown={e => { if (e.target === e.currentTarget && !loading) onClose() }}
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="titulo-mediacion"
         className="flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white shadow-xl"
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
@@ -123,15 +117,24 @@ export default function ModalConvocarMediacion({
 
             <div>
               <label htmlFor="fecha-audiencia" className="text-sm font-semibold text-slate-900">Fecha y hora *</label>
-              <input
-                id="fecha-audiencia"
-                name="fecha_audiencia"
-                type="datetime-local"
-                required
-                value={fechaAudiencia}
-                onChange={e => setFechaAudiencia(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
-              />
+              {/* La fecha va con DateInput (dd/mm/aaaa sin depender del idioma del navegador); se guarda igual como AAAA-MM-DDTHH:mm */}
+              <div className="mt-1.5 grid grid-cols-[1fr_auto] gap-2">
+                <DateInput
+                  id="fecha-audiencia"
+                  required
+                  value={fechaAud}
+                  onChange={v => setFechaAudiencia(`${v}T${horaAud}`)}
+                  className="rounded-xl px-3.5 py-2.5"
+                />
+                <input
+                  type="time"
+                  required
+                  aria-label="Hora de la audiencia"
+                  value={horaAud}
+                  onChange={e => setFechaAudiencia(`${fechaAud}T${e.target.value}`)}
+                  className="rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                />
+              </div>
             </div>
 
             <div>
@@ -182,6 +185,6 @@ export default function ModalConvocarMediacion({
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }

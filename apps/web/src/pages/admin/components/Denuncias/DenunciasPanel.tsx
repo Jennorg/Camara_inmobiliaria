@@ -27,7 +27,7 @@ import {
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import ModalResolucionDenuncia from './ModalResolucionDenuncia'
 import ModalConvocarMediacion from './ModalConvocarMediacion'
 import type { 
@@ -714,18 +714,18 @@ export default function DenunciasPanel() {
 
           {/* Tabla */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div tabIndex={0} role="region" aria-label="Denuncias" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto">
+              <table className="w-full text-left text-xs"><caption className="sr-only">Denuncias</caption>
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    <th className="py-3 px-4">Código</th>
-                    <th className="py-3 px-4">Fecha</th>
-                    <th className="py-3 px-4">Denunciante</th>
-                    <th className="py-3 px-4">Afiliado Denunciado</th>
-                    <th className="py-3 px-4">Motivo / Título</th>
-                    <th className="py-3 px-4">Prioridad</th>
-                    <th className="py-3 px-4">Estatus</th>
-                    <th className="py-3 px-4 text-center">Acción</th>
+                    <th scope="col" className="py-3 px-4">Código</th>
+                    <th scope="col" className="py-3 px-4">Fecha</th>
+                    <th scope="col" className="py-3 px-4">Denunciante</th>
+                    <th scope="col" className="py-3 px-4">Afiliado Denunciado</th>
+                    <th scope="col" className="py-3 px-4">Motivo / Título</th>
+                    <th scope="col" className="py-3 px-4">Prioridad</th>
+                    <th scope="col" className="py-3 px-4">Estatus</th>
+                    <th scope="col" className="py-3 px-4 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">

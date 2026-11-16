@@ -4,7 +4,7 @@ import { SkeletonCard } from '@/components/Skeleton';
 import DashboardCard from '@/pages/landing/afiliado/components/DashboardCard';
 import { useAuth } from '@/context/AuthContext';
 import { API_URL } from '@/config/env';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 import { apiFetch } from '@/lib/apiClient';
 import { formatPrecioCurso } from '@/utils/formatters';
 
@@ -374,7 +374,7 @@ const WidgetAcademico = ({ onViewAll, limit = 4 }: WidgetAcademicoProps) => {
                 style={{ border: '1px solid var(--color-border-accent)' }}
               >
                 {course.imagen_url ? (
-                  <img
+                  <img loading="lazy"
                     src={course.imagen_url}
                     alt={course.nombre}
                     className={`w-full h-full object-cover transition-transform duration-500 ${!isEnrolled && 'group-hover:scale-110'}`}

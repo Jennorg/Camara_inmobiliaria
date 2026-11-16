@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
@@ -40,7 +41,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
   }
 
   const modalContent = (
-    <div className='fixed inset-0 z-[100] flex items-center justify-center p-4'>
+    <Modal onClose={onClose} aria-label="Iniciar sesión" className='flex items-center justify-center p-4'>
       {/* Fondo con desenfoque profundo */}
       <div className='absolute inset-0 bg-[#011a14]/60 backdrop-blur-md' onClick={onClose} />
 
@@ -61,7 +62,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           {/* Título e Icono Sutil */}
           <div className='mb-8 flex flex-col items-center text-center'>
             <div className='mb-6 flex flex-col items-center'>
-              <img
+              <img loading="lazy"
                 src={logo}
                 alt="Logo"
                 className='h-28 w-auto object-contain transition-transform hover:scale-105 duration-300'
@@ -159,7 +160,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 
   return (

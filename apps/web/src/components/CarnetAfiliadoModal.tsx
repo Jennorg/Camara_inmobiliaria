@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useRef, useState, useEffect, useReducer } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Loader2, Award, CheckCircle, RefreshCw, Pencil, Image as ImageIcon } from 'lucide-react';
@@ -64,7 +65,7 @@ function CarnetCropperModal({
   if (!showCropper || !imageToCrop) return null;
 
   return (
-    <div className="transition-opacity fixed inset-0 z-[99999] overflow-y-auto bg-slate-900/50 backdrop-blur-sm fade-in duration-200" aria-hidden="true" onClick={() => !savingCrop && onClose()}>
+    <Modal onClose={() => { if (!savingCrop) onClose() }} aria-label="Recortar foto" className="transition-opacity overflow-y-auto bg-slate-900/50 backdrop-blur-sm fade-in duration-200" onClick={() => !savingCrop && onClose()}>
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="transition-transform bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm mx-4 space-y-4 zoom-in-95 duration-200" aria-hidden="false" onClick={(e) => e.stopPropagation()}>
           <div className="flex justify-between items-center">
@@ -165,7 +166,7 @@ function CarnetCropperModal({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -473,8 +474,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
 
   return createPortal(
     <>
-      <div className="transition-opacity fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm fade-in duration-300" aria-hidden="true" onClick={onClose} />
-      <div className="fixed inset-0 z-[101] overflow-y-auto overscroll-y-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <Modal onClose={onClose} aria-label="Carnet de afiliado" className="transition-opacity overflow-y-auto overscroll-y-contain bg-slate-900/60 backdrop-blur-sm fade-in duration-300" onClick={onClose}>
         <div className="flex min-h-full items-center justify-center p-4">
           <div className="transition-transform relative bg-white dark:bg-[#022c22] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 dark:border-emerald-500/20 my-4 zoom-in-95 duration-200" aria-hidden="false" onClick={(e) => e.stopPropagation()}>
             <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-emerald-950/40 text-slate-400 hover:text-slate-600 dark:hover:text-emerald-200 transition-colors z-50" title="Cerrar ventana">
@@ -536,7 +536,7 @@ export default function CarnetAfiliadoModal({ isOpen, onClose, afiliado, onUpdat
             </div>
           </div>
         </div>
-      </div>
+      </Modal>
 
       <CarnetCropperModal
         showCropper={cropperState.showCropper}

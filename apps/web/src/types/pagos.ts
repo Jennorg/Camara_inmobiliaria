@@ -92,4 +92,6 @@ export interface ArancelDTO {
   monto_usd: number;
   categoria: 'afiliacion' | 'mensualidad' | 'formacion' | 'servicio';
   activo: number;
+  /** Solo el año adelantado: último día (YYYY-MM-DD) para pagarlo con el monto reducido */
+  fecha_limite?: string | null;
 }

@@ -1,4 +1,4 @@
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
 

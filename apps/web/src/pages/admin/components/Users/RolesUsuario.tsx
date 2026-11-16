@@ -1,4 +1,5 @@
-import { useEffect, useId, useState } from 'react'
+import ModalDialogo from '@/components/ui/Modal'
+import { useId, useState } from 'react'
 import { AlertTriangle, Loader2, ShieldCheck, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { API_URL } from '@/config/env'
@@ -46,18 +47,9 @@ export function ChipsRoles({ roles, catalogo }: { roles?: string[]; catalogo: Ro
 
 function Modal({ titulo, onClose, bloqueado, children }: { titulo: string; onClose: () => void; bloqueado: boolean; children: React.ReactNode }) {
   const id = useId()
-  useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null
-    return () => opener?.focus()
-  }, [])
-  useEffect(() => {
-    const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape' && !bloqueado) onClose() }
-    window.addEventListener('keydown', alTeclear)
-    return () => window.removeEventListener('keydown', alTeclear)
-  }, [bloqueado, onClose])
   return (
-    <div className='fixed -inset-10 z-[999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
-      <div role='dialog' aria-modal='true' aria-labelledby={id} className='bg-white rounded-2xl shadow-xl border border-slate-100 p-6 w-full max-w-md max-h-[85vh] overflow-y-auto'>
+    <ModalDialogo onClose={() => { if (!bloqueado) onClose() }} aria-labelledby={id} className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs'>
+      <div className='bg-white rounded-2xl shadow-xl border border-slate-100 p-6 w-full max-w-md max-h-[85vh] overflow-y-auto'>
         <div className='flex items-start justify-between gap-3 mb-4'>
           <h3 id={id} className='font-bold text-slate-800'>{titulo}</h3>
           <button type='button' onClick={onClose} disabled={bloqueado} aria-label='Cerrar' className={`p-1 rounded-lg text-slate-400 hover:text-slate-700 disabled:opacity-50 ${FOCO}`}>
@@ -66,7 +58,7 @@ function Modal({ titulo, onClose, bloqueado, children }: { titulo: string; onClo
         </div>
         {children}
       </div>
-    </div>
+    </ModalDialogo>
   )
 }
 

@@ -1,3 +1,5 @@
+import MenuEmergente from '@/components/ui/MenuEmergente';
+import Modal from '@/components/ui/Modal';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Users,
@@ -104,7 +106,7 @@ function AgentAvatar({
         className={`${className} rounded-2xl border-2 border-emerald-600/40 shadow-sm overflow-hidden shrink-0 flex items-center justify-center bg-slate-100 transition-colors`}
         style={{ aspectRatio: '155 / 185' }}
       >
-        <img
+        <img loading="lazy"
           src={fotoUrl}
           alt={nombre || 'Agente'}
           onLoad={(e) => {
@@ -840,8 +842,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
                   {showSearchDropdown && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                      <div className="transition-opacity transition-transform absolute left-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[120px] fade-in slide-in-from-top-1 duration-200">
+                      <MenuEmergente onClose={() => setShowSearchDropdown(false)} separacion={4} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[120px] fade-in slide-in-from-top-1 duration-200">
                         {([
                           { key: 'nombre', label: 'Nombre' },
                           { key: 'cedula', label: 'Cédula' },
@@ -861,7 +862,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                             {option.label}
                           </button>
                         ))}
-                      </div>
+                      </MenuEmergente>
                     </>
                   )}
                 </div>
@@ -1021,7 +1022,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
 
       {/* MODAL CONFIRMACIÓN VINCULAR INDEPENDIENTE */}
       {confirmVincular && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <Modal onClose={() => setConfirmVincular(null)} aria-label="Confirmar vinculación" className="flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setConfirmVincular(null)} />
           <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden">
             <div className="p-8">
@@ -1094,12 +1095,12 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* MODAL DE REGISTRO DIRECTO */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <Modal onClose={() => setShowModal(false)} aria-label="Agente corporativo" className="flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#022c22]/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
@@ -1133,7 +1134,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                   {/* Cédula */}
                   <div className="space-y-2">
                     <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Cédula</label>
-                    <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
+                    <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40 shadow-sm ${BOX_H}`}>
                       <select value={modalForm.cedulaPrefix} onChange={e => setModalForm(p => ({ ...p, cedulaPrefix: e.target.value }))}
                         className="bg-slate-50 border-r border-slate-200 px-4 h-full text-sm font-black text-slate-700 outline-none">
                         {['V', 'E', 'P'].map(p => <option key={p}>{p}</option>)}
@@ -1156,7 +1157,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
                   {/* Teléfono */}
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-[11px] font-black uppercase tracking-widest ml-1 text-slate-500">Teléfono</label>
-                    <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 shadow-sm ${BOX_H}`}>
+                    <div className={`flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/40 shadow-sm ${BOX_H}`}>
                       <span className="bg-slate-50 border-r border-slate-200 px-4 h-full flex items-center text-sm font-black text-slate-700">🇻🇪 +58</span>
                       <input type="tel" value={modalForm.telefono} onChange={e => setModalForm(p => ({ ...p, telefono: e.target.value }))}
                         placeholder="4XX 0000000" className="flex-1 px-5 h-full bg-white outline-none text-sm font-medium text-slate-800" />
@@ -1224,7 +1225,7 @@ export default function WidgetGestionAfiliadosCorp({ defaultTab = 'agentes' }: W
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

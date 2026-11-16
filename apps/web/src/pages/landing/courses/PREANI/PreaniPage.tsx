@@ -129,7 +129,7 @@ export default function PreaniPage() {
               ref={(el) => setRevealEstudiosa(el)}
               className="reveal-on-scroll absolute -bottom-50 -left-150 z-10 pointer-events-none hidden lg:block transition-colors duration-1000 opacity-0 [&.active]:opacity-20"
             >
-              <img
+              <img loading="lazy"
                 src={Estudiosa}
                 alt="Decoración"
                 className="h-[800px] w-auto max-w-none transform"
@@ -139,7 +139,7 @@ export default function PreaniPage() {
               ref={(el) => setRevealEstudioso(el)}
               className="reveal-on-scroll absolute -bottom-40 left-270 z-10 pointer-events-none hidden lg:block transition-colors duration-1000 opacity-0 [&.active]:opacity-20"
             >
-              <img
+              <img loading="lazy"
                 src={Estudioso}
                 alt="Decoración"
                 className="h-[650px] w-auto max-w-none transform"

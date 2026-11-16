@@ -1,4 +1,5 @@
 import bgBolivar from '@/assets/Pzo.webp'
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { useCachedConfig } from '@/hooks/useCachedConfig'
 import { STATIC } from '@/pages/landing/config/staticContent'
@@ -15,16 +16,11 @@ export default function Header({ darkMode }: { darkMode?: boolean }) {
       id='inicio'
       className='relative overflow-hidden px-6 lg:px-20 py-16 lg:py-16 grid lg:grid-cols-2 gap-12 items-center min-h-[90dvh]'
     >
-      {/* CAPA 1: IMAGEN CON ZOOM */}
-      <div
-        className='absolute inset-0 z-0 animate-bg-zoom'
-        style={{
-          backgroundImage: `linear-gradient(rgba(2, 99, 76, 0.49), rgba(2, 102, 79, 0.35)), url(${cfg['hero_img'] || bgBolivar})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed'
-        }}
-      />
+      {/* CAPA 1: IMAGEN CON ZOOM. Es un <img> (no background-image) para que el navegador la cargue con prioridad: es el LCP de la portada */}
+      <div className='absolute inset-0 z-0 animate-bg-zoom'>
+        <img src={cfg['hero_img'] || bgBolivar} alt='' fetchPriority='high' decoding='async' className='h-full w-full object-cover' />
+        <div aria-hidden='true' className='absolute inset-0' style={{ background: 'linear-gradient(rgba(2, 99, 76, 0.49), rgba(2, 102, 79, 0.35))' }} />
+      </div>
 
       {/* CAPA 2: TELÓN VERDE (Baja desde arriba) */}
       <div
@@ -39,10 +35,15 @@ export default function Header({ darkMode }: { darkMode?: boolean }) {
         className='relative z-20 space-y-6 animate-text-reveal'
         style={{ animationDelay: '0.8s', opacity: 0 }}
       >
-        <h1
-          className='text-white text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.1]'
-          dangerouslySetInnerHTML={{ __html: cfg['hero_titulo'] || s.titulo }}
-        />
+        {cfg['hero_titulo'] ? (
+          // El título del CMS se muestra como texto: solo se respetan los saltos de línea (<br>), nunca otro HTML
+          <h1 className='text-white text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.1]'>
+            {cfg['hero_titulo'].split(/<br\s*\/?>/i).map((linea, i) => <Fragment key={i}>{i > 0 && <br />}{linea.trim()}</Fragment>)}
+          </h1>
+        ) : (
+          // Texto estático del código (de confianza): lleva un <span> con estilo
+          <h1 className='text-white text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.1]' dangerouslySetInnerHTML={{ __html: s.titulo }} />
+        )}
 
         <p className='text-gray-300 text-lg max-w-md leading-relaxed'>
           {cfg['hero_subtitulo'] || s.subtitulo}

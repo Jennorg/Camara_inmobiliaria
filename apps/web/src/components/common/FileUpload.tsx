@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, FileText, CheckCircle2, AlertCircle, Loader2, Image as ImageIcon, FileUp, Crop, RefreshCw, ExternalLink } from 'lucide-react';
 import { API_URL } from '@/config/env';
@@ -397,7 +398,7 @@ export default function FileUpload({
                     <span className="text-[11px] font-bold text-emerald-700">Subiendo...</span>
                   </div>
                 ) : isUrlImage && (uploadedUrl || previewObjectUrl) ? (
-                  <img
+                  <img loading="lazy"
                     src={uploadedUrl || previewObjectUrl || ''}
                     alt="Logo preview"
                     className="max-h-[120px] max-w-[96%] w-auto h-auto object-contain transition-transform duration-300 group-hover:scale-105 filter drop-shadow-sm"
@@ -504,9 +505,9 @@ export default function FileUpload({
               {uploading ? (
                 <Loader2 size={22} className="animate-spin text-emerald-600" />
               ) : isUrlImage && uploadedUrl ? (
-                <img src={uploadedUrl} alt="Preview" className={`transition-opacity w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} fade-in duration-200`} />
+                <img loading="lazy" src={uploadedUrl} alt="Preview" className={`transition-opacity w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} fade-in duration-200`} />
               ) : isUrlImage && previewObjectUrl ? (
-                <img src={previewObjectUrl} alt="Preview" className={`transition-opacity w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} fade-in duration-200`} />
+                <img loading="lazy" src={previewObjectUrl} alt="Preview" className={`transition-opacity w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} fade-in duration-200`} />
               ) : (
                 <FileText size={22} />
               )}
@@ -606,7 +607,7 @@ export default function FileUpload({
       )}
 
       {showCropper && imageToCrop && (
-        <div className="transition-opacity fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
+        <Modal onClose={handleCropCancel} aria-label="Recortar imagen" className="transition-opacity flex items-center justify-center bg-slate-900/50 backdrop-blur-sm fade-in duration-200">
           <div className="bg-white w-full max-w-sm mx-4 rounded-3xl shadow-2xl p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-black text-slate-800 text-lg">Ajustar Imagen</h3>
@@ -729,7 +730,7 @@ export default function FileUpload({
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

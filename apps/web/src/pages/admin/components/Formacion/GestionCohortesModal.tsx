@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { Lock, LockOpen, Plus, X } from 'lucide-react'
 import type { Cohorte } from './CohortesNavegador'
 
@@ -13,11 +14,8 @@ interface Props {
 export default function GestionCohortesModal({ programa, cohortes, onCerrar, onNueva, onCambiarEstado }: Props) {
   const ordenadas = [...cohortes].sort((a, b) => b.numero - a.numero)
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onCerrar}>
+    <Modal onClose={onCerrar} aria-label={`Gestionar cohortes de ${programa}`} className="flex items-center justify-center bg-slate-900/40 p-4" onClick={onCerrar}>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Gestionar cohortes de ${programa}`}
         className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl"
         onClick={e => e.stopPropagation()}
       >
@@ -64,6 +62,6 @@ export default function GestionCohortesModal({ programa, cohortes, onCerrar, onN
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

@@ -1,9 +1,13 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Check, Loader2, Edit2, ShieldAlert } from 'lucide-react';
 import { ArancelDTO } from '@/types/pagos';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
+import DateInput from '@/components/ui/DateInput';
+
+const ARANCEL_ANUAL = 'mensualidad_anual_adelantada';
 
 interface ModalGestionArancelesProps {
   open?: boolean;
@@ -28,6 +32,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
   const [editMonto, setEditMonto] = useState<number>(0);
   const [editNombre, setEditNombre] = useState<string>('');
   const [editDesc, setEditDesc] = useState<string>('');
+  const [editFecha, setEditFecha] = useState<string>('');
 
   const fetchAranceles = async () => {
     setLoading(true);
@@ -55,6 +60,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
     setEditMonto(a.monto_usd);
     setEditNombre(a.nombre);
     setEditDesc(a.descripcion || '');
+    setEditFecha(a.fecha_limite || '');
   };
 
   const handleSave = async (codigo: string) => {
@@ -65,7 +71,8 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
         body: JSON.stringify({
           monto_usd: editMonto,
           nombre: editNombre,
-          descripcion: editDesc
+          descripcion: editDesc,
+          ...(codigo === ARANCEL_ANUAL && { fecha_limite: editFecha })
         })
       });
 
@@ -89,7 +96,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
   if (!effectiveOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Aranceles y tarifas gremiales" className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
       <div className="relative bg-white w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100 max-h-[90vh]">
         
         {/* Header */}
@@ -201,6 +208,23 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
                       </div>
                     </div>
 
+                    {a.codigo === ARANCEL_ANUAL && (isEditing ? (
+                      <label className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+                        Fecha límite para considerarlo adelanto
+                        <DateInput
+                          value={editFecha}
+                          onChange={(v) => setEditFecha(v)}
+                          className="px-2 py-1 rounded-lg border border-emerald-300 text-xs focus:outline-none"
+                        />
+                      </label>
+                    ) : (
+                      <p className="text-[11px] font-bold text-slate-600">
+                        {Number(a.monto_usd) > 0 && a.fecha_limite
+                          ? `Pagando las 12 cuotas hasta el ${a.fecha_limite.split('-').reverse().join('/')}`
+                          : 'Sin configurar (no se ofrece)'}
+                      </p>
+                    ))}
+
                     {isEditing ? (
                       <input
                         type="text"
@@ -223,7 +247,7 @@ export const ModalGestionAranceles: React.FC<ModalGestionArancelesProps> = ({
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };
 

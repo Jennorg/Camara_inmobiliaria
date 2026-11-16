@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect } from 'react'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
@@ -5,6 +6,7 @@ import { X, Check, DollarSign, FileText, UploadCloud, AlertCircle, Calculator, L
 import FileUpload from '@/components/common/FileUpload'
 import { toast } from 'sonner'
 import type { TxType, TxCategory } from '@/types/finanzas'
+import DateInput from '@/components/ui/DateInput'
 
 interface ModalRegistrarGastoProps {
   isOpen: boolean
@@ -219,7 +221,7 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Registrar compra o gasto" className="bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between shrink-0">
@@ -329,11 +331,10 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
               <label className="block text-[11px] font-bold text-slate-600 mb-1">
                 Fecha de Emisión *
               </label>
-              <input
-                type="date"
+              <DateInput
                 required
                 value={fecha}
-                onChange={e => setFecha(e.target.value)}
+                onChange={(v) => setFecha(v)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
             </div>
@@ -515,6 +516,6 @@ export default function ModalRegistrarGasto({ isOpen, onClose, onSuccess }: Moda
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }

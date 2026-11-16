@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal';
 import React, { useRef, useState, useEffect } from 'react';
 import { Download, Loader2, Award, RefreshCw, Pencil, Image as ImageIcon, X } from 'lucide-react';
 import { toJpeg } from 'html-to-image';
@@ -436,8 +437,8 @@ export default function WidgetCarnetAfiliado({
 
         {/* Modal Cropper Overlay */}
         {showCropper && imageToCrop && (
-          <div
-            className="transition-opacity fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm fade-in duration-200"
+          <Modal onClose={() => setShowCropper(false)} aria-label="Recortar foto"
+            className="transition-opacity flex items-center justify-center bg-slate-900/60 backdrop-blur-sm fade-in duration-200"
             onClick={() => !savingCrop && setShowCropper(false)}
           >
             <div
@@ -544,7 +545,7 @@ export default function WidgetCarnetAfiliado({
                 </button>
               </div>
             </div>
-          </div>
+          </Modal>
         )}
       </div>
     </DashboardCard>

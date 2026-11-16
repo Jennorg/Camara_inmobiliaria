@@ -1,6 +1,7 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
@@ -8,6 +9,7 @@ import { apiFetch } from '@/lib/apiClient'
 import { cleanSearchDigits, normalizeSearchText } from '@/utils/searchUtils'
 import { formatNombreCard } from '@/utils/formatters'
 import ModalCobroTaquilla from './ModalCobroTaquilla'
+import ModalPagosAfiliado from './ModalPagosAfiliado'
 import { accionDelMes, corregirMesSolvencia, type MesCorregible } from '@/utils/correccionesSolvencia'
 
 type EstadoMes = 'pagado' | 'en_revision' | 'deuda' | 'por_pagar' | 'adelantado'
@@ -87,6 +89,7 @@ export default function SolvenciaPanel() {
   const [guardando, setGuardando] = useState(false)
   const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
   const [pagando, setPagando] = useState<FilaSolvencia | null>(null)
+  const [viendo, setViendo] = useState<FilaSolvencia | null>(null)
 
   const cargar = useCallback(async () => {
     try {
@@ -240,15 +243,14 @@ export default function SolvenciaPanel() {
             </button>
             {menuCriterio && (
               <>
-                <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setMenuCriterio(false)} />
-                <div className="absolute left-0 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px]">
+                <MenuEmergente onClose={() => setMenuCriterio(false)} separacion={4} className="bg-white border border-slate-100 rounded-xl shadow-xl py-1 min-w-[130px]">
                   {CRITERIOS.map(c => (
                     <button key={c.key} type="button" onClick={() => { setCriterio(c.key); setMenuCriterio(false) }}
                       className={`w-full text-left px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors cursor-pointer ${criterio === c.key ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}>
                       {c.label}
                     </button>
                   ))}
-                </div>
+                </MenuEmergente>
               </>
             )}
           </div>
@@ -276,15 +278,15 @@ export default function SolvenciaPanel() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div tabIndex={0} role="region" aria-label="Solvencia mensual de los afiliados" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-sm"><caption className="sr-only">Solvencia mensual de los afiliados</caption>
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-              <th className="px-3 py-3 text-left w-14">N°</th>
-              <th className="px-3 py-3 text-left">Afiliado</th>
-              {MESES.map(m => <th key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
-              <th className="px-3 py-3 text-right">Deuda</th>
-              <th className="px-2 py-3 text-center w-12"><span className="sr-only">Registrar pago</span></th>
+              <th scope="col" className="px-3 py-3 text-left w-14">N°</th>
+              <th scope="col" className="px-3 py-3 text-left">Afiliado</th>
+              {MESES.map(m => <th scope="col" key={m} className="px-1 py-3 text-center w-9">{m}</th>)}
+              <th scope="col" className="px-3 py-3 text-right">Deuda</th>
+              <th scope="col" className="px-2 py-3 text-center w-12"><span className="sr-only">Registrar pago</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -293,9 +295,10 @@ export default function SolvenciaPanel() {
               <tr key={a.id_afiliado} className="hover:bg-slate-50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-400 tabular-nums">{a.codigo}</td>
                   <td className="px-3 py-2 max-w-[260px]">
-                    <span className="block font-bold text-slate-800 truncate leading-snug" title={a.razon_social ?? a.nombre}>
+                    <button type="button" onClick={() => setViendo(a)} title={`${a.razon_social ?? a.nombre} · ver pagos`}
+                      className="block max-w-full font-bold text-slate-800 truncate leading-snug text-left hover:text-emerald-700 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 rounded">
                       {a.razon_social || formatNombreCard(a.nombres, a.apellidos) || a.nombre}
-                    </span>
+                    </button>
                     {a.razon_social && (a.nombres || a.apellidos) && (
                       <span className="block text-[11px] font-semibold text-slate-400 truncate leading-tight mt-0.5">
                         Rep.{' '}<span className="text-slate-500">{formatNombreCard(a.nombres, a.apellidos)}</span>
@@ -339,6 +342,17 @@ export default function SolvenciaPanel() {
       <p className="text-xs text-slate-500 font-medium">
         Mensualidad de ${data.monto_mensual.toFixed(2)} USD. El mes en curso cuenta como deuda a partir del día {data.cobranza.diaVencimiento + 1}. Con más de {data.cobranza.mesesGracia} meses de deuda se bloquean el carnet, la constancia de solvencia y los certificados. Los afiliados sin historial importado deben desde el mes indicado arriba.
       </p>
+
+      {viendo && (
+        <ModalPagosAfiliado
+          idAfiliado={viendo.id_afiliado}
+          anio={anio}
+          nombre={viendo.razon_social || formatNombreCard(viendo.nombres, viendo.apellidos) || viendo.nombre}
+          representante={viendo.razon_social ? formatNombreCard(viendo.nombres, viendo.apellidos) : null}
+          // Desde el popup se pueden corregir meses: al cerrarlo se refresca la matriz
+          onClose={() => { setViendo(null); cargar() }}
+        />
+      )}
 
       {pagando && (
         <ModalCobroTaquilla

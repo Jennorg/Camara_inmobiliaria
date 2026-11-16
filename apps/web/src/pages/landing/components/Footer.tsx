@@ -24,7 +24,7 @@ export default function Footer() {
 
   return (
     <footer className='relative z-50 bg-[#022c22] px-6 lg:px-20 py-16 text-center border-t border-white/5 space-y-6'>
-      <img
+      <img loading="lazy"
         src={logo}
         alt='Logo Cámara Inmobiliaria de Bolívar - Inmobiliarias en Puerto Ordaz y Ciudad Bolívar'
         className='h-26 mx-auto '

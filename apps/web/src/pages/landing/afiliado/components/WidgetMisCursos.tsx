@@ -95,7 +95,7 @@ const WidgetMisCursos = () => {
           <div key={curso.id_inscripcion} className="flex flex-col border border-gray-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-colors bg-white relative">
             <div className="h-32 bg-gray-100 overflow-hidden relative">
               {curso.imagen_url ? (
-                <img src={curso.imagen_url} alt={curso.curso_nombre} className="w-full h-full object-cover" />
+                <img loading="lazy" src={curso.imagen_url} alt={curso.curso_nombre} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-r from-emerald-600 to-emerald-800 flex items-center justify-center">
                   <BookOpen className="text-white opacity-20" size={48} />

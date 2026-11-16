@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '@/context/AuthContext'
@@ -277,7 +278,7 @@ export const ConveniosPanel = () => {
               ) : form.logo_url ? (
                 <div className="transition-opacity transition-transform flex flex-col items-center gap-3 fade-in zoom-in duration-300">
                   <div className="relative">
-                    <img src={form.logo_url} alt="Preview" className="w-24 h-24 object-contain bg-white rounded-xl shadow-md border border-gray-100 p-2 ring-4 ring-emerald-50" />
+                    <img loading="lazy" src={form.logo_url} alt="Preview" className="w-24 h-24 object-contain bg-white rounded-xl shadow-md border border-gray-100 p-2 ring-4 ring-emerald-50" />
                     <div className="absolute -top-1 -right-1 bg-emerald-500 text-white p-1 rounded-full shadow-lg ring-2 ring-white">
                       <CheckCircle size={14} strokeWidth={3} />
                     </div>
@@ -342,7 +343,7 @@ export const ConveniosPanel = () => {
 
         {/* Modal de confirmación de eliminación */}
         {itemToDelete && createPortal(
-          <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+          <Modal onClose={() => setItemToDelete(null)} aria-label="Confirmar eliminación" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
             <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
               <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
                 <Trash2 size={32} />
@@ -371,7 +372,7 @@ export const ConveniosPanel = () => {
                 </button>
               </div>
             </div>
-          </div>,
+          </Modal>,
           document.body
         )}
       </>
@@ -406,7 +407,7 @@ export const ConveniosPanel = () => {
                 {/* LOGO CONTAINER PROTAGÓNICO */}
                 <div className="relative w-full h-36 sm:h-40 bg-gradient-to-b from-slate-50/80 to-slate-100/50 rounded-2xl border border-slate-200/60 shadow-inner flex items-center justify-center p-4 overflow-hidden group-hover:border-emerald-300 transition-colors">
                   {item.logo_url ? (
-                    <img 
+                    <img loading="lazy" 
                       src={item.logo_url} 
                       alt={item.nombre || 'Logo Convenio'} 
                       className="max-h-24 max-w-[85%] object-contain group-hover:scale-105 transition-transform duration-500 ease-out drop-shadow-xs" 
@@ -482,7 +483,7 @@ export const ConveniosPanel = () => {
               <div className="flex items-center justify-between gap-3 p-1 w-full group cursor-pointer">
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-slate-400 font-black text-sm flex-shrink-0 overflow-hidden p-1.5 shadow-xs">
-                    {item.logo_url ? <img src={item.logo_url} alt={item.nombre || 'Logo Convenio'} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
+                    {item.logo_url ? <img loading="lazy" src={item.logo_url} alt={item.nombre || 'Logo Convenio'} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className={`text-sm font-semibold truncate ${sel ? 'text-[#00B870]' : 'text-slate-800'}`}>
@@ -502,7 +503,7 @@ export const ConveniosPanel = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-slate-400 font-black text-xl overflow-hidden p-2 shadow-sm">
-                      {item.logo_url ? <img src={item.logo_url} alt={item.nombre || 'Logo Convenio'} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
+                      {item.logo_url ? <img loading="lazy" src={item.logo_url} alt={item.nombre || 'Logo Convenio'} className="w-full h-full object-contain" /> : (item.nombre?.charAt(0) || '?')}
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-800 leading-tight">{item.nombre}</h3>
@@ -535,7 +536,7 @@ export const ConveniosPanel = () => {
     </div>
       {/* Modal de confirmación de eliminación (Esquema Control de Acceso) */}
       {itemToDelete && createPortal(
-        <div className='fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
+        <Modal onClose={() => setItemToDelete(null)} aria-label="Confirmar eliminación" className='flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm'>
           <div className='transition-opacity transition-transform bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 w-full max-w-sm fade-in zoom-in duration-200 text-center'>
             <div className='w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mx-auto mb-4'>
               <Trash2 size={32} />
@@ -564,7 +565,7 @@ export const ConveniosPanel = () => {
               </button>
             </div>
           </div>
-        </div>,
+        </Modal>,
         document.body
       )}
     </>

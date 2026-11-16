@@ -53,6 +53,12 @@ async function sesion(page: Page, finanzas: Acciones) {
       afiliados: [{ id_afiliado: 10, codigo: '001', nombre: 'Luis Pérez', nombres: 'Luis', apellidos: 'Pérez', razon_social: null, cedula: 'V-2', rif: null, email: 'l@x', solvente: false, meses_deuda: 2, deuda_usd: 20, bloqueado: false, celdas: ['pagado', 'deuda', null, null, null, null, null, null, null, null, null, null] }],
     })),
   );
+  await page.route('**/api/pagos/solvencia/afiliado/10', (route) =>
+    route.fulfill(json({ monto_mensual: 10, solvente: false, meses_deuda: 2, deuda_usd: 20, meses: [
+      { periodo: '2026-01', estado: 'pagado', pago: null, historico: true, manual: false },
+      { periodo: '2026-02', estado: 'deuda', pago: null },
+    ] })),
+  );
   await page.route('**/api/pagos/admin/cuentas', (route) =>
     route.fulfill(json([{ id_cuenta: 1, tipo: 'transferencia', banco: 'Banesco', beneficiario: 'CIEBO', identificacion: 'J-1', numero_cuenta: '0134', telefono: null, email: null, instrucciones: null, activo: 1 }])),
   );
@@ -102,6 +108,12 @@ for (const [nombre, permisos, si] of [['solo «ver»', SOLO_VER, false], ['las c
       await expect(page.getByText('Luis Pérez')).toBeVisible();
       await presente(btn('Recordar a morosos'), si);
       await presente(btn('Registrar pago de Luis Pérez'), si);
+      // Clic en el nombre: popup de pagos; marcar el año adelantado solo con «editar»
+      await page.getByRole('button', { name: 'Luis Pérez', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Luis Pérez' })).toBeVisible();
+      await presente(btn('Marcar 2026 como año adelantado'), si);
+      if (si) await page.screenshot({ path: 'test-results/popup-solvencia.png' });
+      await page.getByRole('dialog', { name: 'Luis Pérez' }).getByRole('button', { name: 'Cerrar' }).click();
       await presente(btn(/Corregir$/), si);
       await presente(page.getByRole('button', { name: 'Guardar', exact: true }), si);
       await page.getByText(/Calendario de cobranza/).click(); // abre el <details>
@@ -145,4 +157,70 @@ test('Finanzas: crear sin eliminar muestra alta de cuenta pero no el borrado', a
   await expect(page.getByRole('button', { name: 'Registrar Cuenta' })).toBeVisible();
   await expect(page.getByTitle('Editar')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Eliminar la cuenta Banesco' })).toHaveCount(0);
+});
+
+// Modales sobre <dialog>: Esc cierra y devuelve el foco; SweetAlert y los toasts quedan encima del modal y se pueden usar
+test('modal nativo: Esc, foco de vuelta, SweetAlert y toast por encima del modal', async ({ page }) => {
+  await sesion(page, TODO);
+  // Después de sesion(): sus rutas comodín se registran antes y esta debe tener prioridad
+  await page.route('**/api/pagos/admin/solvencia/afiliado/10/sincerar-anual', (route) =>
+    route.fulfill(json({ anio: 2026, antes_usd: 120, despues_usd: 100 })),
+  );
+  await tab(page, 'Solvencia');
+  const nombre = page.getByRole('button', { name: 'Luis Pérez', exact: true });
+  const modal = page.getByRole('dialog', { name: 'Luis Pérez' });
+
+  await nombre.click();
+  await expect(modal).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(modal).toHaveCount(0);
+  await expect(nombre).toBeFocused();
+
+  await nombre.click();
+  await modal.getByRole('button', { name: 'Marcar 2026 como año adelantado' }).click();
+  // La confirmación se abre desde el modal y debe poder pulsarse (no quedar inerte debajo)
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
+  await expect(modal).toBeVisible();
+
+  // Esc sobre la alerta cierra solo la alerta, no el modal de debajo
+  await modal.getByRole('button', { name: 'Marcar 2026 como año adelantado' }).click();
+  await expect(page.getByRole('button', { name: 'Cancelar' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
+  await expect(modal).toBeVisible();
+
+  await modal.getByRole('button', { name: 'Marcar 2026 como año adelantado' }).click();
+  await page.getByRole('button', { name: 'Sí, fue año adelantado' }).click();
+  await expect(page.getByText('2026 reportado como año adelantado')).toBeVisible();
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: 'test-results/toast-sobre-modal.png', clip: { x: 900, y: 650, width: 380, height: 150 } });
+});
+
+// Menús desplegables en la capa superior (popover): se abren bajo su botón, se eligen, y cierran con Esc o clic fuera
+test('menú emergente: posición, selección, Esc y clic fuera', async ({ page }) => {
+  await sesion(page, TODO);
+  await tab(page, 'Solvencia');
+  const disparador = page.getByRole('button', { name: 'Nombre', exact: true });
+  const opcionCedula = page.getByRole('button', { name: 'Cédula', exact: true });
+
+  const b = (await disparador.boundingBox())!;
+  await disparador.click();
+  await expect(opcionCedula).toBeVisible();
+  const m = (await opcionCedula.boundingBox())!;
+  expect(m.y).toBeGreaterThan(b.y + b.height - 1); // debajo del botón, no en una esquina de la pantalla
+  expect(Math.abs(m.x - b.x)).toBeLessThan(40);
+  await page.screenshot({ path: 'test-results/menu-emergente.png', clip: { x: b.x - 20, y: b.y - 20, width: 360, height: 260 } });
+  await opcionCedula.click();
+  await expect(page.getByRole('button', { name: 'Cédula', exact: true })).toBeVisible(); // ahora es el criterio elegido
+  await expect(page.getByRole('button', { name: 'Correo', exact: true })).toHaveCount(0); // y el menú se cerró
+
+  await page.getByRole('button', { name: 'Cédula', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Correo', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Correo', exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Cédula', exact: true }).click();
+  await page.getByText('Centro de Control Financiero').click();
+  await expect(page.getByRole('button', { name: 'Correo', exact: true })).toHaveCount(0);
 });

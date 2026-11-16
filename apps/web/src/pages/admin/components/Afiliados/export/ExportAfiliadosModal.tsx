@@ -1,3 +1,5 @@
+import MenuEmergente from '@/components/ui/MenuEmergente'
+import Modal from '@/components/ui/Modal'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   X,
@@ -35,6 +37,7 @@ import {
   filterAfiliadosForExport,
 } from './filterAfiliadosForExport'
 import { generateAfiliadosPdf } from './generateAfiliadosPdf'
+import DateInput from '@/components/ui/DateInput'
 
 export interface ExportAfiliadosInitialFilters {
   tipo?: ExportTipoFilter
@@ -268,7 +271,7 @@ export default function ExportAfiliadosModal({
   if (!open) return null
 
   return (
-    <div className="transition-opacity fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 fade-in duration-200">
+    <Modal onClose={onClose} aria-label="Exportar afiliados" className="transition-opacity flex items-center justify-center p-3 sm:p-4 fade-in duration-200">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative w-full max-w-2xl flex flex-col bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden">
@@ -405,8 +408,7 @@ export default function ExportAfiliadosModal({
 
                     {showSearchDropdown && (
                       <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowSearchDropdown(false)} />
-                        <div className="transition-opacity transition-transform absolute left-0 top-full mt-1.5 bg-white border border-gray-100 rounded-xl shadow-xl py-1 z-50 min-w-[130px] fade-in slide-in-from-top-1 duration-200">
+                        <MenuEmergente onClose={() => setShowSearchDropdown(false)} separacion={6} className="transition-opacity transition-transform bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[130px] fade-in slide-in-from-top-1 duration-200">
                           {([
                             { key: 'todos', label: 'Todos' },
                             { key: 'nombre', label: 'Nombre' },
@@ -426,7 +428,7 @@ export default function ExportAfiliadosModal({
                               {option.label}
                             </button>
                           ))}
-                        </div>
+                        </MenuEmergente>
                       </>
                     )}
                   </div>
@@ -645,16 +647,14 @@ export default function ExportAfiliadosModal({
                   <Calendar size={12} className="text-emerald-600" /> Rango por Fecha de Registro
                 </label>
                 <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="date"
+                  <DateInput
                     value={filters.fechaDesde}
-                    onChange={(e) => setFilters((f) => ({ ...f, fechaDesde: e.target.value }))}
+                    onChange={(v) => setFilters((f) => ({ ...f, fechaDesde: v }))}
                     className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
-                  <input
-                    type="date"
+                  <DateInput
                     value={filters.fechaHasta}
-                    onChange={(e) => setFilters((f) => ({ ...f, fechaHasta: e.target.value }))}
+                    onChange={(v) => setFilters((f) => ({ ...f, fechaHasta: v }))}
                     className="w-full rounded-2xl border border-gray-200 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50/50 outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-colors"
                   />
                 </div>
@@ -741,6 +741,6 @@ export default function ExportAfiliadosModal({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

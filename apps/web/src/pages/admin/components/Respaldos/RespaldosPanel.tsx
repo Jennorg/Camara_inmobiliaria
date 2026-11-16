@@ -1,3 +1,4 @@
+import Modal from '@/components/ui/Modal'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArchiveRestore, DatabaseBackup, Download, Loader2, ShieldAlert, Trash2, Upload } from 'lucide-react'
 import { API_URL } from '@/config/env'
@@ -165,9 +166,9 @@ const RespaldosPanel = () => {
         <p className="rounded-xl bg-slate-100 px-5 py-4 text-sm text-slate-700">{error}</p>
       ) : almacenamiento && (
         <div className="overflow-hidden rounded-2xl border border-slate-200">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm"><caption className="sr-only">Respaldos de la base de datos</caption>
             <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-              <tr><th className="px-4 py-3">Fecha</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Registros</th><th className="px-4 py-3">Tamaño</th><th className="px-4 py-3">Creado por</th><th className="px-4 py-3 text-right">Acciones</th></tr>
+              <tr><th scope="col" className="px-4 py-3">Fecha</th><th scope="col" className="px-4 py-3">Tipo</th><th scope="col" className="px-4 py-3">Registros</th><th scope="col" className="px-4 py-3">Tamaño</th><th scope="col" className="px-4 py-3">Creado por</th><th scope="col" className="px-4 py-3 text-right">Acciones</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {respaldos.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-600">Aún no hay respaldos guardados. Genera el primero con «Generar respaldo ahora».</td></tr>}
@@ -193,7 +194,7 @@ const RespaldosPanel = () => {
       )}
 
       {origen && resumen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-restaurar">
+        <Modal onClose={cerrar} aria-labelledby="titulo-restaurar" className="flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#022c22]/60" aria-hidden="true" onClick={cerrar} />
           <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <h3 id="titulo-restaurar" className="text-xl font-black text-[#022c22]">Restaurar este respaldo</h3>
@@ -216,7 +217,7 @@ const RespaldosPanel = () => {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

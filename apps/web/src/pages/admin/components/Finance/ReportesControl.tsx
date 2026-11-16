@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FileDown, FileSpreadsheet, Loader2, Send } from 'lucide-react'
-import Swal from 'sweetalert2'
+import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -116,13 +116,13 @@ function MatrizPorConcepto({ anio, ruta, titulo, colorTotal, vacio }: { anio: nu
           <BotonExcel onClick={() => descargarXlsx(ruta, { anio }, authHeaders)} />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-xs tabular-nums">
+      <div tabIndex={0} role="region" aria-label="Resumen del reporte por concepto" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-xs tabular-nums"><caption className="sr-only">Resumen del reporte por concepto</caption>
           <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="px-3 py-3 text-left">Concepto</th>
-              {MESES.map(m => <th key={m} className="px-2 py-3 text-right">{m}</th>)}
-              <th className="px-3 py-3 text-right">Total</th>
+              <th scope="col" className="px-3 py-3 text-left">Concepto</th>
+              {MESES.map(m => <th scope="col" key={m} className="px-2 py-3 text-right">{m}</th>)}
+              <th scope="col" className="px-3 py-3 text-right">Total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -185,10 +185,10 @@ export function IngresosPorCohorte() {
           {programas.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-xs">
+      <div tabIndex={0} role="region" aria-label="Ingresos por cohorte" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-xs"><caption className="sr-only">Ingresos por cohorte</caption>
           <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
-            <tr><th className="px-3 py-3 text-left">Programa</th><th className="px-3 py-3 text-left">Cohorte</th><th className="px-3 py-3 text-left">Estado</th><th className="px-3 py-3 text-right">Inscritos</th><th className="px-3 py-3 text-right">Pagos</th><th className="px-3 py-3 text-right">Ingreso</th></tr>
+            <tr><th scope="col" className="px-3 py-3 text-left">Programa</th><th scope="col" className="px-3 py-3 text-left">Cohorte</th><th scope="col" className="px-3 py-3 text-left">Estado</th><th scope="col" className="px-3 py-3 text-right">Inscritos</th><th scope="col" className="px-3 py-3 text-right">Pagos</th><th scope="col" className="px-3 py-3 text-right">Ingreso</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filas.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-slate-400">Sin ingresos por cohorte.</td></tr>}
@@ -252,10 +252,10 @@ export function CuentasPorCobrar() {
           </button>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-xs">
+      <div tabIndex={0} role="region" aria-label="Cuentas por cobrar" className="focus-visible:outline-2 focus-visible:outline-emerald-600 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-xs"><caption className="sr-only">Cuentas por cobrar</caption>
           <thead className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
-            <tr><th className="px-3 py-3 text-left">Persona</th><th className="px-3 py-3 text-left">Detalle</th><th className="px-3 py-3 text-right">Monto</th><th className="px-3 py-3 text-right">Días</th><th className="px-3 py-3" /></tr>
+            <tr><th scope="col" className="px-3 py-3 text-left">Persona</th><th scope="col" className="px-3 py-3 text-left">Detalle</th><th scope="col" className="px-3 py-3 text-right">Monto</th><th scope="col" className="px-3 py-3 text-right">Días</th><th scope="col" className="px-3 py-3" /></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filas.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-slate-400">No hay cuentas por cobrar.</td></tr>}

@@ -1,9 +1,10 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Landmark, Trash2, Edit2, Check, Loader2, Info } from 'lucide-react';
 import { CuentaBancariaDTO, ETIQUETA_TIPO_CUENTA, type TipoCuenta } from '@/types/pagos';
 import { API_URL } from '@/config/env';
 import { useAuth } from '@/context/AuthContext';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 
 interface ModalGestionCuentasBancariasProps {
   open?: boolean;
@@ -198,7 +199,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
   if (!effectiveOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Cuentas receptoras" className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
       <div className="relative bg-white w-full max-w-2xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100 max-h-[90vh]">
         
         {/* Header */}
@@ -462,7 +463,7 @@ export const ModalGestionCuentasBancarias: React.FC<ModalGestionCuentasBancarias
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };
 

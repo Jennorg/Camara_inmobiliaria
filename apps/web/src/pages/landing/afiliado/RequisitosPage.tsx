@@ -219,10 +219,10 @@ export default function RequisitosPage() {
             <div className="relative group">
               {/* Watermarks */}
               <div className="absolute -top-40 -left-60 opacity-[0.03] pointer-events-none hidden lg:block">
-                <img src={Estudiosa} alt="" className="h-[600px] w-auto" />
+                <img loading="lazy" src={Estudiosa} alt="" className="h-[600px] w-auto" />
               </div>
               <div className="absolute -bottom-20 -right-60 opacity-[0.03] pointer-events-none hidden lg:block">
-                <img src={Estudioso} alt="" className="h-[500px] w-auto" />
+                <img loading="lazy" src={Estudioso} alt="" className="h-[500px] w-auto" />
               </div>
 
               <div id="formulario" className="relative z-10 p-8 sm:p-16 rounded-[3rem] bg-[#022c22] text-white text-center space-y-10 overflow-hidden shadow-2xl border border-white/5">

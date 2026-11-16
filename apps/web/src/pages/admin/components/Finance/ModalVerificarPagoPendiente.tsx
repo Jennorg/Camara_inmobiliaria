@@ -1,9 +1,10 @@
+import Modal from '@/components/ui/Modal';
 import React, { useState } from 'react';
 import { X, CheckCircle2, XCircle, ExternalLink, ShieldCheck, DollarSign, Calendar, Hash, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { PagoDTO } from '@/types/pagos';
 import { API_URL } from '@/config/env';
 import { formatDateLatina } from '@/utils/formatters';
-import Swal from 'sweetalert2';
+import Swal from '@/lib/swal';
 
 interface ModalVerificarPagoPendienteProps {
   open: boolean;
@@ -124,7 +125,7 @@ export const ModalVerificarPagoPendiente: React.FC<ModalVerificarPagoPendientePr
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
+    <Modal onClose={onClose} aria-label="Verificar pago" className="flex items-center justify-center p-4 sm:p-6 bg-[#022c22]/60 backdrop-blur-sm overflow-y-auto">
       <div className="relative bg-white w-full max-w-xl mx-auto rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-auto border border-emerald-100">
         
         {/* Header */}
@@ -281,7 +282,7 @@ export const ModalVerificarPagoPendiente: React.FC<ModalVerificarPagoPendientePr
         </div>
 
       </div>
-    </div>
+    </Modal>
   );
 };
 
