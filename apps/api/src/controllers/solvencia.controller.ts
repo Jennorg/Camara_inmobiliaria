@@ -2,6 +2,8 @@ import type { Request, Response } from 'express'
 import { db } from '../lib/db.js'
 import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js'
 import { calcularSolvencias, emitirConstanciaSolvencia, enviarRecordatorioManual, setConfigSolvencia, verificarConstanciaSolvencia } from '../services/cobranza.service.js'
+import { sincerarAnioAfiliado } from '../services/cuotas-importadas.service.js'
+import { ARANCEL_ANUAL, asegurarArancelAnual } from '../services/pagos.service.js'
 
 /** GET /api/pagos/solvencia/afiliado/:idAfiliado — admin, o el propio afiliado */
 export const getSolvenciaAfiliado = async (req: Request, res: Response): Promise<void> => {
@@ -111,6 +113,37 @@ export const adminEnviarRecordatorio = async (req: Request, res: Response): Prom
   } catch (error) {
     console.error('adminEnviarRecordatorio:', error)
     res.status(500).json({ success: false, message: 'No se pudo enviar el recordatorio' })
+  }
+}
+
+/**
+ * POST /api/pagos/admin/solvencia/afiliado/:idAfiliado/sincerar-anual — { anio } (temporal)
+ * Marca los 12 meses importados del año de ese afiliado como un año adelantado (revaloriza sus cuotas al monto anual).
+ */
+export const adminSincerarAnual = async (req: Request, res: Response): Promise<void> => {
+  const idAfiliado = Number(req.params.idAfiliado)
+  const anio = Number(req.body?.anio)
+  if (!Number.isInteger(idAfiliado) || !Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+    res.status(400).json({ success: false, message: 'Afiliado o año inválido' })
+    return
+  }
+  try {
+    await asegurarArancelAnual()
+    const r = await db.execute({ sql: `SELECT monto_usd FROM aranceles_config WHERE codigo = ?`, args: [ARANCEL_ANUAL] })
+    const montoAnual = Number(r.rows[0]?.monto_usd)
+    if (!(montoAnual > 0)) {
+      res.status(400).json({ success: false, message: 'Configure primero el monto del Año de Sostenimiento Adelantado en Aranceles' })
+      return
+    }
+    res.json({ success: true, data: await sincerarAnioAfiliado(idAfiliado, anio, montoAnual) })
+  } catch (error) {
+    const msg = (error as Error).message
+    if (msg.startsWith('El afiliado no tiene')) {
+      res.status(400).json({ success: false, message: msg })
+      return
+    }
+    console.error('adminSincerarAnual:', error)
+    res.status(500).json({ success: false, message: 'No se pudo actualizar el reporte' })
   }
 }
 

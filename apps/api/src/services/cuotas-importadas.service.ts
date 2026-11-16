@@ -114,3 +114,33 @@ export async function resumenCuotasImportadas(cond: { sql: string; args: any[] }
     })
   return { cantidad: Number(r.rows[0]?.n ?? 0), total_usd: Number(r.rows[0]?.total ?? 0) }
 }
+
+/** Reparte el monto anual en 12 cuotas en céntimos exactos (la diferencia de redondeo va a diciembre). */
+export function repartoAnual(totalUsd: number): number[] {
+  const centimos = Math.round(totalUsd * 100)
+  const base = Math.floor(centimos / 12)
+  return Array.from({ length: 12 }, (_, i) => (i === 11 ? centimos - base * 11 : base) / 100)
+}
+
+/**
+ * Temporal: el listado importado no distinguía el año pagado por adelantado de los meses sueltos. El personal decide, por
+ * afiliado, que sus 12 meses importados del año fueron un año adelantado: se revalorizan esas cuotas al monto anual para que
+ * el reporte financiero no cuente 12 × cuota. Los meses siguen pagados. Idempotente.
+ * Error si el afiliado no tiene los 12 meses del año en el listado importado (sin pagos reales que los cubran).
+ */
+export async function sincerarAnioAfiliado(idAfiliado: number, anio: number, montoAnual: number) {
+  await fijarMontoCuotas()
+  const r = await db.execute({
+    sql: `SELECT h.periodo, h.monto_usd FROM solvencia_historial h
+          WHERE h.id_afiliado = ? AND h.estado = 'pagado' AND h.fuente LIKE 'listado-%' AND h.periodo LIKE ? AND ${SIN_PAGO_REAL}`,
+    args: [idAfiliado, `${anio}-%`],
+  })
+  if (r.rows.length !== 12) throw new Error(`El afiliado no tiene los 12 meses de ${anio} pagados en el listado importado (tiene ${r.rows.length})`)
+  const reparto = repartoAnual(montoAnual)
+  const antes = (r.rows as any[]).reduce((t, f) => t + Number(f.monto_usd), 0)
+  await db.batch((r.rows as any[]).map(f => ({
+    sql: `UPDATE solvencia_historial SET monto_usd = ? WHERE id_afiliado = ? AND periodo = ?`,
+    args: [reparto[Number(String(f.periodo).slice(5, 7)) - 1], idAfiliado, String(f.periodo)],
+  })), 'write')
+  return { anio, antes_usd: Math.round(antes * 100) / 100, despues_usd: montoAnual }
+}

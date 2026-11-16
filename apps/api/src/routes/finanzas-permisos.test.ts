@@ -25,7 +25,7 @@ vi.mock('../controllers/pagos.controller.js', () => mockear([
   'adminMarcarMesSolvencia',
 ]))
 vi.mock('../controllers/solvencia.controller.js', () => mockear([
-  'getSolvenciaAfiliado', 'adminResumenSolvencia', 'adminSetInicioSolvencia', 'adminEnviarRecordatorio', 'emitirConstancia',
+  'getSolvenciaAfiliado', 'adminResumenSolvencia', 'adminSetInicioSolvencia', 'adminEnviarRecordatorio', 'adminSincerarAnual', 'emitirConstancia',
 ]))
 
 const { env } = await import('../config/env.js')
@@ -63,6 +63,7 @@ const RUTAS: [string, string, Accion][] = [
   ['get', '/api/pagos/admin/solvencia', 'ver'],
   ['put', '/api/pagos/admin/solvencia/config', 'editar'],
   ['post', '/api/pagos/admin/solvencia/recordatorio', 'editar'],
+  ['post', '/api/pagos/admin/solvencia/afiliado/1/sincerar-anual', 'editar'],
   ['get', '/api/pagos/admin/cursos-por-cobrar', 'ver'],
   ['put', '/api/pagos/admin/modalidad', 'editar'],
   ['get', '/api/pagos/admin/pagadores', 'ver'],
