@@ -1,7 +1,8 @@
 import { db } from '../lib/db.js';
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js';
 import { NotificationService } from './notification.service.js';
-import { calcularSolvencias, mesMasAntiguoImpago } from './cobranza.service.js';
+import { calcularSolvencias, hoyCaracas, mesMasAntiguoImpago } from './cobranza.service.js';
+import { sumarMeses } from '../lib/solvencia.js';
 import { fijarMontoCuotas, montoCuotaActual } from './cuotas-importadas.service.js';
 import { esCupoIlimitado, sqlOcupaCupo } from '../lib/cursos-pago.js';
 import { randomUUID } from 'crypto';
@@ -65,6 +66,9 @@ export interface ReportarPagoDigitalParams {
 
 const PERIODO_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+/** La primera cuota de quien se afilia desde el día 15 cubre el mes en curso y el siguiente (exonerado), por el mismo monto. */
+export const mesesPrimeraCuota = (hoy: string): number => (Number(hoy.slice(8, 10)) >= 15 ? 2 : 1);
+
 /**
  * [periodo, meses_cubiertos] a guardar en el pago. La mensualidad lleva el mes elegido
  * (por defecto el actual); la formalización cubre su primera mensualidad, el mes del pago.
@@ -73,7 +77,7 @@ function periodoArgs(
   params: { tipo_concepto: string; periodo?: string | null; meses_cubiertos?: number | null },
   now: string
 ): [string | null, number] {
-  if (params.tipo_concepto === 'formalizacion_afiliacion') return [now.slice(0, 7), 1];
+  if (params.tipo_concepto === 'formalizacion_afiliacion') { const hoy = hoyCaracas(); return [hoy.slice(0, 7), mesesPrimeraCuota(hoy)]; }
   if (params.tipo_concepto !== 'mensualidad') return [null, 1];
   const periodo = params.periodo && PERIODO_RE.test(params.periodo) ? params.periodo : now.slice(0, 7);
   const meses = Math.min(36, Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1)));
@@ -335,11 +339,11 @@ export async function acreditarPrimeraCuotaDelCibir(idAfiliado: number): Promise
   const { cibir, total } = await calcularMontoCibir(String(a.rows[0]?.tipo_afiliado || 'Natural'));
   if (cibir <= 0) return;
   await db.execute({
-    sql: `UPDATE pagos SET periodo = ?2, meses_cubiertos = 1
+    sql: `UPDATE pagos SET periodo = ?2, meses_cubiertos = ?5
           WHERE id_pago = (SELECT id_pago FROM pagos WHERE id_afiliado = ?1 AND tipo_concepto = 'curso_cibir' AND estatus IN ('Verificado', 'Pendiente')
                              AND eliminado_en IS NULL AND periodo IS NULL AND monto_usd_equivalente + ?4 >= ?3 ORDER BY id_pago LIMIT 1)
             AND NOT EXISTS (SELECT 1 FROM pagos WHERE id_afiliado = ?1 AND tipo_concepto = 'formalizacion_afiliacion' AND estatus IN ('Verificado', 'Pendiente') AND eliminado_en IS NULL)`,
-    args: [idAfiliado, new Date().toISOString().slice(0, 7), total, TOLERANCIA_USD],
+    args: [idAfiliado, hoyCaracas().slice(0, 7), total, TOLERANCIA_USD, mesesPrimeraCuota(hoyCaracas())],
   });
 }
 
@@ -874,6 +878,19 @@ export async function anularPago(idPago: number, motivo: string, userId: number,
  * lo que ya leen la línea de tiempo, el bloqueo por mora y los libros. Un mes cubierto por un pago real no se toca aquí:
  * ese pago se anula.
  */
+/** Hay un pago con recibo (verificado o por verificar) que cubre ese mes. */
+async function mesCubiertoPorPago(idAfiliado: number, periodo: string): Promise<boolean> {
+  const r = await db.execute({
+    sql: `SELECT 1 FROM pagos
+          WHERE id_afiliado = ? AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion', 'curso_cibir') AND estatus IN ('Verificado', 'Pendiente')
+            AND eliminado_en IS NULL AND periodo IS NOT NULL AND periodo <= ?
+            AND strftime('%Y-%m', date(periodo || '-01', '+' || (COALESCE(meses_cubiertos, 1) - 1) || ' months')) >= ?
+          LIMIT 1`,
+    args: [idAfiliado, periodo, periodo],
+  });
+  return r.rows.length > 0;
+}
+
 export async function marcarMesSolvencia(idAfiliado: number, periodo: string, pagado: boolean, userId: number) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodo)) throw Object.assign(new Error('periodo debe tener el formato AAAA-MM'), { status: 400 });
   if (pagado) {
@@ -886,15 +903,7 @@ export async function marcarMesSolvencia(idAfiliado: number, periodo: string, pa
     });
     return;
   }
-  const real = await db.execute({
-    sql: `SELECT 1 FROM pagos
-          WHERE id_afiliado = ? AND tipo_concepto IN ('mensualidad', 'formalizacion_afiliacion', 'curso_cibir') AND estatus IN ('Verificado', 'Pendiente')
-            AND eliminado_en IS NULL AND periodo IS NOT NULL AND periodo <= ?
-            AND strftime('%Y-%m', date(periodo || '-01', '+' || (COALESCE(meses_cubiertos, 1) - 1) || ' months')) >= ?
-          LIMIT 1`,
-    args: [idAfiliado, periodo, periodo],
-  });
-  if (real.rows.length) throw Object.assign(new Error('Ese mes está cubierto por un pago con recibo: anula el pago para dejarlo sin pagar'), { status: 409 });
+  if (await mesCubiertoPorPago(idAfiliado, periodo)) throw Object.assign(new Error('Ese mes está cubierto por un pago con recibo: anula el pago para dejarlo sin pagar'), { status: 409 });
   await db.execute({ sql: `DELETE FROM solvencia_historial WHERE id_afiliado = ? AND periodo = ? AND estado = 'pagado'`, args: [idAfiliado, periodo] });
 }
 
@@ -907,6 +916,8 @@ export async function cubrirMesActualCibir(idAfiliado: number, userId: number): 
   const { solvencias, hoy } = await calcularSolvencias([idAfiliado]);
   const mes = hoy.slice(0, 7);
   const estado = solvencias.get(idAfiliado)?.meses.find(m => m.periodo === mes)?.estado;
-  if (estado === 'pagado' || estado === 'en_revision') return;
-  await marcarMesSolvencia(idAfiliado, mes, true, userId);
+  if (estado !== 'pagado' && estado !== 'en_revision') await marcarMesSolvencia(idAfiliado, mes, true, userId);
+  // Desde el día 15 también queda exonerado el mes siguiente
+  const siguiente = sumarMeses(mes, 1);
+  if (mesesPrimeraCuota(hoy) === 2 && !(await mesCubiertoPorPago(idAfiliado, siguiente))) await marcarMesSolvencia(idAfiliado, siguiente, true, userId);
 }
