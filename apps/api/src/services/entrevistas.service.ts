@@ -7,12 +7,22 @@ export type EstudianteEntrevista = { nombre_completo: string; email: string | nu
  * Agenda (o reprograma) la entrevista de una inscripción: la pasa a Entrevista, guarda la fila de `entrevistas` y
  * mueve al afiliado a la etapa 3_ENTREVISTA. El correo lo envía quien llama con el `estudiante` devuelto.
  */
+/**
+ * Estatus de la inscripción `ic` según el que mandan las acciones: en la afiliación lo dicta la etapa del afiliado
+ * (la inscripción puede quedar desfasada); Verificación cuenta como Preinscrito (aún decide). El resto, el suyo.
+ */
+export const ESTATUS_SEGUN_ETAPA_SQL = `CASE WHEN ic.programa_codigo = 'AFILIACION' AND ic.estatus NOT IN ('Rechazado', 'Cancelado') THEN COALESCE((
+    SELECT CASE af.estatus WHEN '1_PREINSCRIPCION' THEN 'Preinscrito' WHEN '2_EXPEDIENTE' THEN 'Preinscrito' WHEN '4_VERIFICACION' THEN 'Preinscrito'
+                           WHEN '3_ENTREVISTA' THEN 'Entrevista' WHEN '5_CIBIR' THEN 'Inscrito' WHEN '6_INSCRIPCION' THEN 'Inscrito' WHEN 'Afiliado' THEN 'Inscrito' END
+    FROM estudiantes e_et JOIN afiliados af ON (e_et.id_persona = af.id_persona OR (e_et.id_empresa IS NOT NULL AND e_et.id_empresa = af.id_empresa))
+    WHERE e_et.id_estudiante = ic.id_estudiante LIMIT 1), ic.estatus) ELSE ic.estatus END`
+
 export async function agendarEntrevista(client: Pick<Client, 'execute'>, idInscripcion: number, datos: DatosEntrevista) {
   const now = new Date().toISOString()
   const result = await client.execute({
-    sql: `UPDATE inscripciones_cursos
+    sql: `UPDATE inscripciones_cursos AS ic
           SET estatus='Entrevista', actualizado_en=?
-          WHERE id_inscripcion=? AND estatus IN ('Preinscrito', 'Entrevista')
+          WHERE ic.id_inscripcion=? AND (${ESTATUS_SEGUN_ETAPA_SQL}) IN ('Preinscrito', 'Entrevista')
           RETURNING *`,
     args: [now, idInscripcion],
   })

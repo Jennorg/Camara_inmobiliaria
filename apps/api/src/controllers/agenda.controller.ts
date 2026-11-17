@@ -3,6 +3,7 @@ import { env } from '../config/env.js'
 import { enviarCorreoEnlaceAgenda } from '../lib/email.js'
 import { db } from '../lib/db.js'
 import { asegurarAgenda, crearEnlace, guardarDisponibilidad, horariosLibres, leerDisponibilidad, reservar, verificarAgendaLista } from '../services/agenda.service.js'
+import { ESTATUS_SEGUN_ETAPA_SQL } from '../services/entrevistas.service.js'
 import { crearGoogleCalendar } from '../services/google-calendar.service.js'
 
 const google = crearGoogleCalendar()
@@ -41,7 +42,7 @@ export const adminEnviarEnlaceAgenda = async (req: Request, res: Response) => {
   try {
     await asegurarAgenda(db)
     const r = await db.execute({
-      sql: `SELECT ic.estatus,
+      sql: `SELECT ${ESTATUS_SEGUN_ETAPA_SQL} AS estatus,
                    COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) AS nombre,
                    COALESCE(p.email, emp.email) AS email
             FROM inscripciones_cursos ic

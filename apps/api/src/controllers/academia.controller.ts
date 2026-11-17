@@ -11,7 +11,7 @@ import { env } from '../config/env.js'
 import { obtenerSiguienteCodigoAfiliado } from '../lib/afiliados.js'
 import { toTitleCase } from '../lib/formatters.js'
 import { MENSAJE_PAGO_CIBIR_REQUERIDO, acreditarPrimeraCuotaDelCibir, cubrirMesActualCibir, puedeEntrarACibir } from '../services/pagos.service.js'
-import { agendarEntrevista } from '../services/entrevistas.service.js'
+import { agendarEntrevista, ESTATUS_SEGUN_ETAPA_SQL } from '../services/entrevistas.service.js'
 import { asegurarAgenda } from '../services/agenda.service.js'
 import { borrarEventoPrevio } from './agenda.controller.js'
 import { esCupoIlimitado, precioCurso, sqlOcupaCupo, venceReserva } from '../lib/cursos-pago.js'
@@ -2760,17 +2760,12 @@ async function promocionarYVincularAfiliado(
     return null
   }
 
-  // 2. Obtener el usuario por email
-  const userRes = await db.execute({
-    sql: `SELECT id, roles FROM users WHERE email = ?`,
-    args: [email]
-  })
-  if (userRes.rows.length === 0) {
-    console.error(`[promocionarYVincularAfiliado] No se encontró usuario para email=${email}`)
-    return null
-  }
-  const user = userRes.rows[0] as any
-  const userId = user.id
+  // 2. El usuario solo se vincula al aprobar el CIBIR (Inscripción o Afiliado); antes la etapa avanza sin cuenta.
+  const conAcceso = ['Afiliado', '6_INSCRIPCION'].includes(targetStatus)
+  const user = conAcceso
+    ? (await db.execute({ sql: `SELECT id, roles FROM users WHERE email = ?`, args: [email] })).rows[0] as any
+    : undefined
+  const userId = user?.id ?? null
 
   // 3. Generar el código correlativo de Afiliado usando el helper (solo si es Afiliado aprobado)
   const isTargetAfiliado = targetStatus === 'Afiliado'
@@ -2843,7 +2838,7 @@ async function promocionarYVincularAfiliado(
   // 5. Vincular estudiante
   await db.execute({
     sql: `UPDATE estudiantes 
-          SET id_user = ?, 
+          SET id_user = COALESCE(?, id_user), 
               tipo = ?, 
               actualizado_en = ? 
           WHERE id_estudiante = ?`,
@@ -2856,25 +2851,27 @@ async function promocionarYVincularAfiliado(
   })
 
   // 6. Asignar rol 'afiliado' en users
-  let roles: string[] = []
-  if (typeof user.roles === 'string' && user.roles.startsWith('[')) {
-    try {
-      roles = JSON.parse(user.roles)
-    } catch {
+  if (user) {
+    let roles: string[] = []
+    if (typeof user.roles === 'string' && user.roles.startsWith('[')) {
+      try {
+        roles = JSON.parse(user.roles)
+      } catch {
+        roles = [user.roles]
+      }
+    } else if (typeof user.roles === 'string') {
       roles = [user.roles]
     }
-  } else if (typeof user.roles === 'string') {
-    roles = [user.roles]
-  }
 
-  if (!roles.includes('afiliado')) {
-    roles.push('afiliado')
-  }
+    if (!roles.includes('afiliado')) {
+      roles.push('afiliado')
+    }
 
-  await db.execute({
-    sql: `UPDATE users SET roles = ?, actualizado_en = ? WHERE id = ?`,
-    args: [JSON.stringify(roles), now, userId]
-  })
+    await db.execute({
+      sql: `UPDATE users SET roles = ?, actualizado_en = ? WHERE id = ?`,
+      args: [JSON.stringify(roles), now, userId]
+    })
+  }
 
   if (insertedAfiliadoId) {
     try {
@@ -2912,7 +2909,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
 
     // 1. Obtener datos actuales
     const currentRes = await db.execute({
-      sql: `SELECT ic.*, 
+      sql: `SELECT ic.*, ${ESTATUS_SEGUN_ETAPA_SQL} AS estatus_etapa,
                    COALESCE(p.email, emp.email) as email,
                    COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
@@ -2930,7 +2927,7 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
 
     const row = currentRes.rows[0] as any
 
-    if (row.estatus !== 'Preinscrito') {
+    if (row.estatus_etapa !== 'Preinscrito') {
       res.status(400).json({ success: false, message: 'La inscripción debe estar en estatus Preinscrito para ser remitida.' })
       return
     }
@@ -2945,8 +2942,13 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
       return
     }
 
-    // 2. Marcar como 'Inscrito' (o mantener AFILIACION pero procesado)
-    // Para simplificar, lo aprobamos como 'Inscrito' sin cambiar el programa_codigo (sigue siendo AFILIACION)
+    // 2. Pasar al afiliado a la etapa CIBIR primero: si no se puede, la inscripción no se toca (evita el desfase)
+    if (!(await promocionarYVincularAfiliado(row.id_estudiante, row.email, now, '5_CIBIR'))) {
+      res.status(500).json({ success: false, message: 'No se pudo pasar al aspirante a la etapa CIBIR.' })
+      return
+    }
+
+    // 3. Marcar como 'Inscrito' sin cambiar el programa_codigo (sigue siendo AFILIACION)
     await db.execute({
       sql: `UPDATE inscripciones_cursos 
             SET estatus='Inscrito', aprobado_por=?, actualizado_en=?, nota_admin='Remitido a CIBIR por falta de requisitos de acreditación directa.'
@@ -2955,13 +2957,6 @@ export const adminRemitirACibir = async (req: Request, res: Response): Promise<v
     })
 
     // El aspirante no tiene acceso al sistema hasta que la Junta Directiva apruebe su CIBIR
-
-    // 4. Vincular como Afiliado con estatus '5_CIBIR'
-    try {
-      await promocionarYVincularAfiliado(row.id_estudiante, row.email, now, '5_CIBIR')
-    } catch (err) {
-      console.error('Error al mapear preinscripción a CIBIR:', err)
-    }
 
     // 5. Enviar correo de invitación a CIBIR
     try {
@@ -3193,7 +3188,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
 
     // Obtener datos actuales
     const currentRes = await db.execute({
-      sql: `SELECT ic.*, 
+      sql: `SELECT ic.*, ${ESTATUS_SEGUN_ETAPA_SQL} AS estatus_etapa,
                    COALESCE(p.email, emp.email) as email,
                    COALESCE(NULLIF(TRIM(COALESCE(p.nombres, '') || ' ' || COALESCE(p.apellidos, '')), ''), emp.razon_social) as nombre_completo
             FROM inscripciones_cursos ic
@@ -3211,7 +3206,7 @@ export const adminAprobarModulo = async (req: Request, res: Response): Promise<v
 
     const row = currentRes.rows[0] as any
 
-    if (row.estatus !== 'Preinscrito') {
+    if (row.estatus_etapa !== 'Preinscrito') {
       res.status(400).json({ success: false, message: 'La inscripción debe estar en estatus Preinscrito para aprobación directa.' })
       return
     }
