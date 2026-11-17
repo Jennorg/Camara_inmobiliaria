@@ -117,8 +117,8 @@ export const adminEnviarRecordatorio = async (req: Request, res: Response): Prom
 }
 
 /**
- * POST /api/pagos/admin/solvencia/afiliado/:idAfiliado/sincerar-anual — { anio } (temporal)
- * Marca los 12 meses importados del año de ese afiliado como un año adelantado (revaloriza sus cuotas al monto anual).
+ * POST /api/pagos/admin/solvencia/afiliado/:idAfiliado/sincerar-anual — { anio }
+ * Marca los 12 meses pagados sin recibo (importados o a mano) del año de ese afiliado como un año adelantado (revaloriza sus cuotas al monto anual).
  */
 export const adminSincerarAnual = async (req: Request, res: Response): Promise<void> => {
   const idAfiliado = Number(req.params.idAfiliado)

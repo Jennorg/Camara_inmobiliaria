@@ -123,19 +123,19 @@ export function repartoAnual(totalUsd: number): number[] {
 }
 
 /**
- * Temporal: el listado importado no distinguía el año pagado por adelantado de los meses sueltos. El personal decide, por
- * afiliado, que sus 12 meses importados del año fueron un año adelantado: se revalorizan esas cuotas al monto anual para que
- * el reporte financiero no cuente 12 × cuota. Los meses siguen pagados. Idempotente.
- * Error si el afiliado no tiene los 12 meses del año en el listado importado (sin pagos reales que los cubran).
+ * El personal decide, por afiliado, que los 12 meses del año marcados como pagados sin recibo (listado importado o
+ * marcados a mano en Solvencia, p. ej. por error mes a mes) fueron un año adelantado: se revalorizan esas cuotas al monto
+ * anual para que el reporte financiero no cuente 12 × cuota. Los meses siguen pagados. Idempotente.
+ * Error si el afiliado no tiene los 12 meses del año así marcados (sin pagos reales que los cubran).
  */
 export async function sincerarAnioAfiliado(idAfiliado: number, anio: number, montoAnual: number) {
   await fijarMontoCuotas()
   const r = await db.execute({
     sql: `SELECT h.periodo, h.monto_usd FROM solvencia_historial h
-          WHERE h.id_afiliado = ? AND h.estado = 'pagado' AND h.fuente LIKE 'listado-%' AND h.periodo LIKE ? AND ${SIN_PAGO_REAL}`,
+          WHERE h.id_afiliado = ? AND h.estado = 'pagado' AND h.periodo LIKE ? AND ${SIN_PAGO_REAL}`,
     args: [idAfiliado, `${anio}-%`],
   })
-  if (r.rows.length !== 12) throw new Error(`El afiliado no tiene los 12 meses de ${anio} pagados en el listado importado (tiene ${r.rows.length})`)
+  if (r.rows.length !== 12) throw new Error(`El afiliado no tiene los 12 meses de ${anio} marcados como pagados en Solvencia (tiene ${r.rows.length})`)
   const reparto = repartoAnual(montoAnual)
   const antes = (r.rows as any[]).reduce((t, f) => t + Number(f.monto_usd), 0)
   await db.batch((r.rows as any[]).map(f => ({

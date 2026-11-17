@@ -58,11 +58,11 @@ export default function ModalPagosAfiliado({ idAfiliado, nombre, representante, 
       .catch(e => setError(e.message))
   }, [idAfiliado, authHeaders])
 
-  // Temporal: el listado importado no distinguía el año adelantado de los meses sueltos; el personal lo decide por afiliado
+  // El listado importado (o marcar mes a mes en Solvencia) no distingue el año adelantado de los meses sueltos; el personal lo decide por afiliado
   const marcarAnioAdelantado = async () => {
     const ok = await Swal.fire({
       title: `¿${nombre} pagó ${anio} por adelantado?`,
-      text: `Sus 12 meses de ${anio} del listado importado se reportarán en Finanzas con el monto del año adelantado en lugar de 12 cuotas. Sigue solvente todo el año.`,
+      text: `Sus 12 meses de ${anio} marcados como pagados se reportarán en Finanzas con el monto del año adelantado en lugar de 12 cuotas. Sigue solvente todo el año.`,
       icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, fue año adelantado', cancelButtonText: 'Cancelar', confirmButtonColor: '#059669',
     })
     if (!ok.isConfirmed) return
@@ -88,7 +88,7 @@ export default function ModalPagosAfiliado({ idAfiliado, nombre, representante, 
           </div>
           {puede('finanzas', 'editar') && (
             <button type="button" onClick={marcarAnioAdelantado}
-              title={`Si el listado importado marca los 12 meses de ${anio}, reportarlos como un año pagado por adelantado`}
+              title={`Si los 12 meses de ${anio} están marcados como pagados (importados o a mano), reportarlos como un año pagado por adelantado`}
               className="ml-auto shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-[11px] font-black uppercase tracking-wider text-teal-800 hover:bg-teal-100">
               <CalendarPlus size={13} aria-hidden="true" /> Marcar {anio} como año adelantado
             </button>
