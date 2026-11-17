@@ -224,3 +224,24 @@ test('menú emergente: posición, selección, Esc y clic fuera', async ({ page }
   await page.getByText('Centro de Control Financiero').click();
   await expect(page.getByRole('button', { name: 'Correo', exact: true })).toHaveCount(0);
 });
+
+// Solvencia: tocar un mes que aún no transcurre abre el cobro con los meses hasta él; si cubre el año en curso, pronto pago
+test('solvencia: pagar hasta un mes futuro aplica el pronto pago del año en curso', async ({ page }) => {
+  await sesion(page, TODO);
+  await page.route('**/api/pagos/aranceles', (route) => route.fulfill(json([{ codigo: 'mensualidad_base', monto_usd: 10 }])));
+  // Respuesta lenta: mientras llega, el modal no debe mostrar meses ni montos a medias
+  await page.route('**/api/pagos/solvencia/afiliado/10', async (route) =>
+    (await new Promise(r => setTimeout(r, 1500)), route.fulfill(json({
+      monto_mensual: 10, solvente: false, meses_deuda: 10, deuda_usd: 100,
+      meses: Array.from({ length: 11 }, (_, i) => ({ periodo: `2026-${String(i + 1).padStart(2, '0')}`, estado: i < 10 ? 'deuda' : 'por_pagar', pago: null })),
+      oferta_anual: { anio: 2026, monto: 90, fecha_limite: '2026-12-24' },
+    }))),
+  );
+  await tab(page, 'Solvencia');
+
+  await page.getByRole('button', { name: 'Pagar mensualidades de Luis Pérez hasta Dic 2026' }).click();
+  await expect(page.getByRole('status', { name: 'Cargando meses y montos' })).toBeVisible();
+  await expect(page.getByText(/Total: \$/)).toBeHidden();
+  await expect(page.getByText('Año 2026 adelantado aplicado')).toBeVisible();
+  await expect(page.getByText('Total: $90.00')).toBeVisible();
+});

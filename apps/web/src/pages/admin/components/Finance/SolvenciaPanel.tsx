@@ -1,6 +1,6 @@
 import MenuEmergente from '@/components/ui/MenuEmergente'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react'
+import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Plus, Search, X } from 'lucide-react'
 import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -88,7 +88,7 @@ export default function SolvenciaPanel() {
   const [soloMora, setSoloMora] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [cobranza, setCobranza] = useState<ConfigCobranza | null>(null)
-  const [pagando, setPagando] = useState<FilaSolvencia | null>(null)
+  const [pagando, setPagando] = useState<{ fila: FilaSolvencia; hasta?: string } | null>(null)
   const [viendo, setViendo] = useState<FilaSolvencia | null>(null)
 
   const cargar = useCallback(async () => {
@@ -316,6 +316,14 @@ export default function SolvenciaPanel() {
                         ) : (
                           <span title={`${MESES[i]} ${anio}: ${CELDA[c].titulo}`} className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-black ${CELDA[c].clase}`}>{CELDA[c].marca}</span>
                         )
+                      ) : puedeCrear && `${anio}-${String(i + 1).padStart(2, '0')}` > data.mes_actual ? (
+                        // Mes que aún no transcurre: cobrar hasta él (aplica el pronto pago si cubre el año en curso)
+                        <button type="button" onClick={() => setPagando({ fila: a, hasta: `${anio}-${String(i + 1).padStart(2, '0')}` })}
+                          title={`${MESES[i]} ${anio}: pagar hasta este mes`}
+                          aria-label={`Pagar mensualidades de ${a.nombre} hasta ${MESES[i]} ${anio}`}
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-dashed border-slate-300 text-slate-300 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+                          <Plus size={11} aria-hidden="true" />
+                        </button>
                       ) : <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-200" />}
                     </td>
                   ))}
@@ -324,7 +332,7 @@ export default function SolvenciaPanel() {
                     {a.bloqueado && <span className="block text-[11px] font-black uppercase tracking-wider text-red-700">Bloqueado</span>}
                   </td>
                   <td className="px-2 py-2 text-center">
-                    {puedeCrear && <button type="button" onClick={() => setPagando(a)} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}
+                    {puedeCrear && <button type="button" onClick={() => setPagando({ fila: a })} title="Registrar pago de mensualidades (incluye adelantos)" aria-label={`Registrar pago de ${a.nombre}`}
                       className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 cursor-pointer"><CalendarPlus size={14} aria-hidden="true" /></button>}
                   </td>
                 </tr>
@@ -359,9 +367,10 @@ export default function SolvenciaPanel() {
           open
           onClose={() => setPagando(null)}
           onSuccess={() => { toast.success('Pago registrado'); cargar() }}
-          afiliadoId={pagando.id_afiliado}
-          afiliadoNombre={pagando.nombre}
+          afiliadoId={pagando.fila.id_afiliado}
+          afiliadoNombre={pagando.fila.nombre}
           conceptoDefault="mensualidad"
+          hastaPeriodo={pagando.hasta}
           authHeaders={authHeaders}
         />
       )}

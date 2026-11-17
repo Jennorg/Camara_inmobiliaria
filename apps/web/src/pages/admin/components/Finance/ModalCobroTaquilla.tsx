@@ -5,6 +5,7 @@ import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { API_URL } from '@/config/env';
 import { MetodoPago, TipoConceptoPago, PagoDTO } from '@/types/pagos';
 import Swal from '@/lib/swal';
+import { Skeleton } from '@/components/Skeleton';
 import SelectorMesesPago, { cubreAnioOferta, mesesPagables, totalMeses, type OfertaAnual } from '@/pages/landing/afiliado/components/SelectorMesesPago';
 
 /** Inscripción a un curso de pago que se cobra en taquilla (puede ser de alguien sin afiliación). */
@@ -36,6 +37,8 @@ interface ModalCobroTaquillaProps {
   idEdicionCibir?: number | null;
   cursoPorCobrar?: CursoPorCobrar | null;
   programaPorCobrar?: ProgramaPorCobrar | null;
+  /** Mensualidad: deja seleccionados los meses hasta este (AAAA-MM), p. ej. al tocar un mes futuro en Solvencia */
+  hastaPeriodo?: string;
   authHeaders: Record<string, string>;
 }
 
@@ -55,6 +58,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   idEdicionCibir = null,
   cursoPorCobrar = null,
   programaPorCobrar = null,
+  hastaPeriodo,
   authHeaders
 }) => {
   const [tipoConcepto, setTipoConcepto] = useState<TipoConceptoPago>(conceptoDefault);
@@ -68,7 +72,9 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   const [bancoOrigen, setBancoOrigen] = useState<string>('');
   const [notas, setNotas] = useState<string>('Recibido en taquilla de sede administrativa');
   const [loading, setLoading] = useState<boolean>(false);
-  const [loadingAranceles, setLoadingAranceles] = useState<boolean>(false);
+  // Arrancan en true: el formulario no se muestra hasta tener aranceles, meses del afiliado y la preselección
+  const [loadingAranceles, setLoadingAranceles] = useState<boolean>(true);
+  const [cargandoSolvencia, setCargandoSolvencia] = useState<boolean>(!!afiliadoId);
   // Mes que cubre la mensualidad (AAAA-MM) y cuántos meses seguidos paga
   const [periodo, setPeriodo] = useState<string>(new Date().toISOString().slice(0, 7));
   const [mesesCubiertos, setMesesCubiertos] = useState<number>(1);
@@ -89,8 +95,9 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   const [mesesDeudaAfiliado, setMesesDeudaAfiliado] = useState<number>(0);
 
   useEffect(() => {
-    if (!open || !afiliadoId) return;
+    if (!open || !afiliadoId) { setCargandoSolvencia(false); return; }
     let vivo = true;
+    setCargandoSolvencia(true);
     fetch(`${API_URL}/api/pagos/solvencia/afiliado/${afiliadoId}`, { headers: authHeaders })
       .then(r => r.json())
       .then(json => {
@@ -102,7 +109,8 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         setOferta(json.data.oferta_anual ?? null);
         setMesesDeudaAfiliado(Number(json.data.meses_deuda) || 0);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (vivo) setCargandoSolvencia(false); });
     return () => { vivo = false; };
   }, [open, afiliadoId, authHeaders]);
 
@@ -177,6 +185,19 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
       .catch(err => console.error('Error cargando aranceles/tasas:', err))
       .finally(() => setLoadingAranceles(false));
   }, [open, conceptoDefault, afiliadoTipo, cursoPorCobrar, programaPorCobrar]);
+
+  // Meses preseleccionados hasta `hastaPeriodo`, una vez cargados los meses y los aranceles (que fijan el monto de 1 mes)
+  const [preseleccionado, setPreseleccionado] = useState(!hastaPeriodo);
+  useEffect(() => {
+    if (!open) { setPreseleccionado(!hastaPeriodo); return; }
+    // Sin los meses del afiliado aún, `lista` solo trae adelantos desde hoy: se espera a que lleguen
+    if (preseleccionado || loadingAranceles || cargandoSolvencia) return;
+    const n = lista.findIndex(m => m.periodo === hastaPeriodo) + 1;
+    if (n > 0) cambiarMeses(n);
+    setPreseleccionado(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se aplica una vez, con los datos ya cargados
+  }, [open, hastaPeriodo, loadingAranceles, cargandoSolvencia, lista]);
+  const listo = !loadingAranceles && !cargandoSolvencia && preseleccionado;
 
   // Actualizar montos en Bs al cambiar tasa o moneda
   const handleTasaChange = (val: string) => {
@@ -340,8 +361,22 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs overflow-y-auto min-h-0">
+        {/* Esqueleto del formulario: concepto, meses, total y forma de pago */}
+        {!listo && (
+          <div role="status" aria-label="Cargando meses y montos" className="p-6 space-y-4">
+            <Skeleton className="h-3 w-28" />
+            <div className="grid grid-cols-3 gap-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
+            <div className="flex gap-1.5">{[0, 1, 2].map(i => <Skeleton key={i} className="h-6 w-24 rounded-full" />)}</div>
+            <div className="grid grid-cols-4 gap-2">{Array.from({ length: 12 }, (_, i) => <Skeleton key={i} className="h-12 rounded-xl" />)}</div>
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-3 w-28" />
+            <div className="grid grid-cols-3 gap-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-10 rounded-xl" />)}</div>
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+        )}
+
+        {/* Form Body: oculto (no desmontado) hasta que meses, montos y preselección estén listos */}
+        <form onSubmit={handleSubmit} hidden={!listo} className="p-6 space-y-4 text-xs overflow-y-auto min-h-0">
           
           {programaPorCobrar ? (
             <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 space-y-1">
