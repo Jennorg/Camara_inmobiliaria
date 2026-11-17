@@ -1,8 +1,9 @@
 import Modal from '@/components/ui/Modal';
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Banknote, AlertTriangle } from 'lucide-react';
+import { X, Banknote, AlertTriangle } from 'lucide-react';
 import { API_URL } from '@/config/env';
 import { formatDateLatina } from '@/utils/formatters';
+import { Skeleton } from '@/components/Skeleton';
 import ModalCobroTaquilla, { type CursoPorCobrar } from './ModalCobroTaquilla';
 import type { PagoDTO, TipoConceptoPago } from '@/types/pagos';
 
@@ -153,7 +154,16 @@ const ModalRegistrarCobro: React.FC<Props> = ({ open, onClose, onCobrado, authHe
             </div>
 
             <div className="max-h-[50vh] overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100" aria-live="polite">
-              {loading && <div className="p-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-emerald-600" aria-label="Cargando" /></div>}
+              {loading && (
+                <div role="status" aria-label="Cargando" className="divide-y divide-slate-100">
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <div key={i} className="p-3 flex items-start justify-between gap-3">
+                      <div className="space-y-1.5 flex-1"><Skeleton className="h-4 w-48" /><Skeleton className="h-3 w-32" /></div>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              )}
               {!loading && error && <p className="p-4 text-sm text-red-600">{error}</p>}
 
               {!loading && !error && esCurso && cursosVisibles.length === 0 && <p className="p-6 text-center text-sm text-slate-500">No hay cursos pendientes de cobro.</p>}

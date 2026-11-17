@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { corregirMesSolvencia } from '@/utils/correccionesSolvencia'
-import { CheckCircle2, Clock, AlertCircle, CircleDashed, CalendarPlus, Loader2 } from 'lucide-react'
+import { CheckCircle2, Clock, AlertCircle, CircleDashed, CalendarPlus } from 'lucide-react'
+import { Skeleton } from '@/components/Skeleton'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
@@ -69,7 +70,14 @@ export default function LineaTiempoSolvencia({ idAfiliado }: { idAfiliado: numbe
   }, [idAfiliado, token])
 
   if (error) return <p className="text-xs font-medium text-red-500">No se pudo cargar la solvencia: {error}</p>
-  if (!data) return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-300" /></div>
+  if (!data) return (
+    <div role="status" aria-label="Cargando solvencia" className="space-y-3">
+      <Skeleton className="h-6 w-28 rounded-full" />
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="flex items-center gap-3"><Skeleton className="h-8 w-8 rounded-full" /><div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-28" /><Skeleton className="h-3 w-40" /></div></div>
+      ))}
+    </div>
+  )
 
   const meses = [...data.meses].reverse()
   return (

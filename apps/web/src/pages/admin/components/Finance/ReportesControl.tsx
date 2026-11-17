@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FileDown, FileSpreadsheet, Loader2, Send } from 'lucide-react'
+import { FileDown, FileSpreadsheet, Send } from 'lucide-react'
 import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
@@ -7,6 +7,7 @@ import autoTable from 'jspdf-autotable'
 import { dibujarEncabezadoPdf } from '@/utils/pdfEncabezado'
 import { API_URL } from '@/config/env'
 import { useAuth } from '@/context/AuthContext'
+import { Skeleton } from '@/components/Skeleton'
 
 const usd = (n: number) => `$${n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -52,8 +53,17 @@ function useReporte<T>(url: string | null) {
   return { data, error, recargar, authHeaders }
 }
 
+/** Esqueleto de un reporte (título, acciones y tabla) mientras llega; si falla, el error. */
 const Cargando = ({ error }: { error: string | null }) =>
-  error ? <p role="alert" className="p-6 text-sm text-red-600">{error}</p> : <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-slate-300" aria-label="Cargando" /></div>
+  error ? <p role="alert" className="p-6 text-sm text-red-600">{error}</p> : (
+    <div role="status" aria-label="Cargando reporte" className="space-y-4">
+      <div className="flex items-center justify-between gap-3"><Skeleton className="h-6 w-64" /><Skeleton className="h-8 w-40 rounded-xl" /></div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2.5">
+        <Skeleton className="h-6 w-full" />
+        {Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-5 w-full" />)}
+      </div>
+    </div>
+  )
 
 const BotonExcel = ({ onClick }: { onClick: () => void }) => (
   <button type="button" onClick={onClick}

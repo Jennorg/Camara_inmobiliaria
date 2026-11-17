@@ -2,7 +2,7 @@ import Modal from '@/components/ui/Modal'
 import { useEffect, useState } from 'react'
 import Swal from '@/lib/swal'
 import { toast } from 'sonner'
-import { CalendarPlus, Loader2, Receipt, X } from 'lucide-react'
+import { CalendarPlus, Receipt, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_URL } from '@/config/env'
 import { apiFetch } from '@/lib/apiClient'
@@ -10,6 +10,7 @@ import { formatDateLatina } from '@/utils/formatters'
 import type { PagoDTO } from '@/types/pagos'
 import LineaTiempoSolvencia from '@/components/LineaTiempoSolvencia'
 import ReciboDigitalModal, { getMetodoLabel } from '@/components/ReciboDigitalModal'
+import { Skeleton } from '@/components/Skeleton'
 
 type Pago = PagoDTO & { periodo?: string | null; meses_cubiertos?: number | null }
 
@@ -101,7 +102,11 @@ export default function ModalPagosAfiliado({ idAfiliado, nombre, representante, 
           <section aria-labelledby="titulo-historial" className="min-w-0">
             <h3 id="titulo-historial" className="mb-3 text-xs font-black uppercase tracking-wider text-slate-500">Historial de pagos</h3>
             {error ? <p className="text-sm font-medium text-red-600">No se pudieron cargar los pagos: {error}</p>
-              : !pagos ? <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-slate-300" aria-label="Cargando" /></div>
+              : !pagos ? (
+                <div role="status" aria-label="Cargando pagos" className="space-y-2">
+                  {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+                </div>
+              )
               : pagos.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm font-medium text-slate-500">Este afiliado no tiene pagos registrados.</p>
               : (
                 <ul className="space-y-2">

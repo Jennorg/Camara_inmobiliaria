@@ -226,6 +226,9 @@ export default function FinancePanel() {
     }
   }, [selectedYear, authHeaders])
 
+  // Mientras llega el resumen del año elegido, las tarjetas muestran esqueleto (no ceros ni cifras de otro año)
+  const cargandoVista = !resumen || resumen.periodo.anio !== selectedYear
+
   // Cifras del mes elegido (o del año completo si no hay mes)
   const vista = useMemo(
     () => (resumen ? (selectedMonth ? resumen.meses[selectedMonth - 1] : resumen.anual) : null),
@@ -632,6 +635,9 @@ export default function FinancePanel() {
                   <ArrowUpRight size={18} />
                 </div>
               </div>
+              {cargandoVista ? (
+                <div className="mt-3 space-y-1.5" aria-hidden="true"><Skeleton className="h-8 w-32" /><Skeleton className="h-3 w-24" /></div>
+              ) : (
               <div className="mt-3">
                 <span className="text-2xl font-black text-emerald-700 tabular-nums">
                   {fmt(vista?.kpis.totalIngresosUSD || 0)}
@@ -640,6 +646,7 @@ export default function FinancePanel() {
                   {vista?.kpis.conteoIngresos || 0} operaciones registradas
                 </p>
               </div>
+              )}
             </div>
 
             {/* Egresos */}
@@ -650,6 +657,9 @@ export default function FinancePanel() {
                   <ArrowDownRight size={18} />
                 </div>
               </div>
+              {cargandoVista ? (
+                <div className="mt-3 space-y-1.5" aria-hidden="true"><Skeleton className="h-8 w-32" /><Skeleton className="h-3 w-24" /></div>
+              ) : (
               <div className="mt-3">
                 <span className="text-2xl font-black text-slate-700 tabular-nums">
                   {fmt(vista?.kpis.totalEgresosUSD || 0)}
@@ -658,6 +668,7 @@ export default function FinancePanel() {
                   {vista?.kpis.conteoEgresos || 0} gastos operativos
                 </p>
               </div>
+              )}
             </div>
 
             {/* Flujo Neto */}
@@ -670,6 +681,9 @@ export default function FinancePanel() {
                   <TrendingUp size={18} />
                 </div>
               </div>
+              {cargandoVista ? (
+                <div className="mt-3 space-y-1.5" aria-hidden="true"><Skeleton className="h-8 w-32" /><Skeleton className="h-3 w-24" /></div>
+              ) : (
               <div className="mt-3">
                 <span className={`text-2xl font-black tabular-nums ${
                   (vista?.kpis.flujoNetoUSD || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'
@@ -680,6 +694,7 @@ export default function FinancePanel() {
                   {(vista?.kpis.flujoNetoUSD || 0) >= 0 ? 'Balance positivo' : 'Déficit en el periodo'}
                 </p>
               </div>
+              )}
             </div>
           </div>
 

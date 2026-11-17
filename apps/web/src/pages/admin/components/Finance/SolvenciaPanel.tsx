@@ -1,6 +1,7 @@
 import MenuEmergente from '@/components/ui/MenuEmergente'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Plus, Search, X } from 'lucide-react'
+import { CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react'
+import { Skeleton } from '@/components/Skeleton'
 import Swal from '@/lib/swal'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -173,7 +174,22 @@ export default function SolvenciaPanel() {
     }
   }
 
-  if (!data) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-slate-300" /></div>
+  // Esqueleto de la matriz: encabezado, filtros y filas de afiliados con sus 12 casillas
+  if (!data) return (
+    <div role="status" aria-label="Cargando solvencia" className="p-4 sm:p-6 space-y-5">
+      <div className="flex flex-wrap gap-3"><Skeleton className="h-10 w-56 rounded-xl" /><Skeleton className="h-10 w-72 rounded-xl" /><Skeleton className="h-10 w-40 rounded-xl" /></div>
+      <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-4 w-44" />
+            <div className="flex gap-2 flex-1 justify-center">{Array.from({ length: 12 }, (_, j) => <Skeleton key={j} className="h-6 w-6 rounded-md" />)}</div>
+            <Skeleton className="h-4 w-14" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 
   const enMora = data.afiliados.filter(a => !a.solvente)
   const deudaTotal = enMora.reduce((t, a) => t + a.deuda_usd, 0)

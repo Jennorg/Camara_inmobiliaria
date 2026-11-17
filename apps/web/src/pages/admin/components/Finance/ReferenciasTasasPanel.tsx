@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import Swal from '@/lib/swal';
 import type { ReferenciasSnapshotDTO, HistorialTasaDTO } from '@/types/tasas';
+import { Skeleton } from '@/components/Skeleton';
 
 export default function ReferenciasTasasPanel() {
   const { authHeaders, puede } = useAuth();
@@ -28,6 +29,7 @@ export default function ReferenciasTasasPanel() {
   // Estados de datos
   const [snapshot, setSnapshot] = useState<ReferenciasSnapshotDTO | null>(null);
   const [historial, setHistorial] = useState<HistorialTasaDTO[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(true);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -70,6 +72,8 @@ export default function ReferenciasTasasPanel() {
       }
     } catch (err: any) {
       console.error('Error cargando historial:', err);
+    } finally {
+      setCargandoHistorial(false);
     }
   }, [authHeaders]);
 
@@ -256,9 +260,11 @@ export default function ReferenciasTasasPanel() {
 
           <div>
             <div className="flex items-baseline gap-2">
+              {loading ? <Skeleton className="h-9 w-40" /> : (
               <span className="text-3xl font-black font-mono text-slate-900" data-testid="valor-tasa-bcv">
                 Bs. {tasaBcvNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
+              )}
               <span className="text-xs font-bold text-slate-400 uppercase">/ USD</span>
             </div>
             <div className="mt-2 text-[11px] text-slate-500 space-y-0.5">
@@ -316,9 +322,11 @@ export default function ReferenciasTasasPanel() {
 
           <div>
             <div className="flex items-baseline gap-2">
+              {loading ? <Skeleton className="h-9 w-40" /> : (
               <span className="text-3xl font-black font-mono text-slate-900" data-testid="valor-tasa-usdt">
                 Bs. {tasaUsdtNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
+              )}
               <span className="text-xs font-bold text-slate-400 uppercase">/ USDT</span>
             </div>
             <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between flex-wrap gap-1">
@@ -418,7 +426,11 @@ export default function ReferenciasTasasPanel() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {historialFiltrado.length === 0 ? (
+              {cargandoHistorial ? (
+                Array.from({ length: 6 }, (_, i) => (
+                  <tr key={i} aria-hidden="true"><td colSpan={5} className="p-3"><Skeleton className="h-5 w-full" /></td></tr>
+                ))
+              ) : historialFiltrado.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-4 text-center text-slate-400">
                     Ninguna cotización coincide con los filtros elegidos.
