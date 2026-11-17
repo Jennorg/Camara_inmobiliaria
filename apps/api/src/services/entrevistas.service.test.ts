@@ -21,6 +21,7 @@ beforeEach(async () => {
     `INSERT INTO afiliados VALUES (1, 10, NULL, '2_EXPEDIENTE', NULL, NULL)`,
     `INSERT INTO inscripciones_cursos VALUES (1, 1, NULL, 'AFILIACION', 'Preinscrito', NULL)`,
     `INSERT INTO inscripciones_cursos VALUES (2, 1, NULL, 'AFILIACION', 'Inscrito', NULL)`,
+    `INSERT INTO inscripciones_cursos VALUES (3, 1, NULL, 'CIBIR', 'Inscrito', NULL)`,
   ])
   await asegurarEsquemaAgenda(db)
 })
@@ -56,6 +57,14 @@ describe('agendarEntrevista', () => {
   })
 
   it('una inscripción que no está en Preinscrito ni Entrevista lanza el error 404', async () => {
+    await expect(agendarEntrevista(db, 3, datos)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('en la afiliación manda la etapa: inscripción desfasada en Inscrito con el afiliado en Expediente se agenda', async () => {
+    const { row } = await agendarEntrevista(db, 2, datos)
+    expect(row.estatus).toBe('Entrevista')
+    await db.execute(`UPDATE afiliados SET estatus = '5_CIBIR'`)
+    await db.execute(`UPDATE inscripciones_cursos SET estatus = 'Inscrito' WHERE id_inscripcion = 2`)
     await expect(agendarEntrevista(db, 2, datos)).rejects.toMatchObject({ status: 404 })
   })
 })

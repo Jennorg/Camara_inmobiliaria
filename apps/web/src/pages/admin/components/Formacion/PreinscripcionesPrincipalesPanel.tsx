@@ -132,6 +132,23 @@ const etapaAcred = (r: Pick<Row, 'estatus' | 'afiliado_estatus' | 'num_documento
 }
 const tipoAcred = (t?: string | null) => (t === 'Corporativo' ? 'Corporativo' : t === 'Agente Corporativo' || t === 'Agente' ? 'Agente Corp.' : 'Agente Indep.')
 
+/**
+ * Bloque de acciones que toca a la fila. En la afiliación lo decide la etapa del afiliado (la inscripción puede quedar
+ * desfasada): expediente y verificación deciden, entrevista da veredicto, CIBIR aprueba, inscripción cobra. Igual que el backend.
+ */
+type BloqueAcciones = 'Preinscrito' | 'Entrevista' | 'CIBIR' | 'Inscripcion' | null
+const ETAPA_A_BLOQUE: Record<string, BloqueAcciones> = {
+  '1_PREINSCRIPCION': 'Preinscrito', '2_EXPEDIENTE': 'Preinscrito', '4_VERIFICACION': 'Preinscrito',
+  '3_ENTREVISTA': 'Entrevista', '5_CIBIR': 'CIBIR', '6_INSCRIPCION': 'Inscripcion',
+}
+const bloqueAcciones = (r: Pick<Row, 'programa_codigo' | 'estatus' | 'afiliado_estatus'>): BloqueAcciones => {
+  if (r.programa_codigo === 'AFILIACION' && !['Rechazado', 'Cancelado'].includes(r.estatus) && ETAPA_A_BLOQUE[r.afiliado_estatus ?? '']) {
+    return ETAPA_A_BLOQUE[r.afiliado_estatus!]
+  }
+  if (r.afiliado_estatus === '5_CIBIR') return 'CIBIR'
+  return r.estatus === 'Preinscrito' ? 'Preinscrito' : r.estatus === 'Entrevista' ? 'Entrevista' : null
+}
+
 const UI_ESTATUS = ['Todos', 'Sin Expediente', 'Pendiente', 'Entrevista', 'Inscrito', 'Aprobado', 'Rechazado'] as const
 
 /**
@@ -1753,7 +1770,7 @@ export default function PreinscripcionesPrincipalesPanel({
               </div>
             ) : (
               <div className="bg-white rounded-2xl p-5 border border-gray-100 flex flex-col gap-3 mb-4">
-                {selected.estatus === 'Preinscrito' && selected.afiliado_estatus !== '5_CIBIR' && (
+                {bloqueAcciones(selected) === 'Preinscrito' && (
                   <div className="w-full">
                     {selected.num_documentos && selected.num_documentos > 0 ? (
                       <>
@@ -1902,7 +1919,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   </div>
                 )}
 
-                {selected.estatus === 'Entrevista' && (
+                {bloqueAcciones(selected) === 'Entrevista' && (
                   <div className="flex flex-col gap-3">
                     <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">Entrevista: {formatDateLatina(selected.entrevista_fecha)} @ {selected.entrevista_hora}</div>
                     <div className="flex gap-2">
@@ -1924,7 +1941,7 @@ export default function PreinscripcionesPrincipalesPanel({
                   </div>
                 )}
 
-                {selected.afiliado_estatus === '5_CIBIR' && (
+                {bloqueAcciones(selected) === 'CIBIR' && (
                   <div className="flex flex-col gap-2">
                     <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Acciones de CIBIR</span>
                     <button
@@ -1950,9 +1967,8 @@ export default function PreinscripcionesPrincipalesPanel({
                 {(() => {
                   // Ya aprobado: lo único que falta es cobrar (mismo modal que el bloque de Cobros)
                   const r = selected
-                  const clave = r.estatus !== 'Inscrito' ? null
-                    : r.programa_codigo === 'AFILIACION' && r.id_afiliado && r.afiliado_estatus === '6_INSCRIPCION' ? 'formalizacion_afiliacion' as const
-                    : ['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && !r.pago_programa && Number(r.completado) !== 1 ? 'programa' as const
+                  const clave = r.programa_codigo === 'AFILIACION' && r.id_afiliado && bloqueAcciones(r) === 'Inscripcion' ? 'formalizacion_afiliacion' as const
+                    : r.estatus === 'Inscrito' && ['PREANI', 'PEGI', 'PADI'].includes(r.programa_codigo) && !r.pago_programa && Number(r.completado) !== 1 ? 'programa' as const
                     : null
                   if (!clave) return null
                   return (
