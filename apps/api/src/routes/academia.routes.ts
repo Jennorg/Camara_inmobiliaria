@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth, requirePermiso } from '../middlewares/auth.middleware.js'
+import { requireAlgunPermiso, requireAuth, requirePermiso } from '../middlewares/auth.middleware.js'
 import {
   adminAsignarEstudianteACurso,
   adminAgendarEntrevista,
@@ -49,6 +49,8 @@ router.use(requireAuth)
 const F = (accion?: 'ver' | 'crear' | 'editar' | 'eliminar') => requirePermiso('formacion', accion)
 const P = (accion?: 'ver' | 'crear' | 'editar' | 'eliminar') => requirePermiso('preinscripciones', accion)
 const E = (accion?: 'ver' | 'crear' | 'editar' | 'eliminar') => requirePermiso('estudiantes', accion)
+// Los soportes del expediente se gestionan desde Preinscripciones y Formación, no solo desde Estudiantes.
+const DOC = () => requireAlgunPermiso(['estudiantes', 'preinscripciones', 'formacion'])
 
 // GET /api/academia/cursos?estatus=Abierto&programaCodigo=PADI
 router.get('/cursos', F(), adminListCursos)
@@ -69,9 +71,9 @@ router.get('/estudiantes', E(), adminListEstudiantes)
 router.get('/estudiantes/:id', E(), adminGetEstudiante)
 
 // GET /api/academia/estudiantes/:id/documentos
-router.get('/estudiantes/:id/documentos', E(), adminGetEstudianteDocumentos)
-router.post('/estudiantes/:id/documentos', E(), adminAgregarEstudianteDocumento)
-router.delete('/estudiantes/:id/documentos/:idDocumento', E(), adminQuitarEstudianteDocumento)
+router.get('/estudiantes/:id/documentos', DOC(), adminGetEstudianteDocumentos)
+router.post('/estudiantes/:id/documentos', DOC(), adminAgregarEstudianteDocumento)
+router.delete('/estudiantes/:id/documentos/:idDocumento', DOC(), adminQuitarEstudianteDocumento)
 
 // POST /api/academia/cursos/:id_curso/asignar
 router.post('/cursos/:id_curso/asignar', F(), adminAsignarEstudianteACurso)

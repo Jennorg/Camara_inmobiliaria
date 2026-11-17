@@ -118,6 +118,18 @@ describe('academia: permisos por sección', () => {
     expect((await llamar(m, url, token(['estudiante']))).status).toBe(403)
   })
 
+  it('los documentos del expediente también se gestionan con preinscripciones o formacion', async () => {
+    const docs: [string, string, Accion][] = [
+      ['get', `${A}/estudiantes/1/documentos`, 'ver'],
+      ['post', `${A}/estudiantes/1/documentos`, 'crear'],
+      ['delete', `${A}/estudiantes/1/documentos/2`, 'eliminar'],
+    ]
+    for (const [m, url, a] of docs) for (const s of ['preinscripciones', 'formacion']) {
+      expect((await llamar(m, url, token([`solo_${a}_${s}`]))).status, `${s} ${m} ${url}`).toBe(200)
+      expect((await llamar(m, url, token([`sin_${a}_${s}`]))).status, `${s} ${m} ${url}`).toBe(403)
+    }
+  })
+
   it('el staff conserva su acceso: todo menos los deletes que eran solo admin (cursos, inscripciones, profesores)', async () => {
     const soloAdmin = ['/cursos/1', '/inscripciones/1', '/profesores/1'].map(p => `delete ${A}${p}`)
     for (const [m, url] of RUTAS) {
