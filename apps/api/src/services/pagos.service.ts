@@ -189,6 +189,28 @@ export function asegurarArancelAnual(): Promise<void> {
   })().catch(e => { arancelAnualListo = null; throw e; }));
 }
 
+export interface OfertaAnual { anio: number; monto: number; fecha_limite: string }
+
+/**
+ * Pronto pago del año: solo el año en curso, mientras hoy (Caracas) no pase la fecha límite (inclusive) y esa fecha sea
+ * del mismo año. Null si no está configurado, ya venció o la fecha límite es de otro año.
+ */
+export async function ofertaAnual(hoy = hoyCaracas()): Promise<OfertaAnual | null> {
+  await asegurarArancelAnual();
+  const r = await db.execute({ sql: `SELECT monto_usd, fecha_limite FROM aranceles_config WHERE codigo = ? AND activo = 1`, args: [ARANCEL_ANUAL] });
+  const monto = Number(r.rows[0]?.monto_usd);
+  const fecha = String(r.rows[0]?.fecha_limite ?? '');
+  if (!(monto > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(fecha) || hoy > fecha || fecha.slice(0, 4) !== hoy.slice(0, 4)) return null;
+  return { anio: Number(hoy.slice(0, 4)), monto, fecha_limite: fecha };
+}
+
+/** Precio de `meses` cuotas seguidas desde `periodo`: si cubren enero–diciembre del año en oferta, ese año va al precio anual. */
+export function precioMensualidades(periodo: string, meses: number, cuota: number, oferta: OfertaAnual | null): number {
+  const hasta = sumarMeses(periodo, meses - 1);
+  const anioCompleto = !!oferta && periodo <= `${oferta.anio}-01` && hasta >= `${oferta.anio}-12`;
+  return anioCompleto ? cuota * (meses - 12) + oferta!.monto : cuota * meses;
+}
+
 /** Error de validación del año adelantado, o null si es válido. */
 export function validarArancelAnual(montoAnual: number, fechaLimite: unknown, cuotaMensual: number): string | null {
   if (!(montoAnual > 0)) return 'El monto del año adelantado debe ser mayor a 0';
@@ -266,7 +288,7 @@ const TOLERANCIA_USD = 0.5;
  * Monto mínimo que debe cubrir un pago según su concepto (formalización, CIBIR o mensualidades). Devuelve null si el
  * concepto no tiene un monto fijo por afiliado (cursos, programas, otros).
  */
-export async function montoEsperadoUsd(params: { tipo_concepto: string; id_afiliado?: number | null; meses_cubiertos?: number | null }): Promise<number | null> {
+export async function montoEsperadoUsd(params: { tipo_concepto: string; id_afiliado?: number | null; meses_cubiertos?: number | null; conOfertaAnual?: boolean }): Promise<number | null> {
   if (!params.id_afiliado) return null;
   if (params.tipo_concepto === 'formalizacion_afiliacion') {
     const a = await db.execute({ sql: `SELECT tipo_afiliado FROM afiliados WHERE id_afiliado = ?`, args: [params.id_afiliado] });
@@ -281,13 +303,16 @@ export async function montoEsperadoUsd(params: { tipo_concepto: string; id_afili
   }
   if (params.tipo_concepto === 'mensualidad') {
     const meses = Math.max(1, Math.trunc(Number(params.meses_cubiertos) || 1));
-    return monto('mensualidad_base') * meses || null;
+    // El pago se aplica desde el mes impago más antiguo (lo fija el servidor al guardarlo): se valora ese mismo rango.
+    // El pronto pago del año (precio anual) solo lo registra la administración en caja; el afiliado adelanta a cuota normal.
+    const desde = await mesMasAntiguoImpago(params.id_afiliado);
+    return precioMensualidades(desde, meses, monto('mensualidad_base'), params.conOfertaAnual ? await ofertaAnual() : null) || null;
   }
   return null;
 }
 
 /** Mensaje de error si el pago no cubre el arancel de su concepto; null si está bien. */
-export async function validarMontoArancel(params: { tipo_concepto: string; id_afiliado?: number | null; meses_cubiertos?: number | null; monto_usd: number }): Promise<{ esperado: number } | null> {
+export async function validarMontoArancel(params: { tipo_concepto: string; id_afiliado?: number | null; meses_cubiertos?: number | null; monto_usd: number; conOfertaAnual?: boolean }): Promise<{ esperado: number } | null> {
   const esperado = await montoEsperadoUsd(params);
   return esperado !== null && params.monto_usd + TOLERANCIA_USD < esperado ? { esperado } : null;
 }

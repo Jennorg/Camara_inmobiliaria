@@ -79,7 +79,9 @@ export default function EstadoCuentaAfiliado({ idAfiliado, onReportado }: Props)
   if (error) return <p className="p-6 text-sm font-medium text-red-600">No se pudo cargar tu estado de cuenta: {error}</p>
   if (!data) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-slate-400" aria-label="Cargando" /></div>
 
+  // Adelantar meses es a cuota normal: el pronto pago del año solo lo registra la administración en caja
   const total = sel * data.monto_mensual
+  const alDia = lista.filter(m => m.estado !== 'futuro').length
   const enRevision = data.meses.filter(m => m.estado === 'en_revision').length
   const hastaAdelantado = [...data.meses].reverse().find(m => m.estado === 'adelantado')?.periodo
   // Estado actual: la mora real manda; sin deuda, un pago en revisión es una espera (no una alarma) y si no, está al día
@@ -158,6 +160,12 @@ export default function EstadoCuentaAfiliado({ idAfiliado, onReportado }: Props)
               <button type="button" onClick={() => setSel(deudas)}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors">
                 <Wallet size={14} aria-hidden="true" /> Seleccionar toda la deuda ({usd(deudas * data.monto_mensual)})
+              </button>
+            )}
+            {alDia > deudas && (
+              <button type="button" onClick={() => setSel(alDia)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                <Wallet size={14} aria-hidden="true" /> Ponerme al día ({usd(alDia * data.monto_mensual)})
               </button>
             )}
           </div>

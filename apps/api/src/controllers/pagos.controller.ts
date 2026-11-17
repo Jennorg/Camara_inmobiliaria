@@ -469,7 +469,7 @@ export const adminCobroTaquilla = async (req: Request, res: Response): Promise<v
     if (!req.body.autorizar_monto_menor) {
       const insuficiente = await pagosService.validarMontoArancel({
         tipo_concepto: tipo_concepto || 'formalizacion_afiliacion', id_afiliado: id_afiliado ? Number(id_afiliado) : null,
-        meses_cubiertos: meses_cubiertos ? Number(meses_cubiertos) : null, monto_usd: Number(monto_usd_equivalente || monto),
+        meses_cubiertos: meses_cubiertos ? Number(meses_cubiertos) : null, monto_usd: Number(monto_usd_equivalente || monto), conOfertaAnual: true,
       });
       if (insuficiente) {
         res.status(409).json({ success: false, code: 'MONTO_MENOR_ARANCEL', esperado: insuficiente.esperado, message: `El monto es menor al arancel ($${insuficiente.esperado.toFixed(2)}).` });

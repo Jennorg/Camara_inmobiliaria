@@ -3,7 +3,7 @@ import { db } from '../lib/db.js'
 import { puedeAccederAfiliado } from '../middlewares/auth.middleware.js'
 import { calcularSolvencias, emitirConstanciaSolvencia, enviarRecordatorioManual, setConfigSolvencia, verificarConstanciaSolvencia } from '../services/cobranza.service.js'
 import { sincerarAnioAfiliado } from '../services/cuotas-importadas.service.js'
-import { ARANCEL_ANUAL, asegurarArancelAnual } from '../services/pagos.service.js'
+import { ARANCEL_ANUAL, asegurarArancelAnual, ofertaAnual } from '../services/pagos.service.js'
 
 /** GET /api/pagos/solvencia/afiliado/:idAfiliado — admin, o el propio afiliado */
 export const getSolvenciaAfiliado = async (req: Request, res: Response): Promise<void> => {
@@ -35,6 +35,7 @@ export const getSolvenciaAfiliado = async (req: Request, res: Response): Promise
         inicio,
         mes_actual: hoy.slice(0, 7),
         monto_mensual: montoMensual,
+        oferta_anual: await ofertaAnual(hoy),
         dia_vencimiento: cobranza.diaVencimiento,
         meses_gracia: cobranza.mesesGracia,
         solvente: s.mesesDeuda === 0,

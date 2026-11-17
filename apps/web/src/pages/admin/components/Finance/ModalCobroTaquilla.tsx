@@ -5,7 +5,7 @@ import { BinanceIcon } from '@/components/icons/BinanceIcon';
 import { API_URL } from '@/config/env';
 import { MetodoPago, TipoConceptoPago, PagoDTO } from '@/types/pagos';
 import Swal from '@/lib/swal';
-import SelectorMesesPago, { mesesPagables } from '@/pages/landing/afiliado/components/SelectorMesesPago';
+import SelectorMesesPago, { cubreAnioOferta, mesesPagables, totalMeses, type OfertaAnual } from '@/pages/landing/afiliado/components/SelectorMesesPago';
 
 /** Inscripción a un curso de pago que se cobra en taquilla (puede ser de alguien sin afiliación). */
 export interface CursoPorCobrar {
@@ -81,9 +81,10 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
   // La mensualidad se aplica al mes impago más antiguo: el servidor lo decide y aquí se muestra
   const [mesesSolv, setMesesSolv] = useState<{ periodo: string; estado: string }[]>([]);
   const lista = useMemo(() => mesesPagables(mesesSolv), [mesesSolv]);
+  const [oferta, setOferta] = useState<OfertaAnual | null>(null);
   const cambiarMeses = (n: number) => {
     setMesesCubiertos(n);
-    handleMontoUSDChange(montoMensual * n);
+    handleMontoUSDChange(totalMeses(lista, n, montoMensual, oferta));
   };
   const [mesesDeudaAfiliado, setMesesDeudaAfiliado] = useState<number>(0);
 
@@ -98,6 +99,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
           ?? (json.data.meses as { periodo: string; estado: string }[]).find(m => m.estado === 'por_pagar');
         if (impago) setPeriodo(impago.periodo);
         setMesesSolv(json.data.meses);
+        setOferta(json.data.oferta_anual ?? null);
         setMesesDeudaAfiliado(Number(json.data.meses_deuda) || 0);
       })
       .catch(() => {});
@@ -237,7 +239,7 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
         descConcepto = `Arancel del programa ${programaPorCobrar.nombre}`;
       } else if (tipoConcepto === 'mensualidad') {
         descConcepto = mesesCubiertos > 1
-          ? `Cuotas Mensuales de Membresía Gremial (${mesesCubiertos} meses desde ${periodo})`
+          ? `Cuotas Mensuales de Membresía Gremial (${mesesCubiertos} meses desde ${periodo}${cubreAnioOferta(lista, mesesCubiertos, oferta) ? `, año ${oferta!.anio} adelantado` : ''})`
           : `Cuota Mensual de Membresía Gremial (${periodo})`;
       }
 
@@ -411,11 +413,11 @@ export const ModalCobroTaquilla: React.FC<ModalCobroTaquillaProps> = ({
 
             {tipoConcepto === 'mensualidad' && (
               <div className="pt-2">
-                <SelectorMesesPago lista={lista} meses={mesesCubiertos} onChange={cambiarMeses} />
+                <SelectorMesesPago lista={lista} meses={mesesCubiertos} onChange={cambiarMeses} cuota={montoMensual} oferta={oferta} />
                 <span className="mt-1 block text-[11px] font-medium text-slate-500">
                   {mesesDeudaAfiliado > 0
                     ? `Se aplica a la deuda más antigua (${mesesDeudaAfiliado} ${mesesDeudaAfiliado === 1 ? 'mes' : 'meses'} en mora).`
-                    : 'Está al día: lo que pase de hoy queda como adelanto.'} Total: ${(montoMensual * mesesCubiertos).toFixed(2)}
+                    : 'Está al día: lo que pase de hoy queda como adelanto.'} Total: ${totalMeses(lista, mesesCubiertos, montoMensual, oferta).toFixed(2)}
                 </span>
               </div>
             )}

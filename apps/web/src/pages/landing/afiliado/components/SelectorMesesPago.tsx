@@ -5,12 +5,29 @@ export interface MesPagable {
   estado: 'deuda' | 'por_pagar' | 'futuro';
 }
 
+/** Año adelantado que ofrece hoy la Cámara (lo calcula el servidor: GET solvencia → oferta_anual) */
+export interface OfertaAnual { anio: number; monto: number; fecha_limite: string }
+
 interface Props {
   lista: MesPagable[];
   /** Cantidad de meses seleccionados, siempre desde el primero de la lista */
   meses: number;
   onChange: (meses: number) => void;
+  /** Cuota mensual y oferta del año adelantado, para los atajos y el desglose del precio */
+  cuota?: number;
+  oferta?: OfertaAnual | null;
 }
+
+/** ¿Los primeros `n` meses de la lista cubren enero–diciembre del año en oferta? (misma regla que el servidor) */
+export const cubreAnioOferta = (lista: MesPagable[], n: number, oferta?: OfertaAnual | null) =>
+  !!oferta && n > 0 && lista[0].periodo <= `${oferta.anio}-01` && lista[n - 1].periodo >= `${oferta.anio}-12`;
+
+/** Total de los primeros `n` meses: el año en oferta, si se paga completo, va al precio anual. */
+export const totalMeses = (lista: MesPagable[], n: number, cuota: number, oferta?: OfertaAnual | null) =>
+  cubreAnioOferta(lista, n, oferta) ? cuota * (n - 12) + oferta!.monto : cuota * n;
+
+const usd = (n: number) => `$${n.toFixed(2)}`;
+const fechaCorta = (iso: string) => iso.split('-').reverse().join('/');
 
 export const sumarMeses = (ym: string, n: number) =>
   new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1)).toISOString().slice(0, 7);
@@ -42,11 +59,17 @@ const mesLargo = (ym: string) => fecha(ym).toLocaleDateString('es-VE', { month: 
  * Calendario de pago: el pago se aplica siempre desde el mes pendiente más antiguo, así que al tocar
  * un mes se seleccionan también todos los anteriores; tocar el último seleccionado lo quita.
  */
-export default function SelectorMesesPago({ lista, meses, onChange }: Props) {
+export default function SelectorMesesPago({ lista, meses, onChange, cuota = 0, oferta }: Props) {
   if (lista.length === 0) return null;
   const deudas = lista.filter(m => m.estado === 'deuda').length;
   const sel = lista.slice(0, meses);
   const anios = [...new Set(lista.map(m => m.periodo.slice(0, 4)))];
+  // Atajos: ponerse al día (hasta el mes actual) y pagar todo el año en oferta
+  const alDia = lista.filter(m => m.estado !== 'futuro').length;
+  const finAnio = oferta ? lista.findIndex(m => m.periodo === `${oferta.anio}-12`) + 1 : 0;
+  const ofertaDisponible = finAnio > 0 && cubreAnioOferta(lista, finAnio, oferta);
+  const conAnual = cubreAnioOferta(lista, meses, oferta);
+  const ahorro = oferta ? cuota * 12 - oferta.monto : 0;
 
   return (
     <div className="space-y-3">
@@ -57,6 +80,18 @@ export default function SelectorMesesPago({ lista, meses, onChange }: Props) {
             <button type="button" onClick={() => onChange(deudas)} aria-pressed={meses === deudas}
               className="px-2.5 py-1 rounded-full border border-red-200 bg-red-50 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors">
               Toda la deuda ({deudas})
+            </button>
+          )}
+          {alDia > deudas && (
+            <button type="button" onClick={() => onChange(alDia)} aria-pressed={meses === alDia}
+              className="px-2.5 py-1 rounded-full border border-slate-300 bg-white text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+              Ponerme al día ({alDia})
+            </button>
+          )}
+          {ofertaDisponible && (
+            <button type="button" onClick={() => onChange(finAnio)} aria-pressed={meses === finAnio}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-teal-300 bg-teal-50 text-[11px] font-bold text-teal-800 hover:bg-teal-100 transition-colors">
+              <CalendarPlus size={11} aria-hidden="true" /> Todo {oferta!.anio}{ahorro > 0 && ` (ahorras ${usd(ahorro)})`}
             </button>
           )}
           {meses > 0 && (
@@ -111,6 +146,14 @@ export default function SelectorMesesPago({ lista, meses, onChange }: Props) {
           </div>
         ))}
       </div>
+
+      {oferta && ofertaDisponible && (
+        <p className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${conAnual ? 'border-teal-300 bg-teal-50 text-teal-900' : 'border-slate-200 bg-white text-slate-600'}`}>
+          {conAnual
+            ? <>Año {oferta.anio} adelantado aplicado: <strong>{usd(oferta.monto)}</strong> en vez de {usd(cuota * 12)}{sel.length > 12 && <> + {sel.length - 12} {sel.length - 12 === 1 ? 'mes' : 'meses'} a {usd(cuota)}</>}.</>
+            : <>Pagando enero–diciembre de {oferta.anio} hasta el {fechaCorta(oferta.fecha_limite)}, el año cuesta {usd(oferta.monto)} en vez de {usd(cuota * 12)}.</>}
+        </p>
+      )}
 
       <p role="status" className="text-xs font-semibold text-slate-700 min-h-4">
         {sel.length > 0
